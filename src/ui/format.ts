@@ -9,6 +9,24 @@ export function publishedLabel(publishedAt: string, now = Date.now()): string {
   return new Date(publishedAt).toLocaleDateString()
 }
 
+export function formatClockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+// Quota resets at midnight Pacific (youtube-api.md); shown in local time.
+export function quotaResetLocalTime(): string {
+  const now = new Date()
+  const pacific = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  }).format(now)
+  const [hours, minutes] = pacific.split(':').map(Number)
+  const untilMidnightMin = 24 * 60 - (hours * 60 + minutes)
+  return formatClockTime(new Date(now.getTime() + untilMidnightMin * 60_000).toISOString())
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

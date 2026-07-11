@@ -95,7 +95,7 @@ function toEntry(row: FeedRow): FeedEntry {
 export class SqliteFeedRepository implements FeedRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  listPage(view: FeedView, cursor: FeedCursor | null, limit: number): FeedPage {
+  listPage(view: FeedView, cursor: FeedCursor | null, limit: number, channelId?: string): FeedPage {
     const afterCursor = cursor
       ? `AND (
            v.published_at < :pub
@@ -103,14 +103,17 @@ export class SqliteFeedRepository implements FeedRepository {
            OR (c.title = :ct AND v.video_id > :vid)))
          )`
       : ''
-    const params: Record<string, SQLInputValue> = cursor
-      ? { pub: cursor.publishedAt, ct: cursor.channelTitle, vid: cursor.videoId, limit }
-      : { limit }
+    const byChannel = channelId !== undefined ? `AND v.channel_id = :channelId` : ''
+    const params: Record<string, SQLInputValue> = {
+      limit,
+      ...(cursor ? { pub: cursor.publishedAt, ct: cursor.channelTitle, vid: cursor.videoId } : {}),
+      ...(channelId !== undefined ? { channelId } : {})
+    }
 
     const rows = this.db
       .prepare(
         `${FEED_SELECT}
-         WHERE ${VIEW_PREDICATES[view]} AND ${NOT_SHORT} ${afterCursor}
+         WHERE ${VIEW_PREDICATES[view]} AND ${NOT_SHORT} ${byChannel} ${afterCursor}
          ${FEED_ORDER}
          LIMIT :limit`
       )
@@ -161,6 +164,21 @@ export class SqliteFeedRepository implements FeedRepository {
       )
       .get(params) as { n: number | bigint }
     return Number(row.n)
+  }
+
+  listFollowedChannels(): Channel[] {
+    const rows = this.db
+      .prepare(
+        `SELECT channel_id, title, thumbnail_url FROM channels
+         WHERE subscribed = 1
+         ORDER BY title COLLATE NOCASE ASC`
+      )
+      .all() as unknown as { channel_id: string; title: string; thumbnail_url: string | null }[]
+    return rows.map((row) => ({
+      channelId: row.channel_id,
+      title: row.title,
+      thumbnailUrl: row.thumbnail_url
+    }))
   }
 }
 

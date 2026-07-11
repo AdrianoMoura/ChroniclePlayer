@@ -121,16 +121,18 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 
 ## Current state of the repository
 
-**M0 + M1 implemented on 2026-07-11** — stack: Electron (D-005) + React/TypeScript
-(D-009) via electron-vite, **node:sqlite** (D-034 as amended — no native modules), npm
-(D-034 — the product owner uses npm, never pnpm). Layers per `architecture.md` (`core/`,
-`ipc/`, `adapters/storage/`, `platform/`, `ui/`), boundaries enforced by
-dependency-cruiser in `npm run lint`. M1 data spine is in: repositories over schema v1
-with keyset pagination (D-027), D-010 state transitions, unread/caught-up accounting,
-five views, virtualized feed UI with keyboard map v1 and inline undo — all offline
-against deterministic dev fixtures (auto-seeded into an empty dev DB). Storage SQL is
-contract-tested against core predicates in Vitest (in-memory DB). Shorts remain excluded
-unconditionally (D-028). No CI yet — deliberately: a full pipeline (checks + release +
-binaries) is planned with M5; run `npm run typecheck && npm run lint && npm test`
-locally before committing. Next: M2 — OAuth + real data (the risk milestone), plus
-macOS/Windows verification pending from M0 (see `.specs/roadmap.md`).
+**M0 + M1 + M2(code) implemented on 2026-07-11** — stack: Electron (D-005) +
+React/TypeScript (D-009) via electron-vite, **node:sqlite** (D-034 as amended — no
+native modules), npm (D-034 — the product owner uses npm, never pnpm). Layers per
+`architecture.md`, boundaries enforced by dependency-cruiser in `npm run lint`. In:
+data spine (schema v1 repositories, keyset pagination D-027, D-010 states, five views,
+virtualized keyboard-first feed UI); the full M2 machinery — OAuth PKCE + loopback,
+safeStorage-backed secret store (D-013), YouTube API + RSS clients, hybrid SyncService
+(D-007) with per-channel isolation + gap backfill + Shorts pipeline (D-028), quota
+accounting, 30-min refresh timer (D-016), startup connection validation (D-012),
+backend→UI events, connect panel + banners + sidebar channel list; `docs/setup.md`.
+Everything contract-tested offline (in-memory SQLite, fake fetch — never the real API).
+Dev fixtures now require `CHRONICLE_FIXTURES=1`. **M2 exit still pending: real-account
+smoke test + Google console assumption checks (product owner, see roadmap M2 status).**
+No CI yet — deliberately (full pipeline with releases planned at M5); run
+`npm run typecheck && npm run lint && npm test` locally before committing.

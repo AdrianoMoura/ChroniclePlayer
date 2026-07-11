@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -9,14 +9,28 @@ import {
   SqliteFeedRepository,
   SqliteStateRepository
 } from '../adapters/storage/repositories'
+import { SqliteSyncRepository } from '../adapters/storage/sync-repository'
+import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-secret-store'
+import { GoogleOAuth } from '../adapters/oauth/google-oauth'
+import { AuthFlow, GoogleAuthProvider } from '../adapters/oauth/auth'
+import { YouTubeApiClient } from '../adapters/youtube/api-client'
+import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
+import { HybridVideoSource } from '../adapters/youtube/video-source'
+import { YouTubeRssClient } from '../adapters/rss/rss-client'
 import { FeedService, type FeedSlice } from '../core/feed-service'
-import type { Clock } from '../core/ports'
+import { isDomainError } from '../core/errors'
+import { QuotaCounter, type Clock } from '../core/ports'
+import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
+  AuthStatusDto,
+  ChronicleEventDto,
   FeedCursorDto,
   FeedSliceDto,
   ReadStatusDto,
+  ResultDto,
+  SyncReportDto,
   VideoStateDto
 } from '../ipc/contract'
 import { IpcChannel } from '../ipc/contract'
@@ -24,6 +38,12 @@ import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
 
 const clock: Clock = { now: () => new Date() }
+
+// Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
+// manual always, background timer while running. D-016 (recommended option
+// exercised): 30-minute default interval.
+const REFRESH_INTERVAL_MS = 30 * 60_000
+const LAUNCH_REFRESH_IF_OLDER_MS = 10 * 60_000
 
 function toStateDto(state: VideoState): VideoStateDto {
   return { readStatus: state.readStatus, favorite: state.favorite, watchLater: state.watchLater }
@@ -48,6 +68,17 @@ function toSliceDto(slice: FeedSlice): FeedSliceDto {
   }
 }
 
+function toReportDto(report: SyncReport): SyncReportDto {
+  return {
+    outcome: report.outcome,
+    channelsPolled: report.channelsPolled,
+    channelsFailed: report.channelsFailed,
+    videosNew: report.videosNew,
+    quotaSpent: report.quotaSpent,
+    finishedAt: report.finishedAt
+  }
+}
+
 // IPC inputs cross a trust boundary — compile-time types don't survive it.
 function parseView(value: unknown): FeedView {
   if (typeof value === 'string' && (FEED_VIEWS as readonly string[]).includes(value)) {
@@ -64,6 +95,12 @@ function parseReadStatus(value: unknown): ReadStatusDto {
 function parseVideoId(value: unknown): string {
   if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
   throw new Error('invalid video id')
+}
+
+function parseChannelId(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
+  throw new Error('invalid channel id')
 }
 
 function parseCursor(value: unknown): FeedCursorDto | null {
@@ -83,6 +120,19 @@ function parseCursor(value: unknown): FeedCursorDto | null {
     }
   }
   throw new Error('invalid feed cursor')
+}
+
+// D-013: Electron safeStorage — OS-keychain-backed where available. On
+// Linux without a keyring it degrades to obfuscation; isSecure() surfaces
+// that honestly instead of pretending.
+function safeStorageCipher(): SecretCipher {
+  return {
+    encrypt: (plain) => safeStorage.encryptString(plain),
+    decrypt: (data) => safeStorage.decryptString(data),
+    isSecure: () =>
+      safeStorage.isEncryptionAvailable() &&
+      (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text')
+  }
 }
 
 function createWindow(): void {
@@ -105,6 +155,12 @@ function createWindow(): void {
   }
 }
 
+function broadcast(event: ChronicleEventDto): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send(IpcChannel.events, event)
+  }
+}
+
 let db: DatabaseSync | undefined
 
 void app.whenReady().then(() => {
@@ -114,23 +170,106 @@ void app.whenReady().then(() => {
   db = openDatabase(join(dataDir, 'chronicle.db'))
   migrate(db)
 
-  // Composition root: adapters implement core ports; core never sees SQLite.
+  // Composition root: adapters implement core ports; core never sees
+  // SQLite, Electron or Google.
   const feedRepository = new SqliteFeedRepository(db)
   const stateRepository = new SqliteStateRepository(db, clock)
   const catalogRepository = new SqliteCatalogRepository(db, clock)
+  const syncRepository = new SqliteSyncRepository(db)
   const feedService = new FeedService(feedRepository, clock)
 
-  if (!app.isPackaged) {
+  const secrets = new FileSecretStore(join(dataDir, 'secrets.json'), safeStorageCipher())
+  const oauth = new GoogleOAuth(fetch)
+  const authProvider = new GoogleAuthProvider(secrets, oauth, clock)
+  const authFlow = new AuthFlow(secrets, oauth, (url) => shell.openExternal(url))
+  const quota = new QuotaCounter()
+  const apiClient = new YouTubeApiClient(authProvider, fetch, quota)
+  const syncService = new SyncService({
+    subscriptions: apiClient,
+    videoSource: new HybridVideoSource(new YouTubeRssClient(fetch), apiClient),
+    repo: syncRepository,
+    shortsProber: new HeadShortsProber(fetch),
+    quota,
+    clock,
+    onProgress: (progress) =>
+      broadcast({ type: 'refresh:progress', checked: progress.checked, total: progress.total })
+  })
+
+  if (!app.isPackaged && process.env['CHRONICLE_FIXTURES'] === '1') {
     seedDevFixtures(catalogRepository, stateRepository, clock)
   }
 
-  ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown) =>
-    toSliceDto(feedService.getSlice(parseView(view), parseCursor(cursor)))
+  function authStatus(): AuthStatusDto {
+    const state = !authFlow.hasClientSecret()
+      ? 'unconfigured'
+      : authFlow.hasRefreshToken()
+        ? 'connected'
+        : 'disconnected'
+    return { state, secureStorage: secrets.isSecure() }
+  }
+
+  let refreshing = false
+  async function runRefresh(trigger: SyncTrigger): Promise<ResultDto<SyncReportDto>> {
+    if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
+    if (!authFlow.hasRefreshToken()) {
+      return { ok: false, errorKind: 'auth-expired', message: 'not connected to Google' }
+    }
+    refreshing = true
+    broadcast({ type: 'refresh:started', trigger })
+    try {
+      const report = await syncService.refresh(trigger)
+      const dto = toReportDto(report)
+      broadcast({ type: 'refresh:done', report: dto })
+      if (report.outcome === 'quota') broadcast({ type: 'quota:exceeded' })
+      return { ok: true, value: dto }
+    } catch (error) {
+      if (isDomainError(error, 'auth-expired')) {
+        authProvider.invalidate()
+        broadcast({ type: 'auth:required' })
+        return { ok: false, errorKind: 'auth-expired', message: error.message }
+      }
+      const kind = isDomainError(error) ? error.kind : 'internal'
+      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+    } finally {
+      refreshing = false
+    }
+  }
+
+  // Startup connection validation (D-012): a cheap token refresh on every
+  // open; invalid_grant surfaces as the reconnect banner, never a blocker.
+  async function validateConnectionAndCatchUp(): Promise<void> {
+    if (!authFlow.hasRefreshToken()) return
+    try {
+      await authProvider.getAccessToken()
+    } catch (error) {
+      if (isDomainError(error, 'auth-expired')) {
+        broadcast({ type: 'auth:required' })
+        return
+      }
+      return // offline etc. — local browsing is unaffected
+    }
+    const last = syncRepository.lastSyncStartedAt()
+    if (last === null || clock.now().getTime() - Date.parse(last) > LAUNCH_REFRESH_IF_OLDER_MS) {
+      void runRefresh('launch')
+    }
+  }
+
+  ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown, channelId: unknown) =>
+    toSliceDto(
+      feedService.getSlice(parseView(view), parseCursor(cursor), undefined, parseChannelId(channelId))
+    )
   )
   ipcMain.handle(IpcChannel.getFeedMeta, () => {
     const slice = feedService.getSlice('unread', null, 1)
-    return { unreadCount: slice.unreadCount, caughtUp: slice.caughtUp }
+    return {
+      unreadCount: slice.unreadCount,
+      caughtUp: slice.caughtUp,
+      lastRefreshAt: syncRepository.lastSyncStartedAt()
+    }
   })
+  ipcMain.handle(IpcChannel.getChannels, () => feedRepository.listFollowedChannels())
+  ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
+
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
     toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))
   )
@@ -144,10 +283,50 @@ void app.whenReady().then(() => {
     shell.openExternal(`https://www.youtube.com/watch?v=${parseVideoId(videoId)}`)
   )
 
+  ipcMain.handle(IpcChannel.getAuthStatus, () => authStatus())
+  ipcMain.handle(IpcChannel.importClientSecret, (_event, json: unknown): ResultDto<AuthStatusDto> => {
+    try {
+      authFlow.importClientSecret(String(json))
+      return { ok: true, value: authStatus() }
+    } catch (error) {
+      const kind = isDomainError(error) ? error.kind : 'internal'
+      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+    }
+  })
+  ipcMain.handle(IpcChannel.connectGoogle, async (): Promise<ResultDto<AuthStatusDto>> => {
+    try {
+      await authFlow.connect()
+      authProvider.invalidate()
+      void runRefresh('manual')
+      return { ok: true, value: authStatus() }
+    } catch (error) {
+      const kind = isDomainError(error) ? error.kind : 'internal'
+      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+    }
+  })
+  ipcMain.handle(IpcChannel.signOut, async () => {
+    await authFlow.signOut()
+    authProvider.invalidate()
+    return authStatus()
+  })
+
   createWindow()
+
+  const firstWindow = BrowserWindow.getAllWindows()[0]
+  firstWindow?.webContents.once('did-finish-load', () => {
+    void validateConnectionAndCatchUp()
+  })
+
+  const timer = setInterval(() => {
+    if (authFlow.hasRefreshToken()) void runRefresh('timer')
+  }, REFRESH_INTERVAL_MS)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+
+  app.on('will-quit', () => {
+    clearInterval(timer)
   })
 })
 

@@ -1,4 +1,4 @@
-import type { FeedViewDto } from '../ipc/contract'
+import type { ChannelDto, FeedViewDto } from '../ipc/contract'
 
 export const VIEW_ORDER: readonly FeedViewDto[] = [
   'all',
@@ -19,17 +19,27 @@ export const VIEW_LABELS: Record<FeedViewDto, string> = {
 interface SidebarProps {
   view: FeedViewDto
   unreadCount: number
+  channels: ChannelDto[]
+  channelFilter: string | null
   onSelectView: (view: FeedViewDto) => void
+  onSelectChannel: (channelId: string | null) => void
 }
 
-export function Sidebar({ view, unreadCount, onSelectView }: SidebarProps) {
+export function Sidebar({
+  view,
+  unreadCount,
+  channels,
+  channelFilter,
+  onSelectView,
+  onSelectChannel
+}: SidebarProps) {
   return (
     <aside className="sidebar">
       <nav>
         {VIEW_ORDER.map((candidate, index) => (
           <button
             key={candidate}
-            className={`view${candidate === view ? ' active' : ''}`}
+            className={`view${candidate === view && channelFilter === null ? ' active' : ''}`}
             onClick={() => onSelectView(candidate)}
           >
             <span className="view-key">{index + 1}</span>
@@ -40,6 +50,25 @@ export function Sidebar({ view, unreadCount, onSelectView }: SidebarProps) {
           </button>
         ))}
       </nav>
+
+      {channels.length > 0 && (
+        <div className="channel-list">
+          <h3 className="channel-list-header">Channels</h3>
+          {channels.map((channel) => (
+            <button
+              key={channel.channelId}
+              className={`view channel${channelFilter === channel.channelId ? ' active' : ''}`}
+              title={channel.title}
+              onClick={() =>
+                onSelectChannel(channelFilter === channel.channelId ? null : channel.channelId)
+              }
+            >
+              <span className="view-label ellipsis">{channel.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="sidebar-footer">
         <span className="view disabled" title="Settings arrive with M5">
           Settings

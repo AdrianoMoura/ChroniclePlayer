@@ -27,14 +27,19 @@ export class FeedService {
     private readonly clock: Clock
   ) {}
 
-  getSlice(view: FeedView, cursor: FeedCursor | null, limit = FEED_PAGE_SIZE): FeedSlice {
+  getSlice(
+    view: FeedView,
+    cursor: FeedCursor | null,
+    limit = FEED_PAGE_SIZE,
+    channelId?: string
+  ): FeedSlice {
     const now = this.clock.now()
     const items =
       view === 'watch-later'
         ? this.repository.listWatchLaterQueue().map((entry) => ({ entry, bucket: null }))
         : null
 
-    const page = items ? null : this.repository.listPage(view, cursor, limit)
+    const page = items ? null : this.repository.listPage(view, cursor, limit, channelId)
 
     return {
       view,

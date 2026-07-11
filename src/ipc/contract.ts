@@ -46,24 +46,80 @@ export interface FeedSliceDto {
 export interface FeedMetaDto {
   unreadCount: number
   caughtUp: boolean
+  lastRefreshAt: string | null
 }
+
+export interface ChannelDto {
+  channelId: string
+  title: string
+  thumbnailUrl: string | null
+}
+
+// Expected failures cross the boundary as values, not thrown strings
+// (architecture.md: errors are values at boundaries).
+export type ResultDto<T> =
+  | { ok: true; value: T }
+  | { ok: false; errorKind: string; message: string }
+
+export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
+
+export interface AuthStatusDto {
+  state: AuthStateDto
+  // false = D-013 fallback encryption; the UI shows the honest warning.
+  secureStorage: boolean
+}
+
+export interface SyncReportDto {
+  outcome: 'ok' | 'partial' | 'failed' | 'quota'
+  channelsPolled: number
+  channelsFailed: number
+  videosNew: number
+  quotaSpent: number
+  finishedAt: string
+}
+
+// Backend → UI push (architecture.md §IPC: the UI never polls).
+export type ChronicleEventDto =
+  | { type: 'refresh:started'; trigger: 'launch' | 'manual' | 'timer' }
+  | { type: 'refresh:progress'; checked: number; total: number }
+  | { type: 'refresh:done'; report: SyncReportDto }
+  | { type: 'auth:required' }
+  | { type: 'quota:exceeded' }
 
 export const IpcChannel = {
   getFeed: 'feed:get',
   getFeedMeta: 'feed:meta',
+  getChannels: 'feed:channels',
+  refreshFeed: 'feed:refresh',
   setReadStatus: 'state:setReadStatus',
   toggleFavorite: 'state:toggleFavorite',
   toggleWatchLater: 'state:toggleWatchLater',
-  openInBrowser: 'system:openInBrowser'
+  openInBrowser: 'system:openInBrowser',
+  getAuthStatus: 'auth:status',
+  importClientSecret: 'auth:importClientSecret',
+  connectGoogle: 'auth:connect',
+  signOut: 'auth:signOut',
+  events: 'chronicle:event'
 } as const
 
 // The surface preload exposes as window.chronicle.
 export interface ChronicleApi {
-  getFeed(view: FeedViewDto, cursor: FeedCursorDto | null): Promise<FeedSliceDto>
+  getFeed(
+    view: FeedViewDto,
+    cursor: FeedCursorDto | null,
+    channelId?: string | null
+  ): Promise<FeedSliceDto>
   getFeedMeta(): Promise<FeedMetaDto>
+  getChannels(): Promise<ChannelDto[]>
+  refreshFeed(): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
   openInBrowser(videoId: string): Promise<void>
+  getAuthStatus(): Promise<AuthStatusDto>
+  importClientSecret(json: string): Promise<ResultDto<AuthStatusDto>>
+  connectGoogle(): Promise<ResultDto<AuthStatusDto>>
+  signOut(): Promise<AuthStatusDto>
+  onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

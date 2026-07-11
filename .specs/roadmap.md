@@ -73,6 +73,23 @@ Exit criterion: the developer's real YouTube account flows end-to-end: wizard-le
 setup → import → live chronological feed that refreshes. **Real-world smoke checklist
 executed and recorded.**
 
+**Status (2026-07-11): implemented; offline-verified. Awaiting the real-account smoke
+test (product owner) to exit.** Landed: OAuth adapter (PKCE S256, loopback with
+single-use state + 5-min timeout, memory-only access tokens, `invalid_grant` →
+auth-expired banner per D-012); secret store via injected cipher — Electron safeStorage
+with honest `isSecure()` fallback signal (D-013 recommendation exercised); YouTube API
+client (subscriptions/channels/videos/playlistItems, typed error mapping, per-call
+quota accounting); RSS client with conditional GET; hybrid SyncService (D-007) with
+per-channel isolation, weekly subscription re-list, bounded gap backfill, Shorts
+confirm-then-hide pipeline (D-028); 30-min timer + launch refresh (D-016 recommendation
+exercised); events to the UI (progress/done/auth/quota); connect panel, single banner
+slot, sidebar channel list; `docs/setup.md` (wizard copy precursor). All contract-tested
+offline — no real API calls in tests. **Still open for exit:** run `docs/setup.md`
+end-to-end with a real Google account; verify the console Assumptions in
+`authentication.md` (publish-without-verification, 7-day expiry) and `youtube-api.md`
+(quota costs, RSS freshness, UC→UU, Shorts HEAD heuristic — MVP-blocking); date the
+"verified-on" line in `docs/setup.md`.
+
 ## M3 — Playback + polish
 
 - Player view per `playback.md` (embed, end-overlay, embed-restricted fallback,
