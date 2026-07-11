@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol, safeStorage, shell } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -29,6 +29,7 @@ import type {
   ChronicleEventDto,
   FeedCursorDto,
   FeedSliceDto,
+  PlayerVideoDto,
   ReadStatusDto,
   ResultDto,
   SyncReportDto,
@@ -37,6 +38,7 @@ import type {
 import { IpcChannel } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
+import { ThumbnailCache, chronicleCacheDir } from './thumbnail-cache'
 
 const clock: Clock = { now: () => new Date() }
 
@@ -48,6 +50,12 @@ const clock: Clock = { now: () => new Date() }
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
 }
+
+// thumb:// serves cached thumbnails to the renderer (ui.md: disk cache with
+// LRU cap; architecture.md: the renderer never fetches Google directly).
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'thumb', privileges: { standard: true, secure: true, stream: true } }
+])
 
 // Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
 // manual always, background timer while running. D-016 (recommended option
@@ -225,6 +233,19 @@ void app.whenReady().then(() => {
     seedDevFixtures(catalogRepository, stateRepository, clock)
   }
 
+  const thumbnails = new ThumbnailCache(chronicleCacheDir(), fetch)
+  thumbnails.enforceCap()
+  protocol.handle('thumb', async (request) => {
+    // Parsed by prefix, not by URL(): standard-scheme normalization must not
+    // touch the percent-encoded source URL.
+    const sourceUrl = decodeURIComponent(request.url.replace(/^thumb:\/\/img\//, ''))
+    const body = await thumbnails.get(sourceUrl)
+    if (body === null) return new Response(null, { status: 404 })
+    return new Response(new Uint8Array(body), {
+      headers: { 'cache-control': 'max-age=86400' }
+    })
+  })
+
   function authStatus(): AuthStatusDto {
     const state = !authFlow.hasClientSecret()
       ? 'unconfigured'
@@ -307,6 +328,57 @@ void app.whenReady().then(() => {
   )
   ipcMain.handle(IpcChannel.openInBrowser, (_event, videoId: unknown) =>
     shell.openExternal(`https://www.youtube.com/watch?v=${parseVideoId(videoId)}`)
+  )
+  ipcMain.handle(IpcChannel.openExternalUrl, (_event, url: unknown) => {
+    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) throw new Error('invalid url')
+    return shell.openExternal(url)
+  })
+  ipcMain.handle(
+    IpcChannel.getVideo,
+    async (_event, videoId: unknown): Promise<ResultDto<PlayerVideoDto>> => {
+      const id = parseVideoId(videoId)
+      const local = feedRepository.findVideo(id)
+      if (local !== null) {
+        const { entry, description } = local
+        return {
+          ok: true,
+          value: {
+            videoId: entry.video.videoId,
+            title: entry.video.title,
+            channelTitle: entry.channelTitle,
+            publishedAt: entry.video.publishedAt,
+            durationSeconds: entry.video.durationSeconds,
+            thumbnailUrl: entry.video.thumbnailUrl,
+            description,
+            state: toStateDto(entry.state)
+          }
+        }
+      }
+      // External video (D-029): hydrate on demand — videos.list, 1 unit.
+      try {
+        const [video] = await apiClient.hydrate([id])
+        if (video === undefined) {
+          return { ok: false, errorKind: 'not-found', message: 'video not found on YouTube' }
+        }
+        syncRepository.upsertExternalVideo(video, clock.now().toISOString())
+        return {
+          ok: true,
+          value: {
+            videoId: video.videoId,
+            title: video.title,
+            channelTitle: video.channelTitle,
+            publishedAt: video.publishedAt,
+            durationSeconds: video.durationSeconds,
+            thumbnailUrl: video.thumbnailUrl,
+            description: video.description, // full text — storage keeps the truncated copy
+            state: toStateDto(stateRepository.get(video.videoId))
+          }
+        }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
   )
 
   ipcMain.handle(IpcChannel.getAuthStatus, () => authStatus())

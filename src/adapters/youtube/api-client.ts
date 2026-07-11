@@ -84,6 +84,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       return {
         videoId: String(item['id']),
         channelId: String(snippet['channelId']),
+        channelTitle: String(snippet['channelTitle'] ?? ''),
         title: String(snippet['title']),
         publishedAt: String(snippet['publishedAt']),
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),

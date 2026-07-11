@@ -8,6 +8,7 @@ import type {
   FeedMetaDto,
   FeedVideoDto,
   FeedViewDto,
+  PlayerVideoDto,
   ReadStatusDto,
   VideoStateDto
 } from '../ipc/contract'
@@ -15,7 +16,9 @@ import { ConnectPanel } from './ConnectPanel'
 import { FeedList, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
+import { PlayerView } from './PlayerView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
+import { UrlPrompt } from './UrlPrompt'
 
 const BUCKET_LABELS: Record<FeedBucketDto, string> = {
   today: 'Today',
@@ -40,6 +43,7 @@ export function App() {
   const [cursorIdx, setCursorIdx] = useState(0)
   const [filter, setFilter] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
+  const [urlPromptOpen, setUrlPromptOpen] = useState(false)
   const [undoable, setUndoable] = useState<ReadonlySet<string>>(new Set())
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
@@ -51,6 +55,8 @@ export function App() {
     total: number
   } | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [playerStack, setPlayerStack] = useState<PlayerVideoDto[]>([])
+  const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
@@ -58,6 +64,11 @@ export function App() {
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
   const lastG = useRef(0)
   const filterInputRef = useRef<HTMLInputElement>(null)
+  const atTopRef = useRef(true)
+  const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
+
+  const playerOpen = playerStack.length > 0
+  const currentPlayerVideo = playerStack.at(-1)
 
   const loadView = useCallback((target?: FeedViewDto, channel?: string | null) => {
     const nextView = target ?? viewRef.current
@@ -65,6 +76,7 @@ export function App() {
     viewRef.current = nextView
     channelRef.current = nextChannel
     loadingRef.current = true
+    setNewVideosPill(null)
     void window.chronicle.getFeed(nextView, null, nextChannel).then((slice) => {
       if (viewRef.current !== nextView || channelRef.current !== nextChannel) return
       loadingRef.current = false
@@ -117,6 +129,62 @@ export function App() {
     })
   }, [connect])
 
+  const patch = useCallback((videoId: string, state: VideoStateDto) => {
+    setVideos((current) =>
+      current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+    )
+    void window.chronicle.getFeedMeta().then(setMeta)
+  }, [])
+
+  // Opening the player marks the video read immediately (playback.md).
+  const openVideo = useCallback(
+    (videoId: string, mode: 'push' | 'replace' = 'push') => {
+      void window.chronicle.getVideo(videoId).then(async (result) => {
+        if (!result.ok) {
+          setBanner({ text: `Could not open the video: ${result.message}` })
+          return
+        }
+        const state = await window.chronicle.setReadStatus(videoId, 'read')
+        patch(videoId, state)
+        const entry = { ...result.value, state }
+        setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
+      })
+    },
+    [patch]
+  )
+
+  const openFromFeed = useCallback(
+    (videoIndexInFiltered: number, filteredList: FeedVideoDto[]) => {
+      const video = filteredList[videoIndexInFiltered]
+      if (!video) return
+      // Watch Later rows carry queue context for the explicit "Next in
+      // queue" button (D-021: no auto-advance).
+      queueRef.current =
+        viewRef.current === 'watch-later'
+          ? { ids: filteredList.map((v) => v.videoId), index: videoIndexInFiltered }
+          : null
+      openVideo(video.videoId)
+    },
+    [openVideo]
+  )
+
+  const closePlayer = useCallback(() => {
+    setPlayerStack((stack) => stack.slice(0, -1))
+  }, [])
+
+  const nextInQueue = useCallback(() => {
+    const queue = queueRef.current
+    if (queue === null || queue.index >= queue.ids.length - 1) return
+    queue.index += 1
+    openVideo(queue.ids[queue.index], 'replace')
+  }, [openVideo])
+
+  const hasQueueNext =
+    playerStack.length === 1 &&
+    queueRef.current !== null &&
+    queueRef.current.index < queueRef.current.ids.length - 1 &&
+    queueRef.current.ids[queueRef.current.index] === playerStack[0]?.videoId
+
   // Backend → UI events (the UI never polls).
   useEffect(() => {
     return window.chronicle.onEvent((event: ChronicleEventDto) => {
@@ -131,8 +199,15 @@ export function App() {
         case 'refresh:done':
           setRefreshing(false)
           setProgress(null)
-          loadView()
           loadChannels()
+          void window.chronicle.getFeedMeta().then(setMeta)
+          // New videos never shift content under the cursor (feed.md): only
+          // reload in place when the user is at the top; otherwise, the pill.
+          if (event.report.videosNew > 0 && !atTopRef.current) {
+            setNewVideosPill(event.report.videosNew)
+          } else {
+            loadView()
+          }
           if (event.report.outcome === 'partial') {
             setBanner({
               text: `Refresh finished, but ${event.report.channelsFailed} channel(s) failed — they will be retried next cycle.`
@@ -191,13 +266,6 @@ export function App() {
     })
     return out
   }, [filtered])
-
-  const patch = useCallback((videoId: string, state: VideoStateDto) => {
-    setVideos((current) =>
-      current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
-    )
-    void window.chronicle.getFeedMeta().then(setMeta)
-  }, [])
 
   const setStatus = useCallback(
     (video: FeedVideoDto, status: ReadStatusDto) => {
@@ -286,6 +354,14 @@ export function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
+      // Ctrl+O works everywhere (D-029 open-by-URL).
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+        event.preventDefault()
+        setUrlPromptOpen(true)
+        return
+      }
+      if (playerOpen || urlPromptOpen) return // PlayerView/UrlPrompt own their keys
+
       const target = event.target as HTMLElement | null
       if (target instanceof HTMLInputElement) {
         if (event.key === 'Escape') {
@@ -331,7 +407,7 @@ export function App() {
           break
         case 'Enter':
         case 'o':
-          if (current) actions.markRead(current)
+          if (current) openFromFeed(effectiveCursor, filtered)
           break
         case 'b':
           if (current) actions.openInBrowser(current)
@@ -380,7 +456,18 @@ export function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [filtered, effectiveCursor, helpOpen, actions, undoLast, doRefresh, filter])
+  }, [
+    filtered,
+    effectiveCursor,
+    helpOpen,
+    actions,
+    undoLast,
+    doRefresh,
+    filter,
+    playerOpen,
+    urlPromptOpen,
+    openFromFeed
+  ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
 
@@ -402,10 +489,14 @@ export function App() {
         channels={channels}
         channelFilter={channelFilter}
         onSelectView={(next) => {
+          setPlayerStack([])
           setChannelFilter(null)
           setView(next)
         }}
-        onSelectChannel={setChannelFilter}
+        onSelectChannel={(channelId) => {
+          setPlayerStack([])
+          setChannelFilter(channelId)
+        }}
       />
       <main className="feed">
         <header className="topbar">
@@ -463,9 +554,16 @@ export function App() {
             onConnect={connect}
           />
         ) : (
-          <>
+          <div className="feed-region">
             {meta.caughtUp && (view === 'all' || view === 'unread') && channelFilter === null && (
-              <div className="caught-up">{statusText.startsWith('All caught up') ? statusText : 'You’re all caught up.'}</div>
+              <div className="caught-up">
+                {statusText.startsWith('All caught up') ? statusText : 'You’re all caught up.'}
+              </div>
+            )}
+            {newVideosPill !== null && (
+              <button className="new-videos-pill" onClick={() => loadView()}>
+                {newVideosPill} new video{newVideosPill > 1 ? 's' : ''}
+              </button>
             )}
             {filtered.length === 0 ? (
               <div className="empty">
@@ -477,14 +575,40 @@ export function App() {
                 cursorVideoIndex={effectiveCursor}
                 undoable={undoable}
                 actions={actions}
-                onSelect={setCursorIdx}
+                onOpen={(videoIndex) => {
+                  setCursorIdx(videoIndex)
+                  openFromFeed(videoIndex, filtered)
+                }}
                 onNearEnd={loadMore}
+                onAtTopChange={(atTop) => {
+                  atTopRef.current = atTop
+                }}
               />
             )}
-          </>
+            {playerOpen && currentPlayerVideo && (
+              <PlayerView
+                video={currentPlayerVideo}
+                stackDepth={playerStack.length}
+                hasQueueNext={hasQueueNext}
+                onNextInQueue={nextInQueue}
+                onClose={closePlayer}
+                onOpenVideo={(videoId) => openVideo(videoId)}
+                onStatePatched={patch}
+              />
+            )}
+          </div>
         )}
       </main>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {urlPromptOpen && (
+        <UrlPrompt
+          onOpenVideo={(videoId) => {
+            queueRef.current = null
+            openVideo(videoId)
+          }}
+          onClose={() => setUrlPromptOpen(false)}
+        />
+      )}
     </div>
   )
 }

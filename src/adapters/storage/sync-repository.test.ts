@@ -27,6 +27,7 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
   return {
     videoId,
     channelId,
+    channelTitle: `Channel ${channelId}`,
     title: `hydrated-${videoId}`,
     publishedAt: '2026-07-11T08:00:00Z',
     durationSeconds,
@@ -144,6 +145,36 @@ describe('channel sync meta', () => {
       available: true
     })
     expect(sync.listSubscribedChannels()[0]).toMatchObject({ rssEtag: 'e1', lastSyncedAt: NOW })
+  })
+})
+
+describe('external videos (D-029)', () => {
+  it('creates a subscribed=0 channel and the video stays out of feed views', () => {
+    sync.upsertExternalVideo(hydratedVideo('ext-1', 700, 'UCext'), NOW)
+    expect(feed.listPage('all', null, 10).entries).toEqual([])
+    expect(feed.countUnread()).toBe(0)
+    // …but the player can find it and states work on it
+    expect(feed.findVideo('ext-1')?.entry.video.title).toBe('hydrated-ext-1')
+    new SqliteStateRepository(db, clock).toggleFavorite('ext-1')
+    expect(feed.listPage('favorites', null, 10).entries.map((e) => e.video.videoId)).toEqual([
+      'ext-1'
+    ])
+  })
+
+  it('never flips an existing subscribed channel to 0', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.upsertExternalVideo(hydratedVideo('v1', 700, 'UCa'), NOW)
+    expect(feed.listPage('all', null, 10).entries.map((e) => e.video.videoId)).toEqual(['v1'])
+  })
+})
+
+describe('findVideo (player read)', () => {
+  it('returns entry with description, or null for unknown ids', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.insertDiscoveredVideos('UCa', [discovered('v1', 'a description')], NOW)
+    expect(feed.findVideo('v1')?.description).toBe('a description')
+    expect(feed.findVideo('v1')?.entry.channelTitle).toBe('Alpha')
+    expect(feed.findVideo('nope')).toBeNull()
   })
 })
 

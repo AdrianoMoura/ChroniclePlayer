@@ -13,6 +13,21 @@
   --accent: #8ab4f8;
 }
 
+/* Light theme derives from dark (ui.md: follow system; manual override
+   arrives with Settings, M5). */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #fafafa;
+    --surface: #f0f0f2;
+    --surface-2: #e6e6ea;
+    --border: #dcdce0;
+    --text: #1b1b1f;
+    --text-dim: #5f5f66;
+    --accent: #2f5fc4;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -396,12 +411,22 @@ button.primary:disabled {
   background: var(--accent);
 }
 
+/* Fixed dimensions = zero layout shift while lazy-loading (ui.md). D-023
+   prototype: muted thumbnails that rise on hover/selection. */
 .thumb {
   width: 104px;
   aspect-ratio: 16 / 9;
   flex-shrink: 0;
-  background: #202027;
+  background: var(--surface-2);
   border-radius: 6px;
+  object-fit: cover;
+  opacity: 0.72;
+  transition: opacity 0.12s ease-out;
+}
+
+.row:hover .thumb,
+.row.selected .thumb {
+  opacity: 1;
 }
 
 .row-text {
@@ -476,6 +501,167 @@ button.primary:disabled {
 
 .undo-strip button:hover {
   background: var(--surface-2);
+}
+
+/* ── Feed region + player view ───────────────────────── */
+
+.feed-region {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The player replaces the feed region visually; the feed stays mounted
+   underneath so Esc returns to the exact scroll position (ui.md). */
+.player-view {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--bg);
+  overflow-y: auto;
+  padding: 20px 32px 48px;
+}
+
+.player-stage {
+  position: relative;
+  max-width: 1080px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.player-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.overlay-title {
+  color: var(--text-dim);
+  font-size: 15px;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.player-info {
+  max-width: 1080px;
+  padding-top: 16px;
+}
+
+.player-title {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.player-meta {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 6px 0 14px;
+}
+
+.player-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.player-actions .primary {
+  margin-top: 0;
+}
+
+button.primary.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.player-description {
+  margin-top: 18px;
+}
+
+.description-toggle {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.description-toggle:hover {
+  color: var(--text);
+}
+
+.description-text {
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 760px;
+}
+
+.description-text a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.description-text a:hover {
+  text-decoration: underline;
+}
+
+/* New-videos pill (feed.md): appears instead of shifting content. */
+.new-videos-pill {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  animation: pill-in 0.1s ease-out;
+}
+
+@keyframes pill-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.url-prompt {
+  min-width: 480px;
+}
+
+.url-input {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.url-notice {
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: 13px;
 }
 
 /* ── Help overlay ────────────────────────────────────── */

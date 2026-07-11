@@ -144,6 +144,7 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
         ids.map((videoId) => ({
           videoId,
           channelId: 'UCa',
+          channelTitle: 'Alpha',
           title: `t-${videoId}`,
           publishedAt: '2026-07-11T10:00:00Z',
           durationSeconds: 600,

@@ -166,6 +166,17 @@ export class SqliteFeedRepository implements FeedRepository {
     return Number(row.n)
   }
 
+  findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null {
+    const row = this.db
+      .prepare(
+        `${FEED_SELECT.replace('FROM videos v', ', v.description AS description FROM videos v')}
+         WHERE v.video_id = ?`
+      )
+      .get(videoId) as unknown as (FeedRow & { description: string | null }) | undefined
+    if (row === undefined) return null
+    return { entry: toEntry(row), description: row.description }
+  }
+
   listFollowedChannels(): Channel[] {
     const rows = this.db
       .prepare(

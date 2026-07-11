@@ -61,6 +61,19 @@ export type ResultDto<T> =
   | { ok: true; value: T }
   | { ok: false; errorKind: string; message: string }
 
+// Player view read-model (playback.md). Description may be truncated for
+// locally stored videos (local-data.md stores ~500 chars).
+export interface PlayerVideoDto {
+  videoId: string
+  title: string
+  channelTitle: string
+  publishedAt: string
+  durationSeconds: number | null
+  thumbnailUrl: string | null
+  description: string | null
+  state: VideoStateDto
+}
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
@@ -95,6 +108,8 @@ export const IpcChannel = {
   toggleFavorite: 'state:toggleFavorite',
   toggleWatchLater: 'state:toggleWatchLater',
   openInBrowser: 'system:openInBrowser',
+  openExternalUrl: 'system:openExternalUrl',
+  getVideo: 'video:get',
   getAuthStatus: 'auth:status',
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
@@ -117,6 +132,11 @@ export interface ChronicleApi {
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
   openInBrowser(videoId: string): Promise<void>
+  // Non-video links from descriptions (D-029: browser, always).
+  openExternalUrl(url: string): Promise<void>
+  // Local videos come from the DB; unknown ones are hydrated on demand
+  // (videos.list, 1 unit) and stored outside the feed (D-029).
+  getVideo(videoId: string): Promise<ResultDto<PlayerVideoDto>>
   getAuthStatus(): Promise<AuthStatusDto>
   importClientSecret(json: string): Promise<ResultDto<AuthStatusDto>>
   connectGoogle(): Promise<ResultDto<AuthStatusDto>>

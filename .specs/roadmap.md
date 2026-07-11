@@ -109,6 +109,22 @@ data-retention policy window.
 
 Exit criterion: daily-drivable by the developer. Start dogfooding full-time here.
 
+**Status (2026-07-11): implemented; dogfooding starts now.** Landed: player view with
+the clean-embed mandate (IFrame driven over its postMessage widget protocol — no
+external API script; `ended` → Chronicle's own end panel with Back / explicit Next in
+queue / Remove from WL; 101/150 → open-in-browser fallback; mark-read on open);
+universal opening (D-029: description links with per-kind routing, Shorts → browser
+notice per D-028, Ctrl+O URL prompt, navigation stack, external videos hydrated at
+1 unit into `subscribed = 0` channels); player keys proxied through the widget protocol
+(space/←→/f/Esc); dark/light themes via system preference; new-videos pill (content
+never shifts under the cursor); real thumbnails through a `thumb://` protocol backed by
+the LRU disk cache (500 MB default) — the renderer still never fetches Google hosts.
+Pending decisions exercised with recommendations: D-021 (no auto-advance — explicit
+button only), D-022 (comfortable density), D-023 (muted thumbnails prototyped — judge
+during dogfooding). Pause-overlay call recorded in `playback.md`. Performance budgets:
+virtualization in place; formal cold-start/scroll measurements still to be taken during
+dogfooding (they close the milestone).
+
 ## M4 — Onboarding wizard
 
 Built late deliberately: the wizard documents a flow that must already be proven (M2),

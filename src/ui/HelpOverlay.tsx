@@ -1,6 +1,8 @@
 const SHORTCUTS: readonly [string, string][] = [
   ['j / k  ·  ↓ / ↑', 'next / previous video'],
-  ['Enter / o', 'mark read (player arrives with M3)'],
+  ['Enter / o', 'play (opens the player view)'],
+  ['Ctrl+O', 'open a video by URL'],
+  ['Space · ← → · f', 'player: pause / seek / fullscreen'],
   ['b', 'open in browser'],
   ['m', 'toggle read / unread'],
   ['i', 'ignore (undo with u)'],

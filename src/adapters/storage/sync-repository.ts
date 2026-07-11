@@ -157,6 +157,19 @@ export class SqliteSyncRepository implements SyncRepository {
     }
   }
 
+  // D-029: an externally opened video gets a channel row with subscribed=0
+  // (never feed membership) and a fully hydrated video row.
+  upsertExternalVideo(video: HydratedVideo, now: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO channels (channel_id, title, subscribed, added_at)
+         VALUES (:id, :title, 0, :now)
+         ON CONFLICT(channel_id) DO NOTHING`
+      )
+      .run({ id: video.channelId, title: video.channelTitle || video.channelId, now })
+    this.applyHydration([video], now)
+  }
+
   updateChannelSyncMeta(
     channelId: string,
     meta: {

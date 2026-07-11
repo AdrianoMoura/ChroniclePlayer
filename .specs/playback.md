@@ -52,7 +52,10 @@ The embed must not feel like a YouTube page inside the app. Concretely:
   applicable) so YouTube's related-videos end screen is never seen.
 - **Pause overlay mitigation**: the paused embed can show related-video shelves; evaluate
   covering the lower third on pause vs. accepting it — decide at implementation with the
-  real embed in hand (minor, but part of the clean mandate).
+  real embed in hand (minor, but part of the clean mandate). *(M3 decision, 2026-07-11:
+  accepted without a cover for MVP — `rel=0` limits the pause shelf to the same channel
+  (creator curation, not algorithm), and covering it would also hide legitimate player
+  controls. Revisit only if dogfooding shows it pulling attention.)*
 - **Chrome-less player view**: the video sits in Chronicle's own view (title, channel,
   date, description, local action bar in Chronicle's typography/theme) — everything
   around the video is ours; only the video surface itself is YouTube.

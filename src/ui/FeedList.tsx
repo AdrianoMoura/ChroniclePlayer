@@ -25,8 +25,9 @@ interface FeedListProps {
   cursorVideoIndex: number
   undoable: ReadonlySet<string>
   actions: VideoActions
-  onSelect: (videoIndex: number) => void
+  onOpen: (videoIndex: number) => void
   onNearEnd: () => void
+  onAtTopChange: (atTop: boolean) => void
 }
 
 export function FeedList({
@@ -34,8 +35,9 @@ export function FeedList({
   cursorVideoIndex,
   undoable,
   actions,
-  onSelect,
-  onNearEnd
+  onOpen,
+  onNearEnd,
+  onAtTopChange
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -64,7 +66,11 @@ export function FeedList({
   }, [cursorRowIndex, virtualizer])
 
   return (
-    <div className="feed-scroll" ref={scrollRef}>
+    <div
+      className="feed-scroll"
+      ref={scrollRef}
+      onScroll={(event) => onAtTopChange(event.currentTarget.scrollTop < 40)}
+    >
       <div className="feed-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = rows[item.index]
@@ -82,7 +88,7 @@ export function FeedList({
                   selected={row.videoIndex === cursorVideoIndex}
                   undoable={undoable.has(row.video.videoId)}
                   actions={actions}
-                  onSelect={() => onSelect(row.videoIndex)}
+                  onOpen={() => onOpen(row.videoIndex)}
                 />
               )}
             </div>
@@ -98,10 +104,16 @@ interface VideoRowProps {
   selected: boolean
   undoable: boolean
   actions: VideoActions
-  onSelect: () => void
+  onOpen: () => void
 }
 
-function VideoRow({ video, selected, undoable, actions, onSelect }: VideoRowProps) {
+// Thumbnails go through the backend cache (thumb:// protocol) — the
+// renderer never talks to Google hosts directly (architecture.md).
+function thumbSrc(url: string): string {
+  return `thumb://img/${encodeURIComponent(url)}`
+}
+
+function VideoRow({ video, selected, undoable, actions, onOpen }: VideoRowProps) {
   if (undoable) {
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
@@ -116,10 +128,14 @@ function VideoRow({ video, selected, undoable, actions, onSelect }: VideoRowProp
   return (
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
-      onClick={onSelect}
+      onClick={onOpen}
     >
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
-      <div className="thumb" />
+      {video.thumbnailUrl !== null ? (
+        <img className="thumb" loading="lazy" alt="" src={thumbSrc(video.thumbnailUrl)} />
+      ) : (
+        <div className="thumb" />
+      )}
       <div className="row-text">
         <span className="title">{video.title}</span>
         <span className="meta">

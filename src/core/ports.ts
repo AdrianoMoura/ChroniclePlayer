@@ -33,6 +33,8 @@ export interface FeedRepository {
   // Unread within the recent window (feeds the caught-up state).
   countUnreadSince(publishedAtIso: string): number
   listFollowedChannels(): Channel[]
+  // Player view read (playback.md): any locally known video, feed or not.
+  findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
 }
 
 export interface StateRepository {
@@ -96,6 +98,7 @@ export type RssFeedResult =
 export interface HydratedVideo {
   videoId: string
   channelId: string
+  channelTitle: string
   title: string
   publishedAt: string
   durationSeconds: number
