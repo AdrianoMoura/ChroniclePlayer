@@ -20,6 +20,8 @@ export interface FeedVideoDto {
   publishedAt: string // ISO-8601 UTC
   durationSeconds: number | null
   thumbnailUrl: string | null
+  // Shown only when the setting enables it (D-018: hidden by default).
+  viewCount: number | null
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so
@@ -85,6 +87,14 @@ export interface WizardStateDto {
   completed: boolean
 }
 
+// Mirrors platform settings.json (human-editable; local-data.md).
+export interface SettingsDto {
+  theme: 'system' | 'dark' | 'light'
+  density: 'comfortable' | 'compact'
+  refreshMinutes: number // 0 = manual only (D-016)
+  showViewCounts: boolean // D-018
+}
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
@@ -125,6 +135,10 @@ export const IpcChannel = {
   getConnectedChannel: 'auth:whoami',
   getWizardState: 'wizard:get',
   setWizardState: 'wizard:set',
+  getSettings: 'settings:get',
+  setSettings: 'settings:set',
+  exportData: 'data:export',
+  deleteAllData: 'data:deleteAll',
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
@@ -160,5 +174,12 @@ export interface ChronicleApi {
   getConnectedChannel(): Promise<ResultDto<{ title: string }>>
   getWizardState(): Promise<WizardStateDto>
   setWizardState(state: WizardStateDto): Promise<void>
+  getSettings(): Promise<{ settings: SettingsDto; warning: string | null }>
+  setSettings(settings: SettingsDto): Promise<void>
+  // Writes the documented JSON export (FORMAT.md) where the user chooses.
+  exportData(): Promise<ResultDto<{ path: string; videos: number; states: number }>>
+  // Removes the database, secrets and caches, then relaunches (local-data.md
+  // §Privacy invariants). The UI confirms before calling.
+  deleteAllData(): Promise<void>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

@@ -95,7 +95,7 @@ const CONSOLE_STEPS: StepDefinition[] = [
   }
 ]
 
-const STEP_SEQUENCE: WizardStepId[] = [
+export const STEP_SEQUENCE: WizardStepId[] = [
   'welcome',
   'project',
   'enable-api',
@@ -113,9 +113,11 @@ interface WizardProps {
   onStateChange: (state: WizardStateDto) => void
   onQuickPath: () => void
   onDone: () => void
+  // Present only for Settings re-entry (onboarding.md §Re-entry points).
+  onExit?: () => void
 }
 
-export function Wizard({ state, onStateChange, onQuickPath, onDone }: WizardProps) {
+export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: WizardProps) {
   const stepId = STEP_SEQUENCE[Math.min(state.step, STEP_SEQUENCE.length - 1)]
 
   const update = useCallback(
@@ -131,6 +133,11 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone }: WizardProp
 
   return (
     <div className="wizard">
+      {onExit && (
+        <button className="wizard-quiet wizard-exit" onClick={onExit}>
+          ✕ Close
+        </button>
+      )}
       {stepId !== 'welcome' && (
         <div className="wizard-progress">
           {STEP_SEQUENCE.slice(1).map((id) => {

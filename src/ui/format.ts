@@ -27,6 +27,11 @@ export function quotaResetLocalTime(): string {
   return formatClockTime(new Date(now.getTime() + untilMidnightMin * 60_000).toISOString())
 }
 
+// D-018: shown only when the setting enables it.
+export function formatViews(viewCount: number): string {
+  return `${new Intl.NumberFormat(undefined, { notation: 'compact' }).format(viewCount)} views`
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

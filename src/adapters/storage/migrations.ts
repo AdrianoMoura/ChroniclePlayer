@@ -60,7 +60,14 @@ CREATE TABLE meta (
 );
 `
 
-const migrations: readonly string[] = [SCHEMA_V1]
+// v2 (M5, D-018): view counts are captured during hydration so the
+// hidden-by-default setting has data to show. NULL = not yet hydrated
+// since this migration.
+const SCHEMA_V2 = `
+ALTER TABLE videos ADD COLUMN view_count INTEGER;
+`
+
+const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2]
 
 export function migrate(db: DatabaseSync): void {
   let version = schemaVersion(db)

@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
 export default tseslint.config(
-  { ignores: ['out/**', 'dist/**', 'node_modules/**', '.dependency-cruiser.cjs'] },
+  { ignores: ['out/**', 'dist/**', 'node_modules/**', '.claude/**', '.dependency-cruiser.cjs'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

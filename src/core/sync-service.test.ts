@@ -150,7 +150,8 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           durationSeconds: 600,
           liveContent: 'none' as const,
           thumbnailUrl: null,
-          description: null
+          description: null,
+          viewCount: 1000
         }))
       )
     },

@@ -105,6 +105,7 @@ export interface HydratedVideo {
   liveContent: 'none' | 'live' | 'upcoming'
   thumbnailUrl: string | null
   description: string | null
+  viewCount: number | null
 }
 
 export interface VideoSource {

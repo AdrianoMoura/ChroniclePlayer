@@ -27,7 +27,8 @@ function entry(
       title: `Video ${videoId}`,
       publishedAt: published.toISOString(),
       durationSeconds: null,
-      thumbnailUrl: null
+      thumbnailUrl: null,
+      viewCount: null
     }
   }
 }

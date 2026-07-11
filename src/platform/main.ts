@@ -1,5 +1,5 @@
-import { app, BrowserWindow, ipcMain, protocol, safeStorage, shell } from 'electron'
-import { mkdirSync } from 'node:fs'
+import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { openDatabase } from '../adapters/storage/database'
@@ -39,6 +39,7 @@ import type {
 import { IpcChannel } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
+import { loadSettings, normalizeSettings, saveSettings, type AppSettings } from './settings-store'
 import { ThumbnailCache, chronicleCacheDir } from './thumbnail-cache'
 
 const clock: Clock = { now: () => new Date() }
@@ -59,9 +60,8 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 // Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
-// manual always, background timer while running. D-016 (recommended option
-// exercised): 30-minute default interval.
-const REFRESH_INTERVAL_MS = 30 * 60_000
+// manual always, background timer while running. Interval per D-016 —
+// default 30 min, user-configurable down to 15 min or manual-only.
 const LAUNCH_REFRESH_IF_OLDER_MS = 10 * 60_000
 
 function toStateDto(state: VideoState): VideoStateDto {
@@ -78,6 +78,7 @@ function toSliceDto(slice: FeedSlice): FeedSliceDto {
       publishedAt: entry.video.publishedAt,
       durationSeconds: entry.video.durationSeconds,
       thumbnailUrl: entry.video.thumbnailUrl,
+      viewCount: entry.video.viewCount,
       state: toStateDto(entry.state),
       bucket
     })),
@@ -439,6 +440,78 @@ void app.whenReady().then(() => {
     syncRepository.setMeta('wizard_state', JSON.stringify(state))
   })
 
+  // Settings (settings.json) drive the refresh timer, theme and density.
+  const settingsFile = join(dataDir, 'settings.json')
+  const loaded = loadSettings(settingsFile)
+  let settings: AppSettings = loaded.settings
+  const settingsWarning = loaded.warning
+
+  let timer: ReturnType<typeof setInterval> | null = null
+  function applyRefreshTimer(): void {
+    if (timer !== null) clearInterval(timer)
+    timer = null
+    if (settings.refreshMinutes > 0) {
+      timer = setInterval(() => {
+        if (authFlow.hasRefreshToken()) void runRefresh('timer')
+      }, settings.refreshMinutes * 60_000)
+    }
+  }
+  applyRefreshTimer()
+
+  ipcMain.handle(IpcChannel.getSettings, () => ({ settings, warning: settingsWarning }))
+  ipcMain.handle(IpcChannel.setSettings, (_event, raw: unknown) => {
+    settings = normalizeSettings(raw)
+    saveSettings(settingsFile, settings)
+    applyRefreshTimer()
+  })
+
+  ipcMain.handle(IpcChannel.exportData, async (): Promise<
+    ResultDto<{ path: string; videos: number; states: number }>
+  > => {
+    const stamp = clock.now().toISOString().slice(0, 10)
+    const picked = await dialog.showSaveDialog({
+      title: 'Export Chronicle data',
+      defaultPath: join(app.getPath('downloads'), `chronicle-export-${stamp}.json`),
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (picked.canceled || !picked.filePath) {
+      return { ok: false, errorKind: 'canceled', message: 'export canceled' }
+    }
+    const data = syncRepository.exportData()
+    // Format documented in FORMAT.md — "you can leave with everything".
+    const payload = {
+      format: 'chronicle-export',
+      formatVersion: 1,
+      exportedAt: clock.now().toISOString(),
+      settings,
+      ...data
+    }
+    try {
+      writeFileSync(picked.filePath, JSON.stringify(payload, null, 2))
+      return {
+        ok: true,
+        value: { path: picked.filePath, videos: data.videos.length, states: data.videoStates.length }
+      }
+    } catch (error) {
+      return { ok: false, errorKind: 'internal', message: String((error as Error).message) }
+    }
+  })
+
+  // local-data.md §Privacy invariants: DB + secrets + caches gone, then a
+  // clean relaunch (which lands on the first-run wizard).
+  ipcMain.handle(IpcChannel.deleteAllData, () => {
+    db?.close()
+    db = undefined
+    for (const suffix of ['', '-wal', '-shm']) {
+      rmSync(join(dataDir, `chronicle.db${suffix}`), { force: true })
+    }
+    rmSync(settingsFile, { force: true })
+    rmSync(join(dataDir, 'secrets.json'), { force: true })
+    rmSync(chronicleCacheDir(), { recursive: true, force: true })
+    app.relaunch()
+    app.exit(0)
+  })
+
   createWindow()
 
   const firstWindow = BrowserWindow.getAllWindows()[0]
@@ -446,16 +519,12 @@ void app.whenReady().then(() => {
     void validateConnectionAndCatchUp()
   })
 
-  const timer = setInterval(() => {
-    if (authFlow.hasRefreshToken()) void runRefresh('timer')
-  }, REFRESH_INTERVAL_MS)
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
   app.on('will-quit', () => {
-    clearInterval(timer)
+    if (timer !== null) clearInterval(timer)
   })
 })
 

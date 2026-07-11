@@ -98,7 +98,8 @@ export function seedDevFixtures(
           title: `${pick(TITLE_LEADS)} ${pick(TITLE_SUBJECTS)}${pick(TITLE_TAILS)}`,
           publishedAt,
           durationSeconds: 200 + Math.floor(random() * 3400),
-          thumbnailUrl: null
+          thumbnailUrl: null,
+          viewCount: Math.floor(random() * 400_000)
         },
         nowIso
       )

@@ -22,8 +22,8 @@ Deliverables:
   migrates an empty schema v1, window shows a hardcoded feed row. No YouTube yet.
 - ~~CI: unit tests + typecheck on push~~ — **deferred (2026-07-11, product owner):** no
   standalone CI in M0; a single smarter pipeline (checks + release + automatic binary
-  builds) will be designed later, likely alongside M5 packaging. The invariant stands
-  whenever it lands: no API calls in CI, ever. Until then, checks run locally
+  builds) will be designed as part of M6. The invariant stands whenever it lands: no API
+  calls in CI, ever. Until then, checks run locally
   (`npm run typecheck && npm run lint && npm test`).
 
 Exit criterion: `npm run dev` shows the shell app on Linux, macOS, Windows.
@@ -150,10 +150,35 @@ verified 2026-07-11 but not photographed; capture before M5 release). Re-entry p
 from Settings arrive with the M5 settings surface. **Still open for exit:** screenshots +
 2–3 external acid-testers (only the product owner can recruit).
 
-## M5 — MVP release
+## M5 — MVP feature-complete (from source)
 
-- Data export (JSON, documented format).
-- Settings surface (refresh interval, theme, density, view-count toggle, data actions).
+*(Split 2026-07-11 by the product owner: packaging/installers/release move to their own
+milestone, M6 — the software must be MVP-complete before it is worth shipping binaries.)*
+
+- Data export (JSON, documented format — `FORMAT.md` ships in the repo).
+- Settings surface (refresh interval, theme override, density, view-count toggle,
+  connection actions incl. wizard re-entry points, data actions incl. "delete all
+  local data").
+- README, screenshots, the wizard-as-markdown doc for the repo (`docs/setup.md`).
+
+Exit criterion: a technical user can clone the repo and use the complete MVP from
+`npm run dev` guided by the README alone; every MVP feature in `features.md` §MVP works.
+
+**Status (2026-07-11): implemented.** Export (documented in `FORMAT.md`, save-dialog to
+a single JSON; the SQLite file blessed as backup in README); settings surface with
+Connection (status, scope explanation + revoke link, D-013 storage honesty, wizard
+re-entry points: Reconnect→7, Replace key→6, Fix weekly logout→4b, sign out — verified
+live by the product owner), Sync (D-016 interval 15/30/60/manual, applied to the timer
+immediately), Appearance (theme override via data-theme, D-022 density with virtualizer
+re-measure, D-018 view-count toggle — schema v2 adds `view_count`, hydration captures
+statistics at no extra quota cost), Data (export + two-step delete-all that wipes DB,
+settings, secrets and caches, then relaunches into first-run). `settings.json` is
+human-editable; malformed files yield defaults + a non-blocking warning. README and
+FORMAT.md written. D-020 (pruning) stays per recommendation: off — no pruning exists,
+which is the off state; the optional setting can ship post-MVP.
+
+## M6 — Packaging & release
+
 - Packaging/signing for Linux (AppImage/Flatpak — **D-024 Pending**, recommend both,
   Flatpak primary), macOS (notarized dmg), Windows (signed installer if cert budget
   exists — **D-025 Pending**).
@@ -163,7 +188,7 @@ from Settings arrive with the M5 settings surface. **Still open for exit:** scre
 - App update mechanism honoring privacy rules (static update feed, no identifiers) —
   **D-026 Pending**, recommend simple signed static-manifest check, default on, off
   switch in settings.
-- README, screenshots, the wizard-as-markdown doc for the repo.
+- Wizard screenshots captured/refreshed as part of the first release walk.
 
 Exit criterion: a stranger can download, set up, and use Chronicle from the README alone.
 

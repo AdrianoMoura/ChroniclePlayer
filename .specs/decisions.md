@@ -51,19 +51,19 @@ Ordered by how urgently they block work (see `roadmap.md`).
 |---|---|---|---|---|
 | **D-008** | Storage engine | **SQLite (WAL)** · flat files · embedded KV | M0 (high confidence — treat as working plan) | `architecture.md`, `local-data.md` |
 | **D-013** | Secret-store fallback when no OS keychain | **Electron `safeStorage`, else machine-derived key + honest warning** · refuse to persist — *recommended option fully exercised in M2 (2026-07-11): safeStorage when a real keychain backs it; else AES-256-GCM under a scrypt key from `/etc/machine-id`+user, `isSecure()=false` → UI warning. The writing cipher is pinned in the store file. Real-world smoke (product owner, keyring-less niri session) hit the missing-fallback crash on day one — `safeStorage.encryptString` throws without a keychain — confirming the fallback is mandatory, not theoretical.* | M2 | `authentication.md` |
-| **D-016** | Background refresh default interval | **30 min (configurable 15 min–manual)** · 15 min · hourly — *recommended option exercised in M2 (2026-07-11): 30-min timer; configurability arrives with Settings (M5)* | M2 | `youtube-api.md` |
+| **D-016** | Background refresh default interval | **30 min (configurable 15 min–manual)** · 15 min · hourly — *fully exercised: 30-min default (M2); configurable 15/30/60/manual in Settings (M5, 2026-07-11)* | M2 | `youtube-api.md` |
 | **D-014** | Wizard validation for Google-console steps 1–5 | **checkbox confirmations + failure→step mapping at connect time** · attempt live validation — *recommended option exercised in M4 (2026-07-11)* | M4 | `onboarding.md` |
 | **D-015** | Wizard media | **static annotated screenshots** · per-step recordings — *recommended option exercised in M4 (2026-07-11): asset pipeline with verified-on dating built; captures pending* | M4 | `onboarding.md` |
 | **D-017** | Week-grouping start day | **fixed Monday (ISO)** · locale-dependent | M1 (trivial) | `feed.md` |
-| **D-018** | Show view counts on feed rows | **hidden by default, setting to show** · always · never | M1 (trivial) | `feed.md` |
+| **D-018** | Show view counts on feed rows | **hidden by default, setting to show** · always · never — *recommended option fully exercised in M5 (2026-07-11): schema v2 captures counts at hydration (no extra quota); toggle in Settings, off by default* | M1 (trivial) | `feed.md` |
 | **D-019** | Backfill depth for new/first-sync channels | **RSS window (~15) + scroll-triggered deeper backfill** · fixed 50 · configurable | M2 | `feed.md` |
 | **D-020** | Auto-pruning of stateless old videos | **off by default** · on at 24 months | M5 | `local-data.md` |
 | **D-021** | Watch Later queue auto-advance | **off by default, opt-in setting** · on (it's the user's own queue) · never | M3 | `playback.md` |
-| **D-022** | Feed row density default | **comfortable, with compact setting** · compact | M3 (trivial) | `ui.md` |
+| **D-022** | Feed row density default | **comfortable, with compact setting** · compact — *recommended option fully exercised in M5 (2026-07-11)* | M3 (trivial) | `ui.md` |
 | **D-023** | Muted-thumbnail treatment | **prototype in M3, keep only if it works** · normal thumbnails | M3 (trivial) | `ui.md` |
-| **D-024** | Linux packaging | **Flatpak primary + AppImage** · one only | M5 | `roadmap.md` |
-| **D-025** | Windows code signing | budget-dependent | M5 | `roadmap.md` |
-| **D-026** | Update mechanism | **signed static-manifest check, no identifiers, off-switch** · manual-only | M5 | `roadmap.md` |
+| **D-024** | Linux packaging | **Flatpak primary + AppImage** · one only | M6 | `roadmap.md` |
+| **D-025** | Windows code signing | budget-dependent | M6 | `roadmap.md` |
+| **D-026** | Update mechanism | **signed static-manifest check, no identifiers, off-switch** · manual-only | M6 | `roadmap.md` |
 
 ## Key assumptions to verify (tracked; promote or correct on verification)
 

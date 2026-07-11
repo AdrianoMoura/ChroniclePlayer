@@ -21,8 +21,10 @@ interface SidebarProps {
   unreadCount: number
   channels: ChannelDto[]
   channelFilter: string | null
+  settingsOpen: boolean
   onSelectView: (view: FeedViewDto) => void
   onSelectChannel: (channelId: string | null) => void
+  onOpenSettings: () => void
 }
 
 export function Sidebar({
@@ -30,8 +32,10 @@ export function Sidebar({
   unreadCount,
   channels,
   channelFilter,
+  settingsOpen,
   onSelectView,
-  onSelectChannel
+  onSelectChannel,
+  onOpenSettings
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -70,9 +74,9 @@ export function Sidebar({
       )}
 
       <div className="sidebar-footer">
-        <span className="view disabled" title="Settings arrive with M5">
+        <button className={`view${settingsOpen ? ' active' : ''}`} onClick={onOpenSettings}>
           Settings
-        </span>
+        </button>
       </div>
     </aside>
   )

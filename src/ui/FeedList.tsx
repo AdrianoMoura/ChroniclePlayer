@@ -1,13 +1,14 @@
 import { useEffect, useRef, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
-import { formatDuration, publishedLabel } from './format'
+import { formatDuration, formatViews, publishedLabel } from './format'
 
 export type FeedRow =
   | { kind: 'header'; key: string; label: string }
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
 
-const ROW_HEIGHT = 76
+// Comfortable is the default; compact is the setting (D-022).
+const ROW_HEIGHTS = { comfortable: 76, compact: 56 } as const
 const HEADER_HEIGHT = 38
 
 export interface VideoActions {
@@ -28,6 +29,8 @@ interface FeedListProps {
   onOpen: (videoIndex: number) => void
   onNearEnd: () => void
   onAtTopChange: (atTop: boolean) => void
+  density: 'comfortable' | 'compact'
+  showViewCounts: boolean
 }
 
 export function FeedList({
@@ -37,16 +40,24 @@ export function FeedList({
   actions,
   onOpen,
   onNearEnd,
-  onAtTopChange
+  onAtTopChange,
+  density,
+  showViewCounts
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const rowHeight = ROW_HEIGHTS[density]
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => (rows[index].kind === 'header' ? HEADER_HEIGHT : ROW_HEIGHT),
+    estimateSize: (index) => (rows[index].kind === 'header' ? HEADER_HEIGHT : rowHeight),
     overscan: 12
   })
+
+  // Density switches change every row size; the virtualizer must re-measure.
+  useEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, virtualizer])
 
   const items = virtualizer.getVirtualItems()
 
@@ -67,7 +78,7 @@ export function FeedList({
 
   return (
     <div
-      className="feed-scroll"
+      className={`feed-scroll${density === 'compact' ? ' compact' : ''}`}
       ref={scrollRef}
       onScroll={(event) => onAtTopChange(event.currentTarget.scrollTop < 40)}
     >
@@ -89,6 +100,7 @@ export function FeedList({
                   undoable={undoable.has(row.video.videoId)}
                   actions={actions}
                   onOpen={() => onOpen(row.videoIndex)}
+                  showViewCounts={showViewCounts}
                 />
               )}
             </div>
@@ -105,6 +117,7 @@ interface VideoRowProps {
   undoable: boolean
   actions: VideoActions
   onOpen: () => void
+  showViewCounts: boolean
 }
 
 // Thumbnails go through the backend cache (thumb:// protocol) — the
@@ -113,7 +126,7 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-function VideoRow({ video, selected, undoable, actions, onOpen }: VideoRowProps) {
+function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoRowProps) {
   if (undoable) {
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
@@ -140,6 +153,7 @@ function VideoRow({ video, selected, undoable, actions, onOpen }: VideoRowProps)
         <span className="title">{video.title}</span>
         <span className="meta">
           {video.channelTitle} · {publishedLabel(video.publishedAt)}
+          {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
           {state.favorite && <span className="glyph" title="Favorite"> ★</span>}
           {state.watchLater && <span className="glyph" title="Watch Later"> ▶︎⁺</span>}
         </span>

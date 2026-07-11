@@ -82,12 +82,14 @@ export class YouTubeApiClient implements SubscriptionSource {
     if (videoIds.length === 0) return []
     const page = await this.get(
       'videos',
-      { part: 'snippet,contentDetails', id: videoIds.join(','), maxResults: '50' },
+      { part: 'snippet,contentDetails,statistics', id: videoIds.join(','), maxResults: '50' },
       1
     )
     return page.items.map((item) => {
       const snippet = item['snippet'] as Record<string, unknown>
       const details = item['contentDetails'] as Record<string, unknown>
+      const statistics = item['statistics'] as Record<string, unknown> | undefined
+      const rawViews = statistics?.['viewCount']
       const live = snippet['liveBroadcastContent']
       return {
         videoId: String(item['id']),
@@ -98,7 +100,8 @@ export class YouTubeApiClient implements SubscriptionSource {
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),
         liveContent: live === 'live' || live === 'upcoming' ? live : 'none',
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
-        description: typeof snippet['description'] === 'string' ? snippet['description'] : null
+        description: typeof snippet['description'] === 'string' ? snippet['description'] : null,
+        viewCount: typeof rawViews === 'string' ? Number(rawViews) : null
       }
     })
   }

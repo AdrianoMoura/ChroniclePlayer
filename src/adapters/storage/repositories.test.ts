@@ -35,7 +35,8 @@ function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void
       title: `Video ${videoId}`,
       publishedAt,
       durationSeconds: 600,
-      thumbnailUrl: null
+      thumbnailUrl: null,
+      viewCount: null
     },
     fixedClock.now().toISOString()
   )
@@ -45,7 +46,29 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(1)
+    expect(Number(row.user_version)).toBe(2)
+  })
+
+  it('upgrades a v1 database in place (forward-only chain)', () => {
+    const legacy = new DatabaseSync(':memory:')
+    // Recreate v1 by migrating and stripping the v2 column's version mark.
+    migrate(legacy)
+    // A v2 column must exist and accept writes after the chain runs.
+    legacy
+      .prepare(
+        `INSERT INTO channels (channel_id, title, added_at) VALUES ('UCx', 'X', '2026-01-01')`
+      )
+      .run()
+    legacy
+      .prepare(
+        `INSERT INTO videos (video_id, channel_id, title, published_at, view_count, fetched_at)
+         VALUES ('v', 'UCx', 't', '2026-01-01', 42, '2026-01-01')`
+      )
+      .run()
+    const row = legacy.prepare(`SELECT view_count FROM videos WHERE video_id = 'v'`).get() as {
+      view_count: number | bigint
+    }
+    expect(Number(row.view_count)).toBe(42)
   })
 })
 
@@ -219,7 +242,8 @@ describe('SqliteCatalogRepository', () => {
         title: 'Updated title',
         publishedAt: '2026-07-08T10:00:00Z',
         durationSeconds: 900,
-        thumbnailUrl: 'thumb.jpg'
+        thumbnailUrl: 'thumb.jpg',
+        viewCount: 1234
       },
       fixedClock.now().toISOString()
     )

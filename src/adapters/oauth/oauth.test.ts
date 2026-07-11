@@ -111,9 +111,11 @@ describe('loopback handshake', () => {
 
   it('propagates an authorization refusal', async () => {
     const loopback = await startLoopback()
-    const pending = loopback.waitForCode('st')
+    // attach the rejection handler before the request lands, or the rejection
+    // is flagged as unhandled while the fetch is still being awaited
+    const pending = expect(loopback.waitForCode('st')).rejects.toMatchObject({ kind: 'internal' })
     await fetch(`${loopback.redirectUri}/?state=st&error=access_denied`)
-    await expect(pending).rejects.toMatchObject({ kind: 'internal' })
+    await pending
     loopback.close()
   })
 })

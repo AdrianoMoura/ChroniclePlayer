@@ -10,6 +10,7 @@ import type {
   FeedViewDto,
   PlayerVideoDto,
   ReadStatusDto,
+  SettingsDto,
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
@@ -18,9 +19,11 @@ import { FeedList, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { PlayerView } from './PlayerView'
+import { SettingsView } from './SettingsView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
 import { UrlPrompt } from './UrlPrompt'
-import { Wizard } from './onboarding/Wizard'
+import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
+import type { WizardStepId } from './onboarding/assets'
 
 const BUCKET_LABELS: Record<FeedBucketDto, string> = {
   today: 'Today',
@@ -60,6 +63,14 @@ export function App() {
   const [playerStack, setPlayerStack] = useState<PlayerVideoDto[]>([])
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
+  const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
+  const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
+  const [settings, setSettings] = useState<SettingsDto>({
+    theme: 'system',
+    density: 'comfortable',
+    refreshMinutes: 30,
+    showViewCounts: false
+  })
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
@@ -101,6 +112,10 @@ export function App() {
   useEffect(() => {
     void window.chronicle.getAuthStatus().then(setAuth)
     void window.chronicle.getWizardState().then(setWizard)
+    void window.chronicle.getSettings().then(({ settings: loaded, warning }) => {
+      setSettings(loaded)
+      if (warning !== null) setBanner({ text: warning })
+    })
     loadChannels()
   }, [loadChannels])
 
@@ -108,6 +123,32 @@ export function App() {
     setWizard(state)
     void window.chronicle.setWizardState(state)
   }, [])
+
+  const changeSettings = useCallback((next: SettingsDto) => {
+    setSettings(next)
+    void window.chronicle.setSettings(next)
+  }, [])
+
+  // Manual theme override (ui.md); 'system' defers to prefers-color-scheme.
+  useEffect(() => {
+    if (settings.theme === 'system') delete document.documentElement.dataset['theme']
+    else document.documentElement.dataset['theme'] = settings.theme
+  }, [settings.theme])
+
+  // Re-entry points from Settings (onboarding.md): an ephemeral wizard run
+  // starting at the responsible step — never touches the saved completion.
+  const openWizardAt = useCallback(
+    (stepId: WizardStepId) => {
+      setWizardEntry({
+        step: STEP_SEQUENCE.indexOf(stepId),
+        email: wizard?.email ?? '',
+        confirmed: wizard?.confirmed ?? {},
+        published: wizard?.published ?? null,
+        completed: false
+      })
+    },
+    [wizard]
+  )
 
   const connect = useCallback(() => {
     setBanner(null)
@@ -370,6 +411,10 @@ export function App() {
         return
       }
       if (playerOpen || urlPromptOpen) return // PlayerView/UrlPrompt own their keys
+      if (screen === 'settings') {
+        if (event.key === 'Escape') setScreen('feed')
+        return
+      }
 
       const target = event.target as HTMLElement | null
       if (target instanceof HTMLInputElement) {
@@ -475,10 +520,30 @@ export function App() {
     filter,
     playerOpen,
     urlPromptOpen,
-    openFromFeed
+    openFromFeed,
+    screen
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
+
+  // Settings re-entry into specific wizard steps (ephemeral run).
+  if (wizardEntry !== null) {
+    const closeEntry = (): void => {
+      setWizardEntry(null)
+      void window.chronicle.getAuthStatus().then(setAuth)
+      loadView()
+      loadChannels()
+    }
+    return (
+      <Wizard
+        state={wizardEntry}
+        onStateChange={setWizardEntry}
+        onQuickPath={closeEntry}
+        onDone={closeEntry}
+        onExit={closeEntry}
+      />
+    )
+  }
 
   // First-run: the wizard is the MVP's sole entry path (onboarding.md); the
   // quick path marks it completed and falls back to the compact panel.
@@ -515,17 +580,54 @@ export function App() {
         unreadCount={meta.unreadCount}
         channels={channels}
         channelFilter={channelFilter}
+        settingsOpen={screen === 'settings'}
         onSelectView={(next) => {
           setPlayerStack([])
+          setScreen('feed')
           setChannelFilter(null)
           setView(next)
         }}
         onSelectChannel={(channelId) => {
           setPlayerStack([])
+          setScreen('feed')
           setChannelFilter(channelId)
+        }}
+        onOpenSettings={() => {
+          setPlayerStack([])
+          setScreen('settings')
         }}
       />
       <main className="feed">
+        {screen === 'settings' ? (
+          <>
+            {banner !== null && (
+              <div className="banner">
+                <span>{banner.text}</span>
+                <span className="banner-actions">
+                  <button className="banner-dismiss" title="Dismiss" onClick={() => setBanner(null)}>
+                    ✕
+                  </button>
+                </span>
+              </div>
+            )}
+            <SettingsView
+              auth={auth}
+              settings={settings}
+              onSettingsChange={changeSettings}
+              onReconnect={() => openWizardAt('connect')}
+              onReplaceKey={() => openWizardAt('import')}
+              onFixWeeklyLogout={() => openWizardAt('publish')}
+              onSignOut={() => {
+                void window.chronicle.signOut().then((status) => {
+                  setAuth(status)
+                  setBanner({ text: 'Signed out. Local data was kept — reconnect anytime.' })
+                })
+              }}
+              onBanner={(text) => setBanner({ text })}
+            />
+          </>
+        ) : (
+          <>
         <header className="topbar">
           <button
             className={`refresh${refreshing ? ' spinning' : ''}`}
@@ -610,6 +712,8 @@ export function App() {
                 onAtTopChange={(atTop) => {
                   atTopRef.current = atTop
                 }}
+                density={settings.density}
+                showViewCounts={settings.showViewCounts}
               />
             )}
             {playerOpen && currentPlayerVideo && (
@@ -624,6 +728,8 @@ export function App() {
               />
             )}
           </div>
+        )}
+          </>
         )}
       </main>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}

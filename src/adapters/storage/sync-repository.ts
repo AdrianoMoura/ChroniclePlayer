@@ -131,8 +131,8 @@ export class SqliteSyncRepository implements SyncRepository {
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
-          live_content, thumbnail_url, hydrated_at, fetched_at)
-       VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live, :thumb, :now, :now)
+          live_content, thumbnail_url, view_count, hydrated_at, fetched_at)
+       VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live, :thumb, :views, :now, :now)
        ON CONFLICT(video_id) DO UPDATE SET
          title = :title,
          description = :description,
@@ -140,6 +140,7 @@ export class SqliteSyncRepository implements SyncRepository {
          duration_seconds = :duration,
          live_content = :live,
          thumbnail_url = COALESCE(:thumb, thumbnail_url),
+         view_count = :views,
          hydrated_at = :now`
     )
     for (const video of videos) {
@@ -152,6 +153,7 @@ export class SqliteSyncRepository implements SyncRepository {
         duration: video.durationSeconds,
         live: video.liveContent,
         thumb: video.thumbnailUrl,
+        views: video.viewCount,
         now
       })
     }
@@ -231,6 +233,93 @@ export class SqliteSyncRepository implements SyncRepository {
       .prepare(`SELECT started_at FROM sync_log ORDER BY id DESC LIMIT 1`)
       .get() as { started_at: string } | undefined
     return row?.started_at ?? null
+  }
+
+  // Export payload per local-data.md §Export: channels (id/title/subscribed),
+  // videos (core metadata), the full video_state table. "You can leave with
+  // everything."
+  exportData(): {
+    channels: { channelId: string; title: string; subscribed: boolean }[]
+    videos: {
+      videoId: string
+      channelId: string
+      title: string
+      publishedAt: string
+      durationSeconds: number | null
+      isShort: boolean | null
+    }[]
+    videoStates: {
+      videoId: string
+      readStatus: string
+      favorite: boolean
+      watchLater: boolean
+      watchLaterPos: number | null
+      statusChangedAt: string
+      updatedAt: string
+    }[]
+  } {
+    const channels = (
+      this.db.prepare(`SELECT channel_id, title, subscribed FROM channels ORDER BY channel_id`).all() as unknown as {
+        channel_id: string
+        title: string
+        subscribed: number | bigint
+      }[]
+    ).map((row) => ({
+      channelId: row.channel_id,
+      title: row.title,
+      subscribed: Number(row.subscribed) === 1
+    }))
+
+    const videos = (
+      this.db
+        .prepare(
+          `SELECT video_id, channel_id, title, published_at, duration_seconds, is_short
+           FROM videos ORDER BY published_at DESC, video_id`
+        )
+        .all() as unknown as {
+        video_id: string
+        channel_id: string
+        title: string
+        published_at: string
+        duration_seconds: number | bigint | null
+        is_short: number | bigint | null
+      }[]
+    ).map((row) => ({
+      videoId: row.video_id,
+      channelId: row.channel_id,
+      title: row.title,
+      publishedAt: row.published_at,
+      durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+      isShort: row.is_short === null ? null : Number(row.is_short) === 1
+    }))
+
+    const videoStates = (
+      this.db
+        .prepare(
+          `SELECT video_id, read_status, favorite, watch_later, watch_later_pos,
+                  status_changed_at, updated_at
+           FROM video_state ORDER BY video_id`
+        )
+        .all() as unknown as {
+        video_id: string
+        read_status: string
+        favorite: number | bigint
+        watch_later: number | bigint
+        watch_later_pos: number | bigint | null
+        status_changed_at: string
+        updated_at: string
+      }[]
+    ).map((row) => ({
+      videoId: row.video_id,
+      readStatus: row.read_status,
+      favorite: Number(row.favorite) === 1,
+      watchLater: Number(row.watch_later) === 1,
+      watchLaterPos: row.watch_later_pos === null ? null : Number(row.watch_later_pos),
+      statusChangedAt: row.status_changed_at,
+      updatedAt: row.updated_at
+    }))
+
+    return { channels, videos, videoStates }
   }
 
   getMeta(key: string): string | null {
