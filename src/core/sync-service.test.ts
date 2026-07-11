@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SyncService } from './sync-service'
+import { SyncService, type SyncProgress } from './sync-service'
 import { authExpired, channelUnavailable, networkUnavailable, quotaExceeded } from './errors'
 import {
   QuotaCounter,
@@ -170,7 +170,12 @@ const noShorts: ShortsProber = { isShort: () => Promise.resolve(false) }
 function service(
   repo: FakeRepo,
   source: VideoSource,
-  options: { subscriptions?: SubscriptionSource; quota?: QuotaCounter; prober?: ShortsProber; onProgress?: (p: { checked: number; total: number }) => void } = {}
+  options: {
+    subscriptions?: SubscriptionSource
+    quota?: QuotaCounter
+    prober?: ShortsProber
+    onProgress?: (p: SyncProgress) => void
+  } = {}
 ): SyncService {
   return new SyncService({
     subscriptions: options.subscriptions ?? fakeSubscriptions(),
@@ -358,14 +363,33 @@ describe('SyncService.refresh', () => {
       feeds: { UCa: { kind: 'ok', entries: [discovered('v1')], etag: null, lastModified: null } },
       quota
     })
-    const progress: number[] = []
+    const progress: [string, number][] = []
     const report = await service(repo, source, {
       quota,
-      onProgress: (p) => progress.push(p.checked)
+      onProgress: (p) => progress.push([p.phase, p.checked])
     }).refresh('manual')
 
     expect(report.quotaSpent).toBe(1) // one hydrate batch
     expect(repo.logs.at(-1)).toMatchObject({ quotaSpent: 1, outcome: 'ok', trigger: 'manual' })
-    expect(progress).toEqual([0, 1])
+    expect(progress).toEqual([
+      ['channels', 0],
+      ['channels', 1]
+    ])
+  })
+
+  it('reports shorts-phase progress while confirming candidates', async () => {
+    const repo = new FakeRepo()
+    repo.candidates = ['a', 'b']
+    repo.setMeta('subscriptions_synced_at', '2026-07-11T00:00:00Z')
+    const progress: [string, number, number][] = []
+    await service(repo, fakeVideoSource(), {
+      onProgress: (p) => progress.push([p.phase, p.checked, p.total])
+    }).refresh('manual')
+
+    expect(progress.filter(([phase]) => phase === 'shorts')).toEqual([
+      ['shorts', 0, 2],
+      ['shorts', 1, 2],
+      ['shorts', 2, 2]
+    ])
   })
 })

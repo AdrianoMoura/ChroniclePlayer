@@ -45,7 +45,11 @@ export function App() {
   const [banner, setBanner] = useState<Banner | null>(null)
   const [channels, setChannels] = useState<ChannelDto[]>([])
   const [refreshing, setRefreshing] = useState(false)
-  const [progress, setProgress] = useState<{ checked: number; total: number } | null>(null)
+  const [progress, setProgress] = useState<{
+    phase: 'channels' | 'shorts'
+    checked: number
+    total: number
+  } | null>(null)
   const [connecting, setConnecting] = useState(false)
 
   const viewRef = useRef<FeedViewDto>('all')
@@ -122,7 +126,7 @@ export function App() {
           setProgress(null)
           break
         case 'refresh:progress':
-          setProgress({ checked: event.checked, total: event.total })
+          setProgress({ phase: event.phase, checked: event.checked, total: event.total })
           break
         case 'refresh:done':
           setRefreshing(false)
@@ -382,7 +386,9 @@ export function App() {
 
   const statusText = refreshing
     ? progress !== null
-      ? `checking ${progress.checked} of ${progress.total} channels…`
+      ? progress.phase === 'shorts'
+        ? `filtering Shorts — ${progress.checked} of ${progress.total} checked…`
+        : `checking ${progress.checked} of ${progress.total} channels…`
       : 'refreshing…'
     : meta.caughtUp
       ? `All caught up${meta.lastRefreshAt ? ` · last refresh ${formatClockTime(meta.lastRefreshAt)}` : ''}`

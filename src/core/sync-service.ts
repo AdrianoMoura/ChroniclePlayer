@@ -18,6 +18,7 @@ import type {
 export type SyncTrigger = 'launch' | 'manual' | 'timer'
 
 export interface SyncProgress {
+  phase: 'channels' | 'shorts'
   checked: number
   total: number
 }
@@ -34,7 +35,7 @@ export interface SyncReport {
 }
 
 const RSS_CONCURRENCY = 8 // youtube-api.md politeness rule
-const SHORTS_CONCURRENCY = 4
+const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle
 const SUBSCRIPTION_RESYNC_MS = 7 * 24 * 3_600_000 // automatic weekly re-list
@@ -78,13 +79,13 @@ export class SyncService {
       const channels = repo.listSubscribedChannels()
       channelsPolled = channels.length
       let checked = 0
-      this.deps.onProgress?.({ checked, total: channels.length })
+      this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
 
       const toHydrate: string[] = []
       const results = await mapPool(channels, RSS_CONCURRENCY, async (channel) => {
         const newIds = await this.discoverChannel(channel, ctx)
         checked += 1
-        this.deps.onProgress?.({ checked, total: channels.length })
+        this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
         return newIds
       })
       for (const result of results) {
@@ -278,9 +279,14 @@ export class SyncService {
   // are hidden only after confirmation) and is retried next cycle.
   private async confirmShorts(): Promise<void> {
     const candidates = this.deps.repo.shortCandidates()
+    if (candidates.length === 0) return
+    let checked = 0
+    this.deps.onProgress?.({ phase: 'shorts', checked, total: candidates.length })
     await mapPool(candidates, SHORTS_CONCURRENCY, async (videoId) => {
       const isShort = await this.deps.shortsProber.isShort(videoId)
       this.deps.repo.setShortStatus(videoId, isShort)
+      checked += 1
+      this.deps.onProgress?.({ phase: 'shorts', checked, total: candidates.length })
     })
   }
 }

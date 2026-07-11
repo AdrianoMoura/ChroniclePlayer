@@ -213,7 +213,12 @@ void app.whenReady().then(() => {
     quota,
     clock,
     onProgress: (progress) =>
-      broadcast({ type: 'refresh:progress', checked: progress.checked, total: progress.total })
+      broadcast({
+        type: 'refresh:progress',
+        phase: progress.phase,
+        checked: progress.checked,
+        total: progress.total
+      })
   })
 
   if (!app.isPackaged && process.env['CHRONICLE_FIXTURES'] === '1') {

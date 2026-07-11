@@ -73,22 +73,29 @@ Exit criterion: the developer's real YouTube account flows end-to-end: wizard-le
 setup → import → live chronological feed that refreshes. **Real-world smoke checklist
 executed and recorded.**
 
-**Status (2026-07-11): implemented; offline-verified. Awaiting the real-account smoke
-test (product owner) to exit.** Landed: OAuth adapter (PKCE S256, loopback with
-single-use state + 5-min timeout, memory-only access tokens, `invalid_grant` →
-auth-expired banner per D-012); secret store via injected cipher — Electron safeStorage
-with honest `isSecure()` fallback signal (D-013 recommendation exercised); YouTube API
-client (subscriptions/channels/videos/playlistItems, typed error mapping, per-call
-quota accounting); RSS client with conditional GET; hybrid SyncService (D-007) with
-per-channel isolation, weekly subscription re-list, bounded gap backfill, Shorts
-confirm-then-hide pipeline (D-028); 30-min timer + launch refresh (D-016 recommendation
-exercised); events to the UI (progress/done/auth/quota); connect panel, single banner
-slot, sidebar channel list; `docs/setup.md` (wizard copy precursor). All contract-tested
-offline — no real API calls in tests. **Still open for exit:** run `docs/setup.md`
-end-to-end with a real Google account; verify the console Assumptions in
-`authentication.md` (publish-without-verification, 7-day expiry) and `youtube-api.md`
-(quota costs, RSS freshness, UC→UU, Shorts HEAD heuristic — MVP-blocking); date the
-"verified-on" line in `docs/setup.md`.
+**Status (2026-07-11): DONE — exit criterion met.** Landed: OAuth adapter (PKCE S256,
+loopback with single-use state + 5-min timeout, memory-only access tokens,
+`invalid_grant` → auth-expired banner per D-012); secret store via injected cipher —
+safeStorage over a real keychain, machine-derived-key fallback otherwise (D-013
+exercised; both paths hit in the wild on day one); YouTube API client with typed error
+mapping and per-call quota accounting; RSS client with conditional GET; hybrid
+SyncService (D-007) with per-channel isolation, weekly subscription re-list, bounded gap
+backfill, Shorts confirm-then-hide pipeline (D-028); 30-min timer + launch refresh
+(D-016 exercised); progress/auth/quota events; connect panel, banner slot, sidebar
+channel list; `docs/setup.md`. All contract-tested offline.
+
+**Real-world smoke (product owner, Linux/niri, 2026-07-11):** manual setup via
+`docs/setup.md` → import → connect → first sync end-to-end. Results: 229 subscriptions,
+3,261 videos discovered+hydrated, **76 quota units** (spec predicted ~60–76 for ~200
+subs — verified), **937 Shorts confirmed and excluded, 0 stuck candidates** (D-028
+heuristic verified at scale — the MVP-blocking assumption holds), first sync took
+6 min (dominated by ~1.5k HEAD probes; concurrency since raised 4→8, phase now shown
+in the status line). Findings fixed during the smoke: safeStorage crash without a
+keychain (D-013 fallback was mandatory), Chromium picking `basic_text` on
+non-GNOME/KDE sessions (now forces `gnome-libsecret`). Assumptions still tracked, not
+yet falsifiable: publish-without-verification console behavior and 7-day Testing
+expiry (needs a week / console walk — re-verify while building the M4 wizard); API
+data-retention policy window.
 
 ## M3 — Playback + polish
 

@@ -7,8 +7,9 @@ nobody can revoke, leak, or spy on a credential that only you possess (D-001).
 The whole thing takes about ten minutes, once. This document is the plain-markdown
 precursor of the onboarding wizard (M4); every step below will become a wizard screen.
 
-> Verified against the live Google console on: **(pending — M2 verification)**.
-> If the console has changed since, file an issue / update this doc.
+> Verified against the live Google console on: **2026-07-11** (steps 1–6 completed
+> end-to-end by the product owner on Linux). If the console has changed since, file an
+> issue / update this doc.
 
 ## Step 1 — Create a Google Cloud project
 

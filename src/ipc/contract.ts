@@ -81,7 +81,7 @@ export interface SyncReportDto {
 // Backend → UI push (architecture.md §IPC: the UI never polls).
 export type ChronicleEventDto =
   | { type: 'refresh:started'; trigger: 'launch' | 'manual' | 'timer' }
-  | { type: 'refresh:progress'; checked: number; total: number }
+  | { type: 'refresh:progress'; phase: 'channels' | 'shorts'; checked: number; total: number }
   | { type: 'refresh:done'; report: SyncReportDto }
   | { type: 'auth:required' }
   | { type: 'quota:exceeded' }
