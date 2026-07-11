@@ -41,6 +41,7 @@ Confirmed by the product owner (2026-07-10, decision session):
 | D-030 | Channel view offers **both follow mechanisms**: (a) "Subscribe on YouTube" (`subscriptions.insert`, 50 units, incremental scope per D-032) and (b) "Follow locally" via RSS — Chronicle-only, invisible to the user's YouTube account. | `features.md`, `vision.md` |
 | D-033 | **Accountless mode** (enabled by local follows): Chronicle is usable **without any Google/YouTube account** — follow channels locally via RSS, chronological feed, embedded playback, local states. The onboarding wizard becomes an optional path that unlocks account features (subscription import, search, like/comment, full metadata). Degraded-mode details (no `videos.list` hydration → no duration badges; Shorts detection via HEAD-check on every new video instead of duration-filtered candidates) specced in `features.md`. Lands together with D-030 (post-MVP #1); MVP still assumes the authenticated path. | `features.md`, `onboarding.md`, `authentication.md` |
 | D-009 | Frontend framework = **React + TypeScript** (confirmed) | `architecture.md` |
+| D-034 | **M0 toolchain** (2026-07-11): **npm** as package manager (explicit product-owner choice — no pnpm), **electron-vite** (dev/build for main+preload+renderer), **better-sqlite3** (synchronous SQLite in the main process, rebuilt for Electron ABI via postinstall), **Vitest** (unit tests), **ESLint + Prettier**, **dependency-cruiser** enforcing the architecture.md layer rules as lint errors, **GitHub Actions** CI (typecheck + lint + tests, offline only). All replaceable without touching `core/`/`ipc/`. | `architecture.md`, `roadmap.md` |
 
 ## Pending decisions
 
@@ -80,7 +81,7 @@ Ordered by how urgently they block work (see `roadmap.md`).
 
 ## How to add an entry
 
-Next free ID: **D-034**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-035**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.

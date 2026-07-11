@@ -121,9 +121,11 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 
 ## Current state of the repository
 
-Documentation-only. **No code exists yet.** The core stack decisions were confirmed on
-2026-07-10: **Electron** (D-005), embedded YouTube IFrame player styled clean (D-006),
-hybrid RSS+API feed source (D-007), SQLite (D-008, working plan). Shorts are excluded
-unconditionally and permanently (D-028 — MVP requirement). The first implementation
-milestone (M0: walking skeleton) is defined in `.specs/roadmap.md`; only D-009 (frontend
-framework — React + TypeScript recommended) remains before scaffolding.
+**M0 (walking skeleton) implemented on 2026-07-11** — stack: Electron (D-005) +
+React/TypeScript (D-009) via electron-vite, better-sqlite3, npm (D-034 — the product
+owner uses npm, not pnpm). Layers scaffolded per `architecture.md` (`core/`, `ipc/`,
+`adapters/storage/`, `platform/`, `ui/`), boundaries enforced by dependency-cruiser in
+`npm run lint`. Verified on Linux: typed IPC round-trip, SQLite schema v1 migration
+(WAL, `PRAGMA user_version`), hardcoded feed row rendered. Shorts remain excluded
+unconditionally (D-028). Next: finish M0 exit criterion (macOS/Windows, first CI run),
+then M1 — data spine + feed UI against fixtures (see `.specs/roadmap.md`).

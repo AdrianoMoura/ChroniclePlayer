@@ -22,7 +22,11 @@ Deliverables:
   migrates an empty schema v1, window shows a hardcoded feed row. No YouTube yet.
 - CI: unit tests + typecheck on push (no API calls in CI, ever).
 
-Exit criterion: `pnpm dev` (or equivalent) shows the shell app on Linux, macOS, Windows.
+Exit criterion: `npm run dev` shows the shell app on Linux, macOS, Windows.
+
+**Status (2026-07-11):** scaffolding + walking skeleton implemented (toolchain: D-034).
+Verified on Linux: boot, typed IPC round-trip, SQLite schema v1 migration, hardcoded feed
+row rendered. Pending for exit: macOS and Windows verification; first CI run on GitHub.
 
 ## M1 — Data spine (offline)
 

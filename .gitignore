@@ -1,1 +1,8 @@
 nohup.out
+node_modules/
+out/
+dist/
+coverage/
+*.log
+.DS_Store
+*.local
