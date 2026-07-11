@@ -40,6 +40,15 @@ import { seedDevFixtures } from './dev-fixtures'
 
 const clock: Clock = { now: () => new Date() }
 
+// Chromium only auto-detects the keychain on desktops it knows (GNOME, KDE…).
+// On anything else (niri, sway, headless) it silently picks basic_text even
+// when org.freedesktop.secrets is live on D-Bus. Requesting gnome-libsecret
+// explicitly is safe: if no Secret Service answers, isEncryptionAvailable()
+// stays false and chooseSecretStore falls back to the machine key (D-013).
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
+}
+
 // Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
 // manual always, background timer while running. D-016 (recommended option
 // exercised): 30-minute default interval.
