@@ -180,6 +180,22 @@ Exit criterion: a stranger can download, set up, and use Chronicle from the READ
 
 (Shorts exclusion was promoted from this list into MVP — D-028.)
 
+## Dogfooding backlog (2026-07-11)
+
+The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
+worked in batches when the product owner says so). Roadmap-relevant signals from it:
+
+- Several items **pull the post-MVP discovery bundle forward**: B-009 (global YouTube
+  search + subscribe, D-031/D-030), B-010 (unsubscribe), B-006 (comments + likes,
+  D-032 write scopes), B-015 (drop the read-only framing; incremental scopes become
+  the explicit model). Item 1 of the post-MVP horizon is effectively requested now.
+- **B-003 (multi-account + optional auth)** extends D-033 (accountless mode) into a
+  full multi-account model — milestone-sized; needs new decisions when attacked.
+- **B-017 (i18n infrastructure)** promotes localization from Future idea to
+  infrastructure-now, strings-later.
+- The remainder are UI/UX polish and small bugs (B-001, B-002, B-004, B-005, B-007,
+  B-008, B-011–B-014, B-016) — batchable independently of the above.
+
 ## Standing release checklist (every release, starting M4)
 
 - Re-walk the onboarding wizard against the live Google console; refresh stale
