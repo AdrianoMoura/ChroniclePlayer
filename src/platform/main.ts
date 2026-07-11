@@ -33,7 +33,8 @@ import type {
   ReadStatusDto,
   ResultDto,
   SyncReportDto,
-  VideoStateDto
+  VideoStateDto,
+  WizardStateDto
 } from '../ipc/contract'
 import { IpcChannel } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
@@ -406,6 +407,36 @@ void app.whenReady().then(() => {
     await authFlow.signOut()
     authProvider.invalidate()
     return authStatus()
+  })
+  ipcMain.handle(
+    IpcChannel.getConnectedChannel,
+    async (): Promise<ResultDto<{ title: string }>> => {
+      try {
+        const channel = await apiClient.getOwnChannel()
+        if (channel === null) {
+          return { ok: false, errorKind: 'not-found', message: 'no channel on this account' }
+        }
+        return { ok: true, value: channel }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(IpcChannel.getWizardState, (): WizardStateDto => {
+    const raw = syncRepository.getMeta('wizard_state')
+    if (raw !== null) {
+      try {
+        return JSON.parse(raw) as WizardStateDto
+      } catch {
+        // fall through to defaults — never crash on stored state
+      }
+    }
+    return { step: 0, email: '', confirmed: {}, published: null, completed: false }
+  })
+  ipcMain.handle(IpcChannel.setWizardState, (_event, state: unknown) => {
+    if (typeof state !== 'object' || state === null) throw new Error('invalid wizard state')
+    syncRepository.setMeta('wizard_state', JSON.stringify(state))
   })
 
   createWindow()

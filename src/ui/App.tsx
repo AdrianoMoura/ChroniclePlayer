@@ -10,7 +10,8 @@ import type {
   FeedViewDto,
   PlayerVideoDto,
   ReadStatusDto,
-  VideoStateDto
+  VideoStateDto,
+  WizardStateDto
 } from '../ipc/contract'
 import { ConnectPanel } from './ConnectPanel'
 import { FeedList, type FeedRow, type VideoActions } from './FeedList'
@@ -19,6 +20,7 @@ import { HelpOverlay } from './HelpOverlay'
 import { PlayerView } from './PlayerView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
 import { UrlPrompt } from './UrlPrompt'
+import { Wizard } from './onboarding/Wizard'
 
 const BUCKET_LABELS: Record<FeedBucketDto, string> = {
   today: 'Today',
@@ -57,6 +59,7 @@ export function App() {
   const [connecting, setConnecting] = useState(false)
   const [playerStack, setPlayerStack] = useState<PlayerVideoDto[]>([])
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
+  const [wizard, setWizard] = useState<WizardStateDto | null>(null)
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
@@ -97,8 +100,14 @@ export function App() {
 
   useEffect(() => {
     void window.chronicle.getAuthStatus().then(setAuth)
+    void window.chronicle.getWizardState().then(setWizard)
     loadChannels()
   }, [loadChannels])
+
+  const changeWizard = useCallback((state: WizardStateDto) => {
+    setWizard(state)
+    void window.chronicle.setWizardState(state)
+  }, [])
 
   const connect = useCallback(() => {
     setBanner(null)
@@ -470,6 +479,24 @@ export function App() {
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
+
+  // First-run: the wizard is the MVP's sole entry path (onboarding.md); the
+  // quick path marks it completed and falls back to the compact panel.
+  if (auth !== null && wizard !== null && !wizard.completed && auth.state !== 'connected') {
+    return (
+      <Wizard
+        state={wizard}
+        onStateChange={changeWizard}
+        onQuickPath={() => changeWizard({ ...wizard, completed: true })}
+        onDone={() => {
+          changeWizard({ ...wizard, completed: true })
+          void window.chronicle.getAuthStatus().then(setAuth)
+          loadView()
+          loadChannels()
+        }}
+      />
+    )
+  }
 
   const statusText = refreshing
     ? progress !== null

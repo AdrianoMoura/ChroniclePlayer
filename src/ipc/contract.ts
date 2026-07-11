@@ -74,6 +74,17 @@ export interface PlayerVideoDto {
   state: VideoStateDto
 }
 
+// Wizard progress (onboarding.md §Design goals: interruptible/resumable).
+// Persisted locally in the meta table; email is used only to prefill the
+// Test-user step and never leaves the machine.
+export interface WizardStateDto {
+  step: number
+  email: string
+  confirmed: Record<string, boolean>
+  published: 'yes' | 'skipped' | null
+  completed: boolean
+}
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
@@ -111,6 +122,9 @@ export const IpcChannel = {
   openExternalUrl: 'system:openExternalUrl',
   getVideo: 'video:get',
   getAuthStatus: 'auth:status',
+  getConnectedChannel: 'auth:whoami',
+  getWizardState: 'wizard:get',
+  setWizardState: 'wizard:set',
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
@@ -141,5 +155,10 @@ export interface ChronicleApi {
   importClientSecret(json: string): Promise<ResultDto<AuthStatusDto>>
   connectGoogle(): Promise<ResultDto<AuthStatusDto>>
   signOut(): Promise<AuthStatusDto>
+  // Wizard Step 7 validation: proves the token works and the API is enabled
+  // (1 quota unit); failures map back to the responsible step (D-014).
+  getConnectedChannel(): Promise<ResultDto<{ title: string }>>
+  getWizardState(): Promise<WizardStateDto>
+  setWizardState(state: WizardStateDto): Promise<void>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

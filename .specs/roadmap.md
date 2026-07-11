@@ -136,6 +136,20 @@ and its screenshots should be captured once the steps are final.
 Exit criterion: **the acid test** — someone who is not the developer, with a fresh Google
 account, completes setup unassisted. Recruit 2–3 such testers; their stumbles are M4 bugs.
 
+**Status (2026-07-11): implemented; awaiting screenshots + the acid test to exit.**
+Landed: all 10 screens (0–8 incl. 4b) per the step spec — why-first copy, open-URL
+buttons, copy buttons, "something looks different?" expanders, checkbox confirmations
+for console steps (D-014 recommendation exercised), real validation at 6 (client-type
+detection with route back to Step 5) and 7 (connect + `channels.list` identity proof
+with failure→step mapping: accessNotConfigured→2, refusal hint→4), explicit optional
+publish choice recorded (4b/D-012), live first-sync progress at 8, resumable state in
+the meta table, first-run detection, and a quick path for returning users. Screenshot
+pipeline in place (assets manifest with per-asset verified-on dating; D-015
+recommendation exercised) — **console captures still pending** (steps were console-
+verified 2026-07-11 but not photographed; capture before M5 release). Re-entry points
+from Settings arrive with the M5 settings surface. **Still open for exit:** screenshots +
+2–3 external acid-testers (only the product owner can recruit).
+
 ## M5 — MVP release
 
 - Data export (JSON, documented format).

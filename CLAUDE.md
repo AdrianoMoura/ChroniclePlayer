@@ -121,7 +121,9 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 
 ## Current state of the repository
 
-**M0 + M1 + M2(code) implemented on 2026-07-11** — stack: Electron (D-005) +
+**M0–M4 implemented on 2026-07-11** (M2 exit verified with the product owner's real
+account: 229 subs, 76 quota units, 937 Shorts excluded; M3 in dogfooding; M4 awaiting
+console screenshots + external acid-testers) — stack: Electron (D-005) +
 React/TypeScript (D-009) via electron-vite, **node:sqlite** (D-034 as amended — no
 native modules), npm (D-034 — the product owner uses npm, never pnpm). Layers per
 `architecture.md`, boundaries enforced by dependency-cruiser in `npm run lint`. In:
@@ -131,8 +133,11 @@ safeStorage-backed secret store (D-013), YouTube API + RSS clients, hybrid SyncS
 (D-007) with per-channel isolation + gap backfill + Shorts pipeline (D-028), quota
 accounting, 30-min refresh timer (D-016), startup connection validation (D-012),
 backend→UI events, connect panel + banners + sidebar channel list; `docs/setup.md`.
-Everything contract-tested offline (in-memory SQLite, fake fetch — never the real API).
-Dev fixtures now require `CHRONICLE_FIXTURES=1`. **M2 exit still pending: real-account
-smoke test + Google console assumption checks (product owner, see roadmap M2 status).**
-No CI yet — deliberately (full pipeline with releases planned at M5); run
-`npm run typecheck && npm run lint && npm test` locally before committing.
+Also in: the M3 player (clean embed via postMessage widget protocol, universal opening
+D-029, navigation stack, thumb:// LRU thumbnail cache, themes, new-videos pill) and the
+M4 onboarding wizard (10 screens, D-014 checkbox+mapping validation, resumable state,
+screenshot pipeline with captures pending). Everything contract-tested offline
+(in-memory SQLite, fake fetch — never the real API). Dev fixtures require
+`CHRONICLE_FIXTURES=1`. No CI yet — deliberately (full pipeline with releases planned
+at M5); run `npm run typecheck && npm run lint && npm test` locally before committing.
+Next: M5 (export, settings, packaging + release pipeline).

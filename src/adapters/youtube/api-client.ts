@@ -50,6 +50,14 @@ export class YouTubeApiClient implements SubscriptionSource {
     return channels
   }
 
+  // channels.list mine=true — 1 unit. Used once at wizard Step 7 to show
+  // the connected identity and prove the API is enabled (onboarding.md).
+  async getOwnChannel(): Promise<{ title: string } | null> {
+    const page = await this.get('channels', { part: 'snippet', mine: 'true' }, 1)
+    const snippet = page.items[0]?.['snippet'] as Record<string, unknown> | undefined
+    return snippet ? { title: String(snippet['title']) } : null
+  }
+
   // channels.list batched — 1 unit per call (≤ 50 ids).
   async fetchUploadsPlaylists(channelIds: readonly string[]): Promise<Map<string, string>> {
     const result = new Map<string, string>()

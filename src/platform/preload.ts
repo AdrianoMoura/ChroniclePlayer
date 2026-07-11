@@ -5,7 +5,8 @@ import {
   type ChronicleEventDto,
   type FeedCursorDto,
   type FeedViewDto,
-  type ReadStatusDto
+  type ReadStatusDto,
+  type WizardStateDto
 } from '../ipc/contract'
 
 const api: ChronicleApi = {
@@ -25,6 +26,9 @@ const api: ChronicleApi = {
   importClientSecret: (json: string) => ipcRenderer.invoke(IpcChannel.importClientSecret, json),
   connectGoogle: () => ipcRenderer.invoke(IpcChannel.connectGoogle),
   signOut: () => ipcRenderer.invoke(IpcChannel.signOut),
+  getConnectedChannel: () => ipcRenderer.invoke(IpcChannel.getConnectedChannel),
+  getWizardState: () => ipcRenderer.invoke(IpcChannel.getWizardState),
+  setWizardState: (state: WizardStateDto) => ipcRenderer.invoke(IpcChannel.setWizardState, state),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)
