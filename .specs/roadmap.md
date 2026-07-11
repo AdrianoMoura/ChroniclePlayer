@@ -20,13 +20,17 @@ Deliverables:
   rules per `architecture.md`).
 - Walking skeleton: backend + renderer boot, typed IPC round-trip, SQLite opens and
   migrates an empty schema v1, window shows a hardcoded feed row. No YouTube yet.
-- CI: unit tests + typecheck on push (no API calls in CI, ever).
+- ~~CI: unit tests + typecheck on push~~ — **deferred (2026-07-11, product owner):** no
+  standalone CI in M0; a single smarter pipeline (checks + release + automatic binary
+  builds) will be designed later, likely alongside M5 packaging. The invariant stands
+  whenever it lands: no API calls in CI, ever. Until then, checks run locally
+  (`npm run typecheck && npm run lint && npm test`).
 
 Exit criterion: `npm run dev` shows the shell app on Linux, macOS, Windows.
 
 **Status (2026-07-11):** scaffolding + walking skeleton implemented (toolchain: D-034).
 Verified on Linux: boot, typed IPC round-trip, SQLite schema v1 migration, hardcoded feed
-row rendered. Pending for exit: macOS and Windows verification; first CI run on GitHub.
+row rendered. Pending for exit: macOS and Windows verification.
 
 ## M1 — Data spine (offline)
 
@@ -88,6 +92,9 @@ account, completes setup unassisted. Recruit 2–3 such testers; their stumbles 
 - Packaging/signing for Linux (AppImage/Flatpak — **D-024 Pending**, recommend both,
   Flatpak primary), macOS (notarized dmg), Windows (signed installer if cert budget
   exists — **D-025 Pending**).
+- CI/CD pipeline (deferred from M0, 2026-07-11): checks (typecheck + lint + tests) +
+  tagged releases + automatic binary builds for the three OSes, designed as one piece.
+  No API calls in CI, ever.
 - App update mechanism honoring privacy rules (static update feed, no identifiers) —
   **D-026 Pending**, recommend simple signed static-manifest check, default on, off
   switch in settings.

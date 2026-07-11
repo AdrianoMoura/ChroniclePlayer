@@ -127,5 +127,7 @@ owner uses npm, not pnpm). Layers scaffolded per `architecture.md` (`core/`, `ip
 `adapters/storage/`, `platform/`, `ui/`), boundaries enforced by dependency-cruiser in
 `npm run lint`. Verified on Linux: typed IPC round-trip, SQLite schema v1 migration
 (WAL, `PRAGMA user_version`), hardcoded feed row rendered. Shorts remain excluded
-unconditionally (D-028). Next: finish M0 exit criterion (macOS/Windows, first CI run),
-then M1 — data spine + feed UI against fixtures (see `.specs/roadmap.md`).
+unconditionally (D-028). There is no CI yet — deliberately: a full pipeline (checks +
+release + binaries) is planned with M5; run `npm run typecheck && npm run lint && npm
+test` locally before committing. Next: finish M0 exit criterion (macOS/Windows), then
+M1 — data spine + feed UI against fixtures (see `.specs/roadmap.md`).
