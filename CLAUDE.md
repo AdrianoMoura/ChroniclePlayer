@@ -121,13 +121,16 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 
 ## Current state of the repository
 
-**M0 (walking skeleton) implemented on 2026-07-11** — stack: Electron (D-005) +
-React/TypeScript (D-009) via electron-vite, better-sqlite3, npm (D-034 — the product
-owner uses npm, not pnpm). Layers scaffolded per `architecture.md` (`core/`, `ipc/`,
-`adapters/storage/`, `platform/`, `ui/`), boundaries enforced by dependency-cruiser in
-`npm run lint`. Verified on Linux: typed IPC round-trip, SQLite schema v1 migration
-(WAL, `PRAGMA user_version`), hardcoded feed row rendered. Shorts remain excluded
-unconditionally (D-028). There is no CI yet — deliberately: a full pipeline (checks +
-release + binaries) is planned with M5; run `npm run typecheck && npm run lint && npm
-test` locally before committing. Next: finish M0 exit criterion (macOS/Windows), then
-M1 — data spine + feed UI against fixtures (see `.specs/roadmap.md`).
+**M0 + M1 implemented on 2026-07-11** — stack: Electron (D-005) + React/TypeScript
+(D-009) via electron-vite, **node:sqlite** (D-034 as amended — no native modules), npm
+(D-034 — the product owner uses npm, never pnpm). Layers per `architecture.md` (`core/`,
+`ipc/`, `adapters/storage/`, `platform/`, `ui/`), boundaries enforced by
+dependency-cruiser in `npm run lint`. M1 data spine is in: repositories over schema v1
+with keyset pagination (D-027), D-010 state transitions, unread/caught-up accounting,
+five views, virtualized feed UI with keyboard map v1 and inline undo — all offline
+against deterministic dev fixtures (auto-seeded into an empty dev DB). Storage SQL is
+contract-tested against core predicates in Vitest (in-memory DB). Shorts remain excluded
+unconditionally (D-028). No CI yet — deliberately: a full pipeline (checks + release +
+binaries) is planned with M5; run `npm run typecheck && npm run lint && npm test`
+locally before committing. Next: M2 — OAuth + real data (the risk milestone), plus
+macOS/Windows verification pending from M0 (see `.specs/roadmap.md`).

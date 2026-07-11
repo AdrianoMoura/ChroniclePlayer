@@ -1,9 +1,11 @@
-import SqliteDatabase, { type Database } from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 
+// node:sqlite (D-034 amended): built into Electron's Node 24 (stable there),
+// no native rebuild, and contract tests run under the system Node in Vitest.
 // WAL: one writer (sync) + one reader (UI) without contention (architecture.md).
-export function openDatabase(file: string): Database {
-  const db = new SqliteDatabase(file)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+export function openDatabase(file: string): DatabaseSync {
+  const db = new DatabaseSync(file)
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA foreign_keys = ON')
   return db
 }

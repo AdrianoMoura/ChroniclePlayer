@@ -1,10 +1,12 @@
 import type { Video } from './video'
+import type { VideoState } from './state'
 
 export type FeedBucket = 'today' | 'yesterday' | 'this-week' | 'earlier'
 
 export interface FeedEntry {
   video: Video
   channelTitle: string
+  state: VideoState
 }
 
 export interface FeedGroup {
@@ -43,7 +45,7 @@ function compareFeedOrder(a: FeedEntry, b: FeedEntry): number {
   return a.video.videoId < b.video.videoId ? -1 : 1
 }
 
-function bucketOf(published: Date, now: Date): FeedBucket {
+export function bucketOf(published: Date, now: Date): FeedBucket {
   const dayDiff = localDayNumber(now) - localDayNumber(published)
   // Future-dated videos (unverified premiere assumption, feed.md §Ordering) sort
   // to the top and land in Today rather than being hidden.
@@ -61,4 +63,25 @@ function localDayNumber(date: Date): number {
 // D-017 (Pending; recommended option exercised): weeks start on ISO Monday.
 function isoWeekdayIndex(date: Date): number {
   return (date.getDay() + 6) % 7
+}
+
+// feed.md §Unread accounting: a mechanical count, no decay tricks.
+export function unreadCount(entries: readonly FeedEntry[]): number {
+  return entries.filter((entry) => entry.state.readStatus === 'unread').length
+}
+
+// feed.md §Caught up: Today/Yesterday/This Week contain zero unread videos.
+// "Earlier" depth never affects it — the archive is not new content (D-027).
+export function isCaughtUp(groups: readonly FeedGroup[]): boolean {
+  return groups.every(
+    (group) => group.bucket === 'earlier' || unreadCount(group.entries) === 0
+  )
+}
+
+// The instant where "earlier" begins: everything published at or after this
+// belongs to today/yesterday/this-week. Start of the ISO week's Monday —
+// except Monday itself, when yesterday (Sunday) reaches further back.
+export function recentWindowStart(now: Date): Date {
+  const daysBack = Math.max(isoWeekdayIndex(now), 1)
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBack)
 }

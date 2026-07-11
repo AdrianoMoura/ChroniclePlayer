@@ -1,4 +1,4 @@
-import type { Database } from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 
 // Schema v1 per local-data.md §Schema. Forward-only numbered migrations keyed
 // on PRAGMA user_version; migrations[N] moves the schema from version N to N+1.
@@ -62,14 +62,25 @@ CREATE TABLE meta (
 
 const migrations: readonly string[] = [SCHEMA_V1]
 
-export function migrate(db: Database): void {
-  const applyNext = db.transaction((sql: string, nextVersion: number) => {
-    db.exec(sql)
-    db.pragma(`user_version = ${nextVersion}`)
-  })
-  let version = db.pragma('user_version', { simple: true }) as number
+export function migrate(db: DatabaseSync): void {
+  let version = schemaVersion(db)
   while (version < migrations.length) {
-    applyNext(migrations[version], version + 1)
+    // Transactional: a failed migration leaves the previous DB intact
+    // (local-data.md §Migrations).
+    db.exec('BEGIN')
+    try {
+      db.exec(migrations[version])
+      db.exec(`PRAGMA user_version = ${version + 1}`)
+      db.exec('COMMIT')
+    } catch (cause) {
+      db.exec('ROLLBACK')
+      throw cause
+    }
     version += 1
   }
+}
+
+function schemaVersion(db: DatabaseSync): number {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
+  return Number(row.user_version)
 }

@@ -65,6 +65,7 @@ with a visible cursor row.
 | `b` | open in browser |
 | `m` | toggle read/unread |
 | `i` | ignore (with 5 s inline undo) |
+| `u` | undo the last ignore (within its undo window) |
 | `f` | toggle favorite |
 | `w` | toggle watch later |
 | `gg` / `G` | top / end of loaded feed |

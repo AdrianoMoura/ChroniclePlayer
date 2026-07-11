@@ -44,6 +44,17 @@ Exit criterion: the whole feed experience works convincingly with fake data, off
 (Sequencing rationale: UI/domain iterate fastest with no OAuth in the loop, and this
 makes M2's risky work land in an already-working product.)
 
+**Status (2026-07-11): implemented.** Repositories over schema v1 (keyset pagination per
+D-027; SQL view predicates contract-tested against the core `belongsToView` truth);
+core domain (D-010 transitions, grouping, unread accounting, caught-up) fully
+unit-tested offline; feed UI with virtualized grouped list, cursor + keyboard map v1
+(incl. `u` = undo), all five views, inline ignore-undo, local `/` filter, `?` overlay,
+caught-up state; deterministic dev fixtures (~24 channels / ~4k videos) seed an empty
+dev DB. Verified live on Linux. Deferred within scope: sidebar channel list (M2, needs
+real channels), new-videos pill (M2, needs sync), density setting + themes (M3).
+`Enter`/`o` marks read until the player exists (M3). D-017 (ISO Monday) and D-018
+(view counts hidden) exercised with their recommended options — awaiting confirmation.
+
 ## M2 — Auth + real data (the risk milestone)
 
 - OAuth adapter: PKCE, loopback, token lifecycle, keychain storage + fallback (D-013).
