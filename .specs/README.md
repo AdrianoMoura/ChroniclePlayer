@@ -21,6 +21,7 @@ and spec disagree, either the code is wrong or the spec must be updated in the s
 | [features.md](features.md) | MVP feature specifications + future feature sketches |
 | [roadmap.md](roadmap.md) | Milestones, sequencing, and what blocks what |
 | [decisions.md](decisions.md) | Decision log — the authoritative status of every choice |
+| [bugs.md](bugs.md) | Bug & adjustment tracker — items found while testing, worked in batches |
 
 ## Statement labels
 
