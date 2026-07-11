@@ -11,6 +11,7 @@ import {
 } from '../adapters/storage/repositories'
 import { SqliteSyncRepository } from '../adapters/storage/sync-repository'
 import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-secret-store'
+import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
 import { GoogleOAuth } from '../adapters/oauth/google-oauth'
 import { AuthFlow, GoogleAuthProvider } from '../adapters/oauth/auth'
 import { YouTubeApiClient } from '../adapters/youtube/api-client'
@@ -122,17 +123,28 @@ function parseCursor(value: unknown): FeedCursorDto | null {
   throw new Error('invalid feed cursor')
 }
 
-// D-013: Electron safeStorage — OS-keychain-backed where available. On
-// Linux without a keyring it degrades to obfuscation; isSecure() surfaces
-// that honestly instead of pretending.
-function safeStorageCipher(): SecretCipher {
-  return {
-    encrypt: (plain) => safeStorage.encryptString(plain),
-    decrypt: (data) => safeStorage.decryptString(data),
-    isSecure: () =>
-      safeStorage.isEncryptionAvailable() &&
-      (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text')
+// D-013 cipher selection: (a) Electron safeStorage when a real OS keychain
+// backs it; (b) machine-derived key otherwise (honest obfuscation — the UI
+// warns). The choice is pinned inside the store file so entries written by
+// one cipher keep decrypting even if the machine later gains a keychain.
+function chooseSecretStore(file: string): FileSecretStore {
+  const safeStorageUsable =
+    safeStorage.isEncryptionAvailable() &&
+    (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text')
+
+  const ciphers: Record<string, SecretCipher> = {
+    'safe-storage': {
+      encrypt: (plain) => safeStorage.encryptString(plain),
+      decrypt: (data) => safeStorage.decryptString(data),
+      isSecure: () => true
+    },
+    'machine-key': new MachineKeyCipher()
   }
+
+  const pinned = FileSecretStore.storedCipherId(file)
+  const chosen =
+    pinned !== null && pinned in ciphers ? pinned : safeStorageUsable ? 'safe-storage' : 'machine-key'
+  return new FileSecretStore(file, ciphers[chosen], chosen)
 }
 
 function createWindow(): void {
@@ -178,7 +190,7 @@ void app.whenReady().then(() => {
   const syncRepository = new SqliteSyncRepository(db)
   const feedService = new FeedService(feedRepository, clock)
 
-  const secrets = new FileSecretStore(join(dataDir, 'secrets.json'), safeStorageCipher())
+  const secrets = chooseSecretStore(join(dataDir, 'secrets.json'))
   const oauth = new GoogleOAuth(fetch)
   const authProvider = new GoogleAuthProvider(secrets, oauth, clock)
   const authFlow = new AuthFlow(secrets, oauth, (url) => shell.openExternal(url))

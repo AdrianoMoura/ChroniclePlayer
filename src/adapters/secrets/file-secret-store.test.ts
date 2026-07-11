@@ -44,4 +44,11 @@ describe('FileSecretStore', () => {
   it('exposes the cipher security level for the D-013 warning', () => {
     expect(new FileSecretStore(tempFile(), fakeCipher).isSecure()).toBe(false)
   })
+
+  it('pins the cipher id in the file so the platform can keep decrypting later', () => {
+    const file = tempFile()
+    expect(FileSecretStore.storedCipherId(file)).toBeNull()
+    new FileSecretStore(file, fakeCipher, 'machine-key').set('k', 'v')
+    expect(FileSecretStore.storedCipherId(file)).toBe('machine-key')
+  })
 })

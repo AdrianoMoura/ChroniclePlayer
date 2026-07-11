@@ -1,12 +1,16 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { SecretStore } from '../../core/ports'
 
 // D-013 (recommended option exercised): secrets live in one encrypted file
 // in the app data dir; the cipher is injected — the platform provides
-// Electron safeStorage (OS-keychain-backed where available). isSecure()
-// surfaces whether real OS encryption backs it, so settings can show the
-// honest warning when it doesn't. Values are never stored in plaintext.
+// Electron safeStorage where a real keychain backs it, else the
+// machine-derived-key fallback. isSecure() surfaces which one, so settings
+// can show the honest warning. Values are never stored in plaintext.
+//
+// The file pins the cipher that wrote it (`cipher` field): if the machine
+// later gains a keychain, existing entries still decrypt with the cipher
+// that created them instead of silently breaking.
 
 export interface SecretCipher {
   encrypt(plain: string): Buffer
@@ -14,49 +18,70 @@ export interface SecretCipher {
   isSecure(): boolean
 }
 
+interface StoreFile {
+  cipher: string
+  entries: Record<string, string>
+}
+
 export class FileSecretStore implements SecretStore {
-  private entries: Record<string, string> | null = null
+  private cache: StoreFile | null = null
 
   constructor(
     private readonly file: string,
-    private readonly cipher: SecretCipher
+    private readonly cipher: SecretCipher,
+    private readonly cipherId: string = 'default'
   ) {}
 
+  // Which cipher wrote an existing store file (null = no file yet).
+  static storedCipherId(file: string): string | null {
+    try {
+      if (!existsSync(file)) return null
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<StoreFile>
+      return typeof parsed.cipher === 'string' ? parsed.cipher : null
+    } catch {
+      return null
+    }
+  }
+
   get(key: string): string | null {
-    const encoded = this.load()[key]
+    const encoded = this.load().entries[key]
     if (encoded === undefined) return null
     return this.cipher.decrypt(Buffer.from(encoded, 'base64'))
   }
 
   set(key: string, value: string): void {
-    const entries = this.load()
-    entries[key] = this.cipher.encrypt(value).toString('base64')
-    this.persist(entries)
+    const store = this.load()
+    store.entries[key] = this.cipher.encrypt(value).toString('base64')
+    this.persist(store)
   }
 
   delete(key: string): void {
-    const entries = this.load()
-    delete entries[key]
-    this.persist(entries)
+    const store = this.load()
+    delete store.entries[key]
+    this.persist(store)
   }
 
   isSecure(): boolean {
     return this.cipher.isSecure()
   }
 
-  private load(): Record<string, string> {
-    if (this.entries !== null) return this.entries
+  private load(): StoreFile {
+    if (this.cache !== null) return this.cache
     try {
-      this.entries = JSON.parse(readFileSync(this.file, 'utf8')) as Record<string, string>
+      const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<StoreFile>
+      this.cache = {
+        cipher: typeof parsed.cipher === 'string' ? parsed.cipher : this.cipherId,
+        entries: parsed.entries ?? {}
+      }
     } catch {
-      this.entries = {}
+      this.cache = { cipher: this.cipherId, entries: {} }
     }
-    return this.entries
+    return this.cache
   }
 
-  private persist(entries: Record<string, string>): void {
-    this.entries = entries
+  private persist(store: StoreFile): void {
+    this.cache = store
     mkdirSync(dirname(this.file), { recursive: true })
-    writeFileSync(this.file, JSON.stringify(entries, null, 2), { mode: 0o600 })
+    writeFileSync(this.file, JSON.stringify(store, null, 2), { mode: 0o600 })
   }
 }
