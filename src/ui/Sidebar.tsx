@@ -28,6 +28,7 @@ interface SidebarProps {
   onSelectView: (view: FeedViewDto) => void
   onSelectChannel: (channelId: string | null) => void
   onOpenSettings: () => void
+  onToggleCollapse: () => void
 }
 
 export function Sidebar({
@@ -40,7 +41,8 @@ export function Sidebar({
   settingsOpen,
   onSelectView,
   onSelectChannel,
-  onOpenSettings
+  onOpenSettings,
+  onToggleCollapse
 }: SidebarProps) {
   // Local channel-name filter (B-024) — over the user's own subscriptions,
   // never YouTube search.
@@ -54,6 +56,11 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-header">
+        <button className="sidebar-toggle" title="Collapse sidebar" onClick={onToggleCollapse}>
+          ☰
+        </button>
+      </div>
       <nav>
         {VIEW_ORDER.map((candidate, index) => (
           <button
