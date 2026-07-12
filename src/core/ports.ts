@@ -29,6 +29,9 @@ export interface FollowedChannel {
   // Freshest video (Shorts included unless the setting hides them).
   latestPublishedAt: string | null
   unreadCount: number
+  // B-042: channel-level priority marker (distinct from a video's own
+  // favorite, D-010) — does not affect sidebar sort order (still B-008).
+  favorite: boolean
 }
 
 export interface FeedRepository {
@@ -51,6 +54,12 @@ export interface FeedRepository {
   countUnreadSince(publishedAtIso: string, showShorts?: boolean): number
   // Sidebar list (B-008): freshest channel first, with its unread count.
   listFollowedChannels(showShorts?: boolean): FollowedChannel[]
+  // B-042: toggles a channel's priority-feed membership; returns the new state.
+  toggleChannelFavorite(channelId: string): boolean
+  // B-042: unread videos from favorited channels, most recent first — a
+  // separate capped list (like listWatchLaterQueue), not merged into the
+  // main keyset-paginated feed (D-039: also stays in its normal bucket).
+  listPriorityVideos(limit: number, showShorts?: boolean): FeedEntry[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
   // Bulk unread → read (B-020, D-010 semantics — manual and automatic

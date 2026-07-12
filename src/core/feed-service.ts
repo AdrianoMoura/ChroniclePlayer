@@ -17,6 +17,7 @@ export interface FeedSlice {
 }
 
 export const FEED_PAGE_SIZE = 50 // D-027 default page
+export const PRIORITY_FEED_LIMIT = 20 // B-042, D-039
 
 // The read path (architecture.md): repository → grouping → read-model.
 // Items come flat, each carrying its bucket; presentation renders a header
@@ -55,5 +56,13 @@ export class FeedService {
       caughtUp:
         this.repository.countUnreadSince(recentWindowStart(now).toISOString(), showShorts) === 0
     }
+  }
+
+  // B-042: unread videos from favorited channels — bucket-less, like the
+  // watch-later queue, since it sits above the chronological grouping.
+  getPriorityVideos(showShorts = true): FeedItem[] {
+    return this.repository
+      .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts)
+      .map((entry) => ({ entry, bucket: null }))
   }
 }

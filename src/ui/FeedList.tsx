@@ -216,7 +216,7 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoRowProps) {
+export function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoRowProps) {
   if (undoable) {
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>

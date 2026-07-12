@@ -47,7 +47,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(3)
+    expect(Number(row.user_version)).toBe(4)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -175,6 +175,45 @@ describe('SqliteFeedRepository', () => {
     expect(followed.map((c) => c.unreadCount)).toEqual([1, 1, 0])
     expect(followed[0].latestPublishedAt).toBe('2026-07-08T10:00:00Z')
     expect(followed[2].latestPublishedAt).toBeNull()
+    // B-042: unfavorited by default; favoriting doesn't reorder this list (B-008 unaffected).
+    expect(followed.every((c) => c.favorite === false)).toBe(true)
+  })
+
+  it('toggleChannelFavorite flips the channel-level priority marker (B-042)', () => {
+    expect(feed.toggleChannelFavorite('UCa')).toBe(true)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(
+      true
+    )
+    expect(feed.toggleChannelFavorite('UCa')).toBe(false)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(
+      false
+    )
+  })
+
+  it('listPriorityVideos surfaces unread videos from favorited channels only (B-042, D-039)', () => {
+    addVideo('a-old', '2026-07-01T10:00:00Z', 'UCa')
+    addVideo('a-new', '2026-07-08T10:00:00Z', 'UCa')
+    addVideo('b-mid', '2026-07-05T10:00:00Z', 'UCb')
+    states.setReadStatus('a-old', 'read')
+
+    expect(feed.listPriorityVideos(20)).toEqual([])
+
+    feed.toggleChannelFavorite('UCa')
+    // Unread only ('a-old' is read); most recent first; 'UCb' excluded (not favorited).
+    expect(feed.listPriorityVideos(20).map((e) => e.video.videoId)).toEqual(['a-new'])
+
+    // D-039: still present in the normal chronological feed too (not exclusive).
+    expect(feed.listPage('all', null, 50).entries.map((e) => e.video.videoId)).toEqual([
+      'a-new',
+      'b-mid',
+      'a-old'
+    ])
+  })
+
+  it('listPriorityVideos caps at the requested limit', () => {
+    feed.toggleChannelFavorite('UCa')
+    for (let i = 0; i < 5; i++) addVideo(`v${i}`, `2026-07-0${i + 1}T10:00:00Z`, 'UCa')
+    expect(feed.listPriorityVideos(3)).toHaveLength(3)
   })
 
   it('paginates a channel-filtered feed through every page (B-002)', () => {

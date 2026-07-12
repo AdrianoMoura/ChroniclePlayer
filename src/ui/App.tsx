@@ -15,7 +15,7 @@ import type {
   WizardStateDto
 } from '../ipc/contract'
 import { ConnectPanel } from './ConnectPanel'
-import { FeedList, ITEM_SIZES, type FeedRow, type VideoActions } from './FeedList'
+import { FeedList, ITEM_SIZES, VideoRow, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { t } from './i18n'
@@ -60,6 +60,9 @@ export function App() {
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [channels, setChannels] = useState<ChannelDto[]>([])
+  // B-042: unread videos from favorited channels — bucket-less priority
+  // section shown above the chronological feed (main views only, D-039).
+  const [priorityVideos, setPriorityVideos] = useState<FeedVideoDto[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [progress, setProgress] = useState<{
     phase: 'channels' | 'shorts'
@@ -126,6 +129,13 @@ export function App() {
       setMeta(next)
       setRefreshing(next.refreshing)
     })
+    // B-042: the priority section only makes sense in the main feed
+    // ('all'/'unread', unfiltered) — cleared everywhere else.
+    if (channelRef.current === null && (viewRef.current === 'all' || viewRef.current === 'unread')) {
+      void window.chronicle.getPriorityFeed().then(setPriorityVideos)
+    } else {
+      setPriorityVideos([])
+    }
   }, [])
 
   const loadView = useCallback((target?: FeedViewDto, channel?: string | null) => {
@@ -277,6 +287,17 @@ export function App() {
       })
     },
     [channelFilter, connect, loadChannels, loadView]
+  )
+
+  // B-042: local-only priority marker — never touches YouTube.
+  const toggleChannelFavorite = useCallback(
+    (channelId: string) => {
+      void window.chronicle.toggleChannelFavorite(channelId).then(() => {
+        loadChannels()
+        syncMeta()
+      })
+    },
+    [loadChannels, syncMeta]
   )
 
   function handleTopbarUnsubscribe(): void {
@@ -740,6 +761,7 @@ export function App() {
           }}
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}
+          onToggleFavorite={toggleChannelFavorite}
         />
       )}
       <main className="feed">
@@ -893,6 +915,22 @@ export function App() {
                   plural: newVideosPill > 1 ? 's' : ''
                 })}
               </button>
+            )}
+            {priorityVideos.length > 0 && (
+              <div className="priority-section">
+                <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
+                {priorityVideos.map((video) => (
+                  <VideoRow
+                    key={video.videoId}
+                    video={video}
+                    selected={false}
+                    undoable={undoable.has(video.videoId)}
+                    actions={actions}
+                    onOpen={() => openVideo(video.videoId)}
+                    showViewCounts={settings.showViewCounts}
+                  />
+                ))}
+              </div>
             )}
             {filtered.length === 0 ? (
               <div className="empty">

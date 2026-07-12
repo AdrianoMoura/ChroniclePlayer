@@ -73,7 +73,14 @@ const SCHEMA_V3 = `
 ALTER TABLE channels ADD COLUMN subscription_id TEXT;
 `
 
-const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3]
+// v4 (B-042): channel-level priority marker, distinct from a video's own
+// favorite (video_state.favorite, D-010) — surfaces a priority section in
+// the main feed for favorited channels' recent unread videos.
+const SCHEMA_V4 = `
+ALTER TABLE channels ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;
+`
+
+const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4]
 
 export function migrate(db: DatabaseSync): void {
   let version = schemaVersion(db)

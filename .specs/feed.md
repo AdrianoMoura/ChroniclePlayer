@@ -53,6 +53,27 @@ The feed is grouped under date headers, computed in the **user's local timezone*
   session's natural stopping point is preserved: new content at the top is finite and the
   "caught up" state is unaffected by how deep the archive goes.
 
+### Favorited channels — a priority section (B-042, implemented 2026-07-12)
+
+Channels can be marked **favorite** (the sidebar/channel-screen `…` menu, alongside
+Unsubscribe from B-010) — a channel-level priority marker, distinct from a video's own
+`favorite` state (D-010). The **'all'/'unread' feed views** gain a section above the
+chronological buckets: unread videos from favorited channels, most recent first, capped
+at 20. This is user-driven prioritization of channels the user explicitly marked, not
+algorithmic ranking — the same "who is driving?" test other agency-preserving features
+pass (`vision.md`).
+
+- **D-039 (Final in this change):** a favorited channel's video appears in **both** the
+  priority section and its normal chronological bucket — it is not removed from Today/
+  Yesterday/etc. Mirrors D-010: favorite/watch-later are orthogonal flags, never
+  exclusive membership.
+  - The priority section only ever lists **unread** videos (mirroring the unread view) —
+    once read, a video drops out of it (but stays in its normal bucket, per D-010).
+  - Not shown in Favorites/Watch Later/Ignored views, or when channel-filtered to a
+    single channel — it is specifically a main-feed ("all"/"unread") affordance.
+  - Favoriting a channel does not change its sidebar sort order (still B-008's
+    freshest-first); it only affects the priority section.
+
 ## Video state model — D-010 (Final, 2026-07-10)
 
 The brief lists five states: Unread, Read, Ignored, Favorite, Watch Later. These are not

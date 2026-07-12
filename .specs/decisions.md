@@ -66,6 +66,7 @@ Ordered by how urgently they block work (see `roadmap.md`).
 | **D-024** | Linux packaging | **Flatpak primary + AppImage** · one only | M6 | `roadmap.md` |
 | **D-025** | Windows code signing | budget-dependent | M6 | `roadmap.md` |
 | **D-026** | Update mechanism | **signed static-manifest check, no identifiers, off-switch** · manual-only | M6 | `roadmap.md` |
+| **D-039** | Favorited-channel priority section (B-042): does a video also stay in its normal chronological bucket, or only show once (in the priority section)? | **Duplicate placement — appears in both the priority section and its normal bucket** · Exclusive (removed from its bucket once it's in the priority section) — *recommended option exercised in this change (2026-07-12, B-042): consistent with D-010's orthogonal-flags model, where favorite/watch-later never remove a video from its normal spot — a video being prioritized shouldn't make "did I see everything from Tuesday" miss it from Tuesday's bucket. The priority section only lists unread videos (parallel to the unread view), capped at 20, so it can't grow unbounded.* | — | `feed.md` |
 
 ## Key assumptions to verify (tracked; promote or correct on verification)
 
@@ -83,7 +84,7 @@ Ordered by how urgently they block work (see `roadmap.md`).
 
 ## How to add an entry
 
-Next free ID: **D-039**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-040**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.

@@ -31,6 +31,7 @@ interface SidebarProps {
   onOpenSettings: () => void
   onToggleCollapse: () => void
   onUnsubscribe: (channelId: string) => void
+  onToggleFavorite: (channelId: string) => void
 }
 
 export function Sidebar({
@@ -45,7 +46,8 @@ export function Sidebar({
   onSelectChannel,
   onOpenSettings,
   onToggleCollapse,
-  onUnsubscribe
+  onUnsubscribe,
+  onToggleFavorite
 }: SidebarProps) {
   // Local channel-name filter (B-024) — over the user's own subscriptions,
   // never YouTube search.
@@ -157,6 +159,11 @@ export function Sidebar({
                 }
               >
                 <span className="view-label ellipsis">{channel.title}</span>
+                {channel.favorite && (
+                  <span className="glyph" title={t('sidebar.channelMenu.favorited')}>
+                    ★
+                  </span>
+                )}
                 {channel.unreadCount > 0 && (
                   <span className="view-count">{channel.unreadCount}</span>
                 )}
@@ -174,6 +181,16 @@ export function Sidebar({
               </button>
               {menuChannelId === channel.channelId && (
                 <div className="channel-menu" onClick={(event) => event.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      onToggleFavorite(channel.channelId)
+                      setMenuChannelId(null)
+                    }}
+                  >
+                    {channel.favorite
+                      ? t('sidebar.channelMenu.unfavorite')
+                      : t('sidebar.channelMenu.favorite')}
+                  </button>
                   <button
                     className={confirmingUnsub === channel.channelId ? 'danger' : ''}
                     onClick={() => {

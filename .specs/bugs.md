@@ -87,35 +87,6 @@ Resolved entries add:
   overlay update and whatever bindings it adds), but the "every new feature states its
   keyboard path" rule stays in force afterward rather than closing with the batch.
 
-### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** feed / ui-shell
-- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
-  but channels cannot — there is no way to mark a whole channel as a priority, and the
-  main feed has no way to surface favorited channels' videos ahead of everything else.
-- **Expected:** the per-channel `…` context menu planned in [[B-010]] (sidebar +
-  channel screen, today just Unsubscribe) gains a **Favorite** toggle. The main feed
-  gains a section at the very top listing recent videos from favorited channels first,
-  ahead of the normal chronological grouping (Today / Yesterday / This Week / Earlier,
-  `feed.md`) — favorited-channel videos get priority placement, not a separate
-  exclusive view.
-- **Code refs:** `src/adapters/storage/migrations.ts` (new schema migration —
-  `channels` table needs a `favorite` column, alongside the existing `subscribed`
-  column around line 11); `src/core/ports.ts` + `src/adapters/storage/repositories.ts`
-  (channel favorite toggle + feed query changes to surface favorited-channel videos
-  first); `src/ipc/contract.ts` (new IPC surface for toggling + the DTO field);
-  `src/ui/Sidebar.tsx` (the `…` context menu itself is still [[B-010]]'s to build —
-  this adds one more entry to it); `src/ui/FeedList.tsx` / `src/ui/App.tsx` (the new
-  top-of-feed priority section, mirrors the existing bucket-header rendering pattern
-  used for Today/Yesterday/etc.).
-- **Notes:** depends on [[B-010]]'s context-menu work landing first (or alongside) —
-  this is an additional option on that menu, not a separate UI surface. Needs a
-  `feed.md` update when attacked (new "favorited channels" section ahead of the
-  existing chronological buckets) and a `decisions.md` entry if the exact priority
-  placement/ordering needs a Final decision (e.g. do favorited videos also appear
-  again in their normal chronological bucket, or only in the priority section?).
-
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
@@ -251,6 +222,55 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
+  but channels cannot — there is no way to mark a whole channel as a priority, and the
+  main feed has no way to surface favorited channels' videos ahead of everything else.
+- **Expected:** the per-channel `…` context menu built in [[B-010]] (sidebar +
+  channel screen, previously just Unsubscribe) gains a **Favorite** toggle. The main
+  feed gains a section at the very top listing recent videos from favorited channels
+  first, ahead of the normal chronological grouping (Today / Yesterday / This Week /
+  Earlier, `feed.md`) — favorited-channel videos get priority placement, not a separate
+  exclusive view.
+- **Code refs:** `src/adapters/storage/migrations.ts` (schema v4, `channels.favorite`);
+  `src/core/ports.ts` (`FollowedChannel.favorite`, `FeedRepository.toggleChannelFavorite`/
+  `listPriorityVideos`); `src/adapters/storage/repositories.ts` (implementations);
+  `src/core/feed-service.ts` (`FeedService.getPriorityVideos`, bucket-less like the
+  watch-later queue); `src/ipc/contract.ts` (`ChannelDto.favorite`,
+  `channel:toggleFavorite`, `feed:priority`); `src/ui/Sidebar.tsx` (Favorite/Unfavorite
+  entry in the `…` menu, plus a ★ indicator on favorited channel rows);
+  `src/ui/FeedList.tsx` (`VideoRow` exported for reuse); `src/ui/App.tsx` (the
+  top-of-feed priority section — a small non-virtualized list reusing `VideoRow`
+  directly, not merged into the main virtualized `FeedList`).
+- **Notes:**
+  - **D-039 (new decision, exercised in this change):** a favorited channel's video
+    appears in **both** the priority section and its normal chronological bucket —
+    duplicated, not moved. Consistent with D-010's orthogonal-flags model; see
+    `decisions.md` and `feed.md`'s new "Favorited channels" subsection for the full
+    rationale. This was the ambiguity the original bug entry flagged as needing a
+    decision — resolved per the product owner's "resolve everything, I'll redirect if
+    needed" instruction for this batch, not asked about individually.
+  - **Architecture choice:** the priority section is a *separate* query
+    (`listPriorityVideos`, capped at 20, unread-only) rendered as a plain list above
+    the main `FeedList`, not spliced into the keyset-paginated feed's row/index space.
+    Mirrors the existing Watch Later queue precedent (already a separate,
+    non-paginated list) — far simpler than trying to merge two orderings into one
+    cursor-paginated, keyboard-navigable index, and avoids a cross-page video-index
+    resolution problem (a favorited channel's unread video could in principle sit
+    outside the currently-loaded feed page).
+  - Favoriting a channel does not change its sidebar sort order (still B-008
+    freshest-first) and does not affect Favorites/Watch Later/Ignored views or a
+    channel-filtered screen — it's specifically a main-feed ("all"/"unread")
+    affordance, per `feed.md`.
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (144/144). The owner should
+    validate live: the priority section's placement/visibility, and that favoriting
+    doesn't reorder the sidebar.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-010 — Easy unsubscribe: channel screen + sidebar context menu
 - **Type:** adjustment

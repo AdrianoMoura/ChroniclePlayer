@@ -45,8 +45,10 @@ CREATE TABLE channels (
   rss_last_modified TEXT,
   last_synced_at    TEXT,                    -- ISO-8601 UTC
   added_at          TEXT NOT NULL,
-  subscription_id   TEXT                     -- v3 (B-010): YouTube's subscription resource id,
+  subscription_id   TEXT,                    -- v3 (B-010): YouTube's subscription resource id,
                                               -- distinct from channel_id — needed for subscriptions.delete
+  favorite          INTEGER NOT NULL DEFAULT 0  -- v4 (B-042): channel-level priority marker,
+                                              -- distinct from a video's own favorite (video_state)
 );
 
 CREATE TABLE videos (

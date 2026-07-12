@@ -244,6 +244,7 @@ export class SqliteFeedRepository implements FeedRepository {
            c.channel_id,
            c.title,
            c.thumbnail_url,
+           c.favorite,
            (SELECT MAX(v.published_at) FROM videos v
              WHERE v.channel_id = c.channel_id ${filter}) AS latest_published_at,
            (SELECT COUNT(*) FROM videos v
@@ -259,6 +260,7 @@ export class SqliteFeedRepository implements FeedRepository {
       channel_id: string
       title: string
       thumbnail_url: string | null
+      favorite: number | bigint
       latest_published_at: string | null
       unread_count: number | bigint
     }[]
@@ -269,8 +271,35 @@ export class SqliteFeedRepository implements FeedRepository {
         thumbnailUrl: row.thumbnail_url
       },
       latestPublishedAt: row.latest_published_at,
-      unreadCount: Number(row.unread_count)
+      unreadCount: Number(row.unread_count),
+      favorite: Number(row.favorite) === 1
     }))
+  }
+
+  // B-042: returns the new favorite state.
+  toggleChannelFavorite(channelId: string): boolean {
+    const row = this.db
+      .prepare(`SELECT favorite FROM channels WHERE channel_id = ?`)
+      .get(channelId) as { favorite: number | bigint } | undefined
+    const next = row && Number(row.favorite) === 1 ? 0 : 1
+    this.db.prepare(`UPDATE channels SET favorite = ? WHERE channel_id = ?`).run(next, channelId)
+    return next === 1
+  }
+
+  // B-042: unread videos from favorited channels, most recent first, capped.
+  // D-039: these also stay in their normal chronological bucket — this is a
+  // separate, additive list, not a filter that removes them from elsewhere.
+  listPriorityVideos(limit: number, showShorts = true): FeedEntry[] {
+    const rows = this.db
+      .prepare(
+        `${FEED_SELECT}
+         WHERE c.subscribed = 1 AND c.favorite = 1
+           AND COALESCE(s.read_status, 'unread') = 'unread' ${shortsFilter(showShorts)}
+         ${FEED_ORDER}
+         LIMIT :limit`
+      )
+      .all({ limit }) as unknown as FeedRow[]
+    return rows.map(toEntry)
   }
 }
 

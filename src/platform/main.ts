@@ -18,7 +18,7 @@ import { YouTubeApiClient } from '../adapters/youtube/api-client'
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
-import { FeedService, type FeedSlice } from '../core/feed-service'
+import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { QuotaCounter, type Clock } from '../core/ports'
@@ -30,6 +30,7 @@ import type {
   ChronicleEventDto,
   FeedCursorDto,
   FeedSliceDto,
+  FeedVideoDto,
   PlayerVideoDto,
   ReadStatusDto,
   ResultDto,
@@ -68,21 +69,25 @@ function toStateDto(state: VideoState): VideoStateDto {
   return { readStatus: state.readStatus, favorite: state.favorite, watchLater: state.watchLater }
 }
 
+function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
+  return {
+    videoId: entry.video.videoId,
+    title: entry.video.title,
+    channelTitle: entry.channelTitle,
+    publishedAt: entry.video.publishedAt,
+    durationSeconds: entry.video.durationSeconds,
+    thumbnailUrl: entry.video.thumbnailUrl,
+    viewCount: entry.video.viewCount,
+    isShort: entry.video.isShort,
+    state: toStateDto(entry.state),
+    bucket
+  }
+}
+
 function toSliceDto(slice: FeedSlice): FeedSliceDto {
   return {
     view: slice.view,
-    videos: slice.items.map(({ entry, bucket }) => ({
-      videoId: entry.video.videoId,
-      title: entry.video.title,
-      channelTitle: entry.channelTitle,
-      publishedAt: entry.video.publishedAt,
-      durationSeconds: entry.video.durationSeconds,
-      thumbnailUrl: entry.video.thumbnailUrl,
-      viewCount: entry.video.viewCount,
-      isShort: entry.video.isShort,
-      state: toStateDto(entry.state),
-      bucket
-    })),
+    videos: slice.items.map(toVideoDto),
     nextCursor: slice.nextCursor,
     unreadCount: slice.unreadCount,
     caughtUp: slice.caughtUp
@@ -375,8 +380,15 @@ void app.whenReady().then(() => {
       channelId: followed.channel.channelId,
       title: followed.channel.title,
       thumbnailUrl: followed.channel.thumbnailUrl,
-      unreadCount: followed.unreadCount
+      unreadCount: followed.unreadCount,
+      favorite: followed.favorite
     }))
+  )
+  ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) =>
+    feedRepository.toggleChannelFavorite(parseChannelIdRequired(channelId))
+  )
+  ipcMain.handle(IpcChannel.getPriorityFeed, (): FeedVideoDto[] =>
+    feedService.getPriorityVideos(settings.showShorts).map(toVideoDto)
   )
   ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown) =>
     runRefresh('manual', parseChannelId(channelId))

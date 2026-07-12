@@ -49,6 +49,9 @@ const api: ChronicleApi = {
   deleteAllData: () => ipcRenderer.invoke(IpcChannel.deleteAllData),
   unsubscribeChannel: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.unsubscribeChannel, channelId),
+  toggleChannelFavorite: (channelId: string) =>
+    ipcRenderer.invoke(IpcChannel.toggleChannelFavorite, channelId),
+  getPriorityFeed: () => ipcRenderer.invoke(IpcChannel.getPriorityFeed),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

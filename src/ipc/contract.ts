@@ -67,6 +67,9 @@ export interface ChannelDto {
   // Unread videos for the sidebar badge (B-008); Shorts count unless hidden
   // by the showShorts setting (B-028).
   unreadCount: number
+  // Channel-level priority marker (B-042) — distinct from a video's own
+  // favorite (VideoStateDto.favorite).
+  favorite: boolean
 }
 
 // Expected failures cross the boundary as values, not thrown strings
@@ -171,6 +174,8 @@ export const IpcChannel = {
   signOut: 'auth:signOut',
   windowControl: 'window:control',
   unsubscribeChannel: 'channel:unsubscribe',
+  toggleChannelFavorite: 'channel:toggleFavorite',
+  getPriorityFeed: 'feed:priority',
   events: 'chronicle:event'
 } as const
 
@@ -232,5 +237,11 @@ export interface ChronicleApi {
   // Requests the youtube.force-ssl write scope incrementally on first use
   // (D-032) — may briefly open the system browser for consent.
   unsubscribeChannel(channelId: string): Promise<ResultDto<void>>
+  // B-042: local-only channel priority marker — never touches YouTube.
+  // Returns the new favorite state.
+  toggleChannelFavorite(channelId: string): Promise<boolean>
+  // B-042: unread videos from favorited channels, capped and bucket-less
+  // (D-039) — additive to, not a filter over, the main feed.
+  getPriorityFeed(): Promise<FeedVideoDto[]>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

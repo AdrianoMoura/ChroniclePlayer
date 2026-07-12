@@ -257,6 +257,7 @@ export const en = {
   'app.bucket.yesterday': 'Yesterday',
   'app.bucket.thisWeek': 'This Week',
   'app.bucket.earlier': 'Earlier',
+  'app.bucket.favoriteChannels': 'From your favorite channels',
 
   // App — banners
   'app.banner.connectionFailed': 'Connection failed: {message}',
@@ -351,5 +352,8 @@ export const en = {
   'sidebar.settingsLabel': 'Settings',
   'sidebar.channelMenu.title': 'More',
   'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
-  'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm'
+  'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',
+  'sidebar.channelMenu.favorite': '☆ Favorite',
+  'sidebar.channelMenu.unfavorite': '★ Unfavorite',
+  'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed'
 } as const
