@@ -75,7 +75,8 @@ export function Sidebar({
 
       <div className="sidebar-footer">
         <button className={`view${settingsOpen ? ' active' : ''}`} onClick={onOpenSettings}>
-          Settings
+          <span className="view-key">⚙</span>
+          <span className="view-label">Settings</span>
         </button>
       </div>
     </aside>
