@@ -187,6 +187,18 @@ Resolved entries add:
   (sidebar key-slot sizing).
 - **Notes:** follow-up to [[B-013]], which introduced the glyph.
 
+### B-019 — Sidebar column should be ~50% wider
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the left sidebar column is too narrow for comfortable reading of
+  channel names and counts.
+- **Expected:** widen the sidebar by roughly 50% over today's width (210px → ~315px).
+- **Code refs:** `src/ui/styles.css` (`.sidebar` width; check dependent widths in the
+  sidebar block, e.g. channel-name truncation).
+- **Notes:** with [[B-008]] the sidebar now carries per-channel unread counts, which
+  makes the extra room more valuable.
+
 ## In progress
 
 *(none)*
