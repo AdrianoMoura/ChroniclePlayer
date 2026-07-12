@@ -52,6 +52,22 @@ Resolved entries add:
 
 ## Open
 
+### B-027 — Refresh button spin animation rotates the whole button, not just the icon
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** while a sync is in progress, the refresh button gets a `spinning`
+  class that applies `animation: spin` to the `.refresh` element itself. `.refresh` is
+  the button (has padding/border-radius/hover background), not just the glyph inside
+  it, so the whole square button — background included — visibly spins instead of just
+  the icon.
+- **Expected:** only the icon/glyph rotates; the button's background, border, and
+  hit-area stay static during refresh.
+- **Code refs:** `src/ui/App.tsx` (`className={`refresh${refreshing ? ' spinning' :
+  ''}`}` around line 682 — the glyph markup); `src/ui/styles.css` (`.refresh`,
+  `.refresh.spinning`, `@keyframes spin` — wrap the icon in its own `<span>` and move
+  the spin animation to that inner element).
+
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
