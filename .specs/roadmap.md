@@ -214,11 +214,12 @@ Exit criterion: a stranger can download, set up, and use Chronicle from the READ
 
 The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
-(all batches precede M6, per the re-sequencing note there): batch 1 = the major bug +
-local polish (B-002, B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was
-closed by M5 during reconciliation); batch 2 = i18n infrastructure (B-017), so new
-feature UIs are born localized; batch 3 = write scopes + discovery (B-015 first, then
-B-010, B-009, B-006); B-003 (multi-account) stays milestone-sized, after M6.
+(all batches precede M6, per the re-sequencing note there): batch 1 = local polish
+(B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was closed by M5 during
+reconciliation); batch 2 = i18n infrastructure (B-017), so new feature UIs are born
+localized; batch 3 = write scopes + discovery (B-015 first, then B-010, B-009, B-006,
+and B-002 — diagnosed as archive-bounded, needs back-catalog API fetch, see its notes);
+B-003 (multi-account) stays milestone-sized, after M6.
 Roadmap-relevant signals from the list:
 
 - Several items **pull the post-MVP discovery bundle forward**: B-009 (global YouTube

@@ -161,6 +161,31 @@ describe('SqliteFeedRepository', () => {
     expect(feed.listPage('all', null, 50).nextCursor).toBeNull()
   })
 
+  it('paginates a channel-filtered feed through every page (B-002)', () => {
+    // Interleave two channels so the channel filter has rows to exclude
+    // between the target channel's keyset boundaries.
+    for (let i = 0; i < 7; i++) {
+      const stamp = `2026-07-0${(i % 7) + 1}T1${i % 10}:00:00Z`
+      addVideo(`a${i}`, stamp, 'UCa')
+      addVideo(`b${i}`, stamp, 'UCb')
+    }
+
+    const seen: string[] = []
+    let cursor = null
+    let pages = 0
+    for (;;) {
+      const page = feed.listPage('all', cursor, 3, 'UCa')
+      pages++
+      seen.push(...page.entries.map((e) => e.video.videoId))
+      expect(page.entries.every((e) => e.video.channelId === 'UCa')).toBe(true)
+      if (!page.nextCursor) break
+      cursor = page.nextCursor
+    }
+    expect(seen).toHaveLength(7)
+    expect(new Set(seen).size).toBe(7)
+    expect(pages).toBeGreaterThan(1)
+  })
+
   it('agrees with core belongsToView for every state × view combination', () => {
     // One video per reachable state combination, driven through the real
     // state repository so the SQL sees real rows.

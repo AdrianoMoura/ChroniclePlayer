@@ -75,6 +75,16 @@ Resolved entries add:
   `channelFilter` is set); `src/ui/FeedList.tsx` (load-more trigger);
   `src/adapters/storage/repositories.ts` (keyset pagination); `src/ipc/contract.ts`
   (`getFeed`).
+- **Notes (diagnosis, 2026-07-11):** keyset pagination with a channel filter is
+  **correct** — a regression test now pages a channel-filtered feed end-to-end
+  (`repositories.test.ts`). The truncation is the *archive*, not the query: sync
+  discovers via RSS (~15 entries/channel — the 2026-07-11 smoke's 3,261 videos across
+  229 subs ≈ 14/channel confirms it), so the channel view already shows everything
+  Chronicle has locally. The real fix is user-initiated back-catalog fetch (uploads
+  playlist paging + hydration, ~2 units per 50 older videos) when scrolling past the
+  local archive in a channel view. That is new API surface with quota costs to record
+  in `youtube-api.md` — moved to **batch 3** with the channel-screen work ([[B-009]],
+  [[B-010]]), out of the local-polish batch 1.
 
 ### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
 - **Type:** adjustment
