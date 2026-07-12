@@ -87,29 +87,6 @@ Resolved entries add:
   overlay update and whatever bindings it adds), but the "every new feature states its
   keyboard path" rule stays in force afterward rather than closing with the batch.
 
-### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** auth / ui-shell
-- **What happens:** the app forces the connection wizard on first launch; only one
-  account is supported.
-- **Expected:** the app is usable authenticated or not (relates to D-033, accountless
-  mode). Sidebar gains an **Accounts** section (placed before Settings) where the user
-  adds one or several accounts. The wizard opens **in a modal**: first account ever gets
-  the full Google Cloud console walkthrough (project + OAuth key); additional accounts
-  skip that — just remind the user to add the new e-mail as a test user on the existing
-  project, then run the connect flow. Feeds from all accounts are combined in listings,
-  with the option to filter by account.
-- **Code refs:** `src/adapters/oauth/` + `src/adapters/secrets/` (token storage is
-  single-account today); `src/adapters/storage/migrations.ts` (schema needs account
-  scoping); `src/core/sync-service.ts` (per-account sync); `src/ui/Sidebar.tsx`
-  (Accounts section); `src/ui/onboarding/Wizard.tsx` (modal mode + skip-console path
-  for additional accounts); `src/platform/main.ts` (composition root wires it all).
-- **Notes:** exact UX is open — owner's sketch: a collapsible section (default open)
-  listing connected accounts, each with a `…` menu offering **Remove** and **Sync now**.
-  This is milestone-sized: touches schema (account scoping), sync, wizard, sidebar.
-  Needs decisions.md entries when attacked (supersedes the single-account assumption).
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -150,6 +127,76 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
+- **Type:** adjustment
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-11
+- **Area:** auth / ui-shell
+- **What happens:** the app forces the connection wizard on first launch; only one
+  account is supported.
+- **Expected:** the app is usable authenticated or not (relates to D-033, accountless
+  mode). Sidebar gains an **Accounts** section (placed before Settings) where the user
+  adds one or several accounts. The wizard opens **in a modal**: first account ever gets
+  the full Google Cloud console walkthrough (project + OAuth key); additional accounts
+  skip that — just remind the user to add the new e-mail as a test user on the existing
+  project, then run the connect flow. Feeds from all accounts are combined in listings,
+  with the option to filter by account.
+- **Code refs:** `src/adapters/storage/migrations.ts` (schema v6: `accounts` +
+  `account_channels` junction table — D-040); `src/core/ports.ts` +
+  `src/adapters/storage/repositories.ts`/`sync-repository.ts` (every feed/channel query
+  threaded with an optional `accountId`, `EXISTS` subqueries not `JOIN`s, so a channel
+  followed by two accounts never fans out into duplicate rows); `src/core/sync-service.ts`
+  (`refresh`/`backfillArchive` take an `accountId`); `src/adapters/oauth/auth.ts`
+  (`accountSecretKeys` — per-account refresh token/scopes, one shared `oauthClient`);
+  `src/platform/main.ts` (the `AccountStack` registry — one `authFlow`/`authProvider`/
+  `apiClient`/`syncService` per account, sharing the repo and quota counter; new
+  `accounts:*` IPC surface); `src/ui/Sidebar.tsx` (the Accounts section); `src/ui/
+  AddAccount.tsx` (new — the short add-account flow); `src/ui/App.tsx` (`accountFilter`,
+  a second independent filter dimension alongside `channelFilter`).
+- **Notes:**
+  - **Not fully built as specced — scoped down deliberately, not by oversight:** "the app
+    is usable authenticated or not" (fully accountless browsing) is D-033's territory, a
+    separate, still-unimplemented decision — this bug's real, load-bearing ask was
+    genuine **multi**-account support (several authenticated accounts), which is what's
+    built. Zero-account/local-only-follow browsing remains future work.
+  - **The wizard itself was never touched.** Rather than adding a "modal mode" with
+    conditional step-skipping to the existing multi-step `Wizard.tsx` component, additional
+    accounts get their own small, separate flow (`AddAccount.tsx`) — a reminder to add the
+    new email as a Test user on the *same* Google Cloud project, then Connect. This still
+    satisfies the bug's actual requirement (skip the console walkthrough for accounts
+    after the first) without refactoring the wizard's step-sequencing logic to support two
+    modes — see [[D-041]] for the reasoning.
+  - **Schema (D-040):** the first design considered — a plain `account_id` column added to
+    `channels` — was rejected mid-implementation: it would let a second account's
+    subscribe silently overwrite the first account's row for the same channel (channel_id
+    stays a single-owner primary key). The `account_channels` junction table is the only
+    one of the two that's actually correct for two accounts following the same channel;
+    channel facts (title, uploads playlist, RSS validators) stay shared/deduped in
+    `channels`, matching D-029's existing "external channel" precedent.
+  - **`video_state`/`videos` stay account-agnostic (D-003 extended, not superseded):**
+    read/favorite/watch-later are the Chronicle user's own facts, not tied to whichever
+    account's subscription surfaced a video. Two accounts following the same channel share
+    one unread/favorite state per video, which is the intended behavior for one person
+    running multiple YouTube accounts.
+  - **One Google Cloud project, one quota pool, per-account tokens only** — this is what
+    makes "just add a Test user" additional-account onboarding possible at all; confirmed
+    against D-030's own framing, not a new assumption.
+  - **[[D-041]] simplifications, all deliberate:** Settings' Connection section and the
+    first-run wizard keep managing one "primary" account only, completely unchanged;
+    the primary account can't be removed from the new Accounts section (Settings' existing
+    Sign Out covers that case); subscribing to a channel found via search always
+    subscribes under the primary account (no account picker); an action on a channel
+    followed by more than one account (favorite/unsubscribe) applies to whichever account
+    owns it first if there's more than one — a narrow edge case (two of *your own*
+    accounts both following the identical channel).
+  - No live-app check this session (needs the owner's second real Google account to
+    verify end-to-end); verified via `npm run typecheck && npm run lint && npm test`
+    (171/171), including new cross-account isolation tests (a channel followed by two
+    accounts dedupes in the combined sidebar list but stays independent per account —
+    unsubscribing one account never affects another following the same channel). The
+    owner should validate live: adding a real second account (Test-user step included),
+    the combined vs. account-filtered feed, and Remove/Sync now from the Accounts menu.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor

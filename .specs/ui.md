@@ -28,7 +28,12 @@ Three-region desktop layout:
 ```
 
 - **Sidebar**: views (All, Unread, Watch Later, Favorites, Ignored), then the channel
-  list (click = filter feed to that channel), then Settings. Collapsible to icons.
+  list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
+  Unsubscribe — B-010/B-042), then an **Accounts** section (B-003, implemented
+  2026-07-12: connected accounts, each with a `…` menu for Sync now/Remove, click =
+  filter the combined feed to that account, "+ Add account" opens a short reminder+
+  Connect flow — no Google-console walkthrough, since additional accounts reuse the
+  first account's OAuth client), then Settings. Collapsible to icons.
 - **Feed**: the grouped chronological list (`feed.md`). List rows are the default —
   calmer, rank information (title first) over imagery — but **D-037** adds an optional
   thumbnail grid, since a masonry/grid view is a layout preference, not an engagement

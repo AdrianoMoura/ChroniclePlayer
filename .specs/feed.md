@@ -11,6 +11,13 @@ plus local follows when D-030 lands) — and nothing else. Videos opened via lin
 as unread; they are reachable through the states the user gave them (Favorites, Watch
 Later).
 
+- **Multi-account (B-003, implemented 2026-07-12):** with more than one connected Google
+  account, the feed is every connected account's subscriptions **combined** by default —
+  selecting an account in the sidebar narrows it to just that one, exactly like selecting
+  a channel (the two filters are independent and can combine: one channel within one
+  account). Read/favorite/watch-later state is shared across accounts for the same video
+  (D-003, `local-data.md`) — it is not duplicated per account.
+
 ## Ordering (Final)
 
 - Videos are ordered by **`publishedAt` descending**. Nothing else ever influences order:

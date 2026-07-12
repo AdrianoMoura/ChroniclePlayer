@@ -143,12 +143,32 @@ anyway) and the **refresh token** (genuinely sensitive).
   `client_secret` into the secret store and **offers** to note that the user may delete
   the downloaded file. Chronicle never moves/deletes user files itself.
 
-## Multi-account
+## Multi-account — B-003 (Final, implemented 2026-07-12)
 
-Out of scope for MVP. One Google identity per Chronicle profile. **Future idea:** multiple
-profiles (separate DB + secret entries per profile), which the `SecretStore`/`storage`
-port design should not preclude (key entries by profile ID from day one — cheap now,
-painful later).
+Multiple Google accounts, one shared OAuth client: the first account's Google Cloud
+project/consent screen is reused by every subsequent account — adding one means adding its
+email as a Test user on the *existing* project, not creating a new project. This is exactly
+why D-032's incremental-scope model and this profile-keyed secret design paid off: the
+`SecretStore`/`storage` layer was already built expecting more than one identity.
+
+- **Secrets:** `oauthClient` stays a single shared key (`default/oauth-client`); refresh
+  tokens and granted scopes are per-account (`{accountId}/refresh-token`,
+  `{accountId}/granted-scopes` — `src/adapters/oauth/auth.ts`). `accountId` is our own
+  generated id, never the Google user id.
+- **Quota:** one pool, shared (it's one Google Cloud project regardless of how many
+  accounts authorize against it) — `QuotaCounter` is a single instance injected into every
+  account's `YouTubeApiClient`.
+- **Primary account unaffected:** the very first account (Settings' Connection section,
+  the first-run wizard) is untouched by any of this — it's just `accountStacks`' first
+  entry. Every additional account is added via a short "add account" flow (no
+  Google-console walkthrough — see `onboarding.md`), listed in a sidebar **Accounts**
+  section (`ui.md`).
+- **Data model:** `local-data.md`'s `accounts`/`account_channels` tables. Feed membership,
+  reads, and local states are detailed there — the short version is that videos/state stay
+  account-agnostic (D-003), only subscription membership is per-account.
+- **Combined feed with an account filter:** the default view shows every connected
+  account's subscriptions merged; selecting one account in the sidebar narrows to it,
+  exactly like selecting a channel (`feed.md`).
 
 ## Security posture summary
 

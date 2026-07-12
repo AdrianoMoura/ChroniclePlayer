@@ -158,6 +158,13 @@ The wizard is not once-and-gone; individual steps are re-runnable from Settings:
 - "Fix weekly logout" → Step 4b.
 - Full reset → entire wizard, preserving local video states (they are independent of auth).
 
+**This whole wizard is scoped to the one primary account (B-003, implemented
+2026-07-12).** Adding a second (or third…) Google account never touches it or re-runs
+any step here — the sidebar's Accounts section has its own short flow instead: a
+reminder to add the new email as a Test user on the *same* Google Cloud project (no new
+project, no new OAuth client), then a Connect button. See `authentication.md` §Multi-account
+and `ui.md`'s sidebar section.
+
 ## Open questions (Pending)
 
 - **D-014:** In-wizard live validation of Google-side steps 1–5 is impossible pre-auth
