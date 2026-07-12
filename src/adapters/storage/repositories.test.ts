@@ -179,6 +179,11 @@ describe('SqliteFeedRepository', () => {
     expect(followed.every((c) => c.favorite === false)).toBe(true)
   })
 
+  it('isSubscribed cross-references a channel id against local state (B-009)', () => {
+    expect(feed.isSubscribed('UCa')).toBe(true)
+    expect(feed.isSubscribed('UCunknown')).toBe(false)
+  })
+
   it('toggleChannelFavorite flips the channel-level priority marker (B-042)', () => {
     expect(feed.toggleChannelFavorite('UCa')).toBe(true)
     expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(

@@ -24,10 +24,10 @@ justified against this document and its quota cost stated in a code comment.**
 | `playlistItems.list` (50/page) | 1 per call | Gap detection during sync, and on-demand back-catalog fetch when scrolling past a channel's local archive ([[B-002]], implemented 2026-07-12 — bounded at 4 pages/call, resumable) |
 | `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live/premiere status, stats |
 | `subscriptions.delete` | 50 per call | Unsubscribe ([[B-010]], implemented 2026-07-12; incremental scope per D-032) |
-| `subscriptions.insert` | 50 per call | Post-MVP in-app subscribe (D-030; incremental scope per D-032) |
+| `subscriptions.insert` | 50 per call | In-app subscribe ([[B-009]], implemented 2026-07-12; D-030, incremental scope per D-032) |
 | `videos.rate` / `videos.getRating` | 50 / 1 | Post-MVP like feature (D-032) |
 | `commentThreads.list` / `.insert` | 1 / 50 | Post-MVP comments (D-032; explicit user action only) |
-| `search.list` | **100 per call** | **Banned from sync/automation.** Post-MVP: explicit user-typed queries only (D-031) |
+| `search.list` | **100 per call** | **Banned from sync/automation.** Explicit user-typed queries only ([[B-009]], implemented 2026-07-12; D-031) |
 
 `search.list` is the classic quota trap: polling 200 channels via search would cost
 20,000 units — double the daily quota — for one refresh. It is banned from any automated

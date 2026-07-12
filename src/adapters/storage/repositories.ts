@@ -286,6 +286,15 @@ export class SqliteFeedRepository implements FeedRepository {
     return next === 1
   }
 
+  // B-009: cross-references search-result channels against local state so
+  // the UI can show "Subscribed" instead of a live Subscribe button.
+  isSubscribed(channelId: string): boolean {
+    const row = this.db
+      .prepare(`SELECT 1 AS present FROM channels WHERE channel_id = ? AND subscribed = 1`)
+      .get(channelId) as { present: number } | undefined
+    return row !== undefined
+  }
+
   // B-042: unread videos from favorited channels, most recent first, capped.
   // D-039: these also stay in their normal chronological bucket — this is a
   // separate, additive list, not a filter that removes them from elsewhere.

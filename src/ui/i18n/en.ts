@@ -275,6 +275,8 @@ export const en = {
   'app.banner.dismissTitle': 'Dismiss',
   'app.banner.newVideos': '{count} new video{plural}',
   'app.banner.unsubscribeFailed': "Couldn't unsubscribe: {message}",
+  'app.banner.searchFailed': 'Search failed: {message}',
+  'app.banner.subscribeFailed': "Couldn't subscribe: {message}",
 
   // App — sidebar
   'app.sidebar.showTitle': 'Show sidebar',
@@ -284,7 +286,11 @@ export const en = {
   'app.topbar.channelFallback': 'Channel',
   'app.topbar.markAllRead': 'Mark all as read',
   'app.topbar.filterPlaceholder': 'Filter in view  /',
+  'app.topbar.searchYouTubePlaceholder': 'Search all of YouTube — Enter to search',
   'app.topbar.clearFilterTitle': 'Clear',
+  'app.topbar.searchScopeMine': 'Mine',
+  'app.topbar.searchScopeYoutube': 'YouTube',
+  'app.topbar.searchScopeTitle': 'Search scope: your channels, or all of YouTube',
   'app.topbar.itemSizeTitle': 'Item size: {size}',
   'app.topbar.switchToListView': 'Switch to list view',
   'app.topbar.switchToGridView': 'Switch to grid view',
@@ -355,5 +361,12 @@ export const en = {
   'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',
   'sidebar.channelMenu.favorite': '☆ Favorite',
   'sidebar.channelMenu.unfavorite': '★ Unfavorite',
-  'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed'
+  'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed',
+
+  // YouTube search (B-009)
+  'search.empty': 'No results.',
+  'search.searching': 'Searching all of YouTube…',
+  'search.subscribeButton': 'Subscribe',
+  'search.subscribedButton': 'Subscribed',
+  'search.videoChannelPrefix': 'on'
 } as const

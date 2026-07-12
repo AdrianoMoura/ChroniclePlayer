@@ -14,7 +14,7 @@ import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-sec
 import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
 import { GoogleOAuth } from '../adapters/oauth/google-oauth'
 import { AuthFlow, GoogleAuthProvider } from '../adapters/oauth/auth'
-import { YouTubeApiClient } from '../adapters/youtube/api-client'
+import { YouTubeApiClient, type SearchResult } from '../adapters/youtube/api-client'
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
@@ -34,6 +34,7 @@ import type {
   PlayerVideoDto,
   ReadStatusDto,
   ResultDto,
+  SearchResultDto,
   SyncReportDto,
   VideoStateDto,
   WizardStateDto
@@ -415,6 +416,52 @@ void app.whenReady().then(() => {
         return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
       } finally {
         backfillingChannels.delete(id)
+      }
+    }
+  )
+  function toSearchResultDto(result: SearchResult): SearchResultDto {
+    if (result.kind === 'video') return result
+    return { ...result, subscribed: feedRepository.isSubscribed(result.channelId) }
+  }
+  ipcMain.handle(
+    IpcChannel.searchYouTube,
+    async (_event, query: unknown): Promise<ResultDto<SearchResultDto[]>> => {
+      const q = String(query).trim()
+      if (q === '') return { ok: true, value: [] }
+      try {
+        const results = await apiClient.search(q)
+        return { ok: true, value: results.map(toSearchResultDto) }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.subscribeChannel,
+    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
+      const id = parseChannelIdRequired(channelId)
+      try {
+        if (!authFlow.hasWriteScope()) {
+          await authFlow.requestWriteScope()
+          authProvider.invalidate()
+        }
+        const channel = await apiClient.subscribe(id)
+        const now = clock.now().toISOString()
+        syncRepository.upsertSubscribedChannel(channel, now)
+        const playlists = await apiClient.fetchUploadsPlaylists([id])
+        const playlistId = playlists.get(id)
+        if (playlistId !== undefined) syncRepository.setUploadsPlaylist(id, playlistId)
+        void runRefresh('manual', id)
+        return { ok: true, value: undefined }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
       }
     }
   )

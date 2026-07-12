@@ -100,6 +100,25 @@ export class SqliteSyncRepository implements SyncRepository {
   // B-010: local half of user-initiated unsubscribe — the real
   // subscriptions.delete call happens in the platform layer before this runs.
   // Same soft-delete as applySubscriptions' diff removal: videos/state stay.
+  // B-009: single-channel subscribe (user-initiated, via search/discovery) —
+  // the same upsert shape as applySubscriptions' bulk diff-apply, for one row.
+  upsertSubscribedChannel(channel: Channel, now: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO channels (channel_id, title, thumbnail_url, subscription_id, subscribed, added_at)
+         VALUES (:id, :title, :thumb, :subId, 1, :now)
+         ON CONFLICT(channel_id) DO UPDATE SET
+           title = :title, thumbnail_url = :thumb, subscription_id = :subId, subscribed = 1`
+      )
+      .run({
+        id: channel.channelId,
+        title: channel.title,
+        thumb: channel.thumbnailUrl,
+        subId: channel.subscriptionId ?? null,
+        now
+      })
+  }
+
   getSubscriptionId(channelId: string): string | null {
     const row = this.db
       .prepare(`SELECT subscription_id FROM channels WHERE channel_id = ?`)

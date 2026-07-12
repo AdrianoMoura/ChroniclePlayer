@@ -14,6 +14,20 @@ import { request, type FetchFn } from '../http'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
 
+// B-009/D-031: a free-text search result — video or channel, across all of
+// YouTube, not just subscribed channels.
+export type SearchResult =
+  | {
+      kind: 'video'
+      videoId: string
+      title: string
+      channelId: string
+      channelTitle: string
+      publishedAt: string
+      thumbnailUrl: string | null
+    }
+  | { kind: 'channel'; channelId: string; title: string; thumbnailUrl: string | null }
+
 export class YouTubeApiClient implements SubscriptionSource {
   constructor(
     private readonly auth: AuthProvider,
@@ -135,6 +149,66 @@ export class YouTubeApiClient implements SubscriptionSource {
     )
     const id = page.items[0]?.['id']
     return typeof id === 'string' ? id : null
+  }
+
+  // subscriptions.insert — 50 units. User-initiated only (B-009/D-030,
+  // incremental scope per D-032) — never called from sync/automation.
+  async subscribe(channelId: string): Promise<Channel> {
+    this.quota.add(50)
+    const token = await this.auth.getAccessToken()
+    const response = await request(this.fetchFn, `${API_BASE}/subscriptions?part=snippet`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ snippet: { resourceId: { kind: 'youtube#channel', channelId } } })
+    })
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
+    if (!response.ok) throw this.mapError(response.status, payload)
+    const snippet = payload['snippet'] as Record<string, unknown>
+    return {
+      channelId,
+      title: String(snippet['title']),
+      thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
+      subscriptionId: typeof payload['id'] === 'string' ? payload['id'] : null
+    }
+  }
+
+  // search.list — 100 units/call (youtube-api.md, D-031). Explicit
+  // user-typed queries only — never called from sync/automation, never
+  // injected into the feed.
+  async search(query: string): Promise<SearchResult[]> {
+    const page = await this.get(
+      'search',
+      { part: 'snippet', q: query, type: 'video,channel', maxResults: '25' },
+      100
+    )
+    return page.items.flatMap((item): SearchResult[] => {
+      const id = item['id'] as Record<string, unknown>
+      const snippet = item['snippet'] as Record<string, unknown>
+      if (id['kind'] === 'youtube#video') {
+        return [
+          {
+            kind: 'video',
+            videoId: String(id['videoId']),
+            title: String(snippet['title']),
+            channelId: String(snippet['channelId']),
+            channelTitle: String(snippet['channelTitle'] ?? ''),
+            publishedAt: String(snippet['publishedAt']),
+            thumbnailUrl: thumbnailUrl(snippet['thumbnails'])
+          }
+        ]
+      }
+      if (id['kind'] === 'youtube#channel') {
+        return [
+          {
+            kind: 'channel',
+            channelId: String(id['channelId']),
+            title: String(snippet['title']),
+            thumbnailUrl: thumbnailUrl(snippet['thumbnails'])
+          }
+        ]
+      }
+      return []
+    })
   }
 
   // playlistItems.list — 1 unit per 50-item page. Gap detection and

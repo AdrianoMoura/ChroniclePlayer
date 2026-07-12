@@ -117,6 +117,31 @@ export interface SettingsDto {
   defaultPlaybackRate: number // D-038, default 1 — player loads already at this speed
 }
 
+// B-009/D-031: a free-text search result — video or channel, across all of
+// YouTube, not just subscribed content. Never stored or injected into the
+// feed; exists only for the lifetime of one search.
+export interface SearchVideoResultDto {
+  kind: 'video'
+  videoId: string
+  title: string
+  channelId: string
+  channelTitle: string
+  publishedAt: string
+  thumbnailUrl: string | null
+}
+
+export interface SearchChannelResultDto {
+  kind: 'channel'
+  channelId: string
+  title: string
+  thumbnailUrl: string | null
+  // Cross-referenced against local state so the UI shows "Subscribed", not
+  // a live Subscribe button, for channels already followed.
+  subscribed: boolean
+}
+
+export type SearchResultDto = SearchVideoResultDto | SearchChannelResultDto
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
@@ -177,6 +202,8 @@ export const IpcChannel = {
   toggleChannelFavorite: 'channel:toggleFavorite',
   getPriorityFeed: 'feed:priority',
   backfillChannelArchive: 'channel:backfillArchive',
+  subscribeChannel: 'channel:subscribe',
+  searchYouTube: 'youtube:search',
   events: 'chronicle:event'
 } as const
 
@@ -251,5 +278,11 @@ export interface ChronicleApi {
   backfillChannelArchive(
     channelId: string
   ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>>
+  // B-009/D-031: search.list, 100 units/call — explicit user-typed queries
+  // only, surfaced as a scope toggle next to the local filter.
+  searchYouTube(query: string): Promise<ResultDto<SearchResultDto[]>>
+  // subscriptions.insert (D-030, 50 units) — the other half of B-010's
+  // unsubscribe; shares the same incremental write-scope consent (D-032).
+  subscribeChannel(channelId: string): Promise<ResultDto<void>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

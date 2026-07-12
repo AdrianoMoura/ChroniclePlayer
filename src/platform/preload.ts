@@ -54,6 +54,9 @@ const api: ChronicleApi = {
   getPriorityFeed: () => ipcRenderer.invoke(IpcChannel.getPriorityFeed),
   backfillChannelArchive: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.backfillChannelArchive, channelId),
+  searchYouTube: (query: string) => ipcRenderer.invoke(IpcChannel.searchYouTube, query),
+  subscribeChannel: (channelId: string) =>
+    ipcRenderer.invoke(IpcChannel.subscribeChannel, channelId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

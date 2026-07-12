@@ -91,6 +91,30 @@ describe('backfill state (B-002)', () => {
   })
 })
 
+describe('upsertSubscribedChannel (B-009)', () => {
+  it('inserts a new channel as subscribed with its subscription id', () => {
+    sync.upsertSubscribedChannel(
+      { channelId: 'UCnew', title: 'New', thumbnailUrl: null, subscriptionId: 'subNEW' },
+      NOW
+    )
+    expect(sync.getSubscriptionId('UCnew')).toBe('subNEW')
+    expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).toContain('UCnew')
+  })
+
+  it('re-subscribes a previously-unsubscribed channel in place, keeping its data', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.markUnsubscribed('UCa')
+    expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).not.toContain('UCa')
+
+    sync.upsertSubscribedChannel(
+      { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA' },
+      NOW
+    )
+    expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).toContain('UCa')
+    expect(sync.getSubscriptionId('UCa')).toBe('subA')
+  })
+})
+
 describe('markUnsubscribed (B-010)', () => {
   it('soft-deletes like applySubscriptions removal — videos and state stay', () => {
     sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)

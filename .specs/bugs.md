@@ -123,21 +123,6 @@ Resolved entries add:
 - **Notes:** requires new API surface + write scopes (incremental, per D-032 and
   [[B-015]]). Quota costs must be stated in `youtube-api.md` when attacked.
 
-### B-009 — Search all of YouTube, not only synced content
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** other (search)
-- **What happens:** search/filter only covers synced channels' content.
-- **Expected:** a scope option in the search/filter UI choosing between "my channels"
-  and "all of YouTube" (D-031). From global results the user can open any video
-  (D-029 already hydrates external videos), discover new channels, and subscribe to
-  them (D-030).
-- **Code refs:** `src/ui/FeedList.tsx` (the local `/` filter gains the scope option);
-  `src/adapters/youtube/api-client.ts` (`search.list`); `src/core/ports.ts` +
-  `src/ipc/contract.ts` (new search surface); subscribe path shares [[B-010]]'s API.
-- **Notes:** `search.list` costs 100 units/call — quota framing in `youtube-api.md`
-  must be respected and surfaced when attacked.
-
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-11
@@ -200,6 +185,54 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-009 — Search all of YouTube, not only synced content
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** other (search)
+- **What happens:** search/filter only covers synced channels' content.
+- **Expected:** a scope option in the search/filter UI choosing between "my channels"
+  and "all of YouTube" (D-031). From global results the user can open any video
+  (D-029 already hydrates external videos), discover new channels, and subscribe to
+  them (D-030).
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`search()` — `search.list`,
+  100 units; `subscribe()` — `subscriptions.insert`, 50 units); `src/ipc/contract.ts`
+  (`SearchResultDto`, `youtube:search`, `channel:subscribe`); `src/adapters/storage/
+  repositories.ts` (`isSubscribed` — cross-references result channels against local
+  state); `src/adapters/storage/sync-repository.ts` (`upsertSubscribedChannel`,
+  reusing `applySubscriptions`' single-row upsert shape); `src/platform/main.ts`
+  (both IPC handlers; subscribe fetches the uploads playlist and runs a
+  channel-scoped sync right after, so videos appear without waiting); `src/ui/App.tsx`
+  (the "Mine"/"YouTube" scope toggle next to the existing `/` filter, and a
+  transient search-results list that replaces the feed while active).
+- **Notes:**
+  - **Explicit action, not live search:** per D-031, `search.list` only fires on
+    Enter (never per keystroke) — it costs 100 units/call, ~100/day headroom at
+    default quota. The scope toggle is hidden in a channel-filtered view (global
+    search doesn't apply there); switching back to "Mine" or clearing the field
+    drops any results.
+  - **Search results are intentionally minimal:** video results are click-to-open
+    only (no favorite/watch-later/mark-read buttons) — those actions upsert a
+    `video_state` row with a foreign-key dependency on the `videos` table, which a
+    fresh, never-opened search result doesn't have yet. Opening the video first
+    (via the existing D-029 hydrate-on-open path) is what creates that row; acting
+    on it from the player afterward already works unchanged. Channel results show
+    only a Subscribe/Subscribed button, not a full channel view — browsing an
+    unfollowed channel's own catalog is future scope, not this bug's ask.
+  - **D-030's "Follow locally" mechanism is still not built** — this only
+    implements "Subscribe on YouTube." Flagged in `decisions.md`.
+  - Subscribing reuses [[B-010]]'s incremental write-scope consent
+    (`AuthFlow.requestWriteScope()`/`hasWriteScope()`) — the same mechanism, same
+    scope (`youtube.force-ssl` covers both insert and delete), so a user who's
+    already unsubscribed something once won't see a second consent prompt when
+    they later subscribe from search (or vice versa).
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (156/156). The owner should
+    validate live: a real `search.list` query against quota, the incremental
+    write-scope popup on first subscribe (if not already granted via unsubscribe),
+    and that a freshly subscribed channel's videos actually appear after the
+    triggered sync.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major

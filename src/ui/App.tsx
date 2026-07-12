@@ -10,6 +10,7 @@ import type {
   FeedViewDto,
   PlayerVideoDto,
   ReadStatusDto,
+  SearchResultDto,
   SettingsDto,
   VideoStateDto,
   WizardStateDto
@@ -63,6 +64,11 @@ export function App() {
   // B-042: unread videos from favorited channels — bucket-less priority
   // section shown above the chronological feed (main views only, D-039).
   const [priorityVideos, setPriorityVideos] = useState<FeedVideoDto[]>([])
+  // B-009/D-031: search is inert until the user presses Enter — never
+  // fired on keystroke (search.list costs 100 units/call).
+  const [searchScope, setSearchScope] = useState<'mine' | 'youtube'>('mine')
+  const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
+  const [searching, setSearching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [progress, setProgress] = useState<{
     phase: 'channels' | 'shorts'
@@ -169,6 +175,12 @@ export function App() {
   useEffect(() => {
     loadView(view, channelFilter)
   }, [view, channelFilter, loadView])
+
+  // B-009: search results are a transient overlay over the current
+  // view/channel — navigating away always drops them.
+  useEffect(() => {
+    setSearchResults(null)
+  }, [view, channelFilter])
 
   // Switching channels (or leaving the channel screen) disarms any pending
   // Unsubscribe confirmation — it must never carry over to a different channel.
@@ -295,6 +307,57 @@ export function App() {
     },
     [channelFilter, connect, loadChannels, loadView]
   )
+
+  // B-009/D-031: explicit user action only — never fired on keystroke.
+  const runSearch = useCallback((query: string) => {
+    const q = query.trim()
+    if (q === '') {
+      setSearchResults(null)
+      return
+    }
+    setSearching(true)
+    void window.chronicle.searchYouTube(q).then((result) => {
+      setSearching(false)
+      if (!result.ok) {
+        if (result.errorKind === 'quota-exceeded') {
+          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else {
+          setBanner({ text: t('app.banner.searchFailed', { message: result.message }) })
+        }
+        setSearchResults([])
+        return
+      }
+      setSearchResults(result.value)
+    })
+  }, [])
+
+  // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
+  // may open the system browser once for incremental write-scope consent.
+  const subscribeToChannel = useCallback((channelId: string) => {
+    void window.chronicle.subscribeChannel(channelId).then((result) => {
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else {
+          setBanner({ text: t('app.banner.subscribeFailed', { message: result.message }) })
+        }
+        return
+      }
+      loadChannels()
+      setSearchResults((current) =>
+        current === null
+          ? null
+          : current.map((r) => (r.kind === 'channel' && r.channelId === channelId ? { ...r, subscribed: true } : r))
+      )
+    })
+  }, [connect, loadChannels])
 
   // B-042: local-only priority marker — never touches YouTube.
   const toggleChannelFavorite = useCallback(
@@ -877,15 +940,41 @@ export function App() {
               {t('app.topbar.markAllRead')}
             </button>
           )}
+          {channelFilter === null && (
+            <div className="search-scope" title={t('app.topbar.searchScopeTitle')}>
+              <button
+                className={`scope-option${searchScope === 'mine' ? ' active' : ''}`}
+                onClick={() => {
+                  setSearchScope('mine')
+                  setSearchResults(null)
+                }}
+              >
+                {t('app.topbar.searchScopeMine')}
+              </button>
+              <button
+                className={`scope-option${searchScope === 'youtube' ? ' active' : ''}`}
+                onClick={() => setSearchScope('youtube')}
+              >
+                {t('app.topbar.searchScopeYoutube')}
+              </button>
+            </div>
+          )}
           <div className="field-wrap">
             <input
               ref={filterInputRef}
               className="filter"
-              placeholder={t('app.topbar.filterPlaceholder')}
+              placeholder={
+                searchScope === 'youtube'
+                  ? t('app.topbar.searchYouTubePlaceholder')
+                  : t('app.topbar.filterPlaceholder')
+              }
               value={filter}
               onChange={(event) => {
                 setFilter(event.target.value)
                 setCursorIdx(0)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && searchScope === 'youtube') runSearch(filter)
               }}
             />
             {filter !== '' && (
@@ -894,6 +983,7 @@ export function App() {
                 title={t('app.topbar.clearFilterTitle')}
                 onClick={() => {
                   setFilter('')
+                  setSearchResults(null)
                   filterInputRef.current?.focus()
                 }}
               >
@@ -968,44 +1058,102 @@ export function App() {
                 })}
               </button>
             )}
-            {priorityVideos.length > 0 && (
-              <div className="priority-section">
-                <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
-                {priorityVideos.map((video) => (
-                  <VideoRow
-                    key={video.videoId}
-                    video={video}
-                    selected={false}
-                    undoable={undoable.has(video.videoId)}
-                    actions={actions}
-                    onOpen={() => openVideo(video.videoId)}
-                    showViewCounts={settings.showViewCounts}
-                  />
-                ))}
-              </div>
-            )}
-            {filtered.length === 0 ? (
-              <div className="empty">
-                {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
+            {searchResults !== null ? (
+              <div className="search-results">
+                {searching && <div className="empty">{t('search.searching')}</div>}
+                {!searching && searchResults.length === 0 && (
+                  <div className="empty">{t('search.empty')}</div>
+                )}
+                {searchResults.map((result) =>
+                  result.kind === 'video' ? (
+                    <div
+                      key={result.videoId}
+                      className="row search-result-row"
+                      onClick={() => openVideo(result.videoId)}
+                    >
+                      {result.thumbnailUrl !== null ? (
+                        <img
+                          className="thumb"
+                          loading="lazy"
+                          alt=""
+                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
+                        />
+                      ) : (
+                        <div className="thumb" />
+                      )}
+                      <div className="row-text">
+                        <span className="title">{result.title}</span>
+                        <span className="meta">{result.channelTitle}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={result.channelId} className="row search-result-row search-result-channel">
+                      {result.thumbnailUrl !== null ? (
+                        <img
+                          className="thumb"
+                          loading="lazy"
+                          alt=""
+                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
+                        />
+                      ) : (
+                        <div className="thumb" />
+                      )}
+                      <div className="row-text">
+                        <span className="title">{result.title}</span>
+                      </div>
+                      <button
+                        className="primary"
+                        disabled={result.subscribed}
+                        onClick={() => subscribeToChannel(result.channelId)}
+                      >
+                        {result.subscribed ? t('search.subscribedButton') : t('search.subscribeButton')}
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             ) : (
-              <FeedList
-                rows={rows}
-                cursorVideoIndex={effectiveCursor}
-                undoable={undoable}
-                actions={actions}
-                onOpen={(videoIndex) => {
-                  setCursorIdx(videoIndex)
-                  openFromFeed(videoIndex, filtered)
-                }}
-                onNearEnd={loadMore}
-                onAtTopChange={(atTop) => {
-                  atTopRef.current = atTop
-                }}
-                itemSize={settings.itemSize}
-                layout={settings.layout}
-                showViewCounts={settings.showViewCounts}
-              />
+              <>
+                {priorityVideos.length > 0 && (
+                  <div className="priority-section">
+                    <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
+                    {priorityVideos.map((video) => (
+                      <VideoRow
+                        key={video.videoId}
+                        video={video}
+                        selected={false}
+                        undoable={undoable.has(video.videoId)}
+                        actions={actions}
+                        onOpen={() => openVideo(video.videoId)}
+                        showViewCounts={settings.showViewCounts}
+                      />
+                    ))}
+                  </div>
+                )}
+                {filtered.length === 0 ? (
+                  <div className="empty">
+                    {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
+                  </div>
+                ) : (
+                  <FeedList
+                    rows={rows}
+                    cursorVideoIndex={effectiveCursor}
+                    undoable={undoable}
+                    actions={actions}
+                    onOpen={(videoIndex) => {
+                      setCursorIdx(videoIndex)
+                      openFromFeed(videoIndex, filtered)
+                    }}
+                    onNearEnd={loadMore}
+                    onAtTopChange={(atTop) => {
+                      atTopRef.current = atTop
+                    }}
+                    itemSize={settings.itemSize}
+                    layout={settings.layout}
+                    showViewCounts={settings.showViewCounts}
+                  />
+                )}
+              </>
             )}
             {playerOpen && currentPlayerVideo && (
               <PlayerView

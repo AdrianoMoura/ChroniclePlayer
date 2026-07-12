@@ -171,6 +171,79 @@ describe('YouTubeApiClient', () => {
     expect(id).toBeNull()
   })
 
+  it('subscribe POSTs subscriptions?part=snippet and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let method = ''
+    let body: Record<string, unknown> = {}
+    const fetchFn: FetchFn = (_url, init) => {
+      method = String(init?.method)
+      body = JSON.parse(String(init?.body))
+      return Promise.resolve(
+        jsonResponse(200, {
+          id: 'subNEW',
+          snippet: {
+            title: 'New Channel',
+            resourceId: { channelId: 'UCnew' },
+            thumbnails: { medium: { url: 'https://yt3.example/new' } }
+          }
+        })
+      )
+    }
+    const channel = await new YouTubeApiClient(auth, fetchFn, quota).subscribe('UCnew')
+    expect(method).toBe('POST')
+    expect(body).toEqual({ snippet: { resourceId: { kind: 'youtube#channel', channelId: 'UCnew' } } })
+    expect(channel).toEqual({
+      channelId: 'UCnew',
+      title: 'New Channel',
+      thumbnailUrl: 'https://yt3.example/new',
+      subscriptionId: 'subNEW'
+    })
+    expect(quota.spent).toBe(50)
+  })
+
+  it('search maps video and channel results and counts 100 units', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const params = new URL(String(url)).searchParams
+      expect(params.get('q')).toBe('cats')
+      expect(params.get('type')).toBe('video,channel')
+      return Promise.resolve(
+        jsonResponse(200, {
+          items: [
+            {
+              id: { kind: 'youtube#video', videoId: 'v1' },
+              snippet: {
+                title: 'Cat video',
+                channelId: 'UCcat',
+                channelTitle: 'Cats Inc',
+                publishedAt: '2026-07-10T08:00:00Z',
+                thumbnails: {}
+              }
+            },
+            {
+              id: { kind: 'youtube#channel', channelId: 'UCcat' },
+              snippet: { title: 'Cats Inc', thumbnails: {} }
+            }
+          ]
+        })
+      )
+    }
+    const results = await new YouTubeApiClient(auth, fetchFn, quota).search('cats')
+    expect(results).toEqual([
+      {
+        kind: 'video',
+        videoId: 'v1',
+        title: 'Cat video',
+        channelId: 'UCcat',
+        channelTitle: 'Cats Inc',
+        publishedAt: '2026-07-10T08:00:00Z',
+        thumbnailUrl: null
+      },
+      { kind: 'channel', channelId: 'UCcat', title: 'Cats Inc', thumbnailUrl: null }
+    ])
+    expect(quota.spent).toBe(100)
+  })
+
   it('maps 403 quotaExceeded / accessNotConfigured and 401 to domain errors', async () => {
     const cases: [unknown, number, string][] = [
       [{ error: { errors: [{ reason: 'quotaExceeded' }] } }, 403, 'quota-exceeded'],
