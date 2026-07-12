@@ -364,9 +364,9 @@ button.primary:disabled {
   padding: 0 20px;
 }
 
+/* B-004: content fills the available width — no artificial column cap. */
 .feed-inner {
   position: relative;
-  max-width: 900px;
 }
 
 .feed-item {
@@ -558,10 +558,14 @@ button.primary:disabled {
   margin-left: 2px;
 }
 
+/* Always theater (B-004): full available width; on wide/short viewports the
+   height cap wins and YouTube letterboxes inside the iframe. */
 .player-stage {
   position: relative;
-  max-width: 1080px;
+  width: 100%;
   aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 240px);
+  min-height: 240px;
   background: #000;
   border-radius: 10px;
   overflow: hidden;
@@ -599,7 +603,6 @@ button.primary:disabled {
 }
 
 .player-info {
-  max-width: 1080px;
   padding-top: 16px;
 }
 
