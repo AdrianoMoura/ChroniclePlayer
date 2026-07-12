@@ -239,17 +239,6 @@ Resolved entries add:
   docs for the full surface.
 - **Notes:** umbrella for the write-action items [[B-006]] and [[B-010]].
 
-### B-016 — Theme mode setting: dark, light, and auto (system default)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell
-- **What happens:** themes follow the system preference only (M3).
-- **Expected:** an explicit setting with three modes — dark, light, auto — where auto
-  follows the system and is the default. Persisted in settings.
-- **Code refs:** `src/ui/styles.css` (`prefers-color-scheme` block — needs an explicit
-  theme attribute/class override); `src/ui/App.tsx` (apply the mode); persistence via
-  the M5 settings surface.
-
 ### B-017 — Multi-language support via lang files (English only for now)
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-11
@@ -268,4 +257,19 @@ Resolved entries add:
 
 ## Resolved
 
-*(none yet)*
+### B-016 — Theme mode setting: dark, light, and auto (system default)
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell
+- **What happens:** themes follow the system preference only (M3).
+- **Expected:** an explicit setting with three modes — dark, light, auto — where auto
+  follows the system and is the default. Persisted in settings.
+- **Code refs:** `src/ui/styles.css` (`prefers-color-scheme` block — needs an explicit
+  theme attribute/class override); `src/ui/App.tsx` (apply the mode); persistence via
+  the M5 settings surface.
+- **Resolved:** 2026-07-11 · **Commit:** 64124e4 · **Outcome:** Fixed
+- **Resolution:** already delivered by the M5 settings surface, which landed after this
+  was reported: Settings → Appearance offers `system | dark | light` (`system` is the
+  default and follows the OS), applied via the `data-theme` attribute and persisted in
+  `settings.json`. No additional change needed — closed during the 2026-07-11
+  reconciliation of this list against M5.
