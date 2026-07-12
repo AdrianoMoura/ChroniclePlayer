@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChronicleEventDto, WizardStateDto } from '../../ipc/contract'
 import { STEP_ASSETS, type WizardStepId } from './assets'
+import { t } from '../i18n'
 
 // The onboarding wizard (onboarding.md) — a flagship feature: every step
 // explains WHY, opens the exact Google page, copies any value the user must
@@ -22,76 +23,70 @@ const CONSOLE_STEPS: StepDefinition[] = [
   {
     id: 'project',
     label: '1',
-    title: 'Create a Google Cloud project',
-    why: 'Google groups API access into “projects”. You need one to hold your own key — it is free, and no billing account is required for the YouTube API’s default quota.',
-    url: { label: 'Open the project creation page', href: 'https://console.cloud.google.com/projectcreate' },
-    copy: { label: 'Suggested project name', value: 'chronicle-player' },
-    confirmLabel: 'I created the project.',
-    variations:
-      'If Google asks for an organization, choose “No organization”. If you already have projects, the page may open a picker first — use “New project”.'
+    title: t('wizard.step.project.title'),
+    why: t('wizard.step.project.why'),
+    url: { label: t('wizard.step.project.urlLabel'), href: 'https://console.cloud.google.com/projectcreate' },
+    copy: { label: t('wizard.step.project.copyLabel'), value: 'chronicle-player' },
+    confirmLabel: t('wizard.step.project.confirmLabel'),
+    variations: t('wizard.step.project.variations')
   },
   {
     id: 'enable-api',
     label: '2',
-    title: 'Enable the YouTube Data API v3',
-    why: 'Projects start with every API disabled; you are turning on just the one Chronicle needs — read-only YouTube data.',
+    title: t('wizard.step.enableApi.title'),
+    why: t('wizard.step.enableApi.why'),
     url: {
-      label: 'Open the YouTube Data API page',
+      label: t('wizard.step.enableApi.urlLabel'),
       href: 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'
     },
-    confirmLabel: 'I clicked Enable.',
-    variations:
-      'Make sure your new project is selected in the blue top bar before clicking Enable. If the button reads “Manage”, the API is already enabled — you are done here.'
+    confirmLabel: t('wizard.step.enableApi.confirmLabel'),
+    variations: t('wizard.step.enableApi.variations')
   },
   {
     id: 'consent',
     label: '3',
-    title: 'Configure the OAuth consent screen',
-    why: 'This is the permission screen you will see when connecting. Because it is your own project, you are both the developer and the only user.',
+    title: t('wizard.step.consent.title'),
+    why: t('wizard.step.consent.why'),
     url: {
-      label: 'Open the consent screen settings',
+      label: t('wizard.step.consent.urlLabel'),
       href: 'https://console.cloud.google.com/apis/credentials/consent'
     },
-    copy: { label: 'Suggested app name', value: 'Chronicle' },
-    confirmLabel: 'I configured the consent screen (External, my email in both contact fields).',
-    variations:
-      'User type: External (Internal only exists for Workspace organizations). No logo and no scopes need to be added — Chronicle requests its read-only scope at connect time. Skip every optional section. Google occasionally renames this page “Audience” / “Branding” inside “Google Auth Platform”.'
+    copy: { label: t('wizard.step.consent.copyLabel'), value: 'Chronicle' },
+    confirmLabel: t('wizard.step.consent.confirmLabel'),
+    variations: t('wizard.step.consent.variations')
   },
   {
     id: 'test-user',
     label: '4',
-    title: 'Add yourself as a Test user',
-    why: 'While the project is in “Testing” mode, only listed test users can sign in — that is you.',
+    title: t('wizard.step.testUser.title'),
+    why: t('wizard.step.testUser.why'),
     url: {
-      label: 'Open the consent screen (Test users section)',
+      label: t('wizard.step.testUser.urlLabel'),
       href: 'https://console.cloud.google.com/apis/credentials/consent'
     },
-    confirmLabel: 'I added my email as a Test user.',
-    variations:
-      'In the newer “Google Auth Platform” layout the list lives under Audience → Test users. Use exactly the Google account you will connect with.'
+    confirmLabel: t('wizard.step.testUser.confirmLabel'),
+    variations: t('wizard.step.testUser.variations')
   },
   {
     id: 'publish',
     label: '4b',
-    title: 'Publish the app (recommended)',
-    why: 'In Testing mode, Google expires your connection every 7 days. Clicking “Publish app” makes your token permanent. You may see an “unverified app” warning when connecting — that is expected: the “unverified developer” is you.',
+    title: t('wizard.step.publish.title'),
+    why: t('wizard.step.publish.why'),
     url: {
-      label: 'Open the consent screen (Publish app)',
+      label: t('wizard.step.publish.urlLabel'),
       href: 'https://console.cloud.google.com/apis/credentials/consent'
     },
-    variations:
-      'Publishing with only the read-only YouTube scope does not require Google’s verification review. If you skip this, Chronicle will detect the weekly expiry and offer a two-click reconnect — plus a link back to this step.'
+    variations: t('wizard.step.publish.variations')
   },
   {
     id: 'client',
     label: '5',
-    title: 'Create a Desktop OAuth client',
-    why: 'This creates the actual key file Chronicle will use — it identifies your Chronicle install to your project.',
-    url: { label: 'Open the credentials page', href: 'https://console.cloud.google.com/apis/credentials' },
-    copy: { label: 'Suggested client name', value: 'Chronicle Desktop' },
-    confirmLabel: 'I created the Desktop client and downloaded the JSON file.',
-    variations:
-      'Create credentials → OAuth client ID → Application type must be “Desktop app” (not “Web application”). The download is usually named client_secret_… .json and lands in your Downloads folder.'
+    title: t('wizard.step.client.title'),
+    why: t('wizard.step.client.why'),
+    url: { label: t('wizard.step.client.urlLabel'), href: 'https://console.cloud.google.com/apis/credentials' },
+    copy: { label: t('wizard.step.client.copyLabel'), value: 'Chronicle Desktop' },
+    confirmLabel: t('wizard.step.client.confirmLabel'),
+    variations: t('wizard.step.client.variations')
   }
 ]
 
@@ -135,7 +130,7 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
     <div className="wizard">
       {onExit && (
         <button className="wizard-quiet wizard-exit" onClick={onExit}>
-          ✕ Close
+          {t('wizard.exitButton')}
         </button>
       )}
       {stepId !== 'welcome' && (
@@ -177,14 +172,14 @@ function Screenshot({ stepId }: { stepId: WizardStepId }) {
   if (!asset) {
     return (
       <div className="wizard-shot placeholder">
-        <span>Screenshot pending capture — the text on the left is the full guidance.</span>
+        <span>{t('wizard.screenshot.placeholder')}</span>
       </div>
     )
   }
   return (
     <figure className="wizard-shot">
       <img src={asset.src} alt={asset.alt} />
-      <figcaption>verified on {asset.verifiedOn}</figcaption>
+      <figcaption>{t('wizard.screenshot.verifiedOn', { date: asset.verifiedOn })}</figcaption>
     </figure>
   )
 }
@@ -192,23 +187,23 @@ function Screenshot({ stepId }: { stepId: WizardStepId }) {
 function WelcomeStep({ onStart, onQuickPath }: { onStart: () => void; onQuickPath: () => void }) {
   return (
     <div className="wizard-step welcome">
-      <h1>Chronicle doesn’t have a server or an API key. You’ll create your own.</h1>
+      <h1>{t('wizard.welcome.heading')}</h1>
       <p>
-        It is free, takes about <strong>10 minutes, one time only</strong>, and it means
-        your data and your access belong to you alone:
+        {t('wizard.welcome.intro.pre')} <strong>{t('wizard.welcome.intro.strong')}</strong>
+        {t('wizard.welcome.intro.post')}
       </p>
       <ul>
-        <li>Your own API quota — shared with nobody.</li>
-        <li>No third party in the loop — Chronicle’s developers never touch your account.</li>
-        <li>Revocable by you, anytime, in your own Google console.</li>
+        <li>{t('wizard.welcome.bullet.quota')}</li>
+        <li>{t('wizard.welcome.bullet.noThirdParty')}</li>
+        <li>{t('wizard.welcome.bullet.revocable')}</li>
       </ul>
-      <p className="wizard-dim">You’ll need a Google account. No billing account is required.</p>
+      <p className="wizard-dim">{t('wizard.welcome.dim')}</p>
       <div className="wizard-nav">
         <button className="primary" onClick={onStart}>
-          Let’s set it up
+          {t('wizard.welcome.startButton')}
         </button>
         <button className="wizard-quiet" onClick={onQuickPath}>
-          I’ve done this before — just import my key
+          {t('wizard.welcome.quickPathButton')}
         </button>
       </div>
     </div>
@@ -236,9 +231,7 @@ function ConsoleStep({
     <div className="wizard-step">
       <div className="wizard-columns">
         <div className="wizard-text">
-          <h1>
-            Step {definition.label} — {definition.title}
-          </h1>
+          <h1>{t('wizard.step.heading', { label: definition.label, title: definition.title })}</h1>
           <p className="wizard-why">{definition.why}</p>
 
           {definition.url && (
@@ -256,22 +249,24 @@ function ConsoleStep({
 
           {isTestUserStep && (
             <div className="wizard-email">
-              <label htmlFor="wizard-email">Which Google account will you use?</label>
+              <label htmlFor="wizard-email">{t('wizard.step.testUser.emailLabel')}</label>
               <input
                 id="wizard-email"
                 className="filter"
-                placeholder="you@gmail.com"
+                placeholder={t('wizard.step.testUser.emailPlaceholder')}
                 value={state.email}
                 onChange={(event) => update({ email: event.target.value })}
               />
-              {state.email.length > 3 && <CopyRow label="Copy it for the Test users list" value={state.email} />}
-              <p className="wizard-dim">Stored only on this machine, only for this wizard.</p>
+              {state.email.length > 3 && (
+                <CopyRow label={t('wizard.step.testUser.copyEmailLabel')} value={state.email} />
+              )}
+              <p className="wizard-dim">{t('wizard.step.testUser.emailNote')}</p>
             </div>
           )}
 
           {definition.variations && (
             <details className="wizard-variations">
-              <summary>Something looks different?</summary>
+              <summary>{t('wizard.step.variationsSummary')}</summary>
               <p>{definition.variations}</p>
             </details>
           )}
@@ -294,23 +289,23 @@ function ConsoleStep({
 
       <div className="wizard-nav">
         <button className="wizard-quiet" onClick={back}>
-          ← Back
+          {t('wizard.nav.back')}
         </button>
         {isPublishStep ? (
           <>
             <button className="primary" onClick={() => update({ published: 'yes', step: state.step + 1 })}>
-              I published it
+              {t('wizard.step.publish.publishedButton')}
             </button>
             <button
               className="wizard-quiet"
               onClick={() => update({ published: 'skipped', step: state.step + 1 })}
             >
-              Skip — I accept reconnecting weekly
+              {t('wizard.step.publish.skipButton')}
             </button>
           </>
         ) : (
           <button className="primary" disabled={!confirmed} onClick={next}>
-            Next →
+            {t('wizard.nav.next')}
           </button>
         )}
       </div>
@@ -332,7 +327,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
           setTimeout(() => setCopied(false), 1500)
         }}
       >
-        {copied ? 'Copied ✓' : 'Copy'}
+        {copied ? t('wizard.copyRow.copied') : t('wizard.copyRow.copy')}
       </button>
     </div>
   )
@@ -368,11 +363,10 @@ function ImportStep({
 
   return (
     <div className="wizard-step">
-      <h1>Step 6 — Import your key file</h1>
+      <h1>{t('wizard.import.heading')}</h1>
       <p className="wizard-why">
-        Select the <code>client_secret_… .json</code> you downloaded. Chronicle extracts the
-        key into your system keychain — it never leaves this machine and never touches a
-        server.
+        {t('wizard.import.why.part1')} <code>client_secret_… .json</code>{' '}
+        {t('wizard.import.why.part2')}
       </p>
 
       <FileDrop onFile={(file) => void importFile(file)} />
@@ -382,7 +376,7 @@ function ImportStep({
           <p>{error}</p>
           {wrongType && (
             <button className="wizard-quiet" onClick={() => goTo('client')}>
-              ← Back to Step 5 (create a Desktop client)
+              {t('wizard.import.backToClientStep')}
             </button>
           )}
         </div>
@@ -390,26 +384,18 @@ function ImportStep({
 
       {status === 'ok' && (
         <div className="wizard-ok">
-          <p>✓ Key imported — Chronicle stores it in your system keychain, never online.</p>
-          <p className="wizard-dim">
-            You may delete the downloaded file now if you wish; Chronicle never touches
-            your files.
-          </p>
-          {!secure && (
-            <p className="storage-warning">
-              No OS keychain was detected, so the key is stored with reversible local
-              encryption — anyone with access to your user account could read it.
-            </p>
-          )}
+          <p>{t('wizard.import.okMessage')}</p>
+          <p className="wizard-dim">{t('wizard.import.okNote')}</p>
+          {!secure && <p className="storage-warning">{t('wizard.import.storageWarning')}</p>}
         </div>
       )}
 
       <div className="wizard-nav">
         <button className="wizard-quiet" onClick={back}>
-          ← Back
+          {t('wizard.nav.back')}
         </button>
         <button className="primary" disabled={status !== 'ok'} onClick={next}>
-          Next →
+          {t('wizard.nav.next')}
         </button>
       </div>
     </div>
@@ -433,7 +419,7 @@ function FileDrop({ onFile }: { onFile: (file: File) => void }) {
         if (file) onFile(file)
       }}
     >
-      Drop <code>client_secret.json</code> here, or click to pick it
+      {t('wizard.import.drop.part1')} <code>client_secret.json</code> {t('wizard.import.drop.part2')}
       <input
         type="file"
         accept="application/json,.json"
@@ -481,7 +467,7 @@ function ConnectStep({
       setPhase('connected')
     } else if (who.errorKind === 'api-not-enabled') {
       setPhase('idle')
-      setFailure({ message: 'The YouTube Data API is not enabled in your project.', route: 'enable-api' })
+      setFailure({ message: t('wizard.connect.apiNotEnabledError'), route: 'enable-api' })
     } else {
       setIdentity(null)
       setPhase('connected') // token works; identity display is best-effort
@@ -490,25 +476,23 @@ function ConnectStep({
 
   return (
     <div className="wizard-step">
-      <h1>Step 7 — Connect to Google</h1>
-      <p className="wizard-why">
-        Your browser will open Google’s consent screen. Chronicle listens locally
-        (127.0.0.1) for the answer — tokens never leave this machine.
-      </p>
+      <h1>{t('wizard.connect.heading')}</h1>
+      <p className="wizard-why">{t('wizard.connect.why')}</p>
 
       <div className="wizard-variations open">
-        <strong>Heads-up: the “unverified app” warning.</strong>
+        <strong>{t('wizard.connect.warningTitle')}</strong>
         <p>
-          Google may show <em>“Google hasn’t verified this app”</em>. That is expected —
-          the unverified developer is <em>you</em>. Click <strong>Advanced</strong> →{' '}
-          <strong>Go to Chronicle (unsafe)</strong>. It is safe here because you are
-          trusting your own project.
+          {t('wizard.connect.warning.part1')} <em>{t('wizard.connect.warning.quote')}</em>
+          {t('wizard.connect.warning.part2')} <em>{t('wizard.connect.warning.you')}</em>
+          {t('wizard.connect.warning.part3')} <strong>{t('wizard.connect.warning.advanced')}</strong>{' '}
+          → <strong>{t('wizard.connect.warning.goUnsafe')}</strong>
+          {t('wizard.connect.warning.part4')}
         </p>
       </div>
 
       {phase !== 'connected' && (
         <button className="primary" disabled={phase === 'waiting'} onClick={() => void connect()}>
-          {phase === 'waiting' ? 'Waiting for the browser…' : 'Connect Google'}
+          {phase === 'waiting' ? t('wizard.connect.buttonWaiting') : t('wizard.connect.button')}
         </button>
       )}
 
@@ -516,14 +500,11 @@ function ConnectStep({
         <div className="wizard-error">
           <p>{failure.message}</p>
           {failure.route === 'test-user' && (
-            <p className="wizard-dim">
-              If Google blocked the sign-in, the usual cause is a missing Test user (Step
-              4) while the project is in Testing mode.
-            </p>
+            <p className="wizard-dim">{t('wizard.connect.testUserHint')}</p>
           )}
           {failure.route !== null && (
             <button className="wizard-quiet" onClick={() => goTo(failure.route as WizardStepId)}>
-              ← Fix it in Step {failure.route === 'enable-api' ? '2' : '4'}
+              {t('wizard.connect.fixItButton', { step: failure.route === 'enable-api' ? '2' : '4' })}
             </button>
           )}
         </div>
@@ -531,16 +512,20 @@ function ConnectStep({
 
       {phase === 'connected' && (
         <div className="wizard-ok">
-          <p>✓ Connected{identity !== null ? ` as ${identity}` : ''}.</p>
+          <p>
+            {identity !== null
+              ? t('wizard.connect.connectedAs', { name: identity })
+              : t('wizard.connect.connectedPlain')}
+          </p>
         </div>
       )}
 
       <div className="wizard-nav">
         <button className="wizard-quiet" onClick={back}>
-          ← Back
+          {t('wizard.nav.back')}
         </button>
         <button className="primary" disabled={phase !== 'connected'} onClick={next}>
-          Next →
+          {t('wizard.nav.next')}
         </button>
       </div>
     </div>
@@ -558,8 +543,8 @@ function FirstSyncStep({ onDone }: { onDone: () => void }) {
       if (event.type === 'refresh:progress') {
         setStatusLine(
           event.phase === 'shorts'
-            ? `Filtering Shorts — ${event.checked} of ${event.total} checked…`
-            : `Checking ${event.checked} of ${event.total} channels…`
+            ? t('wizard.firstSync.progressShorts', { checked: event.checked, total: event.total })
+            : t('wizard.firstSync.progressChannels', { checked: event.checked, total: event.total })
         )
       }
       if (event.type === 'refresh:done') {
@@ -578,41 +563,32 @@ function FirstSyncStep({ onDone }: { onDone: () => void }) {
   function start(): void {
     setError(null)
     setPhase('running')
-    setStatusLine('Importing your subscriptions…')
+    setStatusLine(t('wizard.firstSync.progressStart'))
     void window.chronicle.refreshFeed()
   }
 
   return (
     <div className="wizard-step">
-      <h1>Step 8 — First sync</h1>
-      <p className="wizard-why">
-        Chronicle imports your subscriptions and fetches their recent uploads. The first
-        run also filters Shorts, which takes a few minutes on large accounts — a one-time
-        cost.
-      </p>
+      <h1>{t('wizard.firstSync.heading')}</h1>
+      <p className="wizard-why">{t('wizard.firstSync.why')}</p>
 
       {phase === 'idle' && (
         <button className="primary" onClick={start}>
-          {error !== null ? 'Try again' : 'Import my subscriptions'}
+          {error !== null ? t('wizard.firstSync.tryAgainButton') : t('wizard.firstSync.startButton')}
         </button>
       )}
       {error !== null && phase === 'idle' && <p className="wizard-error">{error}</p>}
-      {phase === 'running' && <p className="wizard-dim">{statusLine || 'Working…'}</p>}
+      {phase === 'running' && <p className="wizard-dim">{statusLine || t('wizard.firstSync.workingFallback')}</p>}
       {phase === 'done' && summary !== null && (
         <div className="wizard-ok">
-          <p>
-            ✓ Found {summary.channels} subscriptions and {summary.videos} recent videos.
-          </p>
-          <p className="wizard-dim">
-            Everything Chronicle knows is stored on this computer. Your key can be revoked
-            anytime at myaccount.google.com/permissions.
-          </p>
+          <p>{t('wizard.firstSync.summary', { channels: summary.channels, videos: summary.videos })}</p>
+          <p className="wizard-dim">{t('wizard.firstSync.summaryNote')}</p>
         </div>
       )}
 
       <div className="wizard-nav">
         <button className="primary" disabled={phase !== 'done'} onClick={onDone}>
-          Open my feed →
+          {t('wizard.firstSync.openFeedButton')}
         </button>
       </div>
     </div>

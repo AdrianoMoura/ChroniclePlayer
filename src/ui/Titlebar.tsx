@@ -1,3 +1,5 @@
+import { t } from './i18n'
+
 // Frameless-shell titlebar (B-014): the drag strip and window controls
 // replace the system chrome. macOS keeps its native traffic lights
 // (titleBarStyle: 'hidden'), so the custom buttons render elsewhere only.
@@ -10,21 +12,21 @@ export function Titlebar() {
         <div className="titlebar-controls">
           {window.chronicle.minimizeSupported && (
             <button
-              title="Minimize"
+              title={t('titlebar.minimize')}
               onClick={() => void window.chronicle.windowControl('minimize')}
             >
               ─
             </button>
           )}
           <button
-            title="Maximize / restore"
+            title={t('titlebar.maximizeRestore')}
             onClick={() => void window.chronicle.windowControl('toggle-maximize')}
           >
             ▢
           </button>
           <button
             className="titlebar-close"
-            title="Close"
+            title={t('titlebar.close')}
             onClick={() => void window.chronicle.windowControl('close')}
           >
             ✕

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PlayerVideoDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
 import { formatDuration, publishedLabel } from './format'
+import { t } from './i18n'
 
 // The clean-embed player view (playback.md, D-006): everything around the
 // video surface is Chronicle's; the IFrame is driven over its postMessage
@@ -145,6 +146,20 @@ export function PlayerView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [command, onClose, video.videoId])
 
+  // B-039: the mouse "back" side button (XButton1, event.button === 3) exits
+  // the player, same as Esc/the visible Back button — mirrors what browsers
+  // do with history-back.
+  useEffect(() => {
+    function onMouseUp(event: MouseEvent): void {
+      if (event.button === 3) {
+        event.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('mouseup', onMouseUp)
+    return () => window.removeEventListener('mouseup', onMouseUp)
+  }, [onClose])
+
   function patch(next: VideoStateDto): void {
     setState(next)
     onStatePatched(video.videoId, next)
@@ -173,7 +188,7 @@ export function PlayerView({
     <div className="player-view">
       <div className="player-topbar">
         <button className="player-back" onClick={onClose}>
-          ← {stackDepth > 1 ? 'Back' : 'Back to feed'} <kbd>Esc</kbd>
+          {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')} <kbd>Esc</kbd>
         </button>
       </div>
       <div className="player-stage" ref={wrapperRef}>
@@ -191,14 +206,14 @@ export function PlayerView({
 
         {surface === 'ended' && (
           <div className="player-overlay">
-            <p className="overlay-title">That’s the end.</p>
+            <p className="overlay-title">{t('player.overlay.ended.title')}</p>
             <div className="overlay-actions">
               <button className="primary" onClick={onClose}>
-                {stackDepth > 1 ? 'Back (Esc)' : 'Back to feed (Esc)'}
+                {stackDepth > 1 ? t('player.overlay.back') : t('player.overlay.backToFeed')}
               </button>
               {hasQueueNext && (
                 <button className="primary" onClick={onNextInQueue}>
-                  Next in queue
+                  {t('player.overlay.nextInQueue')}
                 </button>
               )}
               {state.watchLater && (
@@ -208,11 +223,11 @@ export function PlayerView({
                     void window.chronicle.toggleWatchLater(video.videoId).then(patch)
                   }
                 >
-                  Remove from Watch Later
+                  {t('player.overlay.removeFromWatchLater')}
                 </button>
               )}
               <button className="primary" onClick={() => setSurface('playing')}>
-                Replay
+                {t('player.overlay.replay')}
               </button>
             </div>
           </div>
@@ -220,13 +235,13 @@ export function PlayerView({
 
         {surface === 'embed-blocked' && (
           <div className="player-overlay">
-            <p className="overlay-title">This channel disabled embedded playback.</p>
+            <p className="overlay-title">{t('player.overlay.embedBlockedTitle')}</p>
             <div className="overlay-actions">
               <button className="primary" onClick={openInBrowser}>
-                Open in browser
+                {t('player.overlay.openInBrowser')}
               </button>
               <button className="primary" onClick={onClose}>
-                Back (Esc)
+                {t('player.overlay.back')}
               </button>
             </div>
           </div>
@@ -242,7 +257,7 @@ export function PlayerView({
 
         <div className="player-actions">
           <ActionButton
-            label={state.readStatus === 'read' ? 'Mark unread' : 'Mark read'}
+            label={state.readStatus === 'read' ? t('player.action.markUnread') : t('player.action.markRead')}
             onClick={() =>
               void window.chronicle
                 .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
@@ -250,17 +265,17 @@ export function PlayerView({
             }
           />
           <ActionButton
-            label={state.favorite ? '★ Favorited' : '☆ Favorite'}
+            label={state.favorite ? t('player.action.favorited') : t('player.action.favorite')}
             active={state.favorite}
             onClick={() => void window.chronicle.toggleFavorite(video.videoId).then(patch)}
           />
           <ActionButton
-            label={state.watchLater ? 'In Watch Later' : 'Watch later'}
+            label={state.watchLater ? t('player.action.inWatchLater') : t('player.action.watchLater')}
             active={state.watchLater}
             onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
           />
           <ActionButton
-            label="Ignore"
+            label={t('player.action.ignore')}
             onClick={() =>
               void window.chronicle
                 .setReadStatus(video.videoId, 'ignored')
@@ -270,7 +285,7 @@ export function PlayerView({
                 })
             }
           />
-          <ActionButton label="Open in browser (b)" onClick={openInBrowser} />
+          <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
         </div>
 
         {video.description !== null && video.description.length > 0 && (
@@ -286,7 +301,7 @@ export function PlayerView({
                 className="description-toggle"
                 onClick={() => setDescriptionOpen((o) => !o)}
               >
-                {descriptionOpen ? 'Show less' : 'Show more'}
+                {descriptionOpen ? t('player.description.showLess') : t('player.description.showMore')}
               </button>
             )}
           </div>
@@ -369,7 +384,7 @@ function Description({
               if (link.kind === 'video') onOpenVideo(link.videoId)
               else void window.chronicle.openExternalUrl(part)
             }}
-            title={link.kind === 'shorts' ? 'Shorts open in the browser (Chronicle never plays Shorts)' : part}
+            title={link.kind === 'shorts' ? t('player.description.shortsLinkTitle') : part}
           >
             {part}
           </a>

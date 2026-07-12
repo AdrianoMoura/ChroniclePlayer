@@ -18,6 +18,7 @@ import { ConnectPanel } from './ConnectPanel'
 import { FeedList, ITEM_SIZES, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
+import { t } from './i18n'
 import { PlayerView } from './PlayerView'
 import { SettingsView } from './SettingsView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
@@ -26,10 +27,10 @@ import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
 const BUCKET_LABELS: Record<FeedBucketDto, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  'this-week': 'This Week',
-  earlier: 'Earlier'
+  today: t('app.bucket.today'),
+  yesterday: t('app.bucket.yesterday'),
+  'this-week': t('app.bucket.thisWeek'),
+  earlier: t('app.bucket.earlier')
 }
 
 const UNDO_WINDOW_MS = 5000
@@ -208,7 +209,7 @@ export function App() {
       if (result.ok) {
         setAuth(result.value)
       } else {
-        setBanner({ text: `Connection failed: ${result.message}` })
+        setBanner({ text: t('app.banner.connectionFailed', { message: result.message }) })
       }
     })
   }, [])
@@ -219,13 +220,13 @@ export function App() {
       if (result.ok || result.errorKind === 'busy') return
       if (result.errorKind === 'auth-expired') {
         setBanner({
-          text: 'Reconnect to Google — your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
-          action: { label: 'Reconnect', run: connect }
+          text: t('app.banner.reconnectRequired'),
+          action: { label: t('app.banner.reconnectAction'), run: connect }
         })
       } else if (result.errorKind === 'network-unavailable') {
-        setBanner({ text: 'You appear to be offline — showing local data. Refresh will retry.' })
+        setBanner({ text: t('app.banner.offline') })
       } else {
-        setBanner({ text: `Refresh failed: ${result.message}` })
+        setBanner({ text: t('app.banner.refreshFailed', { message: result.message }) })
       }
     })
   }, [connect, channelFilter])
@@ -253,7 +254,7 @@ export function App() {
     (videoId: string, mode: 'push' | 'replace' = 'push') => {
       void window.chronicle.getVideo(videoId).then(async (result) => {
         if (!result.ok) {
-          setBanner({ text: `Could not open the video: ${result.message}` })
+          setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
           return
         }
         const state = await window.chronicle.setReadStatus(videoId, 'read')
@@ -322,7 +323,7 @@ export function App() {
           }
           if (event.report.outcome === 'partial') {
             setBanner({
-              text: `Refresh finished, but ${event.report.channelsFailed} channel(s) failed — they will be retried next cycle.`
+              text: t('app.banner.refreshPartial', { count: event.report.channelsFailed })
             })
           }
           break
@@ -331,18 +332,18 @@ export function App() {
           // spinner runs forever with no recovery short of a manual reload.
           setRefreshing(false)
           setProgress(null)
-          setBanner({ text: `Refresh failed: ${event.message}` })
+          setBanner({ text: t('app.banner.refreshFailed', { message: event.message }) })
           break
         case 'auth:required':
           setRefreshing(false)
           setBanner({
-            text: 'Reconnect to Google — your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
-            action: { label: 'Reconnect', run: connect }
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
           })
           break
         case 'quota:exceeded':
           setBanner({
-            text: `Daily API limit reached — it resets at ${quotaResetLocalTime()} your time. Chronicle keeps working from local data; discovery via RSS continues free.`
+            text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() })
           })
           break
       }
@@ -646,17 +647,17 @@ export function App() {
   const statusText = refreshing
     ? progress !== null
       ? progress.phase === 'shorts'
-        ? `filtering Shorts — ${progress.checked} of ${progress.total} checked…`
-        : `checking ${progress.checked} of ${progress.total} channels…`
-      : 'refreshing…'
+        ? t('app.status.filteringShorts', { checked: progress.checked, total: progress.total })
+        : t('app.status.checkingChannels', { checked: progress.checked, total: progress.total })
+      : t('app.status.refreshing')
     : meta.caughtUp
-      ? `All caught up${meta.lastRefreshAt ? ` · last refresh ${formatClockTime(meta.lastRefreshAt)}` : ''}`
-      : `${meta.unreadCount} unread`
+      ? `${t('app.status.caughtUp')}${meta.lastRefreshAt ? t('app.status.lastRefreshSuffix', { time: formatClockTime(meta.lastRefreshAt) }) : ''}`
+      : t('app.status.unreadCount', { count: meta.unreadCount })
 
   return (
     <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {sidebarCollapsed ? (
-        <button className="sidebar-expand" title="Show sidebar" onClick={toggleSidebar}>
+        <button className="sidebar-expand" title={t('app.sidebar.showTitle')} onClick={toggleSidebar}>
           ☰
         </button>
       ) : (
@@ -693,7 +694,11 @@ export function App() {
               <div className="banner">
                 <span>{banner.text}</span>
                 <span className="banner-actions">
-                  <button className="banner-dismiss" title="Dismiss" onClick={() => setBanner(null)}>
+                  <button
+                    className="banner-dismiss"
+                    title={t('app.banner.dismissTitle')}
+                    onClick={() => setBanner(null)}
+                  >
                     ✕
                   </button>
                 </span>
@@ -709,7 +714,7 @@ export function App() {
               onSignOut={() => {
                 void window.chronicle.signOut().then((status) => {
                   setAuth(status)
-                  setBanner({ text: 'Signed out. Local data was kept — reconnect anytime.' })
+                  setBanner({ text: t('app.banner.signedOut') })
                 })
               }}
               onBanner={(text) => setBanner({ text })}
@@ -718,25 +723,26 @@ export function App() {
         ) : (
           <>
         <header className="topbar">
-          <button className="refresh" title="Refresh (r)" onClick={doRefresh}>
+          <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
             <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
           </button>
           <span className="topbar-view">
             {channelFilter !== null
-              ? (channels.find((c) => c.channelId === channelFilter)?.title ?? 'Channel')
+              ? (channels.find((c) => c.channelId === channelFilter)?.title ??
+                t('app.topbar.channelFallback'))
               : VIEW_LABELS[view]}
           </span>
           <span className="status">{statusText}</span>
           {showMarkAllRead && (
             <button className="mark-all-read" onClick={markAllRead}>
-              Mark all as read
+              {t('app.topbar.markAllRead')}
             </button>
           )}
           <div className="field-wrap">
             <input
               ref={filterInputRef}
               className="filter"
-              placeholder="Filter in view  /"
+              placeholder={t('app.topbar.filterPlaceholder')}
               value={filter}
               onChange={(event) => {
                 setFilter(event.target.value)
@@ -746,7 +752,7 @@ export function App() {
             {filter !== '' && (
               <button
                 className="field-clear"
-                title="Clear"
+                title={t('app.topbar.clearFilterTitle')}
                 onClick={() => {
                   setFilter('')
                   filterInputRef.current?.focus()
@@ -763,14 +769,18 @@ export function App() {
             max={ITEM_SIZES.length - 1}
             step={1}
             value={ITEM_SIZES.indexOf(settings.itemSize)}
-            title={`Item size: ${settings.itemSize}`}
+            title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
             onChange={(event) =>
               changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
             }
           />
           <button
             className="layout-toggle"
-            title={settings.layout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+            title={
+              settings.layout === 'grid'
+                ? t('app.topbar.switchToListView')
+                : t('app.topbar.switchToGridView')
+            }
             onClick={() => changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })}
           >
             {settings.layout === 'grid' ? '☰' : '⊞'}
@@ -786,7 +796,11 @@ export function App() {
                   {banner.action.label}
                 </button>
               )}
-              <button className="banner-dismiss" title="Dismiss" onClick={() => setBanner(null)}>
+              <button
+                className="banner-dismiss"
+                title={t('app.banner.dismissTitle')}
+                onClick={() => setBanner(null)}
+              >
                 ✕
               </button>
             </span>
@@ -809,12 +823,15 @@ export function App() {
           <div className="feed-region">
             {newVideosPill !== null && (
               <button className="new-videos-pill" onClick={() => loadView()}>
-                {newVideosPill} new video{newVideosPill > 1 ? 's' : ''}
+                {t('app.banner.newVideos', {
+                  count: newVideosPill,
+                  plural: newVideosPill > 1 ? 's' : ''
+                })}
               </button>
             )}
             {filtered.length === 0 ? (
               <div className="empty">
-                {filter ? 'Nothing matches the filter.' : 'Nothing here yet.'}
+                {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
               </div>
             ) : (
               <FeedList

@@ -208,6 +208,18 @@ input:focus-visible {
   padding-left: 52px;
 }
 
+/* B-041: same reservation as .topbar above, for the Settings screen, which
+   renders no topbar of its own — .banner (when it's the first thing in
+   .feed, i.e. no topbar precedes it) and .settings-view sit where the
+   hamburger floats otherwise. */
+.app.sidebar-collapsed .feed > .banner:first-child {
+  margin-left: 52px;
+}
+
+.app.sidebar-collapsed .settings-view {
+  padding-left: 52px;
+}
+
 .view {
   display: flex;
   align-items: center;
@@ -262,6 +274,15 @@ input:focus-visible {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* B-040: fixed gap above the Settings button, same shape as .channel-list's
+   own separator above it — without this the gap was purely emergent from
+   the sidebar's flex layout and could read as touching. */
+.sidebar-footer {
   margin-top: 14px;
   border-top: 1px solid var(--border);
   padding-top: 10px;

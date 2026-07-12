@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
+import { t } from './i18n'
 
 // Ctrl+O (ui.md, D-029): open any pasted YouTube video URL in-app.
 interface UrlPromptProps {
@@ -20,29 +21,29 @@ export function UrlPrompt({ onOpenVideo, onClose }: UrlPromptProps) {
         break
       case 'shorts':
         // D-028: Chronicle never plays Shorts; offer the browser instead.
-        setNotice('That is a Shorts link — Chronicle never plays Shorts. Opening in the browser…')
+        setNotice(t('urlPrompt.notice.shorts'))
         void window.chronicle.openExternalUrl(value.trim())
         setTimeout(onClose, 1600)
         break
       case 'channel':
       case 'playlist':
-        setNotice('Channels and playlists open in the browser for now.')
+        setNotice(t('urlPrompt.notice.channelOrPlaylist'))
         void window.chronicle.openExternalUrl(value.trim())
         setTimeout(onClose, 1600)
         break
       default:
-        setNotice('That does not look like a YouTube video URL.')
+        setNotice(t('urlPrompt.notice.invalid'))
     }
   }
 
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div className="overlay url-prompt" onClick={(event) => event.stopPropagation()}>
-        <h2>Open a YouTube video</h2>
+        <h2>{t('urlPrompt.title')}</h2>
         <input
           autoFocus
           className="filter url-input"
-          placeholder="https://www.youtube.com/watch?v=…"
+          placeholder={t('urlPrompt.placeholder')}
           value={value}
           onChange={(event) => {
             setValue(event.target.value)
