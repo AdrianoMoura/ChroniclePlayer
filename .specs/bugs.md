@@ -52,6 +52,22 @@ Resolved entries add:
 
 ## Open
 
+### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / player
+- **What happens:** the sidebar has no collapse control; it stays at fixed width on
+  every screen, including the player, where it eats into video width.
+- **Expected:** a hamburger icon toggles the sidebar collapsed/expanded. Default is
+  expanded on every screen. Entering the player view auto-collapses it (more room for
+  the video); leaving the player restores the previous state. When collapsed, the
+  sidebar fully disappears (width 0) rather than shrinking to an icon rail.
+- **Code refs:** `src/ui/Sidebar.tsx` (collapse state, hamburger control);
+  `src/ui/App.tsx` (shell layout, player-enter/exit hook to drive auto-collapse);
+  `src/ui/styles.css` (collapsed = 0 width, not a narrow rail).
+- **Notes:** related to [[B-004]] (player always full width) and [[B-019]] (sidebar
+  width) — this adds a third state (hidden) on top of both.
+
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
