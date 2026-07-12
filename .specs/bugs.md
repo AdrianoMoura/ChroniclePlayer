@@ -240,30 +240,42 @@ Resolved entries add:
 
 ## Resolved
 
-### B-007 — List vs. grid view toggle, persisted
+### B-007 — List vs. grid view toggle + item-size control, inline in the listing
 - **Type:** adjustment
 - **Status:** Fixed · **Reported:** 2026-07-11
 - **Area:** feed
 - **Expected:** the user chooses between the current list layout and a grid layout for
-  videos; the choice persists across restarts (settings).
-- **Code refs:** `src/platform/settings-store.ts` (`layout: 'list' | 'grid'`, default
-  `list`); `src/ipc/contract.ts` (`SettingsDto.layout`); `src/ui/SettingsView.tsx`
-  ("Feed layout" select, mirrors the existing density control); `src/ui/App.tsx`
-  (default settings state, `FeedList` wiring); `src/ui/FeedList.tsx` (grid rendering:
-  `buildCardRows` chunks consecutive video rows into `columns`-wide card rows per
-  bucket, column count tracked via `ResizeObserver` on the scroll container at a
-  ~220px min card width, virtualizer re-measures on layout/column changes, new
-  `VideoCard` component reusing `VideoActions`/thumbnail cache); `src/ui/styles.css`
-  (`.grid-row`, `.card` and related classes).
+  videos, persisted across restarts; plus a file-explorer-style control for item size,
+  shared by both layouts, controllable from the listing itself (not buried in Settings).
+- **Code refs:** `src/platform/settings-store.ts` (`layout: 'list' | 'grid'` default
+  `list`, `itemSize: 'small' | 'medium' | 'large'` default `medium` — supersedes the
+  old two-step `density`); `src/ipc/contract.ts` (`SettingsDto.layout`/`.itemSize`);
+  `src/ui/App.tsx` (default settings state; `.layout-toggle` icon button and
+  `.size-slider` range input, both in the feed topbar); `src/ui/FeedList.tsx` (grid
+  rendering: `buildCardRows` chunks consecutive video rows into `columns`-wide card
+  rows per bucket, column count tracked via `ResizeObserver` on the scroll container,
+  `ROW_HEIGHTS`/`GRID_CARD_SIZES` keyed by `ItemSize`, virtualizer re-measures on
+  layout/size/column changes, new `VideoCard` component reusing
+  `VideoActions`/thumbnail cache); `src/ui/styles.css` (`.grid-row`, `.card`,
+  `.layout-toggle`, `.size-slider`, `.feed-scroll.size-*` and related classes);
+  `src/ui/SettingsView.tsx` (the old "Feed density"/"Feed layout" Settings rows were
+  removed — both controls now live only in the topbar).
 - **Notes:** reverses the "one column; no masonry/grid" clause of `ui.md`'s Layout
-  decision — captured as **D-037** (new entry in `decisions.md`, `ui.md` updated in
-  the same change). List stays the default; grid is opt-in. Both layouts share the
-  same row data, virtualization, row density (D-022) and per-video actions — the grid
-  is a rendering mode of `FeedList`, not a second component. No UI component tests
-  exist in this repo (`src/ui/` has none); verified via `npm run typecheck && npm run
-  lint && npm test` — no live-app check per this session's workflow, owner validates
-  live.
-- **Resolved:** 2026-07-12 · **Commit:** 61c9563 ·
+  decision and supersedes D-022's two-step density — captured together as **D-037**
+  (`decisions.md`, `ui.md` updated in the same change). List/medium stay the
+  defaults; grid and the size steps are opt-in. Both layouts share the same row
+  data, virtualization, and per-video actions — grid is a rendering mode of
+  `FeedList`, not a second component. No UI component tests exist in this repo
+  (`src/ui/` has none); verified via `npm run typecheck && npm run lint && npm test`
+  — no live-app check per this session's workflow, owner validates live.
+  **Two same-day corrections from live owner feedback:** (1) the first pass put the
+  layout choice in Settings → Appearance, mirroring the old density select — the
+  owner wanted it in the listing itself, so it moved to an icon toggle (`⊞`/`☰`) in
+  the topbar and the Settings row was removed; (2) the owner then asked for an
+  item-size control too, "like a file explorer," covering both layouts — added as a
+  small/medium/large slider next to the layout toggle, replacing the old
+  list-only density setting entirely rather than keeping two overlapping controls.
+- **Resolved:** 2026-07-12 · **Commit:** 61c9563, 462b054 ·
   **Outcome:** Fixed
 
 ### B-028 — Show Shorts in the feed, marked and filterable (reverses D-028)
