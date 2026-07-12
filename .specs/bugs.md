@@ -198,7 +198,7 @@ Resolved entries add:
   the compositor (niri/Wayland) for the next window's surface. That attempt was marked
   Fixed without live validation — the owner's live re-test showed the blank/frozen
   screen still happens, so the teardown-race theory is disproven or at least
-  incomplete. **Second attempt (this session):** `createWindow()` picked the renderer
+  incomplete. **Second attempt (commit 9be2d72):** `createWindow()` picked the renderer
   source with `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ?
   loadURL(...) : loadFile(...)`. `app.relaunch()` has no `env` option (only
   `args`/`execPath`) — whether `ELECTRON_RENDERER_URL` (set by electron-vite's dev
@@ -247,6 +247,7 @@ Resolved entries add:
   mirroring [[B-029]]'s "on by default, toggle to hide" shape. Dev fixtures
   (`src/platform/dev-fixtures.ts`) now seed ~8% confirmed Shorts so the badge/toggle
   have something to exercise in `npm run dev`.
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-036 — Refresh while viewing a channel should sync only that channel
 - **Type:** adjustment
@@ -271,6 +272,7 @@ Resolved entries add:
   contract and repository queries, not new sync logic. Covered by a new
   `sync-service.test.ts` case asserting no subscription re-list and no cross-channel
   Shorts-candidate touch when scoped.
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 
@@ -295,6 +297,7 @@ live re-test; not moved to Resolved.
   the clamp actually cuts text off. Now re-measures via `requestAnimationFrame`, on
   `document.fonts.ready`, and on a `ResizeObserver` watching the element, in addition
   to the immediate measurement.
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-033 — Clear ("×") button inside filter/search fields when they have text
 - **Type:** adjustment
@@ -307,6 +310,7 @@ live re-test; not moved to Resolved.
 - **Code refs:** `src/ui/Sidebar.tsx`, `src/ui/App.tsx` (both inputs wrapped in a new
   `.field-wrap`); `src/ui/styles.css` (`.field-wrap`, `.field-clear`).
 - **Resolution:** as described; both fields share the same wrapper/button pattern.
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-034 — Thumbnail opacity: keep at full opacity, not dimmed by default
 - **Type:** adjustment
@@ -320,6 +324,7 @@ live re-test; not moved to Resolved.
 - **Resolution:** dropped `opacity: 0.72` and the now-moot hover/selected override.
   Revisits **D-023**, updated in `decisions.md` from Pending to Final (rejected — see
   `ui.md`).
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-035 — "All caught up" message duplicated (topbar status + banner below)
 - **Type:** bug · **Severity:** minor
@@ -331,6 +336,7 @@ live re-test; not moved to Resolved.
 - **Expected:** keep only the first occurrence (topbar status); remove the second.
 - **Code refs:** `src/ui/App.tsx` (removed the `.caught-up` block); `src/ui/styles.css`
   (removed the now-unused `.caught-up` rule).
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-030 — Enter in the channel-filter search opens the first matching channel
 - **Type:** adjustment
@@ -343,6 +349,7 @@ live re-test; not moved to Resolved.
 - **Code refs:** `src/ui/Sidebar.tsx` (`onKeyDown` on `.channel-query`).
 - **Resolution:** Enter now calls `onSelectChannel(visibleChannels[0].channelId)` when
   there's a match, then blurs (unchanged when there's no match).
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-031 — System-wide scrollbar: minimalist style
 - **Type:** adjustment
@@ -357,6 +364,7 @@ live re-test; not moved to Resolved.
 - **Resolution:** thin (10px) scrollbars, transparent track, a subtle
   `var(--border)`-colored thumb that darkens on hover — theme-aware via the existing
   custom properties, so light/dark both fall out for free.
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-029 — View counts should show by default, not be an opt-in setting
 - **Type:** adjustment
@@ -369,6 +377,7 @@ live re-test; not moved to Resolved.
   `src/ui/App.tsx` (matching initial state).
 - **Resolution:** flipped the default to `true`, kept the toggle. Revisits D-018,
   updated in `decisions.md` from Pending to Final (view counts on by default).
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-027 — Refresh button spin animation rotates the whole button, not just the icon
 - **Type:** bug · **Severity:** minor
@@ -382,6 +391,7 @@ live re-test; not moved to Resolved.
 - **Code refs:** `src/ui/App.tsx` (glyph wrapped in its own `<span className="refresh-
   icon">`); `src/ui/styles.css` (`.refresh-icon`, `.refresh-icon.spinning` — the spin
   animation moved off `.refresh`).
+- **Resolved:** 2026-07-12 · **Commit:** 9be2d72 · **Outcome:** Fixed
 
 ### B-026 — Minimize button is broken on niri (Wayland)
 - **Type:** bug · **Severity:** minor
