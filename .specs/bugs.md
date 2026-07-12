@@ -52,6 +52,23 @@ Resolved entries add:
 
 ## Open
 
+### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** the embedded player appears to settle on 1080p even when a video
+  has higher-resolution renditions (1440p/4K) available; quality is not forced.
+- **Expected:** on load, the player should request the highest quality YouTube offers
+  for that video, not rely on the iframe's own default selection (which favors
+  bandwidth/viewport heuristics over "best available").
+- **Code refs:** `src/ui/PlayerView.tsx` (widget protocol `command()` helper +
+  `announce()`/`onReady` handling — call `setPlaybackQuality('highres')` or use
+  `suggestedQuality`/`vq` once the widget reports ready; also check `onPlaybackQualityChange`
+  to confirm it stuck, since YouTube can still downgrade for buffering).
+- **Notes:** YouTube's IFrame API only takes a suggested quality, not a hard guarantee
+  — confirm behavior empirically (owner to verify live, per
+  [[no-live-app-verification]] this isn't tested by running the app here).
+
 ### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
