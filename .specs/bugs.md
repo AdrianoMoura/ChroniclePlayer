@@ -198,7 +198,7 @@ Resolved entries add:
     validate live: that the Settings scope line actually flips after using
     Unsubscribe/Subscribe/Like/Comment, and re-read the wizard's step 2 copy for
     tone (it's necessarily a longer sentence now than the original one-liner).
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 4f786ce · **Outcome:** Fixed
 
 ### B-006 — Comments: read, add, reply; likes on videos and comments
 - **Type:** adjustment
