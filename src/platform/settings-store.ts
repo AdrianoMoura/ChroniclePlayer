@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
+import { PLAYBACK_RATES } from '../ipc/contract'
 
 // settings.json — non-sensitive preferences, human-readable/editable on
 // purpose (local-data.md §Locations). Read at startup; a malformed file
@@ -20,6 +21,8 @@ export interface AppSettings {
   // B-028: shown by default, tagged with a badge (supersedes D-028's
   // unconditional exclusion).
   showShorts: boolean
+  // D-038: the player loads already set to this speed instead of always 1x.
+  defaultPlaybackRate: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -28,7 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   layout: 'list',
   refreshMinutes: 30,
   showViewCounts: true,
-  showShorts: true
+  showShorts: true,
+  defaultPlaybackRate: 1
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -40,6 +44,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const refresh = source['refreshMinutes']
   const views = source['showViewCounts']
   const shorts = source['showShorts']
+  const rate = source['defaultPlaybackRate']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -56,7 +61,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? refresh
         : DEFAULT_SETTINGS.refreshMinutes,
     showViewCounts: typeof views === 'boolean' ? views : DEFAULT_SETTINGS.showViewCounts,
-    showShorts: typeof shorts === 'boolean' ? shorts : DEFAULT_SETTINGS.showShorts
+    showShorts: typeof shorts === 'boolean' ? shorts : DEFAULT_SETTINGS.showShorts,
+    defaultPlaybackRate:
+      typeof rate === 'number' && (PLAYBACK_RATES as readonly number[]).includes(rate)
+        ? rate
+        : DEFAULT_SETTINGS.defaultPlaybackRate
   }
 }
 

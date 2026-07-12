@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react'
-import type { AuthStatusDto, SettingsDto } from '../ipc/contract'
+import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto } from '../ipc/contract'
 
-// Settings surface (M5). One column, four quiet sections — every control
+// Settings surface (M5). One column, five quiet sections — every control
 // maps to a spec decision: D-016 interval, theme (ui.md), D-018 view
-// counts, D-013 storage honesty, export/delete (local-data.md). Layout and
-// item size (D-022, D-037) live inline in the feed topbar instead — see
-// App.tsx — not here.
+// counts, D-038 default speed (playback.md), D-013 storage honesty,
+// export/delete (local-data.md). Layout and item size (D-022, D-037) live
+// inline in the feed topbar instead — see App.tsx — not here.
 
 interface SettingsViewProps {
   auth: AuthStatusDto | null
@@ -122,6 +122,27 @@ export function SettingsView({
         <p className="settings-line dim">
           Every refresh also re-checks your subscription list, so a new subscription shows
           up on the very next sync — nothing to do here.
+        </p>
+      </section>
+
+      <section>
+        <h2>Playback</h2>
+        <label className="settings-row">
+          <span>Default speed</span>
+          <select
+            value={settings.defaultPlaybackRate}
+            onChange={(event) => set('defaultPlaybackRate', Number(event.target.value))}
+          >
+            {PLAYBACK_RATES.map((rate) => (
+              <option key={rate} value={rate}>
+                {rate === 1 ? 'Normal' : `${rate}×`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="settings-line dim">
+          The player opens already set to this speed. You can still change it per video
+          from the embed's own controls — that never changes this default.
         </p>
       </section>
 

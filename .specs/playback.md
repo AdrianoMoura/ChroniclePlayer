@@ -119,6 +119,17 @@ Data handling for externally opened videos (Final):
 - Watch progress/resume position: **Future idea** (IFrame API exposes `getCurrentTime()`;
   storing it locally is cheap) — not MVP.
 
+## Default playback speed — D-038 (Final, 2026-07-12)
+
+Settings → Playback offers a **default speed** dropdown over the IFrame API's fixed rate
+set (0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 1.75×, 2×; default **1× "Normal"**). The player
+issues `setPlaybackRate` as soon as the embed announces itself, and re-issues it on the
+first `onStateChange(playing)` event — the same reissue-on-start pattern quality uses
+(B-038), since YouTube can reset a requested rate the moment the stream actually begins.
+Changing speed from the embed's own control during playback is session-only and never
+writes back to the setting — the setting is "what speed do new videos start at," not "what
+speed am I watching this one at."
+
 ## Mark-as-read trigger (Final)
 
 Opening the player view marks the video `read` immediately (not at N% watched). Rationale:

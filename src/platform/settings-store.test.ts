@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PLAYBACK_RATES } from '../ipc/contract'
 import { DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings } from './settings-store'
 
 function tempFile(content?: string): string {
@@ -23,7 +24,8 @@ describe('settings store', () => {
       layout: 'grid',
       refreshMinutes: 15,
       showViewCounts: true,
-      showShorts: false
+      showShorts: false,
+      defaultPlaybackRate: 1.5
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -43,7 +45,8 @@ describe('settings store', () => {
         layout: 'masonry',
         refreshMinutes: -5,
         showViewCounts: true,
-        showShorts: false
+        showShorts: false,
+        defaultPlaybackRate: 3
       })
     ).toEqual({
       theme: 'light',
@@ -51,7 +54,8 @@ describe('settings store', () => {
       layout: 'list',
       refreshMinutes: 30,
       showViewCounts: true,
-      showShorts: false
+      showShorts: false,
+      defaultPlaybackRate: 1
     })
   })
 
@@ -62,6 +66,12 @@ describe('settings store', () => {
   it('accepts all five item-size steps (D-037)', () => {
     for (const itemSize of ['xs', 'small', 'medium', 'large', 'xl']) {
       expect(normalizeSettings({ itemSize }).itemSize).toBe(itemSize)
+    }
+  })
+
+  it('accepts all playback rates (D-038)', () => {
+    for (const rate of PLAYBACK_RATES) {
+      expect(normalizeSettings({ defaultPlaybackRate: rate }).defaultPlaybackRate).toBe(rate)
     }
   })
 })

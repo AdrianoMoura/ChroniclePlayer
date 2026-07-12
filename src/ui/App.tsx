@@ -80,7 +80,8 @@ export function App() {
     layout: 'list',
     refreshMinutes: 30,
     showViewCounts: true,
-    showShorts: true
+    showShorts: true,
+    defaultPlaybackRate: 1
   })
 
   const viewRef = useRef<FeedViewDto>('all')
@@ -839,6 +840,7 @@ export function App() {
                 video={currentPlayerVideo}
                 stackDepth={playerStack.length}
                 hasQueueNext={hasQueueNext}
+                defaultPlaybackRate={settings.defaultPlaybackRate}
                 onNextInQueue={nextInQueue}
                 onClose={closePlayer}
                 onOpenVideo={(videoId) => openVideo(videoId)}

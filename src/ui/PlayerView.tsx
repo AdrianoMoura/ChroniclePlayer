@@ -14,6 +14,7 @@ interface PlayerViewProps {
   video: PlayerVideoDto
   stackDepth: number
   hasQueueNext: boolean
+  defaultPlaybackRate: number
   onNextInQueue: () => void
   onClose: () => void
   onOpenVideo: (videoId: string) => void
@@ -26,6 +27,7 @@ export function PlayerView({
   video,
   stackDepth,
   hasQueueNext,
+  defaultPlaybackRate,
   onNextInQueue,
   onClose,
   onOpenVideo,
@@ -70,7 +72,11 @@ export function PlayerView({
         // B-038: quality only takes effect once playback actually starts —
         // requesting it on ready alone isn't enough, YouTube can still pick
         // a bandwidth-heuristic default the moment the stream begins.
-        if (payload.info === 1) command('setPlaybackQuality', ['highres'])
+        if (payload.info === 1) {
+          command('setPlaybackQuality', ['highres'])
+          // D-038: same reissue-on-start safety net as quality above.
+          if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
+        }
       }
       if (payload.event === 'onError' && typeof payload.info === 'number') {
         // 101/150 = embedding disabled by the owner (playback.md).
@@ -83,7 +89,7 @@ export function PlayerView({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [command])
+  }, [command, defaultPlaybackRate])
 
   const announce = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -94,7 +100,11 @@ export function PlayerView({
     // set once playback starts (the onStateChange re-issue is the fallback
     // for the case YouTube resets it when the stream actually begins).
     command('setPlaybackQuality', ['highres'])
-  }, [command])
+    // D-038: default playback speed, set from Settings. Applied here and
+    // re-issued on actual playback start (above) for the same reason quality
+    // is — YouTube can reset it once the stream begins.
+    if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
+  }, [command, defaultPlaybackRate])
 
   // Player keyboard map (playback.md): keys are proxied through the widget
   // protocol because the iframe swallows focus.

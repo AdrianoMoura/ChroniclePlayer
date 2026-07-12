@@ -99,6 +99,10 @@ export interface WizardStateDto {
   completed: boolean
 }
 
+// Mirrors the YouTube IFrame API's fixed rate set (getAvailablePlaybackRates) —
+// shared by the platform settings store and the Settings UI (D-038).
+export const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
+
 // Mirrors platform settings.json (human-editable; local-data.md).
 export interface SettingsDto {
   theme: 'system' | 'dark' | 'light'
@@ -107,6 +111,7 @@ export interface SettingsDto {
   refreshMinutes: number // 0 = manual only (D-016)
   showViewCounts: boolean // D-018
   showShorts: boolean // B-028, default true
+  defaultPlaybackRate: number // D-038, default 1 — player loads already at this speed
 }
 
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
