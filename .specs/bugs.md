@@ -262,6 +262,41 @@ Resolved entries add:
   file exists and hanging when none does; or dev-mode `app.relaunch()` not reproducing
   the packaged behavior. Reproduce first, then pick.
 
+### B-023 — First sync after a fresh setup doesn't refresh the UI; spinner spins forever
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** sync / ui-shell
+- **What happens:** starting from scratch, the initial sync fetches the channels and
+  finishes, but the list never appears — the refresh button keeps spinning and only a
+  manual reload (F5) shows the feed.
+- **Expected:** when the first sync completes, the feed and sidebar populate on their
+  own and the spinner stops — same behavior as any later `refresh:done`.
+- **Code refs:** `src/ui/App.tsx` (`onEvent` — `refresh:done` clears the spinner and
+  reloads; verify it fires in the fresh-setup path); `src/ui/onboarding/Wizard.tsx`
+  (wizard → feed handoff); `src/platform/main.ts` (event emission — timing relative to
+  renderer load/subscription).
+- **Notes:** the running-app event wiring is correct by inspection, so the suspects are
+  first-run-specific: `refresh:done` emitted before the feed UI subscribes (event lost),
+  or the wizard→feed transition mounting App after the sync already finished, leaving
+  `refreshing` stale. Consider replaying the last sync state to new subscribers or
+  having App query sync status on mount instead of relying only on events.
+
+### B-024 — Small search/filter field at the top of the sidebar channel list
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** with a couple hundred subscriptions, finding one channel in the
+  sidebar means scrolling the whole list.
+- **Expected:** a small text field at the top of the channel list that filters it as
+  you type (local, name substring match — this is a filter over the user's own
+  subscriptions, not YouTube search, which is [[B-009]]).
+- **Code refs:** `src/ui/Sidebar.tsx` (channel list rendering); `src/ui/styles.css`
+  (sidebar block); channel list data already comes sorted from `listFollowedChannels`
+  (`src/core/ports.ts` / `src/adapters/storage/repositories.ts`) — filtering can stay
+  in the UI.
+- **Notes:** keyboard-first (ui.md): the field should be reachable by shortcut and
+  Escape should clear it. Pairs with [[B-019]] (wider sidebar).
+
 ## In progress
 
 *(none)*
