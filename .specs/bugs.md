@@ -116,67 +116,6 @@ Resolved entries add:
   placement/ordering needs a Final decision (e.g. do favorited videos also appear
   again in their normal chronological bucket, or only in the priority section?).
 
-### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
-  `.settings-view` (and the banner above it, when present) almost touching the
-  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
-  overlap.
-- **Expected:** the same left clearance the feed screen already gets when collapsed
-  (the hamburger has clear room, nothing crowds it), regardless of which screen
-  (`feed` or `settings`) is showing.
-- **Code refs:** `src/ui/styles.css` — `.app.sidebar-collapsed .topbar { padding-left:
-  52px }` (around line 207) only reserves room for the floating `.sidebar-expand`
-  button on the feed screen's `<header className="topbar">`; the Settings screen
-  (`src/ui/App.tsx`, `screen === 'settings'` branch around line 689) renders no
-  `topbar`, so nothing gives `.settings-view` (`styles.css` ~line 1059, `padding: 26px
-  32px 60px`) or `.banner` the same left offset when collapsed.
-- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
-  screen instead of the feed topbar — fix likely generalizes the `padding-left: 52px`
-  reservation to `.app.sidebar-collapsed .feed` (or another selector covering both
-  `.topbar` and `.settings-view`/`.banner`) instead of scoping it to `.topbar` alone.
-
-### B-040 — More space between the Settings button and the channel list above it
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
-  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` has no CSS
-  rule at all, so the visual gap between the last channel row and the Settings button
-  is purely emergent from `.sidebar`'s `justify-content: space-between` and
-  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
-  end up reading as touching.
-- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
-  button, consistent with the sidebar's other section spacing (e.g. the gap
-  `.channel-list` already gets above it: `margin-top: 14px; border-top: 1px solid
-  var(--border); padding-top: 10px`).
-- **Code refs:** `src/ui/Sidebar.tsx` (`sidebar-footer` div wrapping the Settings
-  button, rendered right after the `channel-list` div); `src/ui/styles.css`
-  (`.sidebar` — `justify-content: space-between`; `.channel-list` around line 261 —
-  `flex: 1`, no bottom padding/margin; no existing `.sidebar-footer` rule to anchor a
-  `margin-top`/`border-top` on).
-- **Notes:** purely a spacing/polish tweak, no behavior change.
-
-### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player
-- **What happens:** many mice have a dedicated back/side button (browsers bind it to
-  history-back); Chronicle doesn't listen for it, so it does nothing in the player.
-- **Expected:** pressing the mouse back button while in the player closes the player
-  and returns to the previous screen — the same action as pressing Esc or clicking the
-  visible Back button ([[B-001]]).
-- **Code refs:** `src/ui/PlayerView.tsx` (the `Escape` case in the keydown handler
-  around the `onClose()` call — add a `mouseup`/`pointerup` listener checking
-  `event.button === 3` for the browser's back mouse button, calling the same
-  `onClose`).
-- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
-  XButton1; some mice map this to a "Backward" "navigate back" browser gesture instead
-  of a plain button event — verify empirically which fires in Electron/Chromium
-  (owner to verify live, per [[no-live-app-verification]]).
-
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
@@ -285,18 +224,6 @@ Resolved entries add:
   the UI claim capabilities that don't exist yet. Fix the copy in the same change that
   lands B-006/B-010 (or B-009's subscribe path), not before.
 
-### B-017 — Multi-language support via lang files (English only for now)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell / other (i18n)
-- **Expected:** a language system where all UI strings live in lang files
-  (e.g., `en.json`), loaded through an i18n layer — no hardcoded strings in components.
-  Only English ships for now; the infrastructure makes future locales a file drop.
-- **Code refs:** all of `src/ui/` (hardcoded strings — `src/ui/onboarding/Wizard.tsx`
-  is by far the largest surface); new i18n layer + `lang/en.json` to create.
-- **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
-  to infrastructure-now, strings-later. Wizard copy is the biggest surface.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -337,6 +264,95 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-017 — Multi-language support via lang files (English only for now)
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell / other (i18n)
+- **Expected:** a language system where all UI strings live in lang files, loaded
+  through an i18n layer — no hardcoded strings in components. Only English ships for
+  now; the infrastructure makes future locales a file drop.
+- **Code refs:** `src/ui/i18n/index.ts` (the `t(key, vars?)` function + `Dict`/
+  `MessageKey` types), `src/ui/i18n/en.ts` (the single dict, ~200 keys); every
+  component in `src/ui/` now imports `t` instead of inlining copy, plus
+  `src/ui/format.ts`'s relative-date/view-count helpers.
+- **Notes:** shipped as TypeScript dict modules (`en.ts`) rather than the originally
+  sketched `lang/en.json` — same effect (one file holds every string, `Dict`'s keys
+  are enforced at compile time so a locale file missing a key is a build error, not a
+  silent runtime miss), but keeps strict-TypeScript parity checking instead of an
+  untyped JSON import. A future locale is a new file with the same keys, switched in
+  `activeDict` (`index.ts`) — no component changes. `Wizard.tsx` was indeed the
+  largest surface (95 keys); `App.tsx` (32), `FeedList.tsx` (10), `PlayerView.tsx`
+  (20), plus the smaller `HelpOverlay`/`Titlebar`/`UrlPrompt`/`ConnectPanel`/
+  `SettingsView` (~45 combined) round it out. `Sidebar.tsx`'s few remaining literals
+  are left for [[B-010]], which rewrites that file anyway (new copy is born
+  localized from the start, per the batch-2-before-batch-3 rationale in
+  `roadmap.md`). No UI component tests exist in this repo; verified via
+  `npm run typecheck && npm run lint && npm test` (133/133) — no live-app check per
+  this session's workflow, owner validates live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
+  `.settings-view` (and the banner above it, when present) almost touching the
+  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
+  overlap.
+- **Expected:** the same left clearance the feed screen already gets when collapsed
+  (the hamburger has clear room, nothing crowds it), regardless of which screen
+  (`feed` or `settings`) is showing.
+- **Code refs:** `src/ui/styles.css` — generalized the `.app.sidebar-collapsed
+  .topbar { padding-left: 52px }` reservation with two new rules:
+  `.app.sidebar-collapsed .feed > .banner:first-child { margin-left: 52px }` (the
+  banner only needs it when it's the very first thing in `.feed`, i.e. no topbar
+  precedes it — which only happens on the Settings screen) and
+  `.app.sidebar-collapsed .settings-view { padding-left: 52px }`.
+- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
+  screen instead of the feed topbar. No live-app check this session, owner validates
+  live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-040 — More space between the Settings button and the channel list above it
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
+  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` had no CSS
+  rule at all, so the visual gap between the last channel row and the Settings button
+  was purely emergent from `.sidebar`'s `justify-content: space-between` and
+  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
+  ended up reading as touching.
+- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
+  button, consistent with the sidebar's other section spacing.
+- **Code refs:** `src/ui/styles.css` — new `.sidebar-footer { margin-top: 14px;
+  border-top: 1px solid var(--border); padding-top: 10px }`, mirroring
+  `.channel-list`'s own separator above it exactly.
+- **Notes:** purely a spacing/polish tweak, no behavior change. No live-app check
+  this session, owner validates live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** many mice have a dedicated back/side button (browsers bind it to
+  history-back); Chronicle didn't listen for it, so it did nothing in the player.
+- **Expected:** pressing the mouse back button while in the player closes the player
+  and returns to the previous screen — the same action as pressing Esc or clicking the
+  visible Back button ([[B-001]]).
+- **Code refs:** `src/ui/PlayerView.tsx` — new `mouseup` listener (separate `useEffect`
+  from the keydown handler) checking `event.button === 3`, calling the same `onClose`
+  as Esc.
+- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
+  XButton1; some mice map this to a "Backward" "navigate back" browser gesture instead
+  of a plain button event. **Still needs live verification** of which event actually
+  fires in Electron/Chromium on the owner's hardware, per
+  [[no-live-app-verification]] — flagging here in case the owner finds the listener
+  doesn't fire on their mouse, which would mean swapping to an `auxclick` listener or
+  handling both.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
 
 ### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
 - **Type:** adjustment
