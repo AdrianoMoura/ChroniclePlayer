@@ -17,6 +17,9 @@ beforeEach(() => {
   migrate(db)
   sync = new SqliteSyncRepository(db)
   feed = new SqliteFeedRepository(db)
+  // B-003: account_channels has an FK on accounts — every test below acts
+  // as this one account.
+  sync.addAccount('acc1', 'Test', NOW)
 })
 
 function discovered(videoId: string, description: string | null = null): DiscoveredVideo {
@@ -40,11 +43,11 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
 
 describe('applySubscriptions', () => {
   it('adds new channels, unsubscribes missing ones, retains their data', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.insertDiscoveredVideos('UCa', [discovered('v1')], NOW)
     new SqliteStateRepository(db, clock).toggleFavorite('v1')
 
-    const result = sync.applySubscriptions([{ channelId: 'UCb', title: 'Beta', thumbnailUrl: null }], NOW)
+    const result = sync.applySubscriptions('acc1', [{ channelId: 'UCb', title: 'Beta', thumbnailUrl: null }], NOW)
     expect(result).toEqual({ added: 1, removed: 1 })
 
     // Data ownership: the unsubscribed channel's videos and states remain.
@@ -53,7 +56,7 @@ describe('applySubscriptions', () => {
     // …but its videos left the feed views.
     expect(feed.listPage('all', null, 10).entries).toEqual([])
     // …and re-subscribing brings them back.
-    sync.applySubscriptions(
+    sync.applySubscriptions('acc1', 
       [
         { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null },
         { channelId: 'UCb', title: 'Beta', thumbnailUrl: null }
@@ -64,64 +67,91 @@ describe('applySubscriptions', () => {
   })
 
   it('stores and updates the subscription resource id (B-010)', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA' }], NOW)
-    expect(sync.getSubscriptionId('UCa')).toBe('subA')
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA' }], NOW)
+    expect(sync.getSubscriptionId('acc1', 'UCa')).toBe('subA')
 
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA2' }], NOW)
-    expect(sync.getSubscriptionId('UCa')).toBe('subA2')
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA2' }], NOW)
+    expect(sync.getSubscriptionId('acc1', 'UCa')).toBe('subA2')
   })
 
   it('getSubscriptionId is null for channels synced before schema v3 / without one', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
-    expect(sync.getSubscriptionId('UCa')).toBeNull()
-    expect(sync.getSubscriptionId('unknown')).toBeNull()
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    expect(sync.getSubscriptionId('acc1', 'UCa')).toBeNull()
+    expect(sync.getSubscriptionId('acc1', 'unknown')).toBeNull()
+  })
+})
+
+describe('accounts (B-003)', () => {
+  it('lists connected accounts oldest first', () => {
+    sync.addAccount('acc2', 'Second', '2026-07-12T00:00:00Z')
+    expect(sync.listAccounts().map((a) => a.accountId)).toEqual(['acc1', 'acc2'])
+  })
+
+  it('removeAccount cascades its account_channels rows only', () => {
+    sync.addAccount('acc2', 'Second', NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc2', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+
+    sync.removeAccount('acc1')
+
+    expect(sync.listAccounts().map((a) => a.accountId)).toEqual(['acc2'])
+    expect(sync.listAccountIdsForChannel('UCa')).toEqual(['acc2'])
+    // The channel's own facts (title etc.) survive the cascade — acc2 still follows it.
+    expect(feed.listFollowedChannels(true, 'acc2').map((c) => c.channel.title)).toEqual(['Alpha'])
+  })
+
+  it('listAccountIdsForChannel finds every account subscribing to a shared channel', () => {
+    sync.addAccount('acc2', 'Second', NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCshared', title: 'Shared', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc2', [{ channelId: 'UCshared', title: 'Shared', thumbnailUrl: null }], NOW)
+    expect(sync.listAccountIdsForChannel('UCshared').toSorted()).toEqual(['acc1', 'acc2'])
   })
 })
 
 describe('backfill state (B-002)', () => {
   it('defaults to no cursor, not exhausted, and persists across calls', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
-    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: false })
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    expect(sync.getBackfillState('acc1', 'UCa')).toEqual({ pageToken: null, exhausted: false })
 
-    sync.setBackfillState('UCa', 'tok123', false)
-    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: 'tok123', exhausted: false })
+    sync.setBackfillState('acc1', 'UCa', 'tok123', false)
+    expect(sync.getBackfillState('acc1', 'UCa')).toEqual({ pageToken: 'tok123', exhausted: false })
 
-    sync.setBackfillState('UCa', null, true)
-    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: true })
+    sync.setBackfillState('acc1', 'UCa', null, true)
+    expect(sync.getBackfillState('acc1', 'UCa')).toEqual({ pageToken: null, exhausted: true })
   })
 })
 
 describe('upsertSubscribedChannel (B-009)', () => {
   it('inserts a new channel as subscribed with its subscription id', () => {
-    sync.upsertSubscribedChannel(
+    sync.upsertSubscribedChannel('acc1', 
       { channelId: 'UCnew', title: 'New', thumbnailUrl: null, subscriptionId: 'subNEW' },
       NOW
     )
-    expect(sync.getSubscriptionId('UCnew')).toBe('subNEW')
+    expect(sync.getSubscriptionId('acc1', 'UCnew')).toBe('subNEW')
     expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).toContain('UCnew')
   })
 
   it('re-subscribes a previously-unsubscribed channel in place, keeping its data', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
-    sync.markUnsubscribed('UCa')
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.markUnsubscribed('acc1', 'UCa')
     expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).not.toContain('UCa')
 
-    sync.upsertSubscribedChannel(
+    sync.upsertSubscribedChannel('acc1', 
       { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA' },
       NOW
     )
     expect(feed.listFollowedChannels().map((c) => c.channel.channelId)).toContain('UCa')
-    expect(sync.getSubscriptionId('UCa')).toBe('subA')
+    expect(sync.getSubscriptionId('acc1', 'UCa')).toBe('subA')
   })
 })
 
 describe('markUnsubscribed (B-010)', () => {
   it('soft-deletes like applySubscriptions removal — videos and state stay', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.insertDiscoveredVideos('UCa', [discovered('v1')], NOW)
     new SqliteStateRepository(db, clock).toggleFavorite('v1')
 
-    sync.markUnsubscribed('UCa')
+    sync.markUnsubscribed('acc1', 'UCa')
 
     expect(feed.listPage('all', null, 10).entries).toEqual([])
     expect(feed.listPage('favorites', null, 10).entries.map((e) => e.video.videoId)).toEqual(['v1'])
@@ -130,7 +160,7 @@ describe('markUnsubscribed (B-010)', () => {
 
 describe('discovery and hydration', () => {
   beforeEach(() => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
   })
 
   it('insertDiscoveredVideos never overwrites hydrated facts', () => {
@@ -167,7 +197,7 @@ describe('discovery and hydration', () => {
 
 describe('shorts pipeline storage (D-028)', () => {
   beforeEach(() => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
   })
 
   it('candidates are hydrated videos ≤ 180 s with unknown verdict', () => {
@@ -202,7 +232,7 @@ describe('shorts pipeline storage (D-028)', () => {
 
 describe('channel sync meta', () => {
   it('unavailable channels stop being polled but stay out of the way', () => {
-    sync.applySubscriptions(
+    sync.applySubscriptions('acc1', 
       [
         { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null },
         { channelId: 'UCgone', title: 'Gone', thumbnailUrl: null }
@@ -210,18 +240,18 @@ describe('channel sync meta', () => {
       NOW
     )
     sync.markChannelUnavailable('UCgone')
-    expect(sync.listSubscribedChannels().map((c) => c.channelId)).toEqual(['UCa'])
+    expect(sync.listSubscribedChannels('acc1').map((c) => c.channelId)).toEqual(['UCa'])
   })
 
   it('stores RSS validators for conditional GET', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.updateChannelSyncMeta('UCa', {
       rssEtag: 'e1',
       rssLastModified: 'Fri, 11 Jul 2026 08:00:00 GMT',
       lastSyncedAt: NOW,
       available: true
     })
-    expect(sync.listSubscribedChannels()[0]).toMatchObject({ rssEtag: 'e1', lastSyncedAt: NOW })
+    expect(sync.listSubscribedChannels('acc1')[0]).toMatchObject({ rssEtag: 'e1', lastSyncedAt: NOW })
   })
 })
 
@@ -239,7 +269,7 @@ describe('external videos (D-029)', () => {
   })
 
   it('never flips an existing subscribed channel to 0', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.upsertExternalVideo(hydratedVideo('v1', 700, 'UCa'), NOW)
     expect(feed.listPage('all', null, 10).entries.map((e) => e.video.videoId)).toEqual(['v1'])
   })
@@ -247,7 +277,7 @@ describe('external videos (D-029)', () => {
 
 describe('findVideo (player read)', () => {
   it('returns entry with description, or null for unknown ids', () => {
-    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.insertDiscoveredVideos('UCa', [discovered('v1', 'a description')], NOW)
     expect(feed.findVideo('v1')?.description).toBe('a description')
     expect(feed.findVideo('v1')?.entry.channelTitle).toBe('Alpha')
@@ -283,7 +313,7 @@ describe('sync log and meta', () => {
 
 describe('feed channel filter (sidebar)', () => {
   it('narrows the feed to one channel and lists followed channels sorted', () => {
-    sync.applySubscriptions(
+    sync.applySubscriptions('acc1', 
       [
         { channelId: 'UCb', title: 'beta', thumbnailUrl: null },
         { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }

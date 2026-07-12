@@ -54,15 +54,47 @@ function shortsFilter(showShorts: boolean): string {
   return showShorts ? '' : `AND ${NOT_SHORT}`
 }
 
+// B-003: "subscribed"/"favorite" now live per (account, channel) in
+// account_channels, since more than one local account can follow the same
+// channel. An EXISTS subquery (not a JOIN) avoids duplicating a video row
+// once per subscribing account; accountId narrows to one account, undefined
+// means "any connected account" (the combined-feed default).
+function membershipExists(column: 'subscribed' | 'favorite', accountId?: string): string {
+  return `EXISTS (
+    SELECT 1 FROM account_channels ac
+    WHERE ac.channel_id = c.channel_id AND ac.${column} = 1
+    ${accountId !== undefined ? 'AND ac.account_id = :accountId' : ''}
+  )`
+}
+
+// A favorited-but-now-unsubscribed channel (favorite survives markUnsubscribed,
+// D-039-adjacent precedent: local flags outlive membership) must not surface
+// in the priority section — it requires both flags on the same row.
+function favoritedAndSubscribedExists(accountId?: string): string {
+  return `EXISTS (
+    SELECT 1 FROM account_channels ac
+    WHERE ac.channel_id = c.channel_id AND ac.favorite = 1 AND ac.subscribed = 1
+    ${accountId !== undefined ? 'AND ac.account_id = :accountId' : ''}
+  )`
+}
+
 // Feed membership (feed.md): subscribed channels only. Favorites and Watch
 // Later are NOT feed views — they also reach externally opened videos
 // (D-029), so they skip the subscribed filter.
-const VIEW_PREDICATES: Record<FeedView, string> = {
-  all: `c.subscribed = 1 AND COALESCE(s.read_status, 'unread') <> 'ignored'`,
-  unread: `c.subscribed = 1 AND COALESCE(s.read_status, 'unread') = 'unread'`,
-  favorites: `COALESCE(s.favorite, 0) = 1`,
-  'watch-later': `COALESCE(s.watch_later, 0) = 1`,
-  ignored: `c.subscribed = 1 AND s.read_status = 'ignored'`
+function viewPredicate(view: FeedView, accountId?: string): string {
+  const subscribed = membershipExists('subscribed', accountId)
+  switch (view) {
+    case 'all':
+      return `${subscribed} AND COALESCE(s.read_status, 'unread') <> 'ignored'`
+    case 'unread':
+      return `${subscribed} AND COALESCE(s.read_status, 'unread') = 'unread'`
+    case 'favorites':
+      return `COALESCE(s.favorite, 0) = 1`
+    case 'watch-later':
+      return `COALESCE(s.watch_later, 0) = 1`
+    case 'ignored':
+      return `${subscribed} AND s.read_status = 'ignored'`
+  }
 }
 
 // Must mirror core compareFeedOrder exactly (published desc, channel title,
@@ -113,7 +145,8 @@ export class SqliteFeedRepository implements FeedRepository {
     cursor: FeedCursor | null,
     limit: number,
     channelId?: string,
-    showShorts = true
+    showShorts = true,
+    accountId?: string
   ): FeedPage {
     const afterCursor = cursor
       ? `AND (
@@ -126,13 +159,14 @@ export class SqliteFeedRepository implements FeedRepository {
     const params: Record<string, SQLInputValue> = {
       limit,
       ...(cursor ? { pub: cursor.publishedAt, ct: cursor.channelTitle, vid: cursor.videoId } : {}),
-      ...(channelId !== undefined ? { channelId } : {})
+      ...(channelId !== undefined ? { channelId } : {}),
+      ...(accountId !== undefined ? { accountId } : {})
     }
 
     const rows = this.db
       .prepare(
         `${FEED_SELECT}
-         WHERE ${VIEW_PREDICATES[view]} ${shortsFilter(showShorts)} ${byChannel} ${afterCursor}
+         WHERE ${viewPredicate(view, accountId)} ${shortsFilter(showShorts)} ${byChannel} ${afterCursor}
          ${FEED_ORDER}
          LIMIT :limit`
       )
@@ -176,18 +210,24 @@ export class SqliteFeedRepository implements FeedRepository {
     return Number(row.n)
   }
 
-  countUnread(showShorts = true): number {
-    return this.unreadCountWhere('', {}, showShorts)
+  countUnread(showShorts = true, accountId?: string): number {
+    return this.unreadCountWhere('', {}, showShorts, accountId)
   }
 
-  countUnreadSince(publishedAtIso: string, showShorts = true): number {
-    return this.unreadCountWhere(`AND v.published_at >= :since`, { since: publishedAtIso }, showShorts)
+  countUnreadSince(publishedAtIso: string, showShorts = true, accountId?: string): number {
+    return this.unreadCountWhere(
+      `AND v.published_at >= :since`,
+      { since: publishedAtIso },
+      showShorts,
+      accountId
+    )
   }
 
   private unreadCountWhere(
     extra: string,
-    params: Record<string, string> = {},
-    showShorts = true
+    params: Record<string, SQLInputValue> = {},
+    showShorts = true,
+    accountId?: string
   ): number {
     const row = this.db
       .prepare(
@@ -195,13 +235,18 @@ export class SqliteFeedRepository implements FeedRepository {
          FROM videos v
          JOIN channels c ON c.channel_id = v.channel_id
          LEFT JOIN video_state s ON s.video_id = v.video_id
-         WHERE ${VIEW_PREDICATES.unread} ${shortsFilter(showShorts)} ${extra}`
+         WHERE ${viewPredicate('unread', accountId)} ${shortsFilter(showShorts)} ${extra}`
       )
-      .get(params) as { n: number | bigint }
+      .get({ ...params, ...(accountId !== undefined ? { accountId } : {}) }) as { n: number | bigint }
     return Number(row.n)
   }
 
-  markManyRead(channelId: string | null, beforeIso: string | null, now: string): number {
+  markManyRead(
+    channelId: string | null,
+    beforeIso: string | null,
+    now: string,
+    accountId?: string
+  ): number {
     const result = this.db
       .prepare(
         `INSERT INTO video_state
@@ -210,7 +255,7 @@ export class SqliteFeedRepository implements FeedRepository {
          FROM videos v
          JOIN channels c ON c.channel_id = v.channel_id
          LEFT JOIN video_state s ON s.video_id = v.video_id
-         WHERE c.subscribed = 1
+         WHERE ${membershipExists('subscribed', accountId)}
            AND COALESCE(s.read_status, 'unread') = 'unread'
            AND (:channelId IS NULL OR v.channel_id = :channelId)
            AND (:before IS NULL OR v.published_at < :before)
@@ -219,7 +264,7 @@ export class SqliteFeedRepository implements FeedRepository {
            status_changed_at = :now,
            updated_at = :now`
       )
-      .run({ now, channelId, before: beforeIso })
+      .run({ now, channelId, before: beforeIso, ...(accountId !== undefined ? { accountId } : {}) })
     return Number(result.changes)
   }
 
@@ -234,7 +279,10 @@ export class SqliteFeedRepository implements FeedRepository {
     return { entry: toEntry(row), description: row.description }
   }
 
-  listFollowedChannels(showShorts = true): FollowedChannel[] {
+  // accountId (B-003) narrows to one account; unfiltered shows every channel
+  // followed by any connected account, deduped (favorite = true if any
+  // account favorites it — same OR-across-accounts semantics as membership).
+  listFollowedChannels(showShorts = true, accountId?: string): FollowedChannel[] {
     // Freshest channel first (B-008); channels with nothing synced sink to
     // the bottom alphabetically. Counts mirror the unread view predicate.
     const filter = shortsFilter(showShorts)
@@ -244,7 +292,7 @@ export class SqliteFeedRepository implements FeedRepository {
            c.channel_id,
            c.title,
            c.thumbnail_url,
-           c.favorite,
+           MAX(ac.favorite) AS favorite,
            (SELECT MAX(v.published_at) FROM videos v
              WHERE v.channel_id = c.channel_id ${filter}) AS latest_published_at,
            (SELECT COUNT(*) FROM videos v
@@ -252,11 +300,13 @@ export class SqliteFeedRepository implements FeedRepository {
              WHERE v.channel_id = c.channel_id ${filter}
                AND COALESCE(s.read_status, 'unread') = 'unread') AS unread_count
          FROM channels c
-         WHERE c.subscribed = 1
+         JOIN account_channels ac ON ac.channel_id = c.channel_id AND ac.subscribed = 1
+           ${accountId !== undefined ? 'AND ac.account_id = :accountId' : ''}
+         GROUP BY c.channel_id, c.title, c.thumbnail_url
          ORDER BY latest_published_at IS NULL, latest_published_at DESC,
                   c.title COLLATE NOCASE ASC`
       )
-      .all() as unknown as {
+      .all(accountId !== undefined ? { accountId } : {}) as unknown as {
       channel_id: string
       title: string
       thumbnail_url: string | null
@@ -276,21 +326,25 @@ export class SqliteFeedRepository implements FeedRepository {
     }))
   }
 
-  // B-042: returns the new favorite state.
-  toggleChannelFavorite(channelId: string): boolean {
+  // B-042: returns the new favorite state. accountId (B-003) scopes which
+  // account's relationship to the channel gets toggled.
+  toggleChannelFavorite(accountId: string, channelId: string): boolean {
     const row = this.db
-      .prepare(`SELECT favorite FROM channels WHERE channel_id = ?`)
-      .get(channelId) as { favorite: number | bigint } | undefined
+      .prepare(`SELECT favorite FROM account_channels WHERE account_id = ? AND channel_id = ?`)
+      .get(accountId, channelId) as { favorite: number | bigint } | undefined
     const next = row && Number(row.favorite) === 1 ? 0 : 1
-    this.db.prepare(`UPDATE channels SET favorite = ? WHERE channel_id = ?`).run(next, channelId)
+    this.db
+      .prepare(`UPDATE account_channels SET favorite = ? WHERE account_id = ? AND channel_id = ?`)
+      .run(next, accountId, channelId)
     return next === 1
   }
 
   // B-009: cross-references search-result channels against local state so
-  // the UI can show "Subscribed" instead of a live Subscribe button.
+  // the UI can show "Subscribed" instead of a live Subscribe button —
+  // subscribed by any connected account (B-003).
   isSubscribed(channelId: string): boolean {
     const row = this.db
-      .prepare(`SELECT 1 AS present FROM channels WHERE channel_id = ? AND subscribed = 1`)
+      .prepare(`SELECT 1 AS present FROM account_channels WHERE channel_id = ? AND subscribed = 1`)
       .get(channelId) as { present: number } | undefined
     return row !== undefined
   }
@@ -298,16 +352,18 @@ export class SqliteFeedRepository implements FeedRepository {
   // B-042: unread videos from favorited channels, most recent first, capped.
   // D-039: these also stay in their normal chronological bucket — this is a
   // separate, additive list, not a filter that removes them from elsewhere.
-  listPriorityVideos(limit: number, showShorts = true): FeedEntry[] {
+  // accountId (B-003) narrows to one account's favorites; unfiltered is any
+  // connected account's favorites.
+  listPriorityVideos(limit: number, showShorts = true, accountId?: string): FeedEntry[] {
     const rows = this.db
       .prepare(
         `${FEED_SELECT}
-         WHERE c.subscribed = 1 AND c.favorite = 1
+         WHERE ${favoritedAndSubscribedExists(accountId)}
            AND COALESCE(s.read_status, 'unread') = 'unread' ${shortsFilter(showShorts)}
          ${FEED_ORDER}
          LIMIT :limit`
       )
-      .all({ limit }) as unknown as FeedRow[]
+      .all({ limit, ...(accountId !== undefined ? { accountId } : {}) }) as unknown as FeedRow[]
     return rows.map(toEntry)
   }
 }

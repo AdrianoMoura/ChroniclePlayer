@@ -88,7 +88,61 @@ ALTER TABLE channels ADD COLUMN backfill_page_token TEXT;
 ALTER TABLE channels ADD COLUMN backfill_exhausted INTEGER NOT NULL DEFAULT 0;
 `
 
-const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5]
+// v6 (B-003): multi-account. `channels` stays account-agnostic — a
+// channel's synced facts (title, uploads playlist, RSS validators,
+// availability) are shared/deduped across every account that follows it,
+// same as an externally-opened channel (D-029). The per-account
+// *relationship* to a channel (subscribed, favorite, subscription id,
+// on-demand backfill cursor) moves into a new junction table, since the
+// same channel can now be followed by more than one local account.
+// videos/video_state stay untouched and account-agnostic too — read/
+// favorite/watch-later are the Chronicle user's own facts, not tied to
+// whichever account's subscription surfaced the video (D-003).
+const SCHEMA_V6 = `
+CREATE TABLE accounts (
+  account_id TEXT PRIMARY KEY,
+  label      TEXT NOT NULL,
+  added_at   TEXT NOT NULL
+);
+
+CREATE TABLE account_channels (
+  account_id          TEXT NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,
+  channel_id          TEXT NOT NULL REFERENCES channels(channel_id),
+  subscribed          INTEGER NOT NULL DEFAULT 1,
+  favorite            INTEGER NOT NULL DEFAULT 0,
+  subscription_id     TEXT,
+  added_at            TEXT NOT NULL,
+  backfill_page_token TEXT,
+  backfill_exhausted  INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (account_id, channel_id)
+);
+CREATE INDEX idx_account_channels_channel ON account_channels (channel_id);
+CREATE INDEX idx_account_channels_account ON account_channels (account_id);
+
+INSERT INTO accounts (account_id, label, added_at)
+  SELECT 'default', 'My account', COALESCE((SELECT MIN(added_at) FROM channels), '1970-01-01T00:00:00.000Z')
+  WHERE EXISTS (SELECT 1 FROM channels);
+
+INSERT INTO account_channels
+  (account_id, channel_id, subscribed, favorite, subscription_id, added_at, backfill_page_token, backfill_exhausted)
+  SELECT 'default', channel_id, subscribed, favorite, subscription_id, added_at, backfill_page_token, backfill_exhausted
+  FROM channels;
+
+ALTER TABLE channels DROP COLUMN subscribed;
+ALTER TABLE channels DROP COLUMN favorite;
+ALTER TABLE channels DROP COLUMN subscription_id;
+ALTER TABLE channels DROP COLUMN backfill_page_token;
+ALTER TABLE channels DROP COLUMN backfill_exhausted;
+`
+
+const migrations: readonly string[] = [
+  SCHEMA_V1,
+  SCHEMA_V2,
+  SCHEMA_V3,
+  SCHEMA_V4,
+  SCHEMA_V5,
+  SCHEMA_V6
+]
 
 export function migrate(db: DatabaseSync): void {
   let version = schemaVersion(db)

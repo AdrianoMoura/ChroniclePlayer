@@ -25,7 +25,29 @@ beforeEach(() => {
   catalog = new SqliteCatalogRepository(db, fixedClock)
   catalog.upsertChannel({ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null })
   catalog.upsertChannel({ channelId: 'UCb', title: 'Beta', thumbnailUrl: null })
+  // B-003: feed membership now lives in account_channels, not channels —
+  // subscribe both fixture channels under one test account.
+  subscribe('UCa')
+  subscribe('UCb')
 })
+
+const ACCOUNT = 'acc1'
+
+function subscribe(channelId: string): void {
+  subscribeAs(ACCOUNT, channelId)
+}
+
+function subscribeAs(accountId: string, channelId: string): void {
+  db.prepare(
+    `INSERT INTO accounts (account_id, label, added_at) VALUES (:account, 'Test', :now)
+     ON CONFLICT(account_id) DO NOTHING`
+  ).run({ account: accountId, now: fixedClock.now().toISOString() })
+  db.prepare(
+    `INSERT INTO account_channels (account_id, channel_id, subscribed, added_at)
+     VALUES (:account, :channelId, 1, :now)
+     ON CONFLICT(account_id, channel_id) DO UPDATE SET subscribed = 1`
+  ).run({ account: accountId, channelId, now: fixedClock.now().toISOString() })
+}
 
 function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void {
   catalog.upsertVideo(
@@ -47,7 +69,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(5)
+    expect(Number(row.user_version)).toBe(6)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -164,6 +186,7 @@ describe('SqliteFeedRepository', () => {
 
   it('lists followed channels freshest-first with unread counts (B-008)', () => {
     catalog.upsertChannel({ channelId: 'UCc', title: 'Zed', thumbnailUrl: null })
+    subscribe('UCc')
     addVideo('a-old', '2026-07-01T10:00:00Z', 'UCa')
     addVideo('a-new', '2026-07-08T10:00:00Z', 'UCa')
     addVideo('b-mid', '2026-07-05T10:00:00Z', 'UCb')
@@ -185,11 +208,11 @@ describe('SqliteFeedRepository', () => {
   })
 
   it('toggleChannelFavorite flips the channel-level priority marker (B-042)', () => {
-    expect(feed.toggleChannelFavorite('UCa')).toBe(true)
+    expect(feed.toggleChannelFavorite(ACCOUNT, 'UCa')).toBe(true)
     expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(
       true
     )
-    expect(feed.toggleChannelFavorite('UCa')).toBe(false)
+    expect(feed.toggleChannelFavorite(ACCOUNT, 'UCa')).toBe(false)
     expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(
       false
     )
@@ -203,7 +226,7 @@ describe('SqliteFeedRepository', () => {
 
     expect(feed.listPriorityVideos(20)).toEqual([])
 
-    feed.toggleChannelFavorite('UCa')
+    feed.toggleChannelFavorite(ACCOUNT, 'UCa')
     // Unread only ('a-old' is read); most recent first; 'UCb' excluded (not favorited).
     expect(feed.listPriorityVideos(20).map((e) => e.video.videoId)).toEqual(['a-new'])
 
@@ -216,7 +239,7 @@ describe('SqliteFeedRepository', () => {
   })
 
   it('listPriorityVideos caps at the requested limit', () => {
-    feed.toggleChannelFavorite('UCa')
+    feed.toggleChannelFavorite(ACCOUNT, 'UCa')
     for (let i = 0; i < 5; i++) addVideo(`v${i}`, `2026-07-0${i + 1}T10:00:00Z`, 'UCa')
     expect(feed.listPriorityVideos(3)).toHaveLength(3)
   })
@@ -315,7 +338,9 @@ describe('SqliteFeedRepository', () => {
   })
 
   it('feed views require subscribed channels; favorites/watch-later do not (D-029)', () => {
-    db.prepare(`UPDATE channels SET subscribed = 0 WHERE channel_id = 'UCb'`).run()
+    db.prepare(
+      `UPDATE account_channels SET subscribed = 0 WHERE account_id = :account AND channel_id = 'UCb'`
+    ).run({ account: ACCOUNT })
     addVideo('external', '2026-07-08T10:00:00Z', 'UCb')
     states.toggleFavorite('external')
     states.toggleWatchLater('external')
@@ -392,6 +417,69 @@ describe('SqliteFeedRepository', () => {
 
       expect(states.get('a')).toEqual({ readStatus: 'read', favorite: true, watchLater: true })
     })
+  })
+})
+
+describe('multi-account isolation (B-003)', () => {
+  it('combined feed (no accountId) shows every connected account; filtered shows one', () => {
+    catalog.upsertChannel({ channelId: 'UCc', title: 'Gamma', thumbnailUrl: null })
+    subscribeAs('acc2', 'UCc')
+    addVideo('a1', '2026-07-08T10:00:00Z', 'UCa') // acc1 only (beforeEach)
+    addVideo('c1', '2026-07-08T09:00:00Z', 'UCc') // acc2 only
+
+    expect(feed.listPage('all', null, 50).entries.map((e) => e.video.videoId).toSorted()).toEqual([
+      'a1',
+      'c1'
+    ])
+    expect(feed.listPage('all', null, 50, undefined, true, ACCOUNT).entries.map((e) => e.video.videoId)).toEqual(
+      ['a1']
+    )
+    expect(
+      feed.listPage('all', null, 50, undefined, true, 'acc2').entries.map((e) => e.video.videoId)
+    ).toEqual(['c1'])
+  })
+
+  it('a channel followed by two accounts appears once in the combined sidebar list', () => {
+    subscribeAs('acc2', 'UCa')
+    addVideo('a1', '2026-07-08T10:00:00Z', 'UCa')
+
+    const combined = feed.listFollowedChannels()
+    expect(combined.filter((c) => c.channel.channelId === 'UCa')).toHaveLength(1)
+
+    const acc1Only = feed.listFollowedChannels(true, ACCOUNT)
+    const acc2Only = feed.listFollowedChannels(true, 'acc2')
+    expect(acc1Only.map((c) => c.channel.channelId)).toContain('UCa')
+    expect(acc2Only.map((c) => c.channel.channelId)).toEqual(['UCa'])
+  })
+
+  it('unsubscribing one account never affects another account following the same channel', () => {
+    subscribeAs('acc2', 'UCa')
+    addVideo('a1', '2026-07-08T10:00:00Z', 'UCa')
+
+    db.prepare(
+      `UPDATE account_channels SET subscribed = 0 WHERE account_id = ? AND channel_id = 'UCa'`
+    ).run(ACCOUNT)
+
+    expect(feed.listPage('all', null, 50, undefined, true, ACCOUNT).entries).toEqual([])
+    expect(
+      feed.listPage('all', null, 50, undefined, true, 'acc2').entries.map((e) => e.video.videoId)
+    ).toEqual(['a1'])
+    // Combined view: still visible, since acc2 still subscribes.
+    expect(feed.listPage('all', null, 50).entries.map((e) => e.video.videoId)).toEqual(['a1'])
+  })
+
+  it('countUnread and isSubscribed respect the account filter / any-account default', () => {
+    subscribeAs('acc2', 'UCa')
+    addVideo('a1', '2026-07-08T10:00:00Z', 'UCa')
+    addVideo('a2', '2026-07-08T11:00:00Z', 'UCa')
+    states.setReadStatus('a1', 'read')
+
+    expect(feed.countUnread(true, ACCOUNT)).toBe(1)
+    expect(feed.countUnread(true, 'acc2')).toBe(1)
+    expect(feed.countUnread()).toBe(1) // same underlying video, not double-counted
+
+    expect(feed.isSubscribed('UCa')).toBe(true)
+    expect(feed.isSubscribed('UCnope')).toBe(false)
   })
 })
 

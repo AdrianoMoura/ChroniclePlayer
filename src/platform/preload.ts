@@ -18,15 +18,22 @@ import {
 const minimizeSupported = process.env['NIRI_SOCKET'] === undefined
 
 const api: ChronicleApi = {
-  getFeed: (view: FeedViewDto, cursor: FeedCursorDto | null, channelId?: string | null) =>
-    ipcRenderer.invoke(IpcChannel.getFeed, view, cursor, channelId ?? null),
-  getFeedMeta: () => ipcRenderer.invoke(IpcChannel.getFeedMeta),
-  getChannels: () => ipcRenderer.invoke(IpcChannel.getChannels),
-  refreshFeed: (channelId?: string | null) =>
-    ipcRenderer.invoke(IpcChannel.refreshFeed, channelId ?? null),
+  getFeed: (
+    view: FeedViewDto,
+    cursor: FeedCursorDto | null,
+    channelId?: string | null,
+    accountId?: string | null
+  ) => ipcRenderer.invoke(IpcChannel.getFeed, view, cursor, channelId ?? null, accountId ?? null),
+  getFeedMeta: (accountId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.getFeedMeta, accountId ?? null),
+  getChannels: (accountId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.getChannels, accountId ?? null),
+  refreshFeed: (channelId?: string | null, accountId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.refreshFeed, channelId ?? null, accountId ?? null),
   setReadStatus: (videoId: string, status: ReadStatusDto) =>
     ipcRenderer.invoke(IpcChannel.setReadStatus, videoId, status),
-  markAllRead: (channelId: string | null) => ipcRenderer.invoke(IpcChannel.markAllRead, channelId),
+  markAllRead: (channelId: string | null, accountId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.markAllRead, channelId, accountId ?? null),
   toggleFavorite: (videoId: string) => ipcRenderer.invoke(IpcChannel.toggleFavorite, videoId),
   toggleWatchLater: (videoId: string) => ipcRenderer.invoke(IpcChannel.toggleWatchLater, videoId),
   openInBrowser: (videoId: string) => ipcRenderer.invoke(IpcChannel.openInBrowser, videoId),
@@ -51,7 +58,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.unsubscribeChannel, channelId),
   toggleChannelFavorite: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.toggleChannelFavorite, channelId),
-  getPriorityFeed: () => ipcRenderer.invoke(IpcChannel.getPriorityFeed),
+  getPriorityFeed: (accountId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.getPriorityFeed, accountId ?? null),
   backfillChannelArchive: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.backfillChannelArchive, channelId),
   searchYouTube: (query: string) => ipcRenderer.invoke(IpcChannel.searchYouTube, query),
@@ -66,6 +74,11 @@ const api: ChronicleApi = {
   rateVideo: (videoId: string, rating: 'like' | 'none') =>
     ipcRenderer.invoke(IpcChannel.rateVideo, videoId, rating),
   getVideoRating: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideoRating, videoId),
+  listAccounts: () => ipcRenderer.invoke(IpcChannel.listAccounts),
+  startAddAccount: () => ipcRenderer.invoke(IpcChannel.startAddAccount),
+  connectAccount: (accountId: string) => ipcRenderer.invoke(IpcChannel.connectAccount, accountId),
+  removeAccount: (accountId: string) => ipcRenderer.invoke(IpcChannel.removeAccount, accountId),
+  syncAccountNow: (accountId: string) => ipcRenderer.invoke(IpcChannel.syncAccountNow, accountId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

@@ -71,8 +71,9 @@ export class SyncService {
   // channelId scopes the whole run to one channel (B-036): the subscription
   // re-list is skipped (nothing to gain re-listing every channel to refresh
   // one), and both channel discovery and Shorts confirmation are filtered to
-  // it.
-  async refresh(trigger: SyncTrigger, channelId?: string): Promise<SyncReport> {
+  // it. accountId (B-003) scopes which account's subscriptions/tokens this
+  // run uses — the repo is shared across accounts, so every call threads it.
+  async refresh(trigger: SyncTrigger, accountId: string, channelId?: string): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
     const quotaBefore = quota.spent
@@ -81,12 +82,13 @@ export class SyncService {
     let channelsPolled = 0
     let videosNew = 0
     let subscriptions: { added: number; removed: number } | null = null
-    const firstSync = repo.getMeta(META_SUBSCRIPTIONS_SYNCED_AT) === null
+    const firstSyncMetaKey = `${META_SUBSCRIPTIONS_SYNCED_AT}:${accountId}`
+    const firstSync = repo.getMeta(firstSyncMetaKey) === null
 
     try {
       if (channelId === undefined) {
         try {
-          subscriptions = await this.syncSubscriptions()
+          subscriptions = await this.syncSubscriptions(accountId)
         } catch (error) {
           if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
           else if (isDomainError(error, 'auth-expired')) throw error
@@ -94,7 +96,7 @@ export class SyncService {
         }
       }
 
-      const channels = repo.listSubscribedChannels(channelId)
+      const channels = repo.listSubscribedChannels(accountId, channelId)
       channelsPolled = channels.length
       let checked = 0
       this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
@@ -215,15 +217,17 @@ export class SyncService {
   // (subscriptions.list, 1 unit per 50) — cheap enough at any reasonable
   // refresh interval that gating it added friction for no real saving
   // (youtube-api.md §Subscription import & sync).
-  private async syncSubscriptions(): Promise<{ added: number; removed: number }> {
+  private async syncSubscriptions(
+    accountId: string
+  ): Promise<{ added: number; removed: number }> {
     const { repo, subscriptions, clock } = this.deps
     const now = clock.now()
 
     const current = await subscriptions.listSubscriptions()
-    const diff = repo.applySubscriptions(current, now.toISOString())
+    const diff = repo.applySubscriptions(accountId, current, now.toISOString())
 
     const missingPlaylist = repo
-      .listSubscribedChannels()
+      .listSubscribedChannels(accountId)
       .filter((channel) => channel.uploadsPlaylist === null)
       .map((channel) => channel.channelId)
     for (let i = 0; i < missingPlaylist.length; i += 50) {
@@ -232,7 +236,7 @@ export class SyncService {
         repo.setUploadsPlaylist(channelId, playlistId)
       }
     }
-    repo.setMeta(META_SUBSCRIPTIONS_SYNCED_AT, now.toISOString())
+    repo.setMeta(`${META_SUBSCRIPTIONS_SYNCED_AT}:${accountId}`, now.toISOString())
     return diff
   }
 
@@ -301,14 +305,17 @@ export class SyncService {
   // (or hits the page bound). Distinct from backfillGap: this is scroll-
   // triggered, resumable across calls (backfill_page_token), and has no
   // relation to routine sync's gap detection.
-  async backfillArchive(channelId: string): Promise<{ videosNew: number; exhausted: boolean }> {
+  async backfillArchive(
+    accountId: string,
+    channelId: string
+  ): Promise<{ videosNew: number; exhausted: boolean }> {
     const { repo, videoSource, clock } = this.deps
-    const channel = repo.listSubscribedChannels(channelId)[0]
+    const channel = repo.listSubscribedChannels(accountId, channelId)[0]
     if (channel === undefined || channel.uploadsPlaylist === null) {
       return { videosNew: 0, exhausted: true }
     }
 
-    const state = repo.getBackfillState(channelId)
+    const state = repo.getBackfillState(accountId, channelId)
     if (state.exhausted) return { videosNew: 0, exhausted: true }
 
     let pageToken = state.pageToken ?? undefined
@@ -327,7 +334,7 @@ export class SyncService {
       }
       if (newIds.length > 0) break
     }
-    repo.setBackfillState(channelId, pageToken ?? null, exhausted)
+    repo.setBackfillState(accountId, channelId, pageToken ?? null, exhausted)
 
     if (newIds.length > 0) {
       const now = clock.now().toISOString()

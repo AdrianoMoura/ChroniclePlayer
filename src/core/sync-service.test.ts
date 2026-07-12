@@ -38,11 +38,14 @@ class FakeRepo implements SyncRepository {
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
 
-  listSubscribedChannels(channelId?: string): ChannelSyncInfo[] {
+  // Single implicit account — SyncService just threads accountId through to
+  // the repo; real per-account isolation is a SQL-layer concern, tested in
+  // sync-repository.test.ts against SqliteSyncRepository.
+  listSubscribedChannels(_accountId: string, channelId?: string): ChannelSyncInfo[] {
     const all = [...this.channels.values()]
     return channelId === undefined ? all : all.filter((c) => c.channelId === channelId)
   }
-  applySubscriptions(channels: readonly Channel[]): { added: number; removed: number } {
+  applySubscriptions(_accountId: string, channels: readonly Channel[]): { added: number; removed: number } {
     this.appliedSubscriptions.push([...channels])
     for (const c of channels) {
       if (!this.channels.has(c.channelId)) {
@@ -84,12 +87,17 @@ class FakeRepo implements SyncRepository {
   markChannelUnavailable(channelId: string): void {
     this.unavailable.push(channelId)
   }
-  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean } {
+  getBackfillState(_accountId: string, channelId: string): { pageToken: string | null; exhausted: boolean } {
     return this.backfillState.get(channelId) ?? { pageToken: null, exhausted: false }
   }
-  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void {
+  setBackfillState(_accountId: string, channelId: string, pageToken: string | null, exhausted: boolean): void {
     this.backfillState.set(channelId, { pageToken, exhausted })
   }
+  listAccounts(): { accountId: string; label: string; addedAt: string }[] {
+    return []
+  }
+  addAccount(): void {}
+  removeAccount(): void {}
   shortCandidates(channelId?: string): string[] {
     if (channelId === undefined) return this.candidates
     return this.candidates.filter((id) => this.candidateChannel.get(id) === channelId)
@@ -204,27 +212,27 @@ describe('SyncService.refresh', () => {
   it('imports subscriptions on first refresh and fetches uploads playlists', async () => {
     const repo = new FakeRepo()
     const subs = fakeSubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }])
-    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('launch')
+    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('launch', 'acc1')
 
     expect(repo.appliedSubscriptions).toHaveLength(1)
     expect(repo.uploadsSet.get('UCa')).toBe('UUa')
-    expect(repo.getMeta('subscriptions_synced_at')).not.toBeNull()
+    expect(repo.getMeta('subscriptions_synced_at:acc1')).not.toBeNull()
     expect(report.subscriptions).toEqual({ added: 1, removed: 0 })
     expect(report.firstSync).toBe(true) // B-020: drives the connect-time auto-read
   })
 
   it('is not a firstSync once subscriptions have synced before (B-020)', async () => {
     const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // synced before
-    const report = await service(repo, fakeVideoSource()).refresh('timer')
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-10T12:00:00Z') // synced before
+    const report = await service(repo, fakeVideoSource()).refresh('timer', 'acc1')
     expect(report.firstSync).toBe(false)
   })
 
   it('re-lists subscriptions on every sync, regardless of trigger or recency (B-021 — no gate)', async () => {
     const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-11T11:59:00Z') // 1 minute ago
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-11T11:59:00Z') // 1 minute ago
     const subs = fakeSubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }])
-    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('timer')
+    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('timer', 'acc1')
     expect(repo.appliedSubscriptions).toHaveLength(1)
     expect(report.subscriptions).toEqual({ added: 1, removed: 0 })
   })
@@ -236,7 +244,7 @@ describe('SyncService.refresh', () => {
     const entries = [discovered('old-1'), ...Array.from({ length: 60 }, (_, i) => discovered(`new-${i}`))]
     const source = fakeVideoSource({ feeds: { UCa: { kind: 'ok', entries, etag: 'e1', lastModified: null } } })
 
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
 
     expect(report.videosNew).toBe(60)
     expect(repo.inserted).not.toContain('old-1')
@@ -257,7 +265,7 @@ describe('SyncService.refresh', () => {
       }
     })
 
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
 
     expect(repo.inserted).toContain('v1')
     expect(report.channelsFailed).toBe(1)
@@ -274,7 +282,7 @@ describe('SyncService.refresh', () => {
         }
       }
     })
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
     expect(repo.unavailable).toEqual(['UCgone'])
     expect(report.outcome).toBe('ok')
   })
@@ -283,7 +291,7 @@ describe('SyncService.refresh', () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa', { rssEtag: 'e1' })
     const source = fakeVideoSource({ feeds: { UCa: { kind: 'not-modified' } } })
-    const report = await service(repo, source).refresh('timer')
+    const report = await service(repo, source).refresh('timer', 'acc1')
     expect(repo.inserted).toEqual([])
     expect(repo.syncMeta.get('UCa')?.lastSyncedAt).toBe('2026-07-11T12:00:00.000Z')
     expect(report.outcome).toBe('ok')
@@ -304,7 +312,7 @@ describe('SyncService.refresh', () => {
       }
     })
 
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
 
     // 15 RSS + 3 gap videos; paging stops at the first known video.
     expect(report.videosNew).toBe(18)
@@ -319,7 +327,7 @@ describe('SyncService.refresh', () => {
       feeds: { UCa: { kind: 'ok', entries: [discovered('v1')], etag: null, lastModified: null } },
       uploads: { UUa: [['should-not-be-fetched']] }
     })
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
     expect(report.videosNew).toBe(1)
     expect(source.hydrateCalls[0]).toEqual(['v1'])
   })
@@ -333,7 +341,7 @@ describe('SyncService.refresh', () => {
         throw quotaExceeded()
       }
     })
-    const report = await service(repo, source).refresh('manual')
+    const report = await service(repo, source).refresh('manual', 'acc1')
     expect(repo.inserted).toEqual(['v1']) // discovery persisted; hydration queues until reset
     expect(report.outcome).toBe('quota')
   })
@@ -347,9 +355,9 @@ describe('SyncService.refresh', () => {
         return Promise.resolve(videoId === 'short-1')
       }
     }
-    await service(new FakeRepo(), fakeVideoSource(), { prober }).refresh('manual')
+    await service(new FakeRepo(), fakeVideoSource(), { prober }).refresh('manual', 'acc1')
     // run against the repo holding candidates
-    await service(repo, fakeVideoSource(), { prober }).refresh('manual')
+    await service(repo, fakeVideoSource(), { prober }).refresh('manual', 'acc1')
 
     expect(repo.shortStatuses.get('short-1')).toBe(true)
     expect(repo.shortStatuses.get('normal-1')).toBe(false)
@@ -371,7 +379,7 @@ describe('SyncService.refresh', () => {
     })
     const prober: ShortsProber = { isShort: () => Promise.resolve(true) }
 
-    const report = await service(repo, source, { prober }).refresh('manual', 'UCa')
+    const report = await service(repo, source, { prober }).refresh('manual', 'acc1', 'UCa')
 
     expect(report.channelsPolled).toBe(1)
     expect(repo.inserted).toEqual(['va'])
@@ -392,14 +400,14 @@ describe('SyncService.refresh', () => {
         }
       }
     })
-    await expect(service(repo, source).refresh('launch')).rejects.toMatchObject({ kind: 'auth-expired' })
+    await expect(service(repo, source).refresh('launch', 'acc1')).rejects.toMatchObject({ kind: 'auth-expired' })
     expect(repo.logs.at(-1)?.outcome).toBe('failed')
   })
 
   it('records quota accounting in the sync log and reports progress', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa')
-    repo.setMeta('subscriptions_synced_at', '2026-07-11T00:00:00Z')
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-11T00:00:00Z')
     const quota = new QuotaCounter()
     const source = fakeVideoSource({
       feeds: { UCa: { kind: 'ok', entries: [discovered('v1')], etag: null, lastModified: null } },
@@ -409,7 +417,7 @@ describe('SyncService.refresh', () => {
     const report = await service(repo, source, {
       quota,
       onProgress: (p) => progress.push([p.phase, p.checked])
-    }).refresh('manual')
+    }).refresh('manual', 'acc1')
 
     expect(report.quotaSpent).toBe(1) // one hydrate batch
     expect(repo.logs.at(-1)).toMatchObject({ quotaSpent: 1, outcome: 'ok', trigger: 'manual' })
@@ -422,11 +430,11 @@ describe('SyncService.refresh', () => {
   it('reports shorts-phase progress while confirming candidates', async () => {
     const repo = new FakeRepo()
     repo.candidates = ['a', 'b']
-    repo.setMeta('subscriptions_synced_at', '2026-07-11T00:00:00Z')
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-11T00:00:00Z')
     const progress: [string, number, number][] = []
     await service(repo, fakeVideoSource(), {
       onProgress: (p) => progress.push([p.phase, p.checked, p.total])
-    }).refresh('manual')
+    }).refresh('manual', 'acc1')
 
     expect(progress.filter(([phase]) => phase === 'shorts')).toEqual([
       ['shorts', 0, 2],
@@ -442,11 +450,11 @@ describe('SyncService.backfillArchive (B-002)', () => {
     repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
     const source = fakeVideoSource({ uploads: { UUa: [['v1', 'v2']] } }) // single page
 
-    const result = await service(repo, source).backfillArchive('UCa')
+    const result = await service(repo, source).backfillArchive('acc1', 'UCa')
 
     expect(result).toEqual({ videosNew: 2, exhausted: true })
     expect(repo.hydrated.sort()).toEqual(['v1', 'v2'])
-    expect(repo.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: true })
+    expect(repo.getBackfillState('acc1', 'UCa')).toEqual({ pageToken: null, exhausted: true })
   })
 
   it('resumes from the stored page token across calls', async () => {
@@ -454,11 +462,11 @@ describe('SyncService.backfillArchive (B-002)', () => {
     repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
     const source = fakeVideoSource({ uploads: { UUa: [['v1'], ['v2']] } })
 
-    const first = await service(repo, source).backfillArchive('UCa')
+    const first = await service(repo, source).backfillArchive('acc1', 'UCa')
     expect(first).toEqual({ videosNew: 1, exhausted: false })
     expect(repo.hydrated).toEqual(['v1'])
 
-    const second = await service(repo, source).backfillArchive('UCa')
+    const second = await service(repo, source).backfillArchive('acc1', 'UCa')
     expect(second).toEqual({ videosNew: 1, exhausted: true })
     expect(repo.hydrated).toEqual(['v1', 'v2'])
   })
@@ -473,7 +481,7 @@ describe('SyncService.backfillArchive (B-002)', () => {
     })
 
     // 'v3' is on the last page, so this also exhausts the playlist.
-    const result = await service(repo, source).backfillArchive('UCa')
+    const result = await service(repo, source).backfillArchive('acc1', 'UCa')
     expect(result).toEqual({ videosNew: 1, exhausted: true })
     expect(repo.hydrated).toEqual(['v3'])
   })
@@ -486,19 +494,19 @@ describe('SyncService.backfillArchive (B-002)', () => {
       uploads: { UUa: [['k1'], ['k2'], ['k3'], ['k4'], ['k5']] } // 5 pages, only 4 walked
     })
 
-    const result = await service(repo, source).backfillArchive('UCa')
+    const result = await service(repo, source).backfillArchive('acc1', 'UCa')
     expect(result).toEqual({ videosNew: 0, exhausted: false })
     // Continuation token points past the 4 pages walked, ready for next call.
-    expect(repo.getBackfillState('UCa').pageToken).toBe('4')
+    expect(repo.getBackfillState('acc1', 'UCa').pageToken).toBe('4')
   })
 
   it('returns exhausted without a network call once already marked exhausted', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
-    repo.setBackfillState('UCa', null, true)
+    repo.setBackfillState('acc1', 'UCa', null, true)
     const source = fakeVideoSource({ uploads: { UUa: [['v1']] } })
 
-    const result = await service(repo, source).backfillArchive('UCa')
+    const result = await service(repo, source).backfillArchive('acc1', 'UCa')
     expect(result).toEqual({ videosNew: 0, exhausted: true })
     expect(repo.hydrated).toEqual([])
   })
@@ -506,7 +514,7 @@ describe('SyncService.backfillArchive (B-002)', () => {
   it('returns exhausted when the channel has no uploads playlist yet', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa')
-    const result = await service(repo, fakeVideoSource()).backfillArchive('UCa')
+    const result = await service(repo, fakeVideoSource()).backfillArchive('acc1', 'UCa')
     expect(result).toEqual({ videosNew: 0, exhausted: true })
   })
 })

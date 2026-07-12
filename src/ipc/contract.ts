@@ -72,6 +72,20 @@ export interface ChannelDto {
   favorite: boolean
 }
 
+// B-003: a connected Google account. The OAuth client (one Google Cloud
+// project) is shared across every account — only the token/scope state is
+// per-account, hence no "unconfigured" state here (that's global, see
+// AuthStatusDto — still used for the first/primary account's own connect
+// flow, which is unchanged by multi-account: Settings keeps managing that
+// one account exactly as before; the sidebar Accounts section manages the
+// rest).
+export interface AccountDto {
+  accountId: string
+  label: string
+  connected: boolean
+  writeScopeGranted: boolean
+}
+
 // Expected failures cross the boundary as values, not thrown strings
 // (architecture.md: errors are values at boundaries).
 export type ResultDto<T> =
@@ -225,6 +239,11 @@ export const IpcChannel = {
   replyToComment: 'video:replyToComment',
   rateVideo: 'video:rate',
   getVideoRating: 'video:getRating',
+  listAccounts: 'accounts:list',
+  startAddAccount: 'accounts:startAdd',
+  connectAccount: 'accounts:connect',
+  removeAccount: 'accounts:remove',
+  syncAccountNow: 'accounts:syncNow',
   events: 'chronicle:event'
 } as const
 
@@ -233,20 +252,25 @@ export type WindowControlDto = 'minimize' | 'toggle-maximize' | 'close'
 
 // The surface preload exposes as window.chronicle.
 export interface ChronicleApi {
+  // accountId (B-003) narrows the combined feed to one account; omit/null
+  // for every connected account combined (the default).
   getFeed(
     view: FeedViewDto,
     cursor: FeedCursorDto | null,
-    channelId?: string | null
+    channelId?: string | null,
+    accountId?: string | null
   ): Promise<FeedSliceDto>
-  getFeedMeta(): Promise<FeedMetaDto>
-  getChannels(): Promise<ChannelDto[]>
+  getFeedMeta(accountId?: string | null): Promise<FeedMetaDto>
+  getChannels(accountId?: string | null): Promise<ChannelDto[]>
   // channelId scopes the sync to one channel (B-036) — omit/null for the
-  // full subscription refresh.
-  refreshFeed(channelId?: string | null): Promise<ResultDto<SyncReportDto>>
+  // full subscription refresh. accountId (B-003) scopes to one account;
+  // omit/null refreshes every connected account.
+  refreshFeed(channelId?: string | null, accountId?: string | null): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
   // Bulk unread → read over the feed or one channel (B-020, D-010
-  // semantics). Returns how many videos changed.
-  markAllRead(channelId: string | null): Promise<number>
+  // semantics). Returns how many videos changed. accountId (B-003) narrows
+  // to one account.
+  markAllRead(channelId: string | null, accountId?: string | null): Promise<number>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
@@ -291,7 +315,7 @@ export interface ChronicleApi {
   toggleChannelFavorite(channelId: string): Promise<boolean>
   // B-042: unread videos from favorited channels, capped and bucket-less
   // (D-039) — additive to, not a filter over, the main feed.
-  getPriorityFeed(): Promise<FeedVideoDto[]>
+  getPriorityFeed(accountId?: string | null): Promise<FeedVideoDto[]>
   // B-002: on-demand back-catalog fetch (uploads playlist paging + hydration,
   // ~2 units/call) — triggered when scrolling past the local archive in a
   // channel-filtered view. Resumable across calls; exhausted once the
@@ -319,5 +343,24 @@ export interface ChronicleApi {
   rateVideo(videoId: string, rating: 'like' | 'none'): Promise<ResultDto<void>>
   // videos.getRating (1 unit, readonly scope) — the user's own existing rating.
   getVideoRating(videoId: string): Promise<ResultDto<VideoRatingDto>>
+  // B-003: connected accounts, oldest first. The very first/primary account
+  // (Settings' Connection section, the first-run wizard) is unaffected by
+  // any of this — these five methods manage every *additional* account.
+  listAccounts(): Promise<AccountDto[]>
+  // Allocates a fresh account id for the "add another account" flow (no
+  // Google-console walkthrough — the same OAuth client is reused, the user
+  // just needs to add the new email as a Test user, then connect) and
+  // reports whether this is the very first account ever (drives whether the
+  // UI shows the full wizard or the shortened reminder+Connect flow).
+  startAddAccount(): Promise<{ accountId: string; isFirstAccount: boolean }>
+  // Runs the connect handshake (system browser + loopback) for the given
+  // account id — freshly allocated (startAddAccount) or an existing one
+  // being reconnected. Persists the account on success.
+  connectAccount(accountId: string): Promise<ResultDto<AccountDto>>
+  // Revokes the token best-effort and removes the account's local
+  // subscriptions (account_channels) — channels/videos/local states from
+  // other accounts or externally opened videos are untouched.
+  removeAccount(accountId: string): Promise<void>
+  syncAccountNow(accountId: string): Promise<ResultDto<SyncReportDto>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

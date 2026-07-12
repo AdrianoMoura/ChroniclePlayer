@@ -38,36 +38,50 @@ export interface FeedRepository {
   // channelId narrows the feed to one channel (ui.md sidebar channel list).
   // showShorts (B-028, default true): false applies the same is_short
   // exclusion the feed used unconditionally before D-028 was reversed.
+  // accountId (B-003) narrows feed membership to one account; undefined
+  // means "any connected account" (the combined-feed default).
   listPage(
     view: FeedView,
     cursor: FeedCursor | null,
     limit: number,
     channelId?: string,
-    showShorts?: boolean
+    showShorts?: boolean,
+    accountId?: string
   ): FeedPage
-  // Watch Later is an ordered queue, not a chronological view (feed.md).
+  // Watch Later is an ordered queue, not a chronological view (feed.md) —
+  // account-agnostic like Favorites, since it also reaches externally
+  // opened videos (D-029) with no subscribing account at all.
   listWatchLaterQueue(showShorts?: boolean): FeedEntry[]
   // Queue size for the sidebar badge (B-025) — same membership as the queue.
   countWatchLater(showShorts?: boolean): number
-  countUnread(showShorts?: boolean): number
+  countUnread(showShorts?: boolean, accountId?: string): number
   // Unread within the recent window (feeds the caught-up state).
-  countUnreadSince(publishedAtIso: string, showShorts?: boolean): number
+  countUnreadSince(publishedAtIso: string, showShorts?: boolean, accountId?: string): number
   // Sidebar list (B-008): freshest channel first, with its unread count.
-  listFollowedChannels(showShorts?: boolean): FollowedChannel[]
-  // B-042: toggles a channel's priority-feed membership; returns the new state.
-  toggleChannelFavorite(channelId: string): boolean
+  listFollowedChannels(showShorts?: boolean, accountId?: string): FollowedChannel[]
+  // B-042: toggles a channel's priority-feed membership for one account;
+  // returns the new state.
+  toggleChannelFavorite(accountId: string, channelId: string): boolean
   // B-042: unread videos from favorited channels, most recent first — a
   // separate capped list (like listWatchLaterQueue), not merged into the
   // main keyset-paginated feed (D-039: also stays in its normal bucket).
-  listPriorityVideos(limit: number, showShorts?: boolean): FeedEntry[]
+  listPriorityVideos(limit: number, showShorts?: boolean, accountId?: string): FeedEntry[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
   // Bulk unread → read (B-020, D-010 semantics — manual and automatic
   // marking are indistinguishable). channelId scopes to one channel, null
   // is the whole feed. beforeIso, when set, only touches videos published
   // strictly before it (the connect-time backlog auto-read). Returns the
-  // number of videos changed.
-  markManyRead(channelId: string | null, beforeIso: string | null, now: string): number
+  // number of videos changed. accountId (B-003) narrows to one account.
+  markManyRead(
+    channelId: string | null,
+    beforeIso: string | null,
+    now: string,
+    accountId?: string
+  ): number
+  // B-009: cross-references a channel id against local state (subscribed by
+  // any connected account) — shows "Subscribed" instead of a live button.
+  isSubscribed(channelId: string): boolean
 }
 
 export interface StateRepository {
@@ -190,13 +204,30 @@ export interface SyncLogEntry {
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
 }
 
+// B-003: an account's local record — its own YouTube subscriptions/tokens,
+// but sharing the one Google Cloud project/OAuth client and quota pool.
+export interface Account {
+  accountId: string
+  label: string
+  addedAt: string
+}
+
 // Storage surface the sync engine needs (implemented by adapters/storage).
 export interface SyncRepository {
   // channelId scopes to a single channel (B-036: channel-scoped refresh).
-  listSubscribedChannels(channelId?: string): ChannelSyncInfo[]
-  // Diff-apply a fresh subscription list: upsert current, mark missing ones
-  // unsubscribed — videos and states are retained (youtube-api.md).
-  applySubscriptions(channels: readonly Channel[], now: string): { added: number; removed: number }
+  // B-003: accountId scopes to one account's subscriptions — channels
+  // themselves (facts: title, uploads playlist, RSS state) are shared across
+  // every account that follows them.
+  listSubscribedChannels(accountId: string, channelId?: string): ChannelSyncInfo[]
+  // Diff-apply a fresh subscription list for one account: upsert current,
+  // mark missing ones unsubscribed *for that account* — videos and states
+  // are retained (youtube-api.md).
+  applySubscriptions(
+    accountId: string,
+    channels: readonly Channel[],
+    now: string
+  ): { added: number; removed: number }
+  // Channel fact, account-agnostic (B-003) — set once, shared.
   setUploadsPlaylist(channelId: string, playlistId: string): void
   knownVideoIds(videoIds: readonly string[]): Set<string>
   insertDiscoveredVideos(channelId: string, videos: readonly DiscoveredVideo[], now: string): void
@@ -208,8 +239,21 @@ export interface SyncRepository {
   markChannelUnavailable(channelId: string): void
   // B-002: continuation state for on-demand back-catalog backfill, distinct
   // from the routine-sync gap-backfill path (which doesn't persist a cursor).
-  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean }
-  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void
+  // B-003: per (account, channel) — each account walks its own cursor.
+  getBackfillState(
+    accountId: string,
+    channelId: string
+  ): { pageToken: string | null; exhausted: boolean }
+  setBackfillState(
+    accountId: string,
+    channelId: string,
+    pageToken: string | null,
+    exhausted: boolean
+  ): void
+  // B-003: connected accounts.
+  listAccounts(): Account[]
+  addAccount(accountId: string, label: string, now: string): void
+  removeAccount(accountId: string): void
   // duration ≤ 180 s and is_short IS NULL (feed.md §Shorts detection).
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[]

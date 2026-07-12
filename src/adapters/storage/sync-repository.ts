@@ -20,18 +20,24 @@ function truncate(text: string | null): string | null {
 export class SqliteSyncRepository implements SyncRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  listSubscribedChannels(channelId?: string): ChannelSyncInfo[] {
+  // channels' facts (title, uploads playlist, RSS state) are account-agnostic
+  // and shared across every account that follows it (B-003) — only the
+  // account_channels join says whether *this* account currently subscribes.
+  listSubscribedChannels(accountId: string, channelId?: string): ChannelSyncInfo[] {
     const rows = (
       channelId === undefined
         ? this.db.prepare(
-            `SELECT channel_id, title, uploads_playlist, rss_etag, rss_last_modified, last_synced_at
-             FROM channels WHERE subscribed = 1 AND available = 1`
+            `SELECT c.channel_id, c.title, c.uploads_playlist, c.rss_etag, c.rss_last_modified, c.last_synced_at
+             FROM channels c JOIN account_channels ac ON ac.channel_id = c.channel_id
+             WHERE ac.account_id = :accountId AND ac.subscribed = 1 AND c.available = 1`
           )
         : this.db.prepare(
-            `SELECT channel_id, title, uploads_playlist, rss_etag, rss_last_modified, last_synced_at
-             FROM channels WHERE subscribed = 1 AND available = 1 AND channel_id = ?`
+            `SELECT c.channel_id, c.title, c.uploads_playlist, c.rss_etag, c.rss_last_modified, c.last_synced_at
+             FROM channels c JOIN account_channels ac ON ac.channel_id = c.channel_id
+             WHERE ac.account_id = :accountId AND ac.subscribed = 1 AND c.available = 1
+               AND c.channel_id = :channelId`
           )
-    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as {
+    ).all({ accountId, ...(channelId === undefined ? {} : { channelId }) }) as unknown as {
       channel_id: string
       title: string
       uploads_playlist: string | null
@@ -49,14 +55,21 @@ export class SqliteSyncRepository implements SyncRepository {
     }))
   }
 
-  // Diff-apply the fresh list: removed channels are marked unsubscribed but
-  // videos and states are retained (youtube-api.md §Subscription import).
-  applySubscriptions(channels: readonly Channel[], now: string): { added: number; removed: number } {
+  // Diff-apply the fresh list for one account: removed channels are marked
+  // unsubscribed (for that account only) but videos and states are retained
+  // (youtube-api.md §Subscription import). Channel facts (title/thumbnail)
+  // are upserted independently of any account — B-003: shared/deduped when
+  // more than one account follows the same channel.
+  applySubscriptions(
+    accountId: string,
+    channels: readonly Channel[],
+    now: string
+  ): { added: number; removed: number } {
     const existing = new Set(
       (
-        this.db.prepare(`SELECT channel_id FROM channels WHERE subscribed = 1`).all() as unknown as {
-          channel_id: string
-        }[]
+        this.db
+          .prepare(`SELECT channel_id FROM account_channels WHERE account_id = ? AND subscribed = 1`)
+          .all(accountId) as unknown as { channel_id: string }[]
       ).map((row) => row.channel_id)
     )
     const currentIds = new Set(channels.map((channel) => channel.channelId))
@@ -64,28 +77,34 @@ export class SqliteSyncRepository implements SyncRepository {
     let added = 0
     this.db.exec('BEGIN')
     try {
-      const upsert = this.db.prepare(
-        `INSERT INTO channels (channel_id, title, thumbnail_url, subscription_id, subscribed, added_at)
-         VALUES (:id, :title, :thumb, :subId, 1, :now)
-         ON CONFLICT(channel_id) DO UPDATE SET
-           title = :title, thumbnail_url = :thumb, subscription_id = :subId, subscribed = 1`
+      const upsertChannel = this.db.prepare(
+        `INSERT INTO channels (channel_id, title, thumbnail_url, added_at)
+         VALUES (:id, :title, :thumb, :now)
+         ON CONFLICT(channel_id) DO UPDATE SET title = :title, thumbnail_url = :thumb`
+      )
+      const upsertMembership = this.db.prepare(
+        `INSERT INTO account_channels (account_id, channel_id, subscription_id, subscribed, added_at)
+         VALUES (:accountId, :channelId, :subId, 1, :now)
+         ON CONFLICT(account_id, channel_id) DO UPDATE SET subscription_id = :subId, subscribed = 1`
       )
       for (const channel of channels) {
         if (!existing.has(channel.channelId)) added += 1
-        upsert.run({
-          id: channel.channelId,
-          title: channel.title,
-          thumb: channel.thumbnailUrl,
+        upsertChannel.run({ id: channel.channelId, title: channel.title, thumb: channel.thumbnailUrl, now })
+        upsertMembership.run({
+          accountId,
+          channelId: channel.channelId,
           subId: channel.subscriptionId ?? null,
           now
         })
       }
 
       let removed = 0
-      const unsubscribe = this.db.prepare(`UPDATE channels SET subscribed = 0 WHERE channel_id = ?`)
+      const unsubscribe = this.db.prepare(
+        `UPDATE account_channels SET subscribed = 0 WHERE account_id = ? AND channel_id = ?`
+      )
       for (const channelId of existing) {
         if (!currentIds.has(channelId)) {
-          unsubscribe.run(channelId)
+          unsubscribe.run(accountId, channelId)
           removed += 1
         }
       }
@@ -102,38 +121,77 @@ export class SqliteSyncRepository implements SyncRepository {
   // Same soft-delete as applySubscriptions' diff removal: videos/state stay.
   // B-009: single-channel subscribe (user-initiated, via search/discovery) —
   // the same upsert shape as applySubscriptions' bulk diff-apply, for one row.
-  upsertSubscribedChannel(channel: Channel, now: string): void {
+  upsertSubscribedChannel(accountId: string, channel: Channel, now: string): void {
     this.db
       .prepare(
-        `INSERT INTO channels (channel_id, title, thumbnail_url, subscription_id, subscribed, added_at)
-         VALUES (:id, :title, :thumb, :subId, 1, :now)
-         ON CONFLICT(channel_id) DO UPDATE SET
-           title = :title, thumbnail_url = :thumb, subscription_id = :subId, subscribed = 1`
+        `INSERT INTO channels (channel_id, title, thumbnail_url, added_at)
+         VALUES (:id, :title, :thumb, :now)
+         ON CONFLICT(channel_id) DO UPDATE SET title = :title, thumbnail_url = :thumb`
       )
-      .run({
-        id: channel.channelId,
-        title: channel.title,
-        thumb: channel.thumbnailUrl,
-        subId: channel.subscriptionId ?? null,
-        now
-      })
+      .run({ id: channel.channelId, title: channel.title, thumb: channel.thumbnailUrl, now })
+    this.db
+      .prepare(
+        `INSERT INTO account_channels (account_id, channel_id, subscription_id, subscribed, added_at)
+         VALUES (:accountId, :channelId, :subId, 1, :now)
+         ON CONFLICT(account_id, channel_id) DO UPDATE SET subscription_id = :subId, subscribed = 1`
+      )
+      .run({ accountId, channelId: channel.channelId, subId: channel.subscriptionId ?? null, now })
   }
 
-  getSubscriptionId(channelId: string): string | null {
+  getSubscriptionId(accountId: string, channelId: string): string | null {
     const row = this.db
-      .prepare(`SELECT subscription_id FROM channels WHERE channel_id = ?`)
-      .get(channelId) as { subscription_id: string | null } | undefined
+      .prepare(
+        `SELECT subscription_id FROM account_channels WHERE account_id = ? AND channel_id = ?`
+      )
+      .get(accountId, channelId) as { subscription_id: string | null } | undefined
     return row?.subscription_id ?? null
   }
 
-  markUnsubscribed(channelId: string): void {
-    this.db.prepare(`UPDATE channels SET subscribed = 0 WHERE channel_id = ?`).run(channelId)
+  markUnsubscribed(accountId: string, channelId: string): void {
+    this.db
+      .prepare(`UPDATE account_channels SET subscribed = 0 WHERE account_id = ? AND channel_id = ?`)
+      .run(accountId, channelId)
   }
 
+  // Channel fact, account-agnostic — set once, read by every account that
+  // follows the channel (B-003).
   setUploadsPlaylist(channelId: string, playlistId: string): void {
     this.db
       .prepare(`UPDATE channels SET uploads_playlist = ? WHERE channel_id = ?`)
       .run(playlistId, channelId)
+  }
+
+  // B-003: which connected account(s) currently subscribe to this channel —
+  // usually one, but two accounts can both follow the same channel.
+  listAccountIdsForChannel(channelId: string): string[] {
+    const rows = this.db
+      .prepare(`SELECT account_id FROM account_channels WHERE channel_id = ? AND subscribed = 1`)
+      .all(channelId) as unknown as { account_id: string }[]
+    return rows.map((row) => row.account_id)
+  }
+
+  // B-003: connected Google accounts, oldest first.
+  listAccounts(): { accountId: string; label: string; addedAt: string }[] {
+    const rows = this.db
+      .prepare(`SELECT account_id, label, added_at FROM accounts ORDER BY added_at ASC`)
+      .all() as unknown as { account_id: string; label: string; added_at: string }[]
+    return rows.map((row) => ({ accountId: row.account_id, label: row.label, addedAt: row.added_at }))
+  }
+
+  addAccount(accountId: string, label: string, now: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO accounts (account_id, label, added_at) VALUES (?, ?, ?)
+         ON CONFLICT(account_id) DO UPDATE SET label = excluded.label`
+      )
+      .run(accountId, label, now)
+  }
+
+  // ON DELETE CASCADE drops this account's account_channels rows too;
+  // channels/videos/video_state (shared, or account-agnostic per D-003) are
+  // untouched — only membership disappears.
+  removeAccount(accountId: string): void {
+    this.db.prepare(`DELETE FROM accounts WHERE account_id = ?`).run(accountId)
   }
 
   knownVideoIds(videoIds: readonly string[]): Set<string> {
@@ -204,13 +262,14 @@ export class SqliteSyncRepository implements SyncRepository {
     }
   }
 
-  // D-029: an externally opened video gets a channel row with subscribed=0
-  // (never feed membership) and a fully hydrated video row.
+  // D-029: an externally opened video gets a bare channel-facts row (no
+  // account_channels membership at all — that absence, not a flag, is what
+  // keeps it out of every feed view, B-003) and a fully hydrated video row.
   upsertExternalVideo(video: HydratedVideo, now: string): void {
     this.db
       .prepare(
-        `INSERT INTO channels (channel_id, title, subscribed, added_at)
-         VALUES (:id, :title, 0, :now)
+        `INSERT INTO channels (channel_id, title, added_at)
+         VALUES (:id, :title, :now)
          ON CONFLICT(channel_id) DO NOTHING`
       )
       .run({ id: video.channelId, title: video.channelTitle || video.channelId, now })
@@ -246,10 +305,16 @@ export class SqliteSyncRepository implements SyncRepository {
     this.db.prepare(`UPDATE channels SET available = 0 WHERE channel_id = ?`).run(channelId)
   }
 
-  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean } {
+  getBackfillState(
+    accountId: string,
+    channelId: string
+  ): { pageToken: string | null; exhausted: boolean } {
     const row = this.db
-      .prepare(`SELECT backfill_page_token, backfill_exhausted FROM channels WHERE channel_id = ?`)
-      .get(channelId) as
+      .prepare(
+        `SELECT backfill_page_token, backfill_exhausted FROM account_channels
+         WHERE account_id = ? AND channel_id = ?`
+      )
+      .get(accountId, channelId) as
       | { backfill_page_token: string | null; backfill_exhausted: number | bigint }
       | undefined
     return {
@@ -258,12 +323,18 @@ export class SqliteSyncRepository implements SyncRepository {
     }
   }
 
-  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void {
+  setBackfillState(
+    accountId: string,
+    channelId: string,
+    pageToken: string | null,
+    exhausted: boolean
+  ): void {
     this.db
       .prepare(
-        `UPDATE channels SET backfill_page_token = ?, backfill_exhausted = ? WHERE channel_id = ?`
+        `UPDATE account_channels SET backfill_page_token = ?, backfill_exhausted = ?
+         WHERE account_id = ? AND channel_id = ?`
       )
-      .run(pageToken, exhausted ? 1 : 0, channelId)
+      .run(pageToken, exhausted ? 1 : 0, accountId, channelId)
   }
 
   // D-028 candidates: short-duration videos whose verdict is still unknown.
@@ -330,8 +401,19 @@ export class SqliteSyncRepository implements SyncRepository {
       updatedAt: string
     }[]
   } {
+    // subscribed = followed by at least one connected account (B-003) —
+    // export summarizes "do you currently follow this," not per-account detail.
     const channels = (
-      this.db.prepare(`SELECT channel_id, title, subscribed FROM channels ORDER BY channel_id`).all() as unknown as {
+      this.db
+        .prepare(
+          `SELECT c.channel_id, c.title,
+                  EXISTS(
+                    SELECT 1 FROM account_channels ac
+                    WHERE ac.channel_id = c.channel_id AND ac.subscribed = 1
+                  ) AS subscribed
+           FROM channels c ORDER BY c.channel_id`
+        )
+        .all() as unknown as {
         channel_id: string
         title: string
         subscribed: number | bigint

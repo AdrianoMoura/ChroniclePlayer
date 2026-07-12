@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -13,7 +14,7 @@ import { SqliteSyncRepository } from '../adapters/storage/sync-repository'
 import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-secret-store'
 import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
 import { GoogleOAuth } from '../adapters/oauth/google-oauth'
-import { AuthFlow, GoogleAuthProvider } from '../adapters/oauth/auth'
+import { AuthFlow, DEFAULT_ACCOUNT_ID, GoogleAuthProvider } from '../adapters/oauth/auth'
 import { YouTubeApiClient, type Comment, type SearchResult } from '../adapters/youtube/api-client'
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
@@ -26,6 +27,7 @@ import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-ser
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
+  AccountDto,
   AuthStatusDto,
   ChronicleEventDto,
   CommentDto,
@@ -136,6 +138,13 @@ function parseChannelId(value: unknown): string | undefined {
 function parseChannelIdRequired(value: unknown): string {
   if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
   throw new Error('invalid channel id')
+}
+
+// B-003: same shape as parseChannelId — accountId narrows the combined feed.
+function parseAccountId(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'string' && value.length > 0 && value.length <= 128) return value
+  throw new Error('invalid account id')
 }
 
 function parseCursor(value: unknown): FeedCursorDto | null {
@@ -250,25 +259,79 @@ void app.whenReady().then(() => {
 
   const secrets = chooseSecretStore(join(dataDir, 'secrets.json'))
   const oauth = new GoogleOAuth(fetch)
-  const authProvider = new GoogleAuthProvider(secrets, oauth, clock)
-  const authFlow = new AuthFlow(secrets, oauth, (url) => shell.openExternal(url))
+  // B-003: one Google Cloud project/OAuth client and one quota pool shared
+  // by every account (that's the whole point — additional accounts skip the
+  // console walkthrough and just add themselves as a Test user on the same
+  // project); only tokens/scopes are per-account.
   const quota = new QuotaCounter()
-  const apiClient = new YouTubeApiClient(authProvider, fetch, quota)
-  const syncService = new SyncService({
-    subscriptions: apiClient,
-    videoSource: new HybridVideoSource(new YouTubeRssClient(fetch), apiClient),
-    repo: syncRepository,
-    shortsProber: new HeadShortsProber(fetch),
-    quota,
-    clock,
-    onProgress: (progress) =>
-      broadcast({
-        type: 'refresh:progress',
-        phase: progress.phase,
-        checked: progress.checked,
-        total: progress.total
-      })
-  })
+
+  interface AccountStack {
+    accountId: string
+    label: string
+    authFlow: AuthFlow
+    authProvider: GoogleAuthProvider
+    apiClient: YouTubeApiClient
+    syncService: SyncService
+  }
+
+  const accountStacks = new Map<string, AccountStack>()
+
+  function buildAccountStack(accountId: string, label: string): AccountStack {
+    const authFlow = new AuthFlow(secrets, oauth, (url) => shell.openExternal(url), accountId)
+    const authProvider = new GoogleAuthProvider(secrets, oauth, clock, accountId)
+    const apiClient = new YouTubeApiClient(authProvider, fetch, quota)
+    const syncService = new SyncService({
+      subscriptions: apiClient,
+      videoSource: new HybridVideoSource(new YouTubeRssClient(fetch), apiClient),
+      repo: syncRepository,
+      shortsProber: new HeadShortsProber(fetch),
+      quota,
+      clock,
+      onProgress: (progress) =>
+        broadcast({
+          type: 'refresh:progress',
+          phase: progress.phase,
+          checked: progress.checked,
+          total: progress.total
+        })
+    })
+    return { accountId, label, authFlow, authProvider, apiClient, syncService }
+  }
+
+  // Load every already-persisted account (from a prior session, or the
+  // schema-v6 migration's backfill of a pre-existing single-account install).
+  for (const account of syncRepository.listAccounts()) {
+    accountStacks.set(account.accountId, buildAccountStack(account.accountId, account.label))
+  }
+  // The first-run wizard and Settings' Connection section predate
+  // multi-account and are unaffected by it: they always operate on this one
+  // "primary" account, lazily created in-memory here if this is a genuinely
+  // fresh install (not yet persisted — that happens on first successful
+  // connect, exactly like the old single-account model always did).
+  if (!accountStacks.has(DEFAULT_ACCOUNT_ID)) {
+    accountStacks.set(DEFAULT_ACCOUNT_ID, buildAccountStack(DEFAULT_ACCOUNT_ID, 'My account'))
+  }
+  function primaryAccountId(): string {
+    return accountStacks.keys().next().value ?? DEFAULT_ACCOUNT_ID
+  }
+  // Pending accounts from startAddAccount() that haven't connected yet —
+  // never persisted (no accounts row, no entry in accountStacks) until
+  // connectAccount() succeeds, so an abandoned "add account" flow leaves no
+  // trace beyond the shared oauth-client secret (already the case pre-B-003).
+  const pendingAccountStacks = new Map<string, AccountStack>()
+
+  function toAccountDto(stack: AccountStack): AccountDto {
+    return {
+      accountId: stack.accountId,
+      label: stack.label,
+      connected: stack.authFlow.hasRefreshToken(),
+      writeScopeGranted: stack.authFlow.hasWriteScope()
+    }
+  }
+
+  const authFlow = accountStacks.get(primaryAccountId())!.authFlow
+  const authProvider = accountStacks.get(primaryAccountId())!.authProvider
+  const apiClient = accountStacks.get(primaryAccountId())!.apiClient
 
   if (!app.isPackaged && process.env['CHRONICLE_FIXTURES'] === '1') {
     seedDevFixtures(catalogRepository, stateRepository, clock, syncRepository)
@@ -296,80 +359,161 @@ void app.whenReady().then(() => {
     return { state, secureStorage: secrets.isSecure(), writeScopeGranted: authFlow.hasWriteScope() }
   }
 
+  // B-003: merges one SyncReport per refreshed account into a single DTO —
+  // sums counters, keeps the worst outcome, ORs firstSync (any account's
+  // first-ever sync still triggers the connect-time backlog auto-read).
+  function mergeReports(reports: readonly SyncReport[]): SyncReport {
+    const outcomeRank: Record<SyncReport['outcome'], number> = { ok: 0, partial: 1, quota: 2, failed: 3 }
+    return reports.reduce((acc, r) => ({
+      trigger: r.trigger,
+      startedAt: acc.startedAt < r.startedAt ? acc.startedAt : r.startedAt,
+      finishedAt: acc.finishedAt > r.finishedAt ? acc.finishedAt : r.finishedAt,
+      channelsPolled: acc.channelsPolled + r.channelsPolled,
+      channelsFailed: acc.channelsFailed + r.channelsFailed,
+      videosNew: acc.videosNew + r.videosNew,
+      quotaSpent: acc.quotaSpent + r.quotaSpent,
+      outcome: outcomeRank[r.outcome] > outcomeRank[acc.outcome] ? r.outcome : acc.outcome,
+      subscriptions:
+        acc.subscriptions === null && r.subscriptions === null
+          ? null
+          : {
+              added: (acc.subscriptions?.added ?? 0) + (r.subscriptions?.added ?? 0),
+              removed: (acc.subscriptions?.removed ?? 0) + (r.subscriptions?.removed ?? 0)
+            },
+      firstSync: acc.firstSync || r.firstSync
+    }))
+  }
+
   let refreshing = false
+  // accountId (B-003) targets one account explicitly (e.g. sidebar "Sync
+  // now"); channelId resolves to whichever account(s) actually subscribe to
+  // it (usually one); neither means "every connected account" — the
+  // combined-feed default, and what launch/timer refreshes always mean.
   async function runRefresh(
     trigger: SyncTrigger,
+    accountId?: string,
     channelId?: string
   ): Promise<ResultDto<SyncReportDto>> {
     if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
-    if (!authFlow.hasRefreshToken()) {
+    const targetIds =
+      channelId !== undefined
+        ? syncRepository.listAccountIdsForChannel(channelId)
+        : accountId !== undefined
+          ? [accountId]
+          : [...accountStacks.keys()]
+    const targets = targetIds
+      .map((id) => accountStacks.get(id))
+      .filter((stack): stack is AccountStack => stack !== undefined && stack.authFlow.hasRefreshToken())
+    if (targets.length === 0) {
       return { ok: false, errorKind: 'auth-expired', message: 'not connected to Google' }
     }
+
     refreshing = true
     broadcast({ type: 'refresh:started', trigger })
-    try {
-      const report = await syncService.refresh(trigger, channelId)
-      // B-020: on an account's very first subscription sync, videos already
-      // published before today start read — the user opens onto "what's
-      // new", not an unclearable backlog. Runs before refresh:done so the
-      // event's unread count already reflects it.
-      if (report.firstSync) {
-        const now = clock.now()
-        feedRepository.markManyRead(null, startOfToday(now).toISOString(), now.toISOString())
+    const reports: SyncReport[] = []
+    let anyAuthExpired = false
+    let hardFailure: { kind: string; message: string } | null = null
+    for (const stack of targets) {
+      try {
+        const report = await stack.syncService.refresh(trigger, stack.accountId, channelId)
+        reports.push(report)
+        // B-020: on an account's very first subscription sync, videos already
+        // published before today start read — the user opens onto "what's
+        // new", not an unclearable backlog. Runs before refresh:done so the
+        // event's unread count already reflects it.
+        if (report.firstSync) {
+          const now = clock.now()
+          feedRepository.markManyRead(
+            null,
+            startOfToday(now).toISOString(),
+            now.toISOString(),
+            stack.accountId
+          )
+        }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          stack.authProvider.invalidate()
+          anyAuthExpired = true
+        } else {
+          hardFailure = {
+            kind: isDomainError(error) ? error.kind : 'internal',
+            message: String((error as Error).message ?? error)
+          }
+        }
       }
-      const dto = toReportDto(report)
-      broadcast({ type: 'refresh:done', report: dto })
-      if (report.outcome === 'quota') broadcast({ type: 'quota:exceeded' })
-      return { ok: true, value: dto }
-    } catch (error) {
-      if (isDomainError(error, 'auth-expired')) {
-        authProvider.invalidate()
+    }
+    refreshing = false
+
+    if (reports.length === 0) {
+      if (anyAuthExpired) {
         broadcast({ type: 'auth:required' })
-        return { ok: false, errorKind: 'auth-expired', message: error.message }
+        return { ok: false, errorKind: 'auth-expired', message: 'authorization expired or revoked' }
       }
-      const kind = isDomainError(error) ? error.kind : 'internal'
-      const message = String((error as Error).message ?? error)
+      const message = hardFailure?.message ?? 'refresh failed'
+      const kind = hardFailure?.kind ?? 'internal'
       // B-023: every refresh:started must be paired with a terminal event,
       // or a renderer that saw "started" spins its refresh indicator
       // forever with no way to recover short of a manual reload.
       broadcast({ type: 'refresh:failed', errorKind: kind, message })
       return { ok: false, errorKind: kind, message }
-    } finally {
-      refreshing = false
     }
+
+    if (anyAuthExpired) broadcast({ type: 'auth:required' })
+    const merged = mergeReports(reports)
+    const dto = toReportDto(merged)
+    broadcast({ type: 'refresh:done', report: dto })
+    if (merged.outcome === 'quota') broadcast({ type: 'quota:exceeded' })
+    return { ok: true, value: dto }
   }
 
   // Startup connection validation (D-012): a cheap token refresh on every
-  // open; invalid_grant surfaces as the reconnect banner, never a blocker.
+  // open, for every connected account; invalid_grant surfaces as the
+  // reconnect banner, never a blocker.
   async function validateConnectionAndCatchUp(): Promise<void> {
-    if (!authFlow.hasRefreshToken()) return
-    try {
-      await authProvider.getAccessToken()
-    } catch (error) {
-      if (isDomainError(error, 'auth-expired')) {
-        broadcast({ type: 'auth:required' })
-        return
+    const connected = [...accountStacks.values()].filter((stack) => stack.authFlow.hasRefreshToken())
+    if (connected.length === 0) return
+    let anyReachable = false
+    for (const stack of connected) {
+      try {
+        await stack.authProvider.getAccessToken()
+        anyReachable = true
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) broadcast({ type: 'auth:required' })
+        // offline etc. — local browsing is unaffected either way
       }
-      return // offline etc. — local browsing is unaffected
     }
+    if (!anyReachable) return
     // Every launch syncs (B-011) — RSS conditional GETs make a no-change
     // pass cost ~0 quota, so no staleness guard is needed.
     void runRefresh('launch')
   }
 
-  ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown, channelId: unknown) =>
-    toSliceDto(
-      feedService.getSlice(
-        parseView(view),
-        parseCursor(cursor),
-        undefined,
-        parseChannelId(channelId),
-        settings.showShorts
+  // B-003: an owning-account lookup for actions that operate on one
+  // account's relationship to a channel (favorite/unsubscribe/backfill) —
+  // the UI only ever passes a channelId, never an accountId, for these.
+  // Usually exactly one account owns a channel; if more than one does, the
+  // action applies to the first (a deliberate simplification — see bugs.md).
+  function resolveOwningAccountId(channelId: string): string | undefined {
+    return syncRepository.listAccountIdsForChannel(channelId)[0]
+  }
+
+  ipcMain.handle(
+    IpcChannel.getFeed,
+    (_event, view: unknown, cursor: unknown, channelId: unknown, accountId: unknown) =>
+      toSliceDto(
+        feedService.getSlice(
+          parseView(view),
+          parseCursor(cursor),
+          undefined,
+          parseChannelId(channelId),
+          settings.showShorts,
+          parseAccountId(accountId)
+        )
       )
-    )
   )
-  ipcMain.handle(IpcChannel.getFeedMeta, () => {
-    const slice = feedService.getSlice('unread', null, 1, undefined, settings.showShorts)
+  ipcMain.handle(IpcChannel.getFeedMeta, (_event, accountId: unknown) => {
+    const id = parseAccountId(accountId)
+    const slice = feedService.getSlice('unread', null, 1, undefined, settings.showShorts, id)
     return {
       unreadCount: slice.unreadCount,
       caughtUp: slice.caughtUp,
@@ -378,20 +522,25 @@ void app.whenReady().then(() => {
       refreshing
     }
   })
-  ipcMain.handle(IpcChannel.getChannels, () =>
-    feedRepository.listFollowedChannels(settings.showShorts).map((followed) => ({
-      channelId: followed.channel.channelId,
-      title: followed.channel.title,
-      thumbnailUrl: followed.channel.thumbnailUrl,
-      unreadCount: followed.unreadCount,
-      favorite: followed.favorite
-    }))
+  ipcMain.handle(IpcChannel.getChannels, (_event, accountId: unknown) =>
+    feedRepository
+      .listFollowedChannels(settings.showShorts, parseAccountId(accountId))
+      .map((followed) => ({
+        channelId: followed.channel.channelId,
+        title: followed.channel.title,
+        thumbnailUrl: followed.channel.thumbnailUrl,
+        unreadCount: followed.unreadCount,
+        favorite: followed.favorite
+      }))
   )
-  ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) =>
-    feedRepository.toggleChannelFavorite(parseChannelIdRequired(channelId))
-  )
-  ipcMain.handle(IpcChannel.getPriorityFeed, (): FeedVideoDto[] =>
-    feedService.getPriorityVideos(settings.showShorts).map(toVideoDto)
+  ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) => {
+    const id = parseChannelIdRequired(channelId)
+    const accountId = resolveOwningAccountId(id)
+    if (accountId === undefined) return false
+    return feedRepository.toggleChannelFavorite(accountId, id)
+  })
+  ipcMain.handle(IpcChannel.getPriorityFeed, (_event, accountId: unknown): FeedVideoDto[] =>
+    feedService.getPriorityVideos(settings.showShorts, parseAccountId(accountId)).map(toVideoDto)
   )
   const backfillingChannels = new Set<string>()
   ipcMain.handle(
@@ -404,13 +553,22 @@ void app.whenReady().then(() => {
       if (backfillingChannels.has(id)) {
         return { ok: false, errorKind: 'busy', message: 'already loading older videos' }
       }
+      const owningAccountId = resolveOwningAccountId(id)
+      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
+      if (stack === undefined) {
+        return {
+          ok: false,
+          errorKind: 'not-found',
+          message: 'channel is not subscribed by any connected account'
+        }
+      }
       backfillingChannels.add(id)
       try {
-        const result = await syncService.backfillArchive(id)
+        const result = await stack.syncService.backfillArchive(stack.accountId, id)
         return { ok: true, value: result }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
+          stack.authProvider.invalidate()
           broadcast({ type: 'auth:required' })
           return { ok: false, errorKind: 'auth-expired', message: error.message }
         }
@@ -441,6 +599,9 @@ void app.whenReady().then(() => {
   )
   ipcMain.handle(
     IpcChannel.subscribeChannel,
+    // B-003: a newly discovered channel (search) has no owning account yet
+    // to resolve — subscribes under the primary account. Picking which
+    // account to subscribe under is future scope (see bugs.md notes).
     async (_event, channelId: unknown): Promise<ResultDto<void>> => {
       const id = parseChannelIdRequired(channelId)
       try {
@@ -450,11 +611,11 @@ void app.whenReady().then(() => {
         }
         const channel = await apiClient.subscribe(id)
         const now = clock.now().toISOString()
-        syncRepository.upsertSubscribedChannel(channel, now)
+        syncRepository.upsertSubscribedChannel(primaryAccountId(), channel, now)
         const playlists = await apiClient.fetchUploadsPlaylists([id])
         const playlistId = playlists.get(id)
         if (playlistId !== undefined) syncRepository.setUploadsPlaylist(id, playlistId)
-        void runRefresh('manual', id)
+        void runRefresh('manual', undefined, id)
         return { ok: true, value: undefined }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
@@ -467,8 +628,8 @@ void app.whenReady().then(() => {
       }
     }
   )
-  ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown) =>
-    runRefresh('manual', parseChannelId(channelId))
+  ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown, accountId: unknown) =>
+    runRefresh('manual', parseAccountId(accountId), parseChannelId(channelId))
   )
   ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
     const target = BrowserWindow.fromWebContents(event.sender)
@@ -484,8 +645,13 @@ void app.whenReady().then(() => {
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
     toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))
   )
-  ipcMain.handle(IpcChannel.markAllRead, (_event, channelId: unknown) =>
-    feedRepository.markManyRead(parseChannelId(channelId) ?? null, null, clock.now().toISOString())
+  ipcMain.handle(IpcChannel.markAllRead, (_event, channelId: unknown, accountId: unknown) =>
+    feedRepository.markManyRead(
+      parseChannelId(channelId) ?? null,
+      null,
+      clock.now().toISOString(),
+      parseAccountId(accountId)
+    )
   )
   ipcMain.handle(IpcChannel.toggleFavorite, (_event, videoId: unknown) =>
     toStateDto(stateRepository.toggleFavorite(parseVideoId(videoId)))
@@ -562,6 +728,17 @@ void app.whenReady().then(() => {
     try {
       await authFlow.connect()
       authProvider.invalidate()
+      // B-003: the primary account needs its accounts row too — every other
+      // write to account_channels has an FK on it. A nice label is
+      // best-effort (mirrors connectAccount's pattern for additional ones).
+      let label = 'My account'
+      try {
+        const channel = await apiClient.getOwnChannel()
+        if (channel !== null) label = channel.title
+      } catch {
+        // keep the placeholder — not worth failing the connection over
+      }
+      syncRepository.addAccount(primaryAccountId(), label, clock.now().toISOString())
       void runRefresh('manual')
       return { ok: true, value: authStatus() }
     } catch (error) {
@@ -578,17 +755,26 @@ void app.whenReady().then(() => {
     IpcChannel.unsubscribeChannel,
     async (_event, channelId: unknown): Promise<ResultDto<void>> => {
       const id = parseChannelIdRequired(channelId)
+      const owningAccountId = resolveOwningAccountId(id)
+      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
+      if (stack === undefined) {
+        return {
+          ok: false,
+          errorKind: 'not-found',
+          message: 'channel is not subscribed by any connected account'
+        }
+      }
       try {
         // D-032 incremental consent: the write scope is requested the first
         // time it's needed, not upfront — this may open the system browser.
-        if (!authFlow.hasWriteScope()) {
-          await authFlow.requestWriteScope()
-          authProvider.invalidate()
+        if (!stack.authFlow.hasWriteScope()) {
+          await stack.authFlow.requestWriteScope()
+          stack.authProvider.invalidate()
         }
-        let subscriptionId = syncRepository.getSubscriptionId(id)
+        let subscriptionId = syncRepository.getSubscriptionId(stack.accountId, id)
         if (subscriptionId === null) {
           // Channels subscribed before schema v3 have no cached id yet.
-          subscriptionId = await apiClient.findSubscriptionId(id)
+          subscriptionId = await stack.apiClient.findSubscriptionId(id)
         }
         if (subscriptionId === null) {
           return {
@@ -597,12 +783,12 @@ void app.whenReady().then(() => {
             message: 'no active subscription found for this channel'
           }
         }
-        await apiClient.unsubscribe(subscriptionId)
-        syncRepository.markUnsubscribed(id)
+        await stack.apiClient.unsubscribe(subscriptionId)
+        syncRepository.markUnsubscribed(stack.accountId, id)
         return { ok: true, value: undefined }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
+          stack.authProvider.invalidate()
           broadcast({ type: 'auth:required' })
           return { ok: false, errorKind: 'auth-expired', message: error.message }
         }
@@ -624,6 +810,74 @@ void app.whenReady().then(() => {
         const kind = isDomainError(error) ? error.kind : 'internal'
         return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
       }
+    }
+  )
+
+  // B-003: additional-account management. The primary account (above) is
+  // untouched by any of this — Settings and the first-run wizard keep
+  // working exactly as before.
+  ipcMain.handle(IpcChannel.listAccounts, (): AccountDto[] =>
+    [...accountStacks.values()].map(toAccountDto)
+  )
+  ipcMain.handle(
+    IpcChannel.startAddAccount,
+    (): { accountId: string; isFirstAccount: boolean } => {
+      const isFirstAccount = accountStacks.size === 0
+      const accountId = randomUUID()
+      pendingAccountStacks.set(accountId, buildAccountStack(accountId, 'New account'))
+      return { accountId, isFirstAccount }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.connectAccount,
+    async (_event, accountId: unknown): Promise<ResultDto<AccountDto>> => {
+      const id = typeof accountId === 'string' ? accountId : ''
+      const stack = pendingAccountStacks.get(id) ?? accountStacks.get(id)
+      if (stack === undefined) {
+        return { ok: false, errorKind: 'not-found', message: 'unknown account' }
+      }
+      try {
+        await stack.authFlow.connect()
+        stack.authProvider.invalidate()
+        // A nice label beats the raw id — best-effort, never blocks connecting.
+        try {
+          const channel = await stack.apiClient.getOwnChannel()
+          if (channel !== null) stack.label = channel.title
+        } catch {
+          // keep the placeholder label — not worth failing the connection over
+        }
+        const now = clock.now().toISOString()
+        syncRepository.addAccount(stack.accountId, stack.label, now)
+        accountStacks.set(stack.accountId, stack)
+        pendingAccountStacks.delete(stack.accountId)
+        void runRefresh('manual', stack.accountId)
+        return { ok: true, value: toAccountDto(stack) }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(IpcChannel.removeAccount, async (_event, accountId: unknown): Promise<void> => {
+    const id = typeof accountId === 'string' ? accountId : ''
+    // The primary account signs out via Settings (unchanged) — removing it
+    // here would strand the first-run wizard/Settings' Connection section,
+    // which always assume it exists.
+    if (id === primaryAccountId()) throw new Error('cannot remove the primary account here')
+    const stack = accountStacks.get(id)
+    if (stack === undefined) return
+    await stack.authFlow.signOut()
+    syncRepository.removeAccount(id)
+    accountStacks.delete(id)
+  })
+  ipcMain.handle(
+    IpcChannel.syncAccountNow,
+    async (_event, accountId: unknown): Promise<ResultDto<SyncReportDto>> => {
+      const id = typeof accountId === 'string' ? accountId : ''
+      if (!accountStacks.has(id)) {
+        return { ok: false, errorKind: 'not-found', message: 'unknown account' }
+      }
+      return runRefresh('manual', id)
     }
   )
 

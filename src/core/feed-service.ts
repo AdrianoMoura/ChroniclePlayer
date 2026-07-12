@@ -33,7 +33,8 @@ export class FeedService {
     cursor: FeedCursor | null,
     limit = FEED_PAGE_SIZE,
     channelId?: string,
-    showShorts = true // B-028
+    showShorts = true, // B-028
+    accountId?: string // B-003: undefined = combined feed across all accounts
   ): FeedSlice {
     const now = this.clock.now()
     const items =
@@ -41,7 +42,9 @@ export class FeedService {
         ? this.repository.listWatchLaterQueue(showShorts).map((entry) => ({ entry, bucket: null }))
         : null
 
-    const page = items ? null : this.repository.listPage(view, cursor, limit, channelId, showShorts)
+    const page = items
+      ? null
+      : this.repository.listPage(view, cursor, limit, channelId, showShorts, accountId)
 
     return {
       view,
@@ -52,17 +55,18 @@ export class FeedService {
           bucket: bucketOf(new Date(entry.video.publishedAt), now)
         })),
       nextCursor: page?.nextCursor ?? null,
-      unreadCount: this.repository.countUnread(showShorts),
+      unreadCount: this.repository.countUnread(showShorts, accountId),
       caughtUp:
-        this.repository.countUnreadSince(recentWindowStart(now).toISOString(), showShorts) === 0
+        this.repository.countUnreadSince(recentWindowStart(now).toISOString(), showShorts, accountId) ===
+        0
     }
   }
 
   // B-042: unread videos from favorited channels — bucket-less, like the
   // watch-later queue, since it sits above the chronological grouping.
-  getPriorityVideos(showShorts = true): FeedItem[] {
+  getPriorityVideos(showShorts = true, accountId?: string): FeedItem[] {
     return this.repository
-      .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts)
+      .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts, accountId)
       .map((entry) => ({ entry, bucket: null }))
   }
 }
