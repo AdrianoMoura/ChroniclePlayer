@@ -199,6 +199,27 @@ Resolved entries add:
 - **Notes:** with [[B-008]] the sidebar now carries per-channel unread counts, which
   makes the extra room more valuable.
 
+### B-020 — Mark all as read (global and per channel); auto-read backlog on first connect
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed
+- **What happens:** there is no bulk way to clear unread state — a new user (or a user
+  returning after a while) faces hundreds of unread videos and can only mark them one
+  by one.
+- **Expected:** a "mark all as read" action on the full feed and on a channel-filtered
+  view (sets `read_status: unread → read` for the visible scope, D-010). Additionally,
+  when connecting a new account, mark all videos published before today as read, so the
+  user starts from "what's new" instead of an unclearable backlog.
+- **Code refs:** `src/adapters/storage/repositories.ts` (read_status updates — needs a
+  bulk variant); `src/ipc/contract.ts` (new IPC method); `src/ui/App.tsx` +
+  `src/ui/FeedList.tsx` (action placement in feed/channel views); `src/core/sync/`
+  (initial-sync path for the connect-time auto-read).
+- **Notes:** consistent with D-010 semantics (manual and automatic marking are
+  indistinguishable). The connect-time auto-read is a default worth confirming with the
+  product owner at implementation time (silent bulk-read vs. offering it as a choice);
+  it should apply only to the first sync of an account, never to later syncs. Relates
+  to [[B-008]] (sidebar unread counts).
+
 ## In progress
 
 *(none)*
