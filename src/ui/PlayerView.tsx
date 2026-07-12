@@ -151,6 +151,11 @@ export function PlayerView({
 
   return (
     <div className="player-view">
+      <div className="player-topbar">
+        <button className="player-back" onClick={onClose}>
+          ← {stackDepth > 1 ? 'Back' : 'Back to feed'} <kbd>Esc</kbd>
+        </button>
+      </div>
       <div className="player-stage" ref={wrapperRef}>
         {surface !== 'embed-blocked' && (
           <iframe

@@ -535,6 +535,29 @@ button.primary:disabled {
   padding: 20px 32px 48px;
 }
 
+.player-topbar {
+  margin-bottom: 12px;
+}
+
+.player-back {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.player-back:hover {
+  color: var(--text);
+}
+
+.player-back kbd {
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-left: 2px;
+}
+
 .player-stage {
   position: relative;
   max-width: 1080px;
