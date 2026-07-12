@@ -14,7 +14,7 @@ import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-sec
 import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
 import { GoogleOAuth } from '../adapters/oauth/google-oauth'
 import { AuthFlow, GoogleAuthProvider } from '../adapters/oauth/auth'
-import { YouTubeApiClient, type SearchResult } from '../adapters/youtube/api-client'
+import { YouTubeApiClient, type Comment, type SearchResult } from '../adapters/youtube/api-client'
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
@@ -28,6 +28,7 @@ import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
   AuthStatusDto,
   ChronicleEventDto,
+  CommentDto,
   FeedCursorDto,
   FeedSliceDto,
   FeedVideoDto,
@@ -36,6 +37,7 @@ import type {
   ResultDto,
   SearchResultDto,
   SyncReportDto,
+  VideoRatingDto,
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
@@ -618,6 +620,123 @@ void app.whenReady().then(() => {
           return { ok: false, errorKind: 'not-found', message: 'no channel on this account' }
         }
         return { ok: true, value: channel }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+
+  function toCommentDto(comment: Comment): CommentDto {
+    return { ...comment, replies: comment.replies.map(toCommentDto) }
+  }
+
+  function parseCommentText(value: unknown): string {
+    const text = typeof value === 'string' ? value.trim() : ''
+    if (text === '') throw new Error('empty comment text')
+    return text
+  }
+
+  ipcMain.handle(
+    IpcChannel.getComments,
+    async (
+      _event,
+      videoId: unknown,
+      pageToken: unknown
+    ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>> => {
+      const id = parseVideoId(videoId)
+      try {
+        const result = await apiClient.listComments(
+          id,
+          typeof pageToken === 'string' ? pageToken : undefined
+        )
+        return {
+          ok: true,
+          value: { comments: result.comments.map(toCommentDto), nextPageToken: result.nextPageToken }
+        }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.postComment,
+    async (_event, videoId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
+      const id = parseVideoId(videoId)
+      try {
+        const body = parseCommentText(text)
+        if (!authFlow.hasWriteScope()) {
+          await authFlow.requestWriteScope()
+          authProvider.invalidate()
+        }
+        const comment = await apiClient.postComment(id, body)
+        return { ok: true, value: toCommentDto(comment) }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.replyToComment,
+    async (_event, parentId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
+      try {
+        const id = typeof parentId === 'string' ? parentId : ''
+        if (id === '') throw new Error('invalid comment id')
+        const body = parseCommentText(text)
+        if (!authFlow.hasWriteScope()) {
+          await authFlow.requestWriteScope()
+          authProvider.invalidate()
+        }
+        const comment = await apiClient.replyToComment(id, body)
+        return { ok: true, value: toCommentDto(comment) }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.rateVideo,
+    async (_event, videoId: unknown, rating: unknown): Promise<ResultDto<void>> => {
+      const id = parseVideoId(videoId)
+      if (rating !== 'like' && rating !== 'none') throw new Error('invalid rating')
+      try {
+        if (!authFlow.hasWriteScope()) {
+          await authFlow.requestWriteScope()
+          authProvider.invalidate()
+        }
+        await apiClient.rateVideo(id, rating)
+        return { ok: true, value: undefined }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.getVideoRating,
+    async (_event, videoId: unknown): Promise<ResultDto<VideoRatingDto>> => {
+      const id = parseVideoId(videoId)
+      try {
+        const rating = await apiClient.getVideoRating(id)
+        return { ok: true, value: rating }
       } catch (error) {
         const kind = isDomainError(error) ? error.kind : 'internal'
         return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }

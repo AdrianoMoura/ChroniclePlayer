@@ -142,6 +142,19 @@ export interface SearchChannelResultDto {
 
 export type SearchResultDto = SearchVideoResultDto | SearchChannelResultDto
 
+// B-006: one level of nesting only, matching YouTube's own comment model.
+export interface CommentDto {
+  commentId: string
+  authorDisplayName: string
+  authorProfileImageUrl: string | null
+  textDisplay: string
+  publishedAt: string
+  likeCount: number
+  replies: CommentDto[]
+}
+
+export type VideoRatingDto = 'like' | 'dislike' | 'none'
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
@@ -204,6 +217,11 @@ export const IpcChannel = {
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
   searchYouTube: 'youtube:search',
+  getComments: 'video:getComments',
+  postComment: 'video:postComment',
+  replyToComment: 'video:replyToComment',
+  rateVideo: 'video:rate',
+  getVideoRating: 'video:getRating',
   events: 'chronicle:event'
 } as const
 
@@ -284,5 +302,19 @@ export interface ChronicleApi {
   // subscriptions.insert (D-030, 50 units) — the other half of B-010's
   // unsubscribe; shares the same incremental write-scope consent (D-032).
   subscribeChannel(channelId: string): Promise<ResultDto<void>>
+  // B-006: commentThreads.list (1 unit/page) — public, readonly scope suffices.
+  getComments(
+    videoId: string,
+    pageToken?: string | null
+  ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>>
+  // commentThreads.insert (50 units, write scope, D-032).
+  postComment(videoId: string, text: string): Promise<ResultDto<CommentDto>>
+  // comments.insert (50 units, write scope) — replies to a top-level comment.
+  replyToComment(parentId: string, text: string): Promise<ResultDto<CommentDto>>
+  // videos.rate (50 units, write scope). No public API exists to like a
+  // *comment* — only videos; see B-006's notes.
+  rateVideo(videoId: string, rating: 'like' | 'none'): Promise<ResultDto<void>>
+  // videos.getRating (1 unit, readonly scope) — the user's own existing rating.
+  getVideoRating(videoId: string): Promise<ResultDto<VideoRatingDto>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

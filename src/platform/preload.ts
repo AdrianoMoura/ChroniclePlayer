@@ -57,6 +57,15 @@ const api: ChronicleApi = {
   searchYouTube: (query: string) => ipcRenderer.invoke(IpcChannel.searchYouTube, query),
   subscribeChannel: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.subscribeChannel, channelId),
+  getComments: (videoId: string, pageToken?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.getComments, videoId, pageToken ?? null),
+  postComment: (videoId: string, text: string) =>
+    ipcRenderer.invoke(IpcChannel.postComment, videoId, text),
+  replyToComment: (parentId: string, text: string) =>
+    ipcRenderer.invoke(IpcChannel.replyToComment, parentId, text),
+  rateVideo: (videoId: string, rating: 'like' | 'none') =>
+    ipcRenderer.invoke(IpcChannel.rateVideo, videoId, rating),
+  getVideoRating: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideoRating, videoId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

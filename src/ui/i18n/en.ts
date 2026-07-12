@@ -340,6 +340,8 @@ export const en = {
   'player.action.inWatchLater': 'In Watch Later',
   'player.action.ignore': 'Ignore',
   'player.action.openInBrowser': 'Open in browser (b)',
+  'player.action.like': '👍 Like',
+  'player.action.liked': '👍 Liked',
   'player.description.showMore': 'Show more',
   'player.description.showLess': 'Show less',
   'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
@@ -368,5 +370,16 @@ export const en = {
   'search.searching': 'Searching all of YouTube…',
   'search.subscribeButton': 'Subscribe',
   'search.subscribedButton': 'Subscribed',
-  'search.videoChannelPrefix': 'on'
+  'search.videoChannelPrefix': 'on',
+
+  // Comments (B-006)
+  'comments.show': 'Show comments',
+  'comments.hide': 'Hide comments',
+  'comments.loading': 'Loading comments…',
+  'comments.empty': 'No comments yet.',
+  'comments.addPlaceholder': 'Add a comment…',
+  'comments.replyPlaceholder': 'Write a reply…',
+  'comments.postButton': 'Post',
+  'comments.posting': 'Posting…',
+  'comments.replyButton': 'Reply'
 } as const

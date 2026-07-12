@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PlayerVideoDto, VideoStateDto } from '../ipc/contract'
+import type { PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
+import { CommentsSection } from './Comments'
 import { formatDuration, publishedLabel } from './format'
 import { t } from './i18n'
 
@@ -42,12 +43,21 @@ export function PlayerView({
   const [state, setState] = useState(video.state)
   const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [descriptionOverflows, setDescriptionOverflows] = useState(false)
+  // B-006: the user's own rating, fetched silently on open (a passive
+  // background check — failures, e.g. not connected, are not worth a banner).
+  const [rating, setRating] = useState<VideoRatingDto>('none')
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     setSurface('playing')
     setState(video.state)
     setDescriptionOpen(false)
     setDescriptionOverflows(false)
+    setRating('none')
+    setActionError(null)
+    void window.chronicle.getVideoRating(video.videoId).then((result) => {
+      if (result.ok) setRating(result.value)
+    })
   }, [video.videoId, video.state])
 
   const command = useCallback((func: string, args: unknown[] = []) => {
@@ -275,6 +285,18 @@ export function PlayerView({
             onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
           />
           <ActionButton
+            label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
+            active={rating === 'like'}
+            onClick={() => {
+              setActionError(null)
+              const next = rating === 'like' ? 'none' : 'like'
+              void window.chronicle.rateVideo(video.videoId, next).then((result) => {
+                if (result.ok) setRating(next)
+                else setActionError(result.message)
+              })
+            }}
+          />
+          <ActionButton
             label={t('player.action.ignore')}
             onClick={() =>
               void window.chronicle
@@ -287,6 +309,7 @@ export function PlayerView({
           />
           <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
         </div>
+        {actionError !== null && <p className="player-action-error">{actionError}</p>}
 
         {video.description !== null && video.description.length > 0 && (
           <div className="player-description">
@@ -306,6 +329,8 @@ export function PlayerView({
             )}
           </div>
         )}
+
+        <CommentsSection key={video.videoId} videoId={video.videoId} />
       </div>
     </div>
   )

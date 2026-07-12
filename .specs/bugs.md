@@ -110,19 +110,6 @@ Resolved entries add:
   This is milestone-sized: touches schema (account scoping), sync, wizard, sidebar.
   Needs decisions.md entries when attacked (supersedes the single-account assumption).
 
-### B-006 — Comments: read, add, reply; likes on videos and comments
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** player
-- **Expected:** read the comment thread, post comments, reply to comments, like the
-  video and like comments — all user-initiated (in scope per D-030/D-031/D-032 framing).
-- **Code refs:** `src/adapters/youtube/api-client.ts` (new `commentThreads` /
-  `comments` / `videos.rate` calls + quota accounting); `src/core/ports.ts` (new port);
-  `src/ipc/contract.ts`; `src/ui/PlayerView.tsx` (comments UI);
-  `src/adapters/oauth/google-oauth.ts` (write scopes, D-032).
-- **Notes:** requires new API surface + write scopes (incremental, per D-032 and
-  [[B-015]]). Quota costs must be stated in `youtube-api.md` when attacked.
-
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-11
@@ -185,6 +172,48 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-006 — Comments: read, add, reply; likes on videos and comments
+- **Type:** adjustment
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-11
+- **Area:** player
+- **Expected:** read the comment thread, post comments, reply to comments, like the
+  video and like comments — all user-initiated (in scope per D-030/D-031/D-032 framing).
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`listComments`/`postComment`/
+  `replyToComment` — `commentThreads`/`comments`; `rateVideo`/`getVideoRating` —
+  `videos.rate`/`.getRating`); `src/ipc/contract.ts` (`CommentDto`, `VideoRatingDto`,
+  five new channels); `src/platform/main.ts` (handlers — write actions gate on
+  [[B-010]]'s incremental write-scope consent, reads don't); `src/ui/Comments.tsx`
+  (new — the comment thread UI, one level of nesting per YouTube's own model);
+  `src/ui/PlayerView.tsx` (Like action button + silent rating pre-fetch on open).
+- **Notes:**
+  - **Not fully buildable as specced — API gap, not a scope cut:** the public
+    YouTube Data API v3 has **no endpoint to like a comment**, only videos
+    (`videos.rate`). This was discovered while implementing, not assumed going in.
+    Comment `likeCount` is shown (read from the API response) but there is no like
+    button on a comment — there is nothing to call. Recorded as a permanent
+    limitation in `decisions.md` (D-032), not a future TODO, since no amount of
+    further work on Chronicle's side unlocks it.
+  - **Read needs no write scope:** `commentThreads.list` works on the existing
+    `youtube.readonly` grant — only posting a comment/reply and rating a video
+    trigger [[B-010]]'s incremental write-scope flow (shared `AuthFlow` mechanism,
+    same `youtube.force-ssl` scope covers subscribe/unsubscribe/comment/like).
+  - **Rating fetch is silent by design:** `getVideoRating` runs automatically on
+    every video open (1 unit, trivial even at high viewing volume — no manual gate,
+    consistent with [[product-frictionless-over-quota]]) but failures (e.g. not
+    connected) are swallowed rather than shown as a banner, since it's a passive
+    background check, not a direct user action. Explicit actions (posting, rating)
+    do surface errors — inline near the action bar for rating, inline in the
+    comment composer for posting/replying.
+  - **Comments are never stored locally** — always fetched live per player open,
+    consistent with the local-only-state boundary (comments are YouTube's data,
+    not Chronicle's).
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (162/162). The owner should
+    validate live: posting a real comment/reply, the Like button against a real
+    account, and that the comment-like gap doesn't read as a bug to testers (worth
+    a line in `docs/setup.md` or the help overlay if it comes up).
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-009 — Search all of YouTube, not only synced content
 - **Type:** adjustment

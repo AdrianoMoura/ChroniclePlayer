@@ -1107,8 +1107,133 @@ button.primary.active {
   color: var(--accent);
 }
 
+/* B-006: shown on a failed Like/rating action. */
+.player-action-error {
+  color: #e0a3a3;
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
 .player-description {
   margin-top: 18px;
+}
+
+/* B-006: comment thread — read, post, reply. */
+.comments-section {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.comments-toggle {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.comments-toggle:hover {
+  color: var(--text);
+}
+
+.comments-body {
+  margin-top: 10px;
+}
+
+.comment-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.comment-composer textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-composer .primary {
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.comment-composer.reply {
+  margin: 8px 0 4px 0;
+}
+
+.comments-error {
+  color: #e0a3a3;
+  font-size: 12.5px;
+}
+
+.comments-loading,
+.comments-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.comment {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.comment:first-child {
+  border-top: none;
+}
+
+.comment-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.comment-meta {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.comment-text {
+  margin: 6px 0 4px;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+
+.comment-reply-toggle {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.comment-reply-toggle:hover {
+  color: var(--text);
+}
+
+.comment-replies {
+  margin-left: 32px;
+  margin-top: 6px;
+}
+
+.comment-replies .comment {
+  padding: 8px 0;
 }
 
 .description-toggle {
