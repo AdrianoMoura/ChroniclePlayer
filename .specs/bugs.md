@@ -212,13 +212,35 @@ Resolved entries add:
   user starts from "what's new" instead of an unclearable backlog.
 - **Code refs:** `src/adapters/storage/repositories.ts` (read_status updates — needs a
   bulk variant); `src/ipc/contract.ts` (new IPC method); `src/ui/App.tsx` +
-  `src/ui/FeedList.tsx` (action placement in feed/channel views); `src/core/sync/`
-  (initial-sync path for the connect-time auto-read).
+  `src/ui/FeedList.tsx` (action placement in feed/channel views);
+  `src/core/sync-service.ts` (initial-sync path for the connect-time auto-read).
 - **Notes:** consistent with D-010 semantics (manual and automatic marking are
   indistinguishable). The connect-time auto-read is a default worth confirming with the
   product owner at implementation time (silent bulk-read vs. offering it as a choice);
   it should apply only to the first sync of an account, never to later syncs. Relates
   to [[B-008]] (sidebar unread counts).
+
+### B-021 — New subscriptions take up to a week to appear; no manual subscription refresh
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** sync
+- **What happens:** subscribing to a new channel on YouTube is only picked up by the
+  automatic weekly subscription re-list — up to 7 days of latency. The manual feed
+  refresh does not help: it goes through the same weekly gate. The manual "Refresh
+  subscriptions" action specced in `youtube-api.md` §Subscription import & sync was
+  never implemented.
+- **Expected:** a user-initiated "Refresh subscriptions" action (Settings and/or feed
+  refresh affordance) that bypasses the weekly gate and re-lists immediately; new
+  channels get their normal initial backfill. Cost per run at ~230 subs: ~5 units
+  (`subscriptions.list`, 1 unit per 50) plus `channels.list` for new channels only —
+  fine for a user-initiated action, which is why the periodic gate stays weekly.
+- **Code refs:** `src/core/sync-service.ts` (`syncSubscriptionsIfDue`,
+  `SUBSCRIPTION_RESYNC_MS` — needs a force path); `src/ipc/contract.ts` (either a new
+  method or a flag on `feed:refresh`); `src/ui/SettingsView.tsx` (action placement).
+- **Notes:** verified 2026-07-12 by code inspection: `syncSubscriptionsIfDue` returns
+  early unless 7 days have passed since `subscriptions_synced_at`, regardless of
+  trigger (launch / timer / manual). An alternative or complement: re-list on every
+  launch-triggered sync (a few units/day at worst), keeping the timer syncs gated.
 
 ## In progress
 
