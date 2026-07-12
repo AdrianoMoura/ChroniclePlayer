@@ -52,6 +52,27 @@ Resolved entries add:
 
 ## Open
 
+### B-040 — More space between the Settings button and the channel list above it
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
+  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` has no CSS
+  rule at all, so the visual gap between the last channel row and the Settings button
+  is purely emergent from `.sidebar`'s `justify-content: space-between` and
+  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
+  end up reading as touching.
+- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
+  button, consistent with the sidebar's other section spacing (e.g. the gap
+  `.channel-list` already gets above it: `margin-top: 14px; border-top: 1px solid
+  var(--border); padding-top: 10px`).
+- **Code refs:** `src/ui/Sidebar.tsx` (`sidebar-footer` div wrapping the Settings
+  button, rendered right after the `channel-list` div); `src/ui/styles.css`
+  (`.sidebar` — `justify-content: space-between`; `.channel-list` around line 261 —
+  `flex: 1`, no bottom padding/margin; no existing `.sidebar-footer` rule to anchor a
+  `margin-top`/`border-top` on).
+- **Notes:** purely a spacing/polish tweak, no behavior change.
+
 ### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
