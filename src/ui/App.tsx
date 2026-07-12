@@ -653,7 +653,7 @@ export function App() {
       : `${meta.unreadCount} unread`
 
   return (
-    <div className="app">
+    <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {sidebarCollapsed ? (
         <button className="sidebar-expand" title="Show sidebar" onClick={toggleSidebar}>
           ☰

@@ -168,18 +168,22 @@ input:focus-visible {
   padding: 14px 10px;
 }
 
+/* Matches .topbar's own top padding (10px) despite .sidebar's 14px block
+   padding, so the hamburger sits on the same row as the feed's refresh
+   button instead of visibly higher/lower than it. */
 .sidebar-header {
   display: flex;
-  margin-bottom: 4px;
+  margin: -4px 0 8px;
 }
 
 /* B-037: hamburger toggle — collapsed state is width 0 (no icon rail), so
-   this same glyph doubles as the floating "reopen" control when hidden. */
+   this same glyph doubles as the floating "reopen" control when hidden.
+   Sized to match .refresh exactly so the two read as the same control. */
 .sidebar-toggle,
 .sidebar-expand {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-dim);
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
 }
 
@@ -194,6 +198,14 @@ input:focus-visible {
   top: 10px;
   left: 10px;
   z-index: 5;
+}
+
+/* B-007-follow-up: without this, the floating .sidebar-expand button (which
+   renders where the sidebar used to be) sits directly on top of .topbar's
+   own refresh button once the sidebar collapses to width 0 — the two
+   icons overlapped. Reserve room for it instead. */
+.app.sidebar-collapsed .topbar {
+  padding-left: 52px;
 }
 
 .view {
