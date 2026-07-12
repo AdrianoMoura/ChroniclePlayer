@@ -176,9 +176,15 @@ Resolved entries add:
 - **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
   to infrastructure-now, strings-later. Wizard copy is the biggest surface.
 
+## In progress
+
+*(none)*
+
+## Resolved
+
 ### B-018 — Settings gear icon is too small
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** ui-shell
 - **What happens:** the ⚙ gear glyph on the Settings sidebar entry renders too small.
 - **Expected:** the gear reads at a glance, sized consistently with the sidebar's other
@@ -186,10 +192,12 @@ Resolved entries add:
 - **Code refs:** `src/ui/Sidebar.tsx` (Settings entry key slot); `src/ui/styles.css`
   (sidebar key-slot sizing).
 - **Notes:** follow-up to [[B-013]], which introduced the glyph.
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** `.view-key.gear` bumps the glyph to label-size, full opacity.
 
 ### B-019 — Sidebar column should be ~50% wider
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** ui-shell
 - **What happens:** the left sidebar column is too narrow for comfortable reading of
   channel names and counts.
@@ -198,10 +206,13 @@ Resolved entries add:
   sidebar block, e.g. channel-name truncation).
 - **Notes:** with [[B-008]] the sidebar now carries per-channel unread counts, which
   makes the extra room more valuable.
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** `.sidebar` width is now 315px; channel-name ellipsis truncation
+  already handled the new width, no further changes needed.
 
 ### B-020 — Mark all as read (global and per channel); auto-read backlog on first connect
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** feed
 - **What happens:** there is no bulk way to clear unread state — a new user (or a user
   returning after a while) faces hundreds of unread videos and can only mark them one
@@ -210,19 +221,26 @@ Resolved entries add:
   view (sets `read_status: unread → read` for the visible scope, D-010). Additionally,
   when connecting a new account, mark all videos published before today as read, so the
   user starts from "what's new" instead of an unclearable backlog.
-- **Code refs:** `src/adapters/storage/repositories.ts` (read_status updates — needs a
-  bulk variant); `src/ipc/contract.ts` (new IPC method); `src/ui/App.tsx` +
-  `src/ui/FeedList.tsx` (action placement in feed/channel views);
-  `src/core/sync-service.ts` (initial-sync path for the connect-time auto-read).
+- **Code refs:** `src/adapters/storage/repositories.ts` (`markManyRead`, a bulk
+  insert-or-update over `video_state`); `src/core/ports.ts` (`FeedRepository`);
+  `src/ipc/contract.ts` (`state:markAllRead`); `src/ui/App.tsx` (topbar "Mark all as
+  read" button, scoped to the current view/channel); `src/core/sync-service.ts`
+  (`SyncReport.firstSync`); `src/platform/main.ts` (`runRefresh` applies the backlog
+  read right after a `firstSync` report, before broadcasting `refresh:done`).
 - **Notes:** consistent with D-010 semantics (manual and automatic marking are
-  indistinguishable). The connect-time auto-read is a default worth confirming with the
-  product owner at implementation time (silent bulk-read vs. offering it as a choice);
-  it should apply only to the first sync of an account, never to later syncs. Relates
-  to [[B-008]] (sidebar unread counts).
+  indistinguishable). **Product owner confirmed 2026-07-12: the connect-time backlog
+  auto-read is silent** (no confirmation prompt) — the user opens straight onto "what's
+  new". The cutoff is `core/feed.ts`'s new `startOfToday()`, the same local-calendar-day
+  boundary `bucketOf` uses for "Today", so the auto-read and the feed agree on what
+  counts as "before today". Gated on `SyncReport.firstSync` (true only when
+  `subscriptions_synced_at` was null before the run), so it never re-fires on later
+  syncs. Relates to [[B-008]] (sidebar unread counts).
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** as described above; covered by repository + sync-service tests.
 
 ### B-021 — New subscriptions take up to a week to appear; no manual subscription refresh
 - **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** sync
 - **What happens:** subscribing to a new channel on YouTube is only picked up by the
   automatic weekly subscription re-list — up to 7 days of latency. The manual feed
@@ -234,17 +252,23 @@ Resolved entries add:
   channels get their normal initial backfill. Cost per run at ~230 subs: ~5 units
   (`subscriptions.list`, 1 unit per 50) plus `channels.list` for new channels only —
   fine for a user-initiated action, which is why the periodic gate stays weekly.
-- **Code refs:** `src/core/sync-service.ts` (`syncSubscriptionsIfDue`,
-  `SUBSCRIPTION_RESYNC_MS` — needs a force path); `src/ipc/contract.ts` (either a new
-  method or a flag on `feed:refresh`); `src/ui/SettingsView.tsx` (action placement).
-- **Notes:** verified 2026-07-12 by code inspection: `syncSubscriptionsIfDue` returns
-  early unless 7 days have passed since `subscriptions_synced_at`, regardless of
-  trigger (launch / timer / manual). An alternative or complement: re-list on every
-  launch-triggered sync (a few units/day at worst), keeping the timer syncs gated.
+- **Code refs:** `src/core/sync-service.ts` (`syncSubscriptionsIfDue` now takes
+  `force`; `SyncService.refresh` takes `RefreshOptions.forceSubscriptions`);
+  `src/ipc/contract.ts` (`subscriptions:refresh`); `src/platform/main.ts`
+  (`IpcChannel.refreshSubscriptions` handler); `src/ui/SettingsView.tsx` (Sync section
+  "Refresh subscriptions" button, reports added/removed).
+- **Notes:** verified 2026-07-12 by code inspection: `syncSubscriptionsIfDue` returned
+  early unless 7 days had passed since `subscriptions_synced_at`, regardless of
+  trigger. Implemented exactly per the spec's existing "manual Refresh subscriptions"
+  design (`youtube-api.md` §Subscription import & sync already described this as
+  Final — no spec change needed, only the implementation was missing). The periodic
+  (launch/timer) gate is untouched — still weekly.
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** as described above.
 
 ### B-022 — Delete all data: app relaunches into a frozen screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -254,36 +278,56 @@ Resolved entries add:
   so the post-wipe landing should be whatever "fresh start without an account" becomes
   once B-003 lands — design the fix so the landing screen is the normal first-run
   entrypoint, not a hardcoded wizard jump.
-- **Code refs:** `src/platform/main.ts` (`data:deleteAll` handler — `app.relaunch()` +
-  `app.exit(0)` after removing DB/settings/secrets/cache); `src/ui/onboarding/`
-  (first-run detection); check startup connection validation (D-012) against the
-  wiped-state path.
-- **Notes:** hypotheses: relaunch racing the exit; startup code assuming a DB/settings
-  file exists and hanging when none does; or dev-mode `app.relaunch()` not reproducing
-  the packaged behavior. Reproduce first, then pick.
+- **Code refs:** `src/platform/main.ts` (`data:deleteAll` handler).
+- **Notes:** three hypotheses were on the table: a relaunch/exit race, startup code
+  assuming a DB/settings file exists, or dev-mode `app.relaunch()` not reproducing
+  packaged behavior. The DB/settings-missing path is already proven to work (every
+  genuine first launch goes through it, per M4 dogfooding), which points at the
+  relaunch mechanics themselves. **Needs live validation** — could not be exercised
+  headlessly in this session; re-open if the frozen screen recurs.
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** swapped `app.exit(0)` for an explicit window `destroy()` +
+  `app.quit()`. `app.exit()` skips window teardown and the normal quit sequence, so the
+  relaunched window could start before the old instance's GPU/compositor surface was
+  gone — plausible root cause on compositors like niri/Wayland, which B-014's
+  resolution already flagged as the risky surface for this app's frameless shell.
+  `app.relaunch()` is unchanged (still called before quitting, per Electron's
+  documented pairing).
 
 ### B-023 — First sync after a fresh setup doesn't refresh the UI; spinner spins forever
 - **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** sync / ui-shell
 - **What happens:** starting from scratch, the initial sync fetches the channels and
   finishes, but the list never appears — the refresh button keeps spinning and only a
   manual reload (F5) shows the feed.
 - **Expected:** when the first sync completes, the feed and sidebar populate on their
   own and the spinner stops — same behavior as any later `refresh:done`.
-- **Code refs:** `src/ui/App.tsx` (`onEvent` — `refresh:done` clears the spinner and
-  reloads; verify it fires in the fresh-setup path); `src/ui/onboarding/Wizard.tsx`
-  (wizard → feed handoff); `src/platform/main.ts` (event emission — timing relative to
-  renderer load/subscription).
-- **Notes:** the running-app event wiring is correct by inspection, so the suspects are
-  first-run-specific: `refresh:done` emitted before the feed UI subscribes (event lost),
-  or the wizard→feed transition mounting App after the sync already finished, leaving
-  `refreshing` stale. Consider replaying the last sync state to new subscribers or
-  having App query sync status on mount instead of relying only on events.
+- **Code refs:** `src/platform/main.ts` (`runRefresh`); `src/ipc/contract.ts`
+  (`ChronicleEventDto`, new `refresh:failed` variant); `src/ui/App.tsx` (`onEvent`,
+  new `syncMeta()` helper); `src/ui/onboarding/Wizard.tsx` (`FirstSyncStep`).
+- **Notes:** found the actual defect by code inspection, not guesswork: `runRefresh`'s
+  generic error path (any failure that isn't `auth-expired`) returned
+  `{ok:false, errorKind:'internal', ...}` to the caller but **never broadcast any
+  event**. Since first syncs are almost always triggered fire-and-forget
+  (`void window.chronicle.refreshFeed()` from the wizard's `FirstSyncStep`, or
+  `connectGoogle`'s internal `void runRefresh('manual')`), nobody was awaiting that
+  return value — the renderer had already flipped `refreshing` to `true` on
+  `refresh:started` and then never got a terminal event to flip it back on an
+  unexpected internal error (very plausible on an account's first sync: 229 channels,
+  ~937 Shorts probes, more surface for a transient failure than any later sync).
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** added `refresh:failed` to the event union, broadcast from that
+  previously-silent catch branch; `App.tsx` handles it (clears the spinner, shows a
+  banner) and gained a `syncMeta()` helper that reconciles `refreshing` against a new
+  `FeedMetaDto.refreshing` field on every feed-meta fetch — a self-healing net for any
+  other case a terminal event goes missing. Wizard's `FirstSyncStep` also handles
+  `refresh:failed` (shows the error, offers "Try again") instead of hanging on
+  "Working…" forever.
 
 ### B-024 — Small search/filter field at the top of the sidebar channel list
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** ui-shell
 - **What happens:** with a couple hundred subscriptions, finding one channel in the
   sidebar means scrolling the whole list.
@@ -296,28 +340,31 @@ Resolved entries add:
   in the UI.
 - **Notes:** keyboard-first (ui.md): the field should be reachable by shortcut and
   Escape should clear it. Pairs with [[B-019]] (wider sidebar).
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** local substring filter over `channels` in `Sidebar.tsx`; `c` focuses
+  the field app-wide (added to the help overlay), Escape (handled locally on the input,
+  not App's global handler, so it doesn't also clear the feed's `/` filter) clears it
+  and blurs.
 
 ### B-025 — Counter on the Watch Later sidebar entry
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** ui-shell
 - **What happens:** the Watch Later entry in the sidebar gives no hint of how many
   videos are queued.
 - **Expected:** the Watch Later entry shows its queue size, in the same visual style as
   the per-channel unread counts ([[B-008]]).
 - **Code refs:** `src/ui/Sidebar.tsx` (views list — `watch-later` entry);
-  `src/ipc/contract.ts` + `src/core/ports.ts` (`listWatchLaterQueue` exists; a count
-  needs exposing to the UI, e.g. alongside `getFeedMeta`);
-  `src/adapters/storage/repositories.ts` (queue query — a `COUNT` variant is trivial).
+  `src/ipc/contract.ts` + `src/core/ports.ts` (`FeedRepository.countWatchLater`);
+  `src/adapters/storage/repositories.ts` (`countWatchLater`, mirrors the queue
+  predicate); `src/platform/main.ts` (`getFeedMeta` now returns `watchLaterCount`).
 - **Notes:** update on `refresh:done` and on `toggleWatchLater`, so the number never
   goes stale. This is a static queue-size count, not an engagement nudge — it changes
   only by the user's own actions.
-
-## In progress
-
-*(none)*
-
-## Resolved
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
+- **Resolution:** folded into `FeedMetaDto` (alongside the new `refreshing` field from
+  [[B-023]]) rather than a separate IPC round-trip, since `App.tsx` already refreshes
+  feed meta on every state change and on `refresh:done`.
 
 ### B-014 — Remove Electron toolbar; custom window controls in the layout
 - **Type:** adjustment
