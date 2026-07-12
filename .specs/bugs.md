@@ -52,6 +52,24 @@ Resolved entries add:
 
 ## Open
 
+### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** many mice have a dedicated back/side button (browsers bind it to
+  history-back); Chronicle doesn't listen for it, so it does nothing in the player.
+- **Expected:** pressing the mouse back button while in the player closes the player
+  and returns to the previous screen — the same action as pressing Esc or clicking the
+  visible Back button ([[B-001]]).
+- **Code refs:** `src/ui/PlayerView.tsx` (the `Escape` case in the keydown handler
+  around the `onClose()` call — add a `mouseup`/`pointerup` listener checking
+  `event.button === 3` for the browser's back mouse button, calling the same
+  `onClose`).
+- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
+  XButton1; some mice map this to a `Backward` "navigate back" browser gesture instead
+  of a plain button event — verify empirically which fires in Electron/Chromium
+  (owner to verify live, per [[no-live-app-verification]]).
+
 ### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
