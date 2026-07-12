@@ -52,6 +52,41 @@ Resolved entries add:
 
 ## Open
 
+### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / other (process)
+- **What happens:** `ui.md`'s keyboard shortcuts table (§Keyboard shortcuts) was written
+  for the v1 surface and states the right principle ("full keyboard operability is a
+  requirement, not an enhancement... all bindings also exist as visible UI affordances —
+  keyboard-first, not keyboard-only"), but several controls added since (sidebar
+  collapse/expand [[B-037]], the layout/item-size toolbar controls [[B-007]], the
+  inline field-clear buttons [[B-033]], the sidebar channel filter [[B-024]], Settings
+  navigation and its rows, the mouse-back-button request [[B-039]]) were built
+  mouse-first without an explicit check for a matching keyboard path, and the shortcut
+  table/help overlay (`?`) was not consistently revisited when they landed. The owner
+  finds today's shortcuts "nem sempre super acessíveis" (not always easy to
+  discover/reach).
+- **Expected:** two parts. (1) **Process, going forward:** every new interactive
+  feature's design/implementation must state its keyboard path (a binding, or
+  reachability via existing focus/arrow navigation) alongside its mouse affordance,
+  before it's considered done — not bolted on after the owner notices a gap. (2)
+  **One-time audit:** walk the current UI surface control by control (sidebar toggle,
+  layout/size controls, field-clear buttons, channel filter, Settings rows and its
+  back/reconnect actions, context menus as they land per [[B-010]]/[[B-042]]) and either
+  confirm each has a discoverable keyboard path or add one; refactor bindings that are
+  inconsistent or hard to reach (e.g. no visible hint, buried behind a mouse-only
+  hover). Update `ui.md`'s shortcut table and the in-app `?` help overlay to match
+  whatever the audit lands on.
+- **Code refs:** `.specs/ui.md` (§Keyboard shortcuts, §Accessibility — the table and
+  principle to update); `src/ui/App.tsx` (the global keydown handler and the `?` help
+  overlay content); `src/ui/Sidebar.tsx`, `src/ui/SettingsView.tsx`, `src/ui/FeedList.tsx`,
+  `src/ui/PlayerView.tsx` (per-component handlers and hover-only affordances to check).
+- **Notes:** this is as much a standing rule as a fix — no single commit "resolves" the
+  process half. Treat the audit as attackable in one batch (produces the `ui.md`/help
+  overlay update and whatever bindings it adds), but the "every new feature states its
+  keyboard path" rule stays in force afterward rather than closing with the batch.
+
 ### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
