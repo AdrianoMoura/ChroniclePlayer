@@ -8,8 +8,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 export interface AppSettings {
   theme: 'system' | 'dark' | 'light'
   // B-007: file-explorer-style item size, shared by list rows and grid cards.
-  // Supersedes the old two-step "density" (comfortable/compact).
-  itemSize: 'small' | 'medium' | 'large'
+  // Supersedes the old two-step "density" (comfortable/compact). Five steps
+  // as of the B-037 follow-up (D-037).
+  itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl'
   // B-007: list rows vs. a thumbnail grid, same data either way.
   layout: 'list' | 'grid'
   // Background refresh interval (D-016). 0 = manual only.
@@ -42,7 +43,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
-      itemSize === 'small' || itemSize === 'medium' || itemSize === 'large'
+      itemSize === 'xs' ||
+      itemSize === 'small' ||
+      itemSize === 'medium' ||
+      itemSize === 'large' ||
+      itemSize === 'xl'
         ? itemSize
         : DEFAULT_SETTINGS.itemSize,
     layout: layout === 'list' || layout === 'grid' ? layout : DEFAULT_SETTINGS.layout,

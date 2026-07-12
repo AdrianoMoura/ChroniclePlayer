@@ -58,4 +58,10 @@ describe('settings store', () => {
   it('accepts 0 as manual-only refresh', () => {
     expect(normalizeSettings({ refreshMinutes: 0 }).refreshMinutes).toBe(0)
   })
+
+  it('accepts all five item-size steps (D-037)', () => {
+    for (const itemSize of ['xs', 'small', 'medium', 'large', 'xl']) {
+      expect(normalizeSettings({ itemSize }).itemSize).toBe(itemSize)
+    }
+  })
 })

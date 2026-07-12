@@ -15,18 +15,22 @@ type DisplayRow =
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
   | { kind: 'card-row'; key: string; items: { video: FeedVideoDto; videoIndex: number }[] }
 
-// File-explorer-style item size (B-007): three steps, shared by list rows
-// and grid cards. Medium is the default (formerly "comfortable" density).
-export type ItemSize = 'small' | 'medium' | 'large'
-export const ITEM_SIZES: ItemSize[] = ['small', 'medium', 'large']
-const ROW_HEIGHTS: Record<ItemSize, number> = { small: 56, medium: 76, large: 108 }
+// File-explorer-style item size (B-007, five steps as of the B-037 follow-up):
+// shared by list rows and grid cards. Medium is the default (formerly
+// "comfortable" density). The xl step is a deliberately bigger jump than the
+// rest — it's the "as big as it gets" option, not another even increment.
+export type ItemSize = 'xs' | 'small' | 'medium' | 'large' | 'xl'
+export const ITEM_SIZES: ItemSize[] = ['xs', 'small', 'medium', 'large', 'xl']
+const ROW_HEIGHTS: Record<ItemSize, number> = { xs: 40, small: 56, medium: 76, large: 108, xl: 156 }
 const HEADER_HEIGHT = 38
 // Card target width; actual column count is derived from container width so
 // the grid reflows instead of overflowing (D-037). Both grow with itemSize.
 const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
+  xs: { minWidth: 110, height: 108 },
   small: { minWidth: 160, height: 150 },
   medium: { minWidth: 220, height: 210 },
-  large: { minWidth: 300, height: 290 }
+  large: { minWidth: 300, height: 290 },
+  xl: { minWidth: 420, height: 400 }
 }
 
 function buildCardRows(

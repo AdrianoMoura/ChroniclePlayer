@@ -322,6 +322,19 @@ Resolved entries add:
   item-size control too, "like a file explorer," covering both layouts — added as a
   small/medium/large slider next to the layout toggle, replacing the old
   list-only density setting entirely rather than keeping two overlapping controls.
+  **Third same-day follow-up (2026-07-12):** the owner reported grid-mode thumbnails
+  not fitting their card at non-medium sizes, and asked for finer size granularity
+  (5 steps, largest step bigger than the rest) and a pointer cursor over video items.
+  Root cause of the fit bug: `.feed-scroll.size-small .thumb`/`.size-large .thumb`
+  (3-class selectors) beat `.card-thumb-wrap .thumb` (2-class, meant to keep the grid
+  thumbnail at `width: 100%`) by CSS specificity — `.thumb` is shared by both the list
+  row and the grid card, so the row-only override was leaking into the grid and
+  forcing the grid thumbnail to a small fixed pixel width. Fixed by scoping those
+  overrides to `.row .thumb`. Steps widened from 3 (`small/medium/large`) to 5
+  (`xs/small/medium/large/xl`); `xl` is a deliberately bigger jump than the other,
+  roughly-uniform steps. Also added `cursor: pointer` to `.row`/`.card` (both open the
+  video on click), with `cursor: default` kept on the non-clickable "ignored, undo"
+  strip.
 - **Resolved:** 2026-07-12 · **Commit:** 61c9563, 462b054 ·
   **Outcome:** Fixed
 

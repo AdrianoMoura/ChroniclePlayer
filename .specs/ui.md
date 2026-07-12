@@ -33,8 +33,9 @@ Three-region desktop layout:
   calmer, rank information (title first) over imagery — but **D-037** adds an optional
   thumbnail grid, since a masonry/grid view is a layout preference, not an engagement
   mechanic; the same rows and actions render either way. Both the list/grid toggle
-  and a small/medium/large item-size slider (**D-037**, supersedes D-022's two-step
-  "density") live as inline controls in the feed topbar itself — not in Settings —
+  and an xs/small/medium/large/xl item-size slider (**D-037**, supersedes D-022's two-step
+  "density"; widened from three steps to five in the 2026-07-12 follow-up, with the xl
+  step a bigger jump than the rest) live as inline controls in the feed topbar itself — not in Settings —
   since these are properties of the listing the user is looking at, not
   general preferences to hunt for on another screen.
 - **Player view** replaces the feed region when watching (sidebar persists);

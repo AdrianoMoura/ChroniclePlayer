@@ -615,6 +615,7 @@ button.primary:disabled {
   margin-top: 4px;
   padding: 0 10px;
   border-radius: 8px;
+  cursor: pointer;
 }
 
 .row:hover {
@@ -728,6 +729,11 @@ button.primary:disabled {
   border: 1px dashed var(--border);
 }
 
+.row.undo-strip,
+.card.undo-strip {
+  cursor: default;
+}
+
 .undo-strip button {
   color: var(--accent);
   padding: 4px 10px;
@@ -757,6 +763,7 @@ button.primary:disabled {
   padding: 8px;
   border-radius: 8px;
   min-width: 0;
+  cursor: pointer;
 }
 
 .card:hover {
@@ -1021,15 +1028,38 @@ button.primary.active {
   font-size: 13px;
 }
 
-/* Item size (D-022, B-007): a file-explorer-style small/medium/large step,
-   shared by list rows and grid cards. Medium matches the original row/thumb
-   dimensions above; small/large scale both. */
+/* Item size (D-022, B-007, five steps as of the B-037 follow-up/D-037): a
+   file-explorer-style xs/small/medium/large/xl step, shared by list rows and
+   grid cards. Medium matches the original row/thumb dimensions above; the
+   others scale both. These `.thumb` width overrides are scoped to `.row`
+   (not the bare `.thumb` class) on purpose — `.thumb` is shared with the
+   grid's `.card-thumb-wrap .thumb`, which must always stay width:100% so the
+   thumbnail fills its card at every size instead of collapsing to a fixed
+   pixel width (B-037 grid-thumbnail-sizing bug). */
+.feed-scroll.size-xs .row {
+  height: 36px;
+  gap: 8px;
+}
+
+.feed-scroll.size-xs .row .thumb {
+  width: 56px;
+}
+
+.feed-scroll.size-xs .row-text {
+  gap: 0;
+}
+
+.feed-scroll.size-xs .title,
+.feed-scroll.size-xs .card .title {
+  font-size: 12px;
+}
+
 .feed-scroll.size-small .row {
   height: 48px;
   gap: 10px;
 }
 
-.feed-scroll.size-small .thumb {
+.feed-scroll.size-small .row .thumb {
   width: 72px;
 }
 
@@ -1042,12 +1072,25 @@ button.primary.active {
   gap: 14px;
 }
 
-.feed-scroll.size-large .thumb {
+.feed-scroll.size-large .row .thumb {
   width: 160px;
 }
 
 .feed-scroll.size-large .title {
   font-size: 15px;
+}
+
+.feed-scroll.size-xl .row {
+  height: 132px;
+  gap: 18px;
+}
+
+.feed-scroll.size-xl .row .thumb {
+  width: 240px;
+}
+
+.feed-scroll.size-xl .title {
+  font-size: 16px;
 }
 
 .feed-scroll.size-small .card .title {
