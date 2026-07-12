@@ -245,7 +245,7 @@ Resolved entries add:
 - **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
   to infrastructure-now, strings-later. Wizard copy is the biggest surface.
 
-### B-027 — Show Shorts in the feed, marked and filterable (reverses D-028)
+### B-028 — Show Shorts in the feed, marked and filterable (reverses D-028)
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
 - **Area:** feed
