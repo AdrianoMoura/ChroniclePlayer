@@ -52,6 +52,260 @@ Resolved entries add:
 
 ## Open
 
+### B-053 — `?` shortcut overlay doesn't open when focus is inside a text input
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** pressing `?` while focus is inside the filter/search input (`/`
+  focuses it, per `ui.md`'s shortcut table, or a simple click) does nothing except type a
+  literal "?" into the field — the shortcut-overlay handler never runs. Reported by the
+  owner as "`?` só cai no filtro" (`?` just falls into the filter).
+- **Expected:** `?` opens the shortcuts overlay (`HelpOverlay.tsx`) regardless of where
+  focus currently sits, matching `ui.md`'s table ("`?` | shortcut overlay").
+- **Code refs:** `src/ui/App.tsx` — the global keydown handler's input-focus branch (`if
+  (target instanceof HTMLInputElement) { ... return }`, around line 489) only
+  special-cases `Escape`/`Enter` and returns for everything else, so it never reaches the
+  `case '?': setHelpOpen(true)` branch further down (~line 562).
+- **Notes:** same root shape as the broader audit in [[B-043]] — the input-focus branch
+  swallows *all* global shortcuts, not just `?`; worth fixing as part of that audit
+  rather than a one-off patch, since the fix (letting a small allowlist of keys like
+  `?`/`Escape` fall through even from inputs) touches the same code path other bindings
+  will need too.
+
+### B-052 — README's "Shorts are never displayed" line is stale (contradicts D-035)
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** other (docs)
+- **What happens:** `README.md` (Principles section) still says "**Shorts are never
+  displayed.** Not now, not ever. There is no toggle." That was true under D-028, but
+  D-028 was superseded same-day by **D-035**: Shorts from subscribed channels now appear
+  in the feed tagged with a badge, with a "Show Shorts" Settings toggle (default on).
+  `feed.md`/`non-goals.md` were updated when D-035 landed; `README.md` was missed.
+- **Expected:** README's bullet updated to match D-035's actual behavior (shown, badged,
+  toggle in Settings to hide) instead of claiming an absolute, toggle-less ban.
+- **Code refs:** `README.md` (Principles list, the Shorts bullet); compare
+  `.specs/non-goals.md` §YouTube surfaces Chronicle will not reproduce and
+  `.specs/decisions.md` D-035 for the correct current wording.
+- **Notes:** pure doc correction, no code change — flagged by the owner while reading
+  Settings copy against the shipped toggle.
+
+### B-051 — Some subscribed channels show up with zero videos
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** sync
+- **What happens:** the owner reports several subscribed channels appear in the
+  sidebar/channel list with no videos at all. Investigated the sync pipeline
+  (`src/core/sync-service.ts`, `src/adapters/rss/rss-client.ts`,
+  `src/adapters/youtube/api-client.ts`) for plausible causes rather than reproducing
+  directly:
+  1. RSS feed genuinely has no `<entry>` elements (`rss-client.ts` `parseFeed`) —
+     channel has no public/listed uploads.
+  2. A channel that ever 404'd is flagged `available = 0` (`sync-service.ts`
+     `discoverChannel` → `markChannelUnavailable`, `sync-repository.ts`) and
+     **permanently excluded from future polling** (`listSubscribedChannels` filters
+     `available = 1`) — a transient 404 (handle change, CDN hiccup) silently and
+     permanently blacks out a channel with no way for the user to see or retry it.
+  3. All of a channel's uploads confirmed as Shorts (`confirmShorts`) and the "Show
+     Shorts" setting is off — rows exist but the `NOT_SHORT` feed filter
+     (`repositories.ts`) hides all of them, looking identical to "no videos."
+  4. First-time sync only pulls RSS's latest ~15 entries; gap-backfill requires
+     `lastSyncedAt !== null` and a resolved uploads playlist (`possibleGap`,
+     `fetchUploadsPlaylists`) — a channel added mid-catalog can look sparse.
+  5. Per-channel sync/hydration errors (e.g. malformed RSS) are only counted in an
+     aggregate `channelsFailed` total — there's no per-channel error state the UI
+     surfaces, so a channel failing every cycle is indistinguishable from one that's
+     simply quiet.
+- **Expected:** needs a decision on which of these is actually happening for the owner's
+  account (checking a specific empty channel's `available`/`is_short`/error state would
+  confirm) before picking a fix — likely candidates: retry unavailable channels
+  periodically instead of a permanent flag, and/or surface a per-channel sync-error
+  indicator instead of silent aggregation.
+- **Code refs:** `src/core/sync-service.ts` (`refresh`, `discoverChannel`,
+  `confirmShorts`); `src/adapters/rss/rss-client.ts` (`parseFeed`, `discoverRecent`);
+  `src/adapters/storage/sync-repository.ts` (`markChannelUnavailable`,
+  `listSubscribedChannels`); `src/adapters/storage/repositories.ts` (`NOT_SHORT` filter).
+- **Notes:** needs triage against the owner's actual DB (which of the 5 hypotheses fits
+  the specific channels reported) before this can move to "in progress." Possibly
+  related to [[B-021]] (new-subscription lag) if the empty channels are recently
+  subscribed.
+
+### B-050 — Button to open a channel's YouTube page in the browser
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the per-video action bar has "Open in browser" (opens the *video* on
+  youtube.com), but the channel screen has no equivalent for the *channel* itself — no
+  way to jump to `youtube.com/channel/{id}` from inside Chronicle.
+- **Expected:** a button on the channel view (near the channel title/header) that opens
+  the channel's YouTube page via `window.chronicle.openExternalUrl`, mirroring the
+  existing per-video pattern.
+- **Code refs:** `src/ui/App.tsx` / channel-view header rendering (wherever the channel
+  screen's title is rendered); `actions.openInBrowser` in `FeedList.tsx` for the existing
+  per-video pattern to mirror; `window.chronicle.openExternalUrl` (already used in
+  `SettingsView.tsx` for the permissions link) is the IPC call to reuse.
+- **Notes:** small, self-contained addition — no new IPC surface needed, just a new call
+  site for an existing bridge method.
+
+### B-049 — Settings copy about signing into the player for Premium may be misleading
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / player
+- **What happens:** Settings → Connection says "The embedded player uses its own browser
+  session, separate from this connection — if you use YouTube Premium, sign in once
+  inside the player for ad-free playback." The player is a plain sandboxed `<iframe>`
+  (`PlayerView.tsx`) pointed at a single video URL — there's no address bar or
+  navigation surface exposed to reach a Google sign-in page from inside it, so it's
+  unclear how a user is actually supposed to "sign in once inside the player." The owner
+  (a Premium subscriber) also reports never seeing an ad in testing, and suspects — but
+  can't confirm — that the iframe might be reusing their OS default browser's session
+  rather than Electron's own isolated one.
+- **Expected:** either (a) the session really is Electron's own isolated partition
+  (matching the copy's claim) and a sign-in path needs to actually exist (e.g. a "Sign in
+  to YouTube" action that opens a small navigable window against the same
+  session/partition the iframe uses), or (b) if there's genuinely no way to authenticate
+  that session today, the copy should stop promising a sign-in flow that doesn't exist in
+  the UI. Either way this needs verifying, not assuming.
+- **Code refs:** `src/ui/SettingsView.tsx` (the copy, ~line 88-91); `src/ui/PlayerView.tsx`
+  (the `<iframe>`, no `partition`/session config visible at the renderer level — worth
+  checking `src/platform/main.ts` for whether the embedding `BrowserWindow`/webContents
+  sets a session partition at all, which would confirm or rule out the "reusing the OS
+  default browser" theory; Electron's default session is already isolated from
+  Firefox/Chrome, so if no ads truly never appear this more likely points to something
+  else, like a saved Google session in that Electron profile from a prior flow).
+- **Notes:** verify the actual session/partition setup before rewriting the copy — don't
+  guess between "sign-in flow is missing" and "copy is just unclear" without checking.
+
+### B-048 — Premieres/scheduled videos sort by capture time, not air time; no live/upcoming indicator
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed / sync
+- **What happens:** the owner observed premiere videos appearing in feed order by
+  whenever Chronicle first captured them, not the order they're actually scheduled to
+  premiere/air — confirmed in code: `feed.md` (§Ordering) already flags this as an
+  **unverified assumption** ("RSS `published` reflects effective public-availability
+  date... if premieres appear early with future dates, they sort to the top with a
+  'Premieres {date}' label... until the hide-premieres Future feature exists"), and that
+  label was never built. The API client does parse `snippet.liveBroadcastContent` into
+  `live`/`upcoming`/`none` and persists it (`api-client.ts`, `migrations.ts`
+  `live_content` column, `sync-repository.ts`), but the value is dropped before reaching
+  the feed: absent from `FEED_SELECT` (`repositories.ts`), absent from the domain
+  `Video` type (`src/core/video.ts`), absent from `src/ipc/contract.ts` — captured and
+  stored, never read back or rendered. The same root cause likely also affects scheduled
+  (not-yet-live) livestreams, per the owner's suspicion.
+- **Expected:** (1) verify what `publishedAt` actually holds for a premiere/upcoming
+  video in practice (the assumption in `feed.md` needs confirming or correcting); (2)
+  wire the already-captured `live_content` through to the feed query, domain type, and
+  IPC contract; (3) render a badge/label for `upcoming`/`live` videos (mirroring the
+  existing `isShort` badge pattern in `FeedList.tsx`) so premieres and scheduled/active
+  livestreams are visually distinguishable from normal uploads, independent of whatever
+  the ordering fix turns out to be.
+- **Code refs:** `.specs/feed.md` (§Ordering, the existing assumption);
+  `src/adapters/youtube/api-client.ts` (`liveContent` parsing);
+  `src/adapters/storage/migrations.ts` (`live_content` column),
+  `src/adapters/storage/sync-repository.ts` (write path);
+  `src/adapters/storage/repositories.ts` (`FEED_SELECT` — read path, currently missing
+  the column); `src/core/video.ts` (domain type); `src/ipc/contract.ts` (DTO);
+  `src/ui/FeedList.tsx` (`isShort` badge to mirror for the new indicator).
+- **Notes:** needs a `feed.md` update once attacked (resolving the "Assumption" flag one
+  way or the other) and possibly a `decisions.md` entry if the "Premieres {date}"
+  ordering/label design needs a Final decision beyond what's already sketched.
+
+### B-047 — Grid layout: per-video action buttons never appear
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the read/ignore/favorite/watch-later/open-in-browser buttons render
+  in the DOM for grid cards too (`VideoCard` in `FeedList.tsx` includes the same
+  `.row-actions.card-actions` block as `VideoRow`), but they never become visible —
+  `styles.css`'s `.row-actions { display: none }` is only overridden by `.row:hover
+  .row-actions, .row.selected .row-actions { display: flex }` (line 689-692), and grid
+  cards use the `.card` class, not `.row` — so that selector never matches, and
+  `.card-actions` (line 820, which only sets `position`/`background`/`padding`, no
+  `display`) stays hidden regardless of hover or selection. Only list mode shows the
+  buttons.
+- **Expected:** grid cards get the same hover/selected visibility as list rows — a
+  `.card:hover .row-actions, .card.selected .row-actions { display: flex }` rule (or
+  equivalent) alongside the existing list-row selector.
+- **Code refs:** `src/ui/styles.css` lines 684-692 (the list-only visibility rule) and
+  820-827 (`.card-actions` positioning, missing the display toggle);
+  `src/ui/FeedList.tsx` `VideoCard`/`VideoRow` (identical markup already shared, confirms
+  this is CSS-only).
+- **Notes:** root cause fully diagnosed — this is a one-rule CSS fix whenever it's
+  attacked, not a design question.
+
+### B-046 — Thumbnail hover preview (video scrub preview)
+- **Type:** adjustment (feasibility unclear)
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed / player
+- **What happens:** the owner would like hovering a thumbnail in the feed to preview the
+  video (like youtube.com's hover-scrub), and isn't sure it's feasible.
+- **Expected:** needs a research spike before scoping, not a straightforward "add it."
+  YouTube's own site-side hover preview is served via storyboard sprite sheets / short
+  muted clips through endpoints that aren't part of the public Data API — there's no
+  documented, quota-accounted way to fetch them today. Also worth checking whether the
+  IFrame Player API exposes anything usable per-video without loading a full second
+  player instance per thumbnail — likely too heavy for a virtualized feed regardless.
+- **Code refs:** `src/ui/FeedList.tsx` (`VideoCard`/`VideoRow` thumbnail rendering,
+  `thumb://` cache); `.specs/youtube-api.md` (endpoint budget — any new endpoint needs a
+  quota/justification entry here per project convention).
+- **Notes:** flagging as **research needed** rather than a scoped adjustment — the ask
+  itself doesn't conflict with the "who is driving?" test (it's a user-initiated hover,
+  not algorithmic), but the *data source* to power it is the open question.
+
+### B-045 — Miniplayer: detach to a corner mini-view, extract to an always-on-top window
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player / ui-shell
+- **What happens:** today the player view is full-view only (`playback.md` §Player view
+  spec) — leaving it goes back to the feed and playback stops (no background/PiP mode
+  exists).
+- **Expected:** three related asks bundled together: (1) leaving the player screen while
+  a video is playing (Esc/Back) drops it into a small persistent miniplayer docked
+  bottom-right instead of stopping playback; (2) an explicit "miniplayer" button inside
+  the full player view that does the same thing on demand (return to the feed/home, keep
+  playing in the corner); (3) a further "extract" action on the miniplayer that pops the
+  video into its own always-on-top OS window, independent of the main Chronicle window.
+- **Code refs:** `src/platform/main.ts` (single `createWindow()`/single-`BrowserWindow`
+  pattern today — the "extract to its own window" request needs a second `BrowserWindow`
+  with `alwaysOnTop: true`, which Electron supports natively); `src/ui/PlayerView.tsx`
+  (the postMessage widget protocol driving the current embed — a miniplayer would need to
+  either keep this same iframe instance alive across the view swap, or hand off playback
+  state (video id + `getCurrentTime()`) to a second instance, since re-mounting a fresh
+  iframe would restart the video); `.specs/playback.md` §Player view spec (no
+  miniplayer/background-playback concept exists yet).
+- **Notes:** this is a genuine architecture question, not a small UI tweak — needs a
+  **Pending decision** in `decisions.md` before implementing: does the miniplayer keep
+  the *same* iframe/player instance alive (continuity, no restart, but means the player
+  must be portal-able across two very different layout contexts), or hand off to a fresh
+  instance at the last known timestamp (simpler, but a visible hiccup/reload on
+  transition)? The "extract to always-on-top window" leg additionally needs deciding
+  whether that's a second `BrowserWindow` hosting its own iframe (clean process boundary,
+  definitely a restart-and-seek handoff) or something else. Also interacts with whatever
+  [[B-044]]'s resume-position storage ends up looking like — the same "read current
+  playback time" primitive is needed by both.
+
+### B-044 — Resume playback position per video
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player / storage
+- **What happens:** `playback.md` already flags this as a **Future idea, not MVP**
+  ("Watch progress/resume position: IFrame API exposes `getCurrentTime()`; storing it
+  locally is cheap") — the owner is now asking for it explicitly, promoting it off the
+  future-ideas list.
+- **Expected:** reopening a partially-watched video resumes from where playback last
+  stopped, instead of always starting at 0:00.
+- **Code refs:** `src/ui/PlayerView.tsx` (postMessage protocol to the IFrame API — needs
+  `getCurrentTime()` polled/thrown on pause/unmount, and `seekTo()` issued on open,
+  mirroring the existing D-006/B-038/D-038 "reissue on start" pattern already used for
+  quality/speed); `src/adapters/storage/migrations.ts` (new column, likely on
+  `video_state` alongside the existing read/favorite/watch-later flags per
+  `local-data.md`'s "video_state is the user's data" split); `src/ipc/contract.ts` (DTO
+  field).
+- **Notes:** needs a couple of small product decisions when attacked — how close to the
+  end counts as "finished, don't resume" (e.g. last 30s / 95%?), and how often to persist
+  the timestamp (on pause/unmount only vs. periodic ticks) — worth a one-line note in
+  `playback.md` when it moves from Future idea to Final.
+
 ### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
