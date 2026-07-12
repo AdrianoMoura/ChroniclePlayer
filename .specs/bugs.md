@@ -296,7 +296,7 @@ Resolved entries add:
     validate live: the incremental-consent browser popup, the fallback lookup path
     for pre-existing subscriptions, and that unsubscribing actually reflects on
     youtube.com.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 54a90fb · **Outcome:** Fixed
 
 ### B-017 — Multi-language support via lang files (English only for now)
 - **Type:** adjustment
