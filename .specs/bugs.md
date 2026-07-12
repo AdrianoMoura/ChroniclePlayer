@@ -252,7 +252,17 @@ Resolved entries add:
   width) — this adds a third state (hidden) on top of both. No UI component tests exist
   in this repo; verified via `npm run typecheck && npm run lint && npm test` — no
   live-app check per this session's workflow, owner validates live.
-- **Resolved:** 2026-07-12 · **Commit:** 6e6f674 ·
+  **Correction (2026-07-12, same day, from owner screenshots):** the floating
+  `.sidebar-expand` button (`position: absolute; top: 10px; left: 10px` on `.app`)
+  landed directly on top of `.topbar`'s own refresh button once the sidebar
+  collapsed to width 0 — both icons rendered stacked in the same spot, reading as
+  one garbled glyph. Fixed by giving `.app` a `sidebar-collapsed` class (`App.tsx`)
+  that reserves left padding on `.topbar` (`padding-left: 52px`) so the two icons no
+  longer overlap; also resized `.sidebar-toggle`/`.sidebar-expand` to match
+  `.refresh` exactly (16px, `2px 6px` padding) and nudged `.sidebar-header`'s
+  vertical position to line up with `.topbar`'s row when expanded, since the two
+  were reading as visibly different heights.
+- **Resolved:** 2026-07-12 · **Commit:** 6e6f674, e1c2c35 ·
   **Outcome:** Fixed
 
 ### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
