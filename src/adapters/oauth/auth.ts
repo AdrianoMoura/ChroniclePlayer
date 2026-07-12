@@ -2,13 +2,21 @@ import { authExpired, invalidClientSecret } from '../../core/errors'
 import type { AuthProvider, Clock, SecretStore } from '../../core/ports'
 import { generatePkce, randomState } from './pkce'
 import { startLoopback, type LoopbackHandshake } from './loopback'
-import type { GoogleOAuth, OAuthClientCredentials } from './google-oauth'
+import {
+  YOUTUBE_FORCE_SSL_SCOPE,
+  YOUTUBE_READONLY_SCOPE,
+  type GoogleOAuth,
+  type OAuthClientCredentials
+} from './google-oauth'
 
 // Secret entries are keyed by profile from day one (authentication.md
 // §Multi-account: cheap now, painful later). MVP has one profile.
 export const SECRET_KEYS = {
   oauthClient: 'default/oauth-client',
-  refreshToken: 'default/refresh-token'
+  refreshToken: 'default/refresh-token',
+  // D-032 incremental consent: the scope string Google actually granted,
+  // so hasWriteScope() never has to guess.
+  grantedScopes: 'default/granted-scopes'
 } as const
 
 // Accepts the raw content of the user's downloaded client_secret.json.
@@ -94,7 +102,25 @@ export class AuthFlow {
     return this.secrets.get(SECRET_KEYS.refreshToken) !== null
   }
 
+  // True once the user has granted youtube.force-ssl (D-032) — checked
+  // before any write action (B-010 unsubscribe, and future like/comment).
+  hasWriteScope(): boolean {
+    const granted = this.secrets.get(SECRET_KEYS.grantedScopes)
+    return granted !== null && granted.includes(YOUTUBE_FORCE_SSL_SCOPE)
+  }
+
   async connect(): Promise<void> {
+    await this.runFlow(YOUTUBE_READONLY_SCOPE, false)
+  }
+
+  // Incremental authorization (D-032): re-runs the same system-browser +
+  // loopback handshake, merging the write scope onto whatever is already
+  // granted. Two clicks for an already-signed-in user.
+  async requestWriteScope(): Promise<void> {
+    await this.runFlow(`${YOUTUBE_READONLY_SCOPE} ${YOUTUBE_FORCE_SSL_SCOPE}`, true)
+  }
+
+  private async runFlow(scope: string, includeGrantedScopes: boolean): Promise<void> {
     const credentials = readStoredCredentials(this.secrets)
     if (credentials === null) throw invalidClientSecret('no OAuth client imported yet')
 
@@ -106,7 +132,9 @@ export class AuthFlow {
         clientId: credentials.clientId,
         redirectUri: loopback.redirectUri,
         state,
-        codeChallenge: challenge
+        codeChallenge: challenge,
+        scope,
+        includeGrantedScopes
       })
       await this.openInSystemBrowser(url)
       const code = await loopback.waitForCode(state)
@@ -120,6 +148,7 @@ export class AuthFlow {
         throw invalidClientSecret('Google returned no refresh token — retry the connection')
       }
       this.secrets.set(SECRET_KEYS.refreshToken, grant.refreshToken)
+      this.secrets.set(SECRET_KEYS.grantedScopes, grant.scope ?? scope)
     } finally {
       loopback.close()
     }
@@ -133,5 +162,6 @@ export class AuthFlow {
       await this.oauth.revoke(refreshToken)
       this.secrets.delete(SECRET_KEYS.refreshToken)
     }
+    this.secrets.delete(SECRET_KEYS.grantedScopes)
   }
 }

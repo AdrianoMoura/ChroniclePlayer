@@ -9,6 +9,9 @@ const REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke'
 // D-032: initial auth requests the readonly scope only; broader scopes come
 // via incremental authorization when interaction features land (post-MVP).
 export const YOUTUBE_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
+// Covers subscribe/unsubscribe, rate, and comment (D-032) — requested only
+// the first time a write action is invoked (B-010 is the first caller).
+export const YOUTUBE_FORCE_SSL_SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl'
 
 export interface OAuthClientCredentials {
   clientId: string
@@ -19,6 +22,10 @@ export interface TokenGrant {
   accessToken: string
   expiresInSeconds: number
   refreshToken: string | null
+  // Google's actual granted-scope string (may exceed what was requested when
+  // include_granted_scopes=true merges prior grants) — null if the token
+  // endpoint omitted it.
+  scope: string | null
 }
 
 export class GoogleOAuth {
@@ -29,18 +36,23 @@ export class GoogleOAuth {
     redirectUri: string
     state: string
     codeChallenge: string
+    scope?: string
+    // Incremental consent (D-032): merges this grant with scopes already
+    // granted in a prior connection instead of replacing them.
+    includeGrantedScopes?: boolean
   }): string {
     const url = new URL(AUTH_ENDPOINT)
     url.searchParams.set('client_id', params.clientId)
     url.searchParams.set('redirect_uri', params.redirectUri)
     url.searchParams.set('response_type', 'code')
-    url.searchParams.set('scope', YOUTUBE_READONLY_SCOPE)
+    url.searchParams.set('scope', params.scope ?? YOUTUBE_READONLY_SCOPE)
     url.searchParams.set('state', params.state)
     url.searchParams.set('code_challenge', params.codeChallenge)
     url.searchParams.set('code_challenge_method', 'S256')
     // offline + consent guarantee a refresh token on (re-)connect.
     url.searchParams.set('access_type', 'offline')
     url.searchParams.set('prompt', 'consent')
+    if (params.includeGrantedScopes) url.searchParams.set('include_granted_scopes', 'true')
     return url.toString()
   }
 
@@ -106,7 +118,8 @@ export class GoogleOAuth {
     return {
       accessToken: payload['access_token'],
       expiresInSeconds: typeof payload['expires_in'] === 'number' ? payload['expires_in'] : 3600,
-      refreshToken: typeof payload['refresh_token'] === 'string' ? payload['refresh_token'] : null
+      refreshToken: typeof payload['refresh_token'] === 'string' ? payload['refresh_token'] : null,
+      scope: typeof payload['scope'] === 'string' ? payload['scope'] : null
     }
   }
 }

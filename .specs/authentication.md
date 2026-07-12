@@ -53,6 +53,12 @@ open-source Google API clients) use this same "bring your own OAuth client" patt
     D-003's local-only state rule is unaffected by any scope the user grants.
   - The settings screen shows which scopes are currently granted and what each is used
     for, with a revoke link.
+  - **Implemented (2026-07-12, [[B-010]]):** the mechanism described above —
+    `AuthFlow.requestWriteScope()`/`hasWriteScope()` (`src/adapters/oauth/auth.ts`),
+    granted scopes tracked in the secret store (`SECRET_KEYS.grantedScopes`), and
+    Unsubscribe as the first write action to trigger it. **Still open:** the settings
+    screen's granted-scopes display + revoke link, and the read-only copy fix — both
+    are [[B-015]]'s scope, not repeated here.
 - **Endpoints:** standard Google OAuth2 (`accounts.google.com/o/oauth2/v2/auth`,
   `oauth2.googleapis.com/token`). No Google SDK dependency required; the flow is simple
   enough to implement directly, which keeps the adapter replaceable and auditable.

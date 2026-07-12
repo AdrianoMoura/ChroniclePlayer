@@ -65,13 +65,20 @@ export class SqliteSyncRepository implements SyncRepository {
     this.db.exec('BEGIN')
     try {
       const upsert = this.db.prepare(
-        `INSERT INTO channels (channel_id, title, thumbnail_url, subscribed, added_at)
-         VALUES (:id, :title, :thumb, 1, :now)
-         ON CONFLICT(channel_id) DO UPDATE SET title = :title, thumbnail_url = :thumb, subscribed = 1`
+        `INSERT INTO channels (channel_id, title, thumbnail_url, subscription_id, subscribed, added_at)
+         VALUES (:id, :title, :thumb, :subId, 1, :now)
+         ON CONFLICT(channel_id) DO UPDATE SET
+           title = :title, thumbnail_url = :thumb, subscription_id = :subId, subscribed = 1`
       )
       for (const channel of channels) {
         if (!existing.has(channel.channelId)) added += 1
-        upsert.run({ id: channel.channelId, title: channel.title, thumb: channel.thumbnailUrl, now })
+        upsert.run({
+          id: channel.channelId,
+          title: channel.title,
+          thumb: channel.thumbnailUrl,
+          subId: channel.subscriptionId ?? null,
+          now
+        })
       }
 
       let removed = 0
@@ -88,6 +95,20 @@ export class SqliteSyncRepository implements SyncRepository {
       this.db.exec('ROLLBACK')
       throw cause
     }
+  }
+
+  // B-010: local half of user-initiated unsubscribe — the real
+  // subscriptions.delete call happens in the platform layer before this runs.
+  // Same soft-delete as applySubscriptions' diff removal: videos/state stay.
+  getSubscriptionId(channelId: string): string | null {
+    const row = this.db
+      .prepare(`SELECT subscription_id FROM channels WHERE channel_id = ?`)
+      .get(channelId) as { subscription_id: string | null } | undefined
+    return row?.subscription_id ?? null
+  }
+
+  markUnsubscribed(channelId: string): void {
+    this.db.prepare(`UPDATE channels SET subscribed = 0 WHERE channel_id = ?`).run(channelId)
   }
 
   setUploadsPlaylist(channelId: string, playlistId: string): void {

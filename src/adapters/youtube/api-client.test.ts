@@ -19,6 +19,7 @@ const SUBSCRIPTIONS_PAGE_1 = {
   nextPageToken: 'p2',
   items: [
     {
+      id: 'subAAA',
       snippet: {
         title: 'Alpha Channel',
         resourceId: { channelId: 'UCaaa' },
@@ -30,6 +31,7 @@ const SUBSCRIPTIONS_PAGE_1 = {
 const SUBSCRIPTIONS_PAGE_2 = {
   items: [
     {
+      id: 'subBBB',
       snippet: { title: 'Beta Channel', resourceId: { channelId: 'UCbbb' }, thumbnails: {} }
     }
   ]
@@ -76,8 +78,13 @@ describe('YouTubeApiClient', () => {
     }
     const channels = await new YouTubeApiClient(auth, fetchFn, quota).listSubscriptions()
     expect(channels).toEqual([
-      { channelId: 'UCaaa', title: 'Alpha Channel', thumbnailUrl: 'https://yt3.example/a-med' },
-      { channelId: 'UCbbb', title: 'Beta Channel', thumbnailUrl: null }
+      {
+        channelId: 'UCaaa',
+        title: 'Alpha Channel',
+        thumbnailUrl: 'https://yt3.example/a-med',
+        subscriptionId: 'subAAA'
+      },
+      { channelId: 'UCbbb', title: 'Beta Channel', thumbnailUrl: null, subscriptionId: 'subBBB' }
     ])
     expect(quota.spent).toBe(2)
   })
@@ -118,6 +125,50 @@ describe('YouTubeApiClient', () => {
       'UCaaa'
     ])
     expect(map.get('UCaaa')).toBe('UUaaa')
+  })
+
+  it('unsubscribe DELETEs subscriptions?id= and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let method = ''
+    let idParam = ''
+    const fetchFn: FetchFn = (url, init) => {
+      method = String(init?.method)
+      idParam = new URL(String(url)).searchParams.get('id') ?? ''
+      return Promise.resolve(new Response(null, { status: 204 }))
+    }
+    await new YouTubeApiClient(auth, fetchFn, quota).unsubscribe('subAAA')
+    expect(method).toBe('DELETE')
+    expect(idParam).toBe('subAAA')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('unsubscribe maps a failed delete to a domain error', async () => {
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(jsonResponse(401, { error: { message: 'unauthorized' } }))
+    await expect(
+      new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).unsubscribe('subAAA')
+    ).rejects.toMatchObject({ kind: 'auth-expired' })
+  })
+
+  it('findSubscriptionId looks up subscriptions.list forChannelId — 1 unit', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const params = new URL(String(url)).searchParams
+      expect(params.get('forChannelId')).toBe('UCaaa')
+      expect(params.get('mine')).toBe('true')
+      return Promise.resolve(jsonResponse(200, { items: [{ id: 'subAAA' }] }))
+    }
+    const id = await new YouTubeApiClient(auth, fetchFn, quota).findSubscriptionId('UCaaa')
+    expect(id).toBe('subAAA')
+    expect(quota.spent).toBe(1)
+  })
+
+  it('findSubscriptionId returns null when there is no matching subscription', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, { items: [] }))
+    const id = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).findSubscriptionId(
+      'UCaaa'
+    )
+    expect(id).toBeNull()
   })
 
   it('maps 403 quotaExceeded / accessNotConfigured and 401 to domain errors', async () => {

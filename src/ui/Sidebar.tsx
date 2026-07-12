@@ -1,5 +1,6 @@
-import { useMemo, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type RefObject } from 'react'
 import type { ChannelDto, FeedViewDto } from '../ipc/contract'
+import { t } from './i18n'
 
 export const VIEW_ORDER: readonly FeedViewDto[] = [
   'all',
@@ -10,11 +11,11 @@ export const VIEW_ORDER: readonly FeedViewDto[] = [
 ]
 
 export const VIEW_LABELS: Record<FeedViewDto, string> = {
-  all: 'All',
-  unread: 'Unread',
-  'watch-later': 'Watch Later',
-  favorites: 'Favorites',
-  ignored: 'Ignored'
+  all: t('sidebar.view.all'),
+  unread: t('sidebar.view.unread'),
+  'watch-later': t('sidebar.view.watchLater'),
+  favorites: t('sidebar.view.favorites'),
+  ignored: t('sidebar.view.ignored')
 }
 
 interface SidebarProps {
@@ -29,6 +30,7 @@ interface SidebarProps {
   onSelectChannel: (channelId: string | null) => void
   onOpenSettings: () => void
   onToggleCollapse: () => void
+  onUnsubscribe: (channelId: string) => void
 }
 
 export function Sidebar({
@@ -42,11 +44,16 @@ export function Sidebar({
   onSelectView,
   onSelectChannel,
   onOpenSettings,
-  onToggleCollapse
+  onToggleCollapse,
+  onUnsubscribe
 }: SidebarProps) {
   // Local channel-name filter (B-024) — over the user's own subscriptions,
   // never YouTube search.
   const [channelQuery, setChannelQuery] = useState('')
+  // Per-row "…" context menu (B-010): armed twice before it actually acts,
+  // same pattern as Settings' delete-all confirmation.
+  const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
+  const [confirmingUnsub, setConfirmingUnsub] = useState<string | null>(null)
 
   const visibleChannels = useMemo(() => {
     const query = channelQuery.trim().toLowerCase()
@@ -54,10 +61,31 @@ export function Sidebar({
     return channels.filter((channel) => channel.title.toLowerCase().includes(query))
   }, [channels, channelQuery])
 
+  useEffect(() => {
+    if (menuChannelId === null) return
+    function closeMenu(): void {
+      setMenuChannelId(null)
+      setConfirmingUnsub(null)
+    }
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') closeMenu()
+    }
+    document.addEventListener('click', closeMenu)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('click', closeMenu)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuChannelId])
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <button className="sidebar-toggle" title="Collapse sidebar" onClick={onToggleCollapse}>
+        <button
+          className="sidebar-toggle"
+          title={t('sidebar.collapseTitle')}
+          onClick={onToggleCollapse}
+        >
           ☰
         </button>
       </div>
@@ -82,12 +110,12 @@ export function Sidebar({
 
       {channels.length > 0 && (
         <div className="channel-list">
-          <h3 className="channel-list-header">Channels</h3>
+          <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
           <div className="field-wrap">
             <input
               ref={channelQueryRef}
               className="channel-query"
-              placeholder="Find channel  c"
+              placeholder={t('sidebar.findChannelPlaceholder')}
               value={channelQuery}
               onChange={(event) => setChannelQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -109,7 +137,7 @@ export function Sidebar({
             {channelQuery !== '' && (
               <button
                 className="field-clear"
-                title="Clear"
+                title={t('sidebar.clearTitle')}
                 onClick={() => {
                   setChannelQuery('')
                   channelQueryRef.current?.focus()
@@ -120,22 +148,54 @@ export function Sidebar({
             )}
           </div>
           {visibleChannels.map((channel) => (
-            <button
-              key={channel.channelId}
-              className={`view channel${channelFilter === channel.channelId ? ' active' : ''}`}
-              title={channel.title}
-              onClick={() =>
-                onSelectChannel(channelFilter === channel.channelId ? null : channel.channelId)
-              }
-            >
-              <span className="view-label ellipsis">{channel.title}</span>
-              {channel.unreadCount > 0 && (
-                <span className="view-count">{channel.unreadCount}</span>
+            <div key={channel.channelId} className="channel-row">
+              <button
+                className={`view channel${channelFilter === channel.channelId ? ' active' : ''}`}
+                title={channel.title}
+                onClick={() =>
+                  onSelectChannel(channelFilter === channel.channelId ? null : channel.channelId)
+                }
+              >
+                <span className="view-label ellipsis">{channel.title}</span>
+                {channel.unreadCount > 0 && (
+                  <span className="view-count">{channel.unreadCount}</span>
+                )}
+              </button>
+              <button
+                className="channel-menu-btn"
+                title={t('sidebar.channelMenu.title')}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setConfirmingUnsub(null)
+                  setMenuChannelId((current) => (current === channel.channelId ? null : channel.channelId))
+                }}
+              >
+                ⋯
+              </button>
+              {menuChannelId === channel.channelId && (
+                <div className="channel-menu" onClick={(event) => event.stopPropagation()}>
+                  <button
+                    className={confirmingUnsub === channel.channelId ? 'danger' : ''}
+                    onClick={() => {
+                      if (confirmingUnsub === channel.channelId) {
+                        onUnsubscribe(channel.channelId)
+                        setMenuChannelId(null)
+                        setConfirmingUnsub(null)
+                      } else {
+                        setConfirmingUnsub(channel.channelId)
+                      }
+                    }}
+                  >
+                    {confirmingUnsub === channel.channelId
+                      ? t('sidebar.channelMenu.confirmUnsubscribe')
+                      : t('sidebar.channelMenu.unsubscribe')}
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           ))}
           {visibleChannels.length === 0 && (
-            <p className="channel-query-empty">No channel matches.</p>
+            <p className="channel-query-empty">{t('sidebar.noChannelMatch')}</p>
           )}
         </div>
       )}
@@ -143,7 +203,7 @@ export function Sidebar({
       <div className="sidebar-footer">
         <button className={`view${settingsOpen ? ' active' : ''}`} onClick={onOpenSettings}>
           <span className="view-key gear">⚙</span>
-          <span className="view-label">Settings</span>
+          <span className="view-label">{t('sidebar.settingsLabel')}</span>
         </button>
       </div>
     </aside>

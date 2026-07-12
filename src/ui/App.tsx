@@ -72,6 +72,10 @@ export function App() {
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
   const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
+  // B-010: topbar Unsubscribe arms on first click, fires on the second
+  // (mirrors Settings' delete-all confirmation), auto-disarms after 6s.
+  const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
+  const confirmUnsubscribeTimer = useRef<number | null>(null)
   // B-037: default expanded; entering the player auto-collapses it (more
   // room for the video) and leaving restores whatever the user had before.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -148,6 +152,16 @@ export function App() {
   useEffect(() => {
     loadView(view, channelFilter)
   }, [view, channelFilter, loadView])
+
+  // Switching channels (or leaving the channel screen) disarms any pending
+  // Unsubscribe confirmation — it must never carry over to a different channel.
+  useEffect(() => {
+    setConfirmingUnsubscribe(false)
+    if (confirmUnsubscribeTimer.current !== null) {
+      window.clearTimeout(confirmUnsubscribeTimer.current)
+      confirmUnsubscribeTimer.current = null
+    }
+  }, [channelFilter])
 
   useEffect(() => {
     void window.chronicle.getAuthStatus().then(setAuth)
@@ -238,6 +252,46 @@ export function App() {
       loadChannels()
     })
   }, [channelFilter, loadView, loadChannels])
+
+  // B-010: real subscriptions.delete plus the local soft-delete — may open
+  // the system browser once for incremental write-scope consent (D-032).
+  const unsubscribeChannel = useCallback(
+    (channelId: string) => {
+      void window.chronicle.unsubscribeChannel(channelId).then((result) => {
+        if (!result.ok) {
+          if (result.errorKind === 'auth-expired') {
+            setBanner({
+              text: t('app.banner.reconnectRequired'),
+              action: { label: t('app.banner.reconnectAction'), run: connect }
+            })
+          } else if (result.errorKind === 'network-unavailable') {
+            setBanner({ text: t('app.banner.offline') })
+          } else {
+            setBanner({ text: t('app.banner.unsubscribeFailed', { message: result.message }) })
+          }
+          return
+        }
+        loadChannels()
+        if (channelFilter === channelId) setChannelFilter(null)
+        else loadView()
+      })
+    },
+    [channelFilter, connect, loadChannels, loadView]
+  )
+
+  function handleTopbarUnsubscribe(): void {
+    if (!confirmingUnsubscribe) {
+      setConfirmingUnsubscribe(true)
+      confirmUnsubscribeTimer.current = window.setTimeout(
+        () => setConfirmingUnsubscribe(false),
+        6000
+      )
+      return
+    }
+    if (confirmUnsubscribeTimer.current !== null) window.clearTimeout(confirmUnsubscribeTimer.current)
+    setConfirmingUnsubscribe(false)
+    if (channelFilter !== null) unsubscribeChannel(channelFilter)
+  }
 
   const patch = useCallback(
     (videoId: string, state: VideoStateDto) => {
@@ -685,6 +739,7 @@ export function App() {
             setScreen('settings')
           }}
           onToggleCollapse={toggleSidebar}
+          onUnsubscribe={unsubscribeChannel}
         />
       )}
       <main className="feed">
@@ -732,6 +787,16 @@ export function App() {
                 t('app.topbar.channelFallback'))
               : VIEW_LABELS[view]}
           </span>
+          {channelFilter !== null && (
+            <button
+              className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
+              onClick={handleTopbarUnsubscribe}
+            >
+              {confirmingUnsubscribe
+                ? t('app.topbar.confirmUnsubscribe')
+                : t('app.topbar.unsubscribe')}
+            </button>
+          )}
           <span className="status">{statusText}</span>
           {showMarkAllRead && (
             <button className="mark-all-read" onClick={markAllRead}>

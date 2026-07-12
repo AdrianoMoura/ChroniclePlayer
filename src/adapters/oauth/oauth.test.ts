@@ -79,7 +79,12 @@ describe('GoogleOAuth', () => {
     })
     expect(form?.get('grant_type')).toBe('authorization_code')
     expect(form?.get('code_verifier')).toBe('the-verifier')
-    expect(grant).toEqual({ accessToken: 'at', expiresInSeconds: 3599, refreshToken: 'rt' })
+    expect(grant).toEqual({
+      accessToken: 'at',
+      expiresInSeconds: 3599,
+      refreshToken: 'rt',
+      scope: null
+    })
   })
 
   it('maps invalid_grant to the auth-expired domain error (D-012 path)', async () => {
@@ -196,7 +201,41 @@ describe('AuthFlow', () => {
     expect(openedUrl).toContain('accounts.google.com')
     expect(secrets.get(SECRET_KEYS.refreshToken)).toBe('rt-new')
     // access token is never written to the store
-    expect([...secrets.map.keys()]).toEqual([SECRET_KEYS.oauthClient, SECRET_KEYS.refreshToken])
+    expect([...secrets.map.keys()]).toEqual([
+      SECRET_KEYS.oauthClient,
+      SECRET_KEYS.refreshToken,
+      SECRET_KEYS.grantedScopes
+    ])
+  })
+
+  it('requestWriteScope merges the write scope and updates hasWriteScope', async () => {
+    const secrets = new MemorySecrets()
+    secrets.set(SECRET_KEYS.oauthClient, JSON.stringify(credentials))
+    let openedUrl = ''
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, { access_token: 'at', expires_in: 3600, refresh_token: 'rt' })
+      )
+    const flow = new AuthFlow(
+      secrets,
+      new GoogleOAuth(fetchFn),
+      (url) => {
+        openedUrl = url
+        return Promise.resolve()
+      },
+      () =>
+        Promise.resolve({
+          redirectUri: 'http://127.0.0.1:9999',
+          waitForCode: () => Promise.resolve('the-code'),
+          close: () => {}
+        })
+    )
+    expect(flow.hasWriteScope()).toBe(false)
+    await flow.requestWriteScope()
+    const params = new URL(openedUrl).searchParams
+    expect(params.get('scope')).toContain('youtube.force-ssl')
+    expect(params.get('include_granted_scopes')).toBe('true')
+    expect(flow.hasWriteScope()).toBe(true)
   })
 
   it('signOut revokes best-effort and deletes the stored token', async () => {

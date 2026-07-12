@@ -67,7 +67,13 @@ const SCHEMA_V2 = `
 ALTER TABLE videos ADD COLUMN view_count INTEGER;
 `
 
-const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2]
+// v3 (B-010): subscriptions.delete needs the subscription resource id,
+// distinct from channel_id — captured at subscription-list time.
+const SCHEMA_V3 = `
+ALTER TABLE channels ADD COLUMN subscription_id TEXT;
+`
+
+const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3]
 
 export function migrate(db: DatabaseSync): void {
   let version = schemaVersion(db)

@@ -42,7 +42,8 @@ export class YouTubeApiClient implements SubscriptionSource {
         channels.push({
           channelId: String(resource['channelId']),
           title: String(snippet['title']),
-          thumbnailUrl: thumbnailUrl(snippet['thumbnails'])
+          thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
+          subscriptionId: typeof item['id'] === 'string' ? item['id'] : null
         })
       }
       pageToken = page.nextPageToken
@@ -104,6 +105,36 @@ export class YouTubeApiClient implements SubscriptionSource {
         viewCount: typeof rawViews === 'string' ? Number(rawViews) : null
       }
     })
+  }
+
+  // subscriptions.delete — 50 units (youtube-api.md). User-initiated only
+  // (B-010, D-032) — never called from the background sync path. Requires
+  // the write scope (youtube.force-ssl) to already be granted.
+  async unsubscribe(subscriptionId: string): Promise<void> {
+    this.quota.add(50)
+    const token = await this.auth.getAccessToken()
+    const url = new URL(`${API_BASE}/subscriptions`)
+    url.searchParams.set('id', subscriptionId)
+    const response = await request(this.fetchFn, url.toString(), {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
+      throw this.mapError(response.status, payload)
+    }
+  }
+
+  // subscriptions.list mine=true forChannelId — 1 unit. Fallback lookup for
+  // channels subscribed before the subscription_id column existed (B-010).
+  async findSubscriptionId(channelId: string): Promise<string | null> {
+    const page = await this.get(
+      'subscriptions',
+      { part: 'id', mine: 'true', forChannelId: channelId, maxResults: '1' },
+      1
+    )
+    const id = page.items[0]?.['id']
+    return typeof id === 'string' ? id : null
   }
 
   // playlistItems.list — 1 unit per 50-item page. Gap detection and

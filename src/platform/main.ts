@@ -125,6 +125,11 @@ function parseChannelId(value: unknown): string | undefined {
   throw new Error('invalid channel id')
 }
 
+function parseChannelIdRequired(value: unknown): string {
+  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
+  throw new Error('invalid channel id')
+}
+
 function parseCursor(value: unknown): FeedCursorDto | null {
   if (value === null || value === undefined) return null
   if (typeof value === 'object') {
@@ -480,6 +485,43 @@ void app.whenReady().then(() => {
     authProvider.invalidate()
     return authStatus()
   })
+  ipcMain.handle(
+    IpcChannel.unsubscribeChannel,
+    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
+      const id = parseChannelIdRequired(channelId)
+      try {
+        // D-032 incremental consent: the write scope is requested the first
+        // time it's needed, not upfront — this may open the system browser.
+        if (!authFlow.hasWriteScope()) {
+          await authFlow.requestWriteScope()
+          authProvider.invalidate()
+        }
+        let subscriptionId = syncRepository.getSubscriptionId(id)
+        if (subscriptionId === null) {
+          // Channels subscribed before schema v3 have no cached id yet.
+          subscriptionId = await apiClient.findSubscriptionId(id)
+        }
+        if (subscriptionId === null) {
+          return {
+            ok: false,
+            errorKind: 'not-found',
+            message: 'no active subscription found for this channel'
+          }
+        }
+        await apiClient.unsubscribe(subscriptionId)
+        syncRepository.markUnsubscribed(id)
+        return { ok: true, value: undefined }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
   ipcMain.handle(
     IpcChannel.getConnectedChannel,
     async (): Promise<ResultDto<{ title: string }>> => {

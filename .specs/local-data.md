@@ -44,7 +44,9 @@ CREATE TABLE channels (
   rss_etag          TEXT,                    -- conditional GET support
   rss_last_modified TEXT,
   last_synced_at    TEXT,                    -- ISO-8601 UTC
-  added_at          TEXT NOT NULL
+  added_at          TEXT NOT NULL,
+  subscription_id   TEXT                     -- v3 (B-010): YouTube's subscription resource id,
+                                              -- distinct from channel_id — needed for subscriptions.delete
 );
 
 CREATE TABLE videos (
@@ -58,7 +60,8 @@ CREATE TABLE videos (
   live_content      TEXT,                    -- none | live | upcoming (from liveBroadcastContent)
   thumbnail_url     TEXT,
   hydrated_at       TEXT,                    -- NULL = RSS-only, awaiting videos.list
-  fetched_at        TEXT NOT NULL
+  fetched_at        TEXT NOT NULL,
+  view_count        INTEGER                  -- v2 (D-018): captured at hydration, NULL until then
 );
 CREATE INDEX idx_videos_feed ON videos (published_at DESC);
 CREATE INDEX idx_videos_channel ON videos (channel_id, published_at DESC);

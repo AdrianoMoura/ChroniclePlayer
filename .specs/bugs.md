@@ -189,19 +189,6 @@ Resolved entries add:
 - **Notes:** `search.list` costs 100 units/call — quota framing in `youtube-api.md`
   must be respected and surfaced when attacked.
 
-### B-010 — Easy unsubscribe: channel screen + sidebar context menu
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell
-- **Expected:** an obvious Unsubscribe option on the channel screen, plus a `…` icon
-  button per channel in the sidebar opening a context menu with Unsubscribe.
-- **Code refs:** `src/ui/Sidebar.tsx` (`…` context menu); `src/ui/App.tsx` (the
-  channel-filtered view is today's "channel screen");
-  `src/adapters/youtube/api-client.ts` (`subscriptions.delete`);
-  `src/adapters/oauth/google-oauth.ts` (write scope).
-- **Notes:** unsubscribing writes to YouTube — needs the write scope path (D-032,
-  [[B-015]]).
-
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-11
@@ -264,6 +251,52 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-010 — Easy unsubscribe: channel screen + sidebar context menu
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell
+- **Expected:** an obvious Unsubscribe option on the channel screen, plus a `…` icon
+  button per channel in the sidebar opening a context menu with Unsubscribe.
+- **Code refs:** `src/ui/Sidebar.tsx` (`…` context menu, double-arm confirm, now fully
+  i18n'd — its remaining hardcoded strings were folded in here rather than left for
+  later, per the file being rewritten anyway); `src/ui/App.tsx` (topbar Unsubscribe
+  button on the channel screen, same double-arm confirm as Settings' delete-all);
+  `src/adapters/youtube/api-client.ts` (`unsubscribe()` — `subscriptions.delete`, 50
+  units; `findSubscriptionId()` fallback lookup, 1 unit); `src/adapters/oauth/auth.ts`
+  (`AuthFlow.requestWriteScope()`/`hasWriteScope()` — D-032 incremental consent, now
+  implemented, not just specified); `src/adapters/oauth/google-oauth.ts`
+  (`YOUTUBE_FORCE_SSL_SCOPE`, `include_granted_scopes`); `src/platform/main.ts`
+  (`channel:unsubscribe` IPC handler ties it together); schema v3
+  (`src/adapters/storage/migrations.ts` — `channels.subscription_id`).
+- **Notes:** unsubscribing writes to YouTube — needed the write scope path (D-032),
+  which this bug is the first caller of. Design points worth recording:
+  - **`subscription_id` vs `channel_id`:** `subscriptions.delete` needs YouTube's
+    subscription resource id, not the channel id — a gap the original code-refs
+    didn't anticipate. Added as an optional `Channel.subscriptionId` field
+    (`src/core/video.ts`) populated by `listSubscriptions()` and persisted in schema
+    v3, so it costs nothing extra (same call already returns it). Channels synced
+    before this migration have no cached id yet; `findSubscriptionId()` is a 1-unit
+    fallback lookup (`subscriptions.list?mine=true&forChannelId=`) used only then —
+    self-healing after this point since every future subscription sync populates it.
+  - **Granted-scope tracking:** rather than a bare boolean, `AuthFlow` stores the
+    scope string Google actually returned (`SECRET_KEYS.grantedScopes`) and
+    `hasWriteScope()` checks it for `youtube.force-ssl` — truthful to what Google
+    granted instead of trusting our own request succeeded exactly as asked.
+    `signOut()` clears it, so reconnecting starts read-only again.
+  - **Deferred to [[B-015]] on purpose:** the settings screen's granted-scopes
+    display + revoke link (documented in `authentication.md` D-032) and the
+    read-only copy fix are explicitly that bug's scope, not repeated here.
+  - Confirmation UX reuses Settings' delete-all pattern (click arms, click again
+    within 6s fires) rather than a native `confirm()` dialog, everywhere a
+    destructive action needs a guard rail.
+  - No live-app check this session (OAuth/quota need the owner's real credentials
+    per [[no-live-app-verification]]) — verified via
+    `npm run typecheck && npm run lint && npm test` (141/141). The owner should
+    validate live: the incremental-consent browser popup, the fallback lookup path
+    for pre-existing subscriptions, and that unsubscribing actually reflects on
+    youtube.com.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-017 — Multi-language support via lang files (English only for now)
 - **Type:** adjustment

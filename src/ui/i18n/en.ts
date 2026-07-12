@@ -273,6 +273,7 @@ export const en = {
   'app.banner.signedOut': 'Signed out. Local data was kept — reconnect anytime.',
   'app.banner.dismissTitle': 'Dismiss',
   'app.banner.newVideos': '{count} new video{plural}',
+  'app.banner.unsubscribeFailed': "Couldn't unsubscribe: {message}",
 
   // App — sidebar
   'app.sidebar.showTitle': 'Show sidebar',
@@ -286,6 +287,8 @@ export const en = {
   'app.topbar.itemSizeTitle': 'Item size: {size}',
   'app.topbar.switchToListView': 'Switch to list view',
   'app.topbar.switchToGridView': 'Switch to grid view',
+  'app.topbar.unsubscribe': 'Unsubscribe',
+  'app.topbar.confirmUnsubscribe': 'Click again to unsubscribe',
 
   // App — status text
   'app.status.filteringShorts': 'filtering Shorts — {checked} of {total} checked…',
@@ -332,5 +335,21 @@ export const en = {
   'player.action.openInBrowser': 'Open in browser (b)',
   'player.description.showMore': 'Show more',
   'player.description.showLess': 'Show less',
-  'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)'
+  'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
+
+  // Sidebar
+  'sidebar.collapseTitle': 'Collapse sidebar',
+  'sidebar.view.all': 'All',
+  'sidebar.view.unread': 'Unread',
+  'sidebar.view.watchLater': 'Watch Later',
+  'sidebar.view.favorites': 'Favorites',
+  'sidebar.view.ignored': 'Ignored',
+  'sidebar.channelsHeader': 'Channels',
+  'sidebar.findChannelPlaceholder': 'Find channel  c',
+  'sidebar.clearTitle': 'Clear',
+  'sidebar.noChannelMatch': 'No channel matches.',
+  'sidebar.settingsLabel': 'Settings',
+  'sidebar.channelMenu.title': 'More',
+  'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
+  'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm'
 } as const

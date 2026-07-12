@@ -23,7 +23,8 @@ justified against this document and its quota cost stated in a code comment.**
 | `channels.list` (batched, 50 ids/call) | 1 per call | Uploads-playlist IDs, channel metadata |
 | `playlistItems.list` (50/page) | 1 per call | Recent uploads per channel (API path) |
 | `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live/premiere status, stats |
-| `subscriptions.insert` / `.delete` | 50 per call | Post-MVP in-app subscribe (D-030; incremental scope per D-032) |
+| `subscriptions.delete` | 50 per call | Unsubscribe ([[B-010]], implemented 2026-07-12; incremental scope per D-032) |
+| `subscriptions.insert` | 50 per call | Post-MVP in-app subscribe (D-030; incremental scope per D-032) |
 | `videos.rate` / `videos.getRating` | 50 / 1 | Post-MVP like feature (D-032) |
 | `commentThreads.list` / `.insert` | 1 / 50 | Post-MVP comments (D-032; explicit user action only) |
 | `search.list` | **100 per call** | **Banned from sync/automation.** Post-MVP: explicit user-typed queries only (D-031) |

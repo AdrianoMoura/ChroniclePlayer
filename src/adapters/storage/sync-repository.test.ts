@@ -62,6 +62,33 @@ describe('applySubscriptions', () => {
     )
     expect(feed.listPage('all', null, 10).entries.map((e) => e.video.videoId)).toEqual(['v1'])
   })
+
+  it('stores and updates the subscription resource id (B-010)', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA' }], NOW)
+    expect(sync.getSubscriptionId('UCa')).toBe('subA')
+
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null, subscriptionId: 'subA2' }], NOW)
+    expect(sync.getSubscriptionId('UCa')).toBe('subA2')
+  })
+
+  it('getSubscriptionId is null for channels synced before schema v3 / without one', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    expect(sync.getSubscriptionId('UCa')).toBeNull()
+    expect(sync.getSubscriptionId('unknown')).toBeNull()
+  })
+})
+
+describe('markUnsubscribed (B-010)', () => {
+  it('soft-deletes like applySubscriptions removal — videos and state stay', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    sync.insertDiscoveredVideos('UCa', [discovered('v1')], NOW)
+    new SqliteStateRepository(db, clock).toggleFavorite('v1')
+
+    sync.markUnsubscribed('UCa')
+
+    expect(feed.listPage('all', null, 10).entries).toEqual([])
+    expect(feed.listPage('favorites', null, 10).entries.map((e) => e.video.videoId)).toEqual(['v1'])
+  })
 })
 
 describe('discovery and hydration', () => {

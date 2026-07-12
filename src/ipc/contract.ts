@@ -170,6 +170,7 @@ export const IpcChannel = {
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
   windowControl: 'window:control',
+  unsubscribeChannel: 'channel:unsubscribe',
   events: 'chronicle:event'
 } as const
 
@@ -227,5 +228,9 @@ export interface ChronicleApi {
   // Removes the database, secrets and caches, then relaunches (local-data.md
   // §Privacy invariants). The UI confirms before calling.
   deleteAllData(): Promise<void>
+  // Real subscriptions.delete (B-010, 50 units) plus the local soft-delete.
+  // Requests the youtube.force-ssl write scope incrementally on first use
+  // (D-032) — may briefly open the system browser for consent.
+  unsubscribeChannel(channelId: string): Promise<ResultDto<void>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

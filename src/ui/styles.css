@@ -302,6 +302,65 @@ input:focus-visible {
   font-size: 13px;
 }
 
+/* B-010: the "…" context menu per channel row. */
+.channel-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.channel-row .view.channel {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-menu-btn {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  opacity: 0;
+}
+
+.channel-row:hover .channel-menu-btn,
+.channel-menu-btn:focus-visible {
+  opacity: 1;
+}
+
+.channel-menu-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.channel-menu {
+  position: absolute;
+  top: 100%;
+  right: 4px;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  min-width: 170px;
+}
+
+.channel-menu button {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+  color: var(--text);
+}
+
+.channel-menu button:hover {
+  background: var(--surface-2);
+}
+
+.channel-menu button.danger {
+  color: #e0a3a3;
+}
+
 /* B-033: wraps a filter/search input to position an inline clear button. */
 .field-wrap {
   position: relative;
@@ -408,6 +467,27 @@ input:focus-visible {
 .mark-all-read:hover {
   color: var(--text);
   background: var(--surface);
+}
+
+/* B-010: topbar Unsubscribe on the channel screen — same shape as
+   mark-all-read, armed red on the confirm click. */
+.unsubscribe-btn {
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.unsubscribe-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.unsubscribe-btn.danger {
+  border-color: #a05252;
+  color: #e0a3a3;
 }
 
 .topbar .field-wrap {
