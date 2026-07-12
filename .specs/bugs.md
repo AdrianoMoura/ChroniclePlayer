@@ -52,6 +52,108 @@ Resolved entries add:
 
 ## Open
 
+### B-030 — Enter in the channel-filter search opens the first matching channel
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** typing in the sidebar's "Find channel" box (B-024) filters the
+  channel list; pressing Enter just blurs the field and does nothing else.
+- **Expected:** pressing Enter opens (selects) the first channel in the filtered
+  results, same intent as a normal search-and-go field.
+- **Code refs:** `src/ui/Sidebar.tsx` (`channelQuery` / `visibleChannels` state, the
+  `onKeyDown` handler on the `.channel-query` input — currently only handles `Escape`
+  and blurs on `Enter`; needs to call `onSelectChannel(visibleChannels[0].channelId)`
+  when there's a match).
+
+### B-031 — System-wide scrollbar: minimalist style
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** scrollbars use the OS/Electron default everywhere (no custom
+  scrollbar rule exists in `styles.css`).
+- **Expected:** a slim, minimalist scrollbar treatment applied app-wide (thin track,
+  subtle thumb, no arrow buttons), consistent with the RSS-reader aesthetic in
+  `ui.md`.
+- **Code refs:** `src/ui/styles.css` (new `::-webkit-scrollbar` rule set — Electron is
+  Chromium-based so the WebKit scrollbar pseudo-elements apply; needs light/dark theme
+  variants alongside the existing `--surface`/`--border` custom properties).
+
+### B-032 — Video description: overflow sometimes cut off with no expand toggle
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** the clamp-with-"Show more" behavior delivered for [[B-005]] isn't
+  always showing the toggle — the description gets visually cut off at the clamp with
+  no way to expand it.
+- **Expected:** whenever the description text actually overflows the clamped height,
+  the Show more/Show less toggle must appear (per B-005's original intent — clamping
+  without an escape hatch defeats the point).
+- **Code refs:** `src/ui/PlayerView.tsx` (`Description` component — `onOverflowChange`
+  fires from a `useEffect` comparing `scrollHeight`/`clientHeight` right after mount;
+  likely a measurement-timing issue, e.g. reading the height before fonts/layout settle
+  or before the clamped CSS class has applied); `src/ui/styles.css`
+  (`.description-text.clamped`).
+- **Notes:** regression/gap in [[B-005]]'s fix, not a new feature.
+
+### B-033 — Clear ("×") button inside filter/search fields when they have text
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the sidebar channel-filter box and the topbar feed-filter box
+  (`/`) only clear via Escape or manual backspacing — no visible affordance.
+- **Expected:** an inline × button appears inside the field once it has text, clicking
+  it clears the field (and refocuses it), mirroring the existing Escape behavior.
+- **Code refs:** `src/ui/Sidebar.tsx` (`.channel-query` input); `src/ui/App.tsx`
+  (`.filter` input, `filter` state); `src/ui/styles.css` (both input styles — needs a
+  wrapper to position the button inside the field).
+
+### B-034 — Thumbnail opacity: keep at full opacity, not dimmed by default
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed
+- **What happens:** feed-row thumbnails render at `opacity: 0.72` by default, rising
+  to `1` only on hover/selection (the D-023 "muted thumbnail" prototype).
+- **Expected:** thumbnails render at normal (full) opacity always — no dimmed resting
+  state.
+- **Code refs:** `src/ui/styles.css` (`.thumb` — drop the `opacity: 0.72` and the
+  `.row:hover .thumb, .row.selected .thumb { opacity: 1 }` override becomes moot and
+  can go too).
+- **Notes:** revisits **D-023 (Pending)** — decisions.md already frames this as "keep
+  only if it works" with normal thumbnails as the alternative; update D-023's status
+  when this is attacked.
+
+### B-035 — "All caught up" message duplicated (topbar status + banner below)
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** when caught up, the same message renders twice: once as the
+  topbar status text next to the view title, and again as a `.caught-up` block at the
+  top of the feed region.
+- **Expected:** keep only the first occurrence (topbar status); remove the second.
+- **Code refs:** `src/ui/App.tsx` (topbar `statusText` around line 693 — keep; the
+  `.caught-up` block right after `feed-region` opens, around line 741-745 — remove).
+
+### B-036 — Refresh while viewing a channel should sync only that channel
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** sync
+- **What happens:** clicking Refresh always runs the full subscription sync
+  (`window.chronicle.refreshFeed()` → `feed:refresh` → `SyncService.refresh()` over
+  every followed channel), even when the user is inside a single channel's filtered
+  view.
+- **Expected:** when a channel filter is active, Refresh syncs only that channel
+  instead of the whole subscription list.
+- **Code refs:** `src/ui/App.tsx` (`doRefresh` — needs the current `channelFilter`
+  passed through); `src/ipc/contract.ts` (`refreshFeed()` — needs an optional
+  channel-id parameter, plus the `feed:refresh` channel); `src/platform/main.ts`
+  (`ipcMain.handle(IpcChannel.refreshFeed, ...)`); `src/core/sync-service.ts`
+  (`refresh(trigger)` / `discoverChannel(channel, ctx)` — per-channel sync already
+  exists internally in the loop; needs a scoped entry point that runs it for one
+  channel instead of iterating all).
+- **Notes:** internals already isolate per-channel work (each channel's discovery is
+  independently error-handled today), so this is mostly about exposing a scoped path
+  through the IPC contract, not new sync logic.
+
 ### B-027 — Refresh button spin animation rotates the whole button, not just the icon
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-12
