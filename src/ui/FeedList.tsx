@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
 import { formatDuration, formatViews, publishedLabel } from './format'
@@ -208,6 +208,14 @@ interface VideoRowProps {
   actions: VideoActions
   onOpen: () => void
   showViewCounts: boolean
+  // B-043: the main virtualized FeedList has its own keyboard path (global
+  // j/k/Enter cursor navigation) — making every row individually Tab-
+  // focusable there would make Tab cycle through hundreds of rows, so it
+  // stays off (the default) for that caller. Callers that render VideoRow
+  // *outside* that cursor-navigated list — the priority section (B-042),
+  // search results (B-009) — have no other keyboard path to it at all, so
+  // they opt in.
+  focusable?: boolean
 }
 
 // Thumbnails go through the backend cache (thumb:// protocol) — the
@@ -216,7 +224,15 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-export function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoRowProps) {
+export function VideoRow({
+  video,
+  selected,
+  undoable,
+  actions,
+  onOpen,
+  showViewCounts,
+  focusable = false
+}: VideoRowProps) {
   if (undoable) {
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
@@ -232,6 +248,18 @@ export function VideoRow({ video, selected, undoable, actions, onOpen, showViewC
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
       onClick={onOpen}
+      {...(focusable
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onOpen()
+              }
+            }
+          }
+        : {})}
     >
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (

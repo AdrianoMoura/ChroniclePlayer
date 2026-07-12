@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { t } from './i18n'
 
 // B-003: adding an additional account skips the Google-console walkthrough
@@ -16,6 +16,16 @@ interface AddAccountProps {
 export function AddAccount({ onConnected, onCancel }: AddAccountProps) {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // B-043: matches every other overlay (Help, URL prompt) — Esc closes it,
+  // not just the backdrop click.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onCancel])
 
   function connect(): void {
     setConnecting(true)

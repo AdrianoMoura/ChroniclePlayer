@@ -16,6 +16,7 @@ const SHORTCUTS: readonly [string, () => string][] = [
   ['r', () => t('help.action.reload')],
   ['/', () => t('help.action.filter')],
   ['c', () => t('help.action.findChannel')],
+  ['s', () => t('help.action.toggleSidebar')],
   ['?', () => t('help.action.thisOverlay')],
   ['Esc', () => t('help.action.backClose')]
 ]

@@ -52,41 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / other (process)
-- **What happens:** `ui.md`'s keyboard shortcuts table (§Keyboard shortcuts) was written
-  for the v1 surface and states the right principle ("full keyboard operability is a
-  requirement, not an enhancement... all bindings also exist as visible UI affordances —
-  keyboard-first, not keyboard-only"), but several controls added since (sidebar
-  collapse/expand [[B-037]], the layout/item-size toolbar controls [[B-007]], the
-  inline field-clear buttons [[B-033]], the sidebar channel filter [[B-024]], Settings
-  navigation and its rows, the mouse-back-button request [[B-039]]) were built
-  mouse-first without an explicit check for a matching keyboard path, and the shortcut
-  table/help overlay (`?`) was not consistently revisited when they landed. The owner
-  finds today's shortcuts "nem sempre super acessíveis" (not always easy to
-  discover/reach).
-- **Expected:** two parts. (1) **Process, going forward:** every new interactive
-  feature's design/implementation must state its keyboard path (a binding, or
-  reachability via existing focus/arrow navigation) alongside its mouse affordance,
-  before it's considered done — not bolted on after the owner notices a gap. (2)
-  **One-time audit:** walk the current UI surface control by control (sidebar toggle,
-  layout/size controls, field-clear buttons, channel filter, Settings rows and its
-  back/reconnect actions, context menus as they land per [[B-010]]/[[B-042]]) and either
-  confirm each has a discoverable keyboard path or add one; refactor bindings that are
-  inconsistent or hard to reach (e.g. no visible hint, buried behind a mouse-only
-  hover). Update `ui.md`'s shortcut table and the in-app `?` help overlay to match
-  whatever the audit lands on.
-- **Code refs:** `.specs/ui.md` (§Keyboard shortcuts, §Accessibility — the table and
-  principle to update); `src/ui/App.tsx` (the global keydown handler and the `?` help
-  overlay content); `src/ui/Sidebar.tsx`, `src/ui/SettingsView.tsx`, `src/ui/FeedList.tsx`,
-  `src/ui/PlayerView.tsx` (per-component handlers and hover-only affordances to check).
-- **Notes:** this is as much a standing rule as a fix — no single commit "resolves" the
-  process half. Treat the audit as attackable in one batch (produces the `ui.md`/help
-  overlay update and whatever bindings it adds), but the "every new feature states its
-  keyboard path" rule stays in force afterward rather than closing with the batch.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -127,6 +92,84 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
+- **Type:** adjustment
+- **Status:** Fixed (the audit — the process half stays a standing rule, see notes) ·
+  **Reported:** 2026-07-12
+- **Area:** ui-shell / other (process)
+- **What happens:** `ui.md`'s keyboard shortcuts table (§Keyboard shortcuts) was written
+  for the v1 surface and states the right principle ("full keyboard operability is a
+  requirement, not an enhancement... all bindings also exist as visible UI affordances —
+  keyboard-first, not keyboard-only"), but several controls added since (sidebar
+  collapse/expand [[B-037]], the layout/item-size toolbar controls [[B-007]], the
+  inline field-clear buttons [[B-033]], the sidebar channel filter [[B-024]], Settings
+  navigation and its rows, the mouse-back-button request [[B-039]]) were built
+  mouse-first without an explicit check for a matching keyboard path, and the shortcut
+  table/help overlay (`?`) was not consistently revisited when they landed. The owner
+  finds today's shortcuts "nem sempre super acessíveis" (not always easy to
+  discover/reach).
+- **Expected:** two parts. (1) **Process, going forward:** every new interactive
+  feature's design/implementation must state its keyboard path (a binding, or
+  reachability via existing focus/arrow navigation) alongside its mouse affordance,
+  before it's considered done — not bolted on after the owner notices a gap. (2)
+  **One-time audit:** walk the current UI surface control by control (sidebar toggle,
+  layout/size controls, field-clear buttons, channel filter, Settings rows and its
+  back/reconnect actions, context menus as they land per [[B-010]]/[[B-042]]) and either
+  confirm each has a discoverable keyboard path or add one; refactor bindings that are
+  inconsistent or hard to reach (e.g. no visible hint, buried behind a mouse-only
+  hover). Update `ui.md`'s shortcut table and the in-app `?` help overlay to match
+  whatever the audit lands on.
+- **Code refs:** `.specs/ui.md` (§Keyboard shortcuts, §Accessibility — table + standing
+  rule + audit note added); `src/ui/App.tsx` (new `s` sidebar-toggle binding; the
+  priority-section/search-result rows made keyboard-reachable); `src/ui/FeedList.tsx`
+  (`VideoRow`'s new `focusable` prop); `src/ui/HelpOverlay.tsx` +
+  `src/ui/i18n/en.ts` (`s` added to the `?` overlay); `src/ui/AddAccount.tsx` (Esc-to-close,
+  matching every other overlay).
+- **Notes:**
+  - **Audit findings, control by control:**
+    - **Sidebar collapse/expand (B-037):** genuinely had zero keyboard path — fixed,
+      bound to `s`.
+    - **Layout/item-size toolbar (B-007):** the layout toggle is a real button (Tab +
+      Enter); the size slider is a native `<input type="range">`, already arrow-key
+      operable once focused — no code change needed, just confirmed.
+    - **Field-clear buttons (B-033), channel filter (B-024):** already fine — real
+      buttons, plus `Esc`-to-clear on the field itself. `c` (channel-filter focus)
+      already existed in code and in the `?` overlay; it was only missing from
+      `ui.md`'s table, now added.
+    - **Settings rows, back/reconnect actions:** all real `<button>`/`<a>` elements,
+      Tab-reachable — no gap, but see the new standing note in `ui.md` making this
+      "Tab is a sufficient keyboard path for secondary screens" policy explicit rather
+      than implicit.
+    - **Channel/account `…` context menus (B-010/B-042/B-003, built this session):**
+      already keyboard-operable without extra work — the trigger and every menu item
+      are real `<button>`s (Tab + Enter/Space), and both menus already close on `Esc`
+      (built alongside B-010/B-003, not new here).
+    - **One real violation found and fixed:** the priority section's and search
+      results' video rows (both built this session, B-042/B-009) were plain
+      `<div onClick>` with **no keyboard path at all** — unlike the main `FeedList`,
+      which has an equivalent (global `j`/`k`/`Enter` cursor navigation), these two
+      lists have nothing else reaching them. Fixed via `VideoRow`'s new `focusable`
+      prop (`role="button"`, `tabIndex`, Enter/Space activation) for the priority
+      section, and the same pattern applied directly to the search-result row.
+      Deliberately **not** applied to `VideoRow`/`VideoCard` inside the main virtualized
+      `FeedList` itself — adding `tabIndex` there would make Tab cycle through
+      potentially thousands of rows, which the existing cursor-navigation model is
+      correctly designed to avoid.
+    - Also fixed in passing: `AddAccount.tsx` (built alongside B-003, same session) had
+      no `Esc`-to-close, inconsistent with every other overlay (Help, URL prompt) — added.
+  - **The process half does not close with this batch, by design** — per the bug's own
+    framing, "every new interactive control states its keyboard path before it's
+    considered done" is now written into `ui.md` itself as a standing rule, not a
+    one-time checklist item. Future sessions should treat it the same way CLAUDE.md's
+    other standing conventions are treated.
+  - No live-app check this session (keyboard reachability was verified by reading the
+    DOM/handler structure, not by physically tabbing through a running window per
+    [[no-live-app-verification]]); verified via
+    `npm run typecheck && npm run lint && npm test` (171/171). The owner should validate
+    live: actually Tab through the priority section and search results, confirm `s`
+    toggles the sidebar, and skim the updated `?` overlay/`ui.md` table for accuracy.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
 - **Type:** adjustment

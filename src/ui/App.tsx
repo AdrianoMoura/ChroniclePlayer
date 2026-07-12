@@ -808,6 +808,10 @@ export function App() {
         case 'c':
           channelQueryRef.current?.focus()
           break
+        case 's':
+          // B-043: sidebar collapse/expand (B-037) had no keyboard path at all.
+          toggleSidebar()
+          break
         case '?':
           setHelpOpen(true)
           break
@@ -842,7 +846,8 @@ export function App() {
     playerOpen,
     urlPromptOpen,
     openFromFeed,
-    screen
+    screen,
+    toggleSidebar
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
@@ -1140,10 +1145,20 @@ export function App() {
                 )}
                 {searchResults.map((result) =>
                   result.kind === 'video' ? (
+                    // B-043: this list has no other keyboard path (unlike the
+                    // main FeedList, which has global j/k/Enter navigation).
                     <div
                       key={result.videoId}
                       className="row search-result-row"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => openVideo(result.videoId)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openVideo(result.videoId)
+                        }
+                      }}
                     >
                       {result.thumbnailUrl !== null ? (
                         <img
@@ -1200,6 +1215,7 @@ export function App() {
                         actions={actions}
                         onOpen={() => openVideo(video.videoId)}
                         showViewCounts={settings.showViewCounts}
+                        focusable
                       />
                     ))}
                   </div>

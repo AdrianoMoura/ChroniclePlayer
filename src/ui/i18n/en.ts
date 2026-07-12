@@ -26,6 +26,7 @@ export const en = {
   'help.action.reload': 'reload from local data',
   'help.action.filter': 'filter in view',
   'help.action.findChannel': 'find channel (sidebar)',
+  'help.action.toggleSidebar': 'show/hide sidebar',
   'help.action.thisOverlay': 'this overlay',
   'help.action.backClose': 'back / close',
 
