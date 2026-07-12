@@ -246,7 +246,7 @@ Resolved entries add:
     `npm run typecheck && npm run lint && npm test` (151/151). The owner should
     validate live: scrolling to the end of a deep channel's archive, that it
     resumes without jumping, and that quota accounting matches expectations.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** b9b6e00 · **Outcome:** Fixed
 
 ### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
 - **Type:** adjustment
