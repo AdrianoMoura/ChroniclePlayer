@@ -176,6 +176,30 @@ Resolved entries add:
 - **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
   to infrastructure-now, strings-later. Wizard copy is the biggest surface.
 
+### B-027 — Show Shorts in the feed, marked and filterable (reverses D-028)
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed
+- **What happens:** Shorts from subscribed channels are unconditionally excluded from
+  every view per D-028 (Final) — detected via duration + `/shorts/{id}` HEAD check and
+  dropped before they ever reach the UI (`feed.md` §Shorts exclusion).
+- **Expected:** owner's proposal — since the feed only ever shows content from channels
+  the user chose to follow, excluding Shorts outright works against the "agency, not
+  austerity" test (who is driving — the user, or the app filtering on their behalf?).
+  Keep Shorts in the feed, tag them visibly in the listing (e.g., a "Short" badge next
+  to the duration), and add a user-controlled filter/toggle to show or hide them.
+- **Code refs:** Shorts detection/exclusion pipeline (D-028, `feed.md`); `is_short`
+  column on the video state model (`local-data.md`); feed query/repositories that
+  currently drop `is_short` rows before they reach the UI; feed list components for the
+  badge + filter control.
+- **Notes:** this directly reverses **D-028 (Final)** — "No Shorts. Ever. Not now, not
+  ever. There is no toggle." — and the matching "No Shorts. Ever." entry in
+  `non-goals.md`. Acting on it means updating `decisions.md` (D-028 → Superseded, new
+  decision recorded), `non-goals.md`, and `feed.md` §Shorts exclusion in the same
+  change as the implementation, not shipping UI against a spec that still says
+  otherwise. Logged as requested; per workflow this and the rest of the list are
+  attacked only when the owner says so.
+
 ## In progress
 
 *(none)*
