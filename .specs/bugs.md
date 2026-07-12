@@ -52,6 +52,28 @@ Resolved entries add:
 
 ## Open
 
+### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
+  `.settings-view` (and the banner above it, when present) almost touching the
+  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
+  overlap.
+- **Expected:** the same left clearance the feed screen already gets when collapsed
+  (the hamburger has clear room, nothing crowds it), regardless of which screen
+  (`feed` or `settings`) is showing.
+- **Code refs:** `src/ui/styles.css` — `.app.sidebar-collapsed .topbar { padding-left:
+  52px }` (around line 207) only reserves room for the floating `.sidebar-expand`
+  button on the feed screen's `<header className="topbar">`; the Settings screen
+  (`src/ui/App.tsx`, `screen === 'settings'` branch around line 689) renders no
+  `topbar`, so nothing gives `.settings-view` (`styles.css` ~line 1059, `padding: 26px
+  32px 60px`) or `.banner` the same left offset when collapsed.
+- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
+  screen instead of the feed topbar — fix likely generalizes the `padding-left: 52px`
+  reservation to `.app.sidebar-collapsed .feed` (or another selector covering both
+  `.topbar` and `.settings-view`/`.banner`) instead of scoping it to `.topbar` alone.
+
 ### B-040 — More space between the Settings button and the channel list above it
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
