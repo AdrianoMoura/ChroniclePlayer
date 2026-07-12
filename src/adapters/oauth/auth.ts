@@ -2,14 +2,35 @@ import { authExpired, invalidClientSecret } from '../../core/errors'
 import type { AuthProvider, Clock, SecretStore } from '../../core/ports'
 import { generatePkce, randomState } from './pkce'
 import { startLoopback, type LoopbackHandshake } from './loopback'
-import type { GoogleOAuth, OAuthClientCredentials } from './google-oauth'
+import {
+  YOUTUBE_FORCE_SSL_SCOPE,
+  YOUTUBE_READONLY_SCOPE,
+  type GoogleOAuth,
+  type OAuthClientCredentials
+} from './google-oauth'
 
-// Secret entries are keyed by profile from day one (authentication.md
-// §Multi-account: cheap now, painful later). MVP has one profile.
+// B-003: the OAuth client (one Google Cloud project) is shared across every
+// connected account — only the refresh token and granted scopes are
+// per-account. 'default' is the pre-existing single-account id: this keeps
+// upgrades from an older single-account install working with zero secret
+// migration, since that's exactly the literal key already in use there.
 export const SECRET_KEYS = {
-  oauthClient: 'default/oauth-client',
-  refreshToken: 'default/refresh-token'
+  oauthClient: 'default/oauth-client'
 } as const
+
+export const DEFAULT_ACCOUNT_ID = 'default'
+
+export function accountSecretKeys(accountId: string): {
+  refreshToken: string
+  grantedScopes: string
+} {
+  return {
+    refreshToken: `${accountId}/refresh-token`,
+    // D-032 incremental consent: the scope string Google actually granted,
+    // so hasWriteScope() never has to guess.
+    grantedScopes: `${accountId}/granted-scopes`
+  }
+}
 
 // Accepts the raw content of the user's downloaded client_secret.json.
 // Desktop clients appear under "installed"; a "web" client is the classic
@@ -44,14 +65,21 @@ export function readStoredCredentials(secrets: SecretStore): OAuthClientCredenti
 
 // Produces valid access tokens on demand; access tokens live in this
 // process's memory only, never on disk (authentication.md §Token lifecycle).
+// B-003: one instance per connected account — each mints from its own
+// refresh token, sharing nothing but the OAuth client and (by the caller
+// wiring the same QuotaSink into every account's YouTubeApiClient) the quota.
 export class GoogleAuthProvider implements AuthProvider {
   private cached: { token: string; expiresAtMs: number } | null = null
+  private readonly keys: { refreshToken: string; grantedScopes: string }
 
   constructor(
     private readonly secrets: SecretStore,
     private readonly oauth: GoogleOAuth,
-    private readonly clock: Clock
-  ) {}
+    private readonly clock: Clock,
+    accountId: string
+  ) {
+    this.keys = accountSecretKeys(accountId)
+  }
 
   async getAccessToken(): Promise<string> {
     const now = this.clock.now().getTime()
@@ -59,7 +87,7 @@ export class GoogleAuthProvider implements AuthProvider {
       return this.cached.token
     }
     const credentials = readStoredCredentials(this.secrets)
-    const refreshToken = this.secrets.get(SECRET_KEYS.refreshToken)
+    const refreshToken = this.secrets.get(this.keys.refreshToken)
     if (credentials === null || refreshToken === null) throw authExpired('not connected')
 
     const grant = await this.oauth.refreshAccessToken(credentials, refreshToken)
@@ -73,13 +101,21 @@ export class GoogleAuthProvider implements AuthProvider {
 }
 
 // The interactive connect flow: system browser + loopback + PKCE.
+// B-003: one instance per account — importClientSecret is only ever called
+// on the first-ever instance (the shared OAuth client), but connect/signOut/
+// scope state are per-account since each account has its own refresh token.
 export class AuthFlow {
+  private readonly keys: { refreshToken: string; grantedScopes: string }
+
   constructor(
     private readonly secrets: SecretStore,
     private readonly oauth: GoogleOAuth,
     private readonly openInSystemBrowser: (url: string) => Promise<void>,
+    accountId: string,
     private readonly loopbackFactory: () => Promise<LoopbackHandshake> = startLoopback
-  ) {}
+  ) {
+    this.keys = accountSecretKeys(accountId)
+  }
 
   importClientSecret(json: string): void {
     const credentials = parseClientSecretJson(json)
@@ -91,10 +127,28 @@ export class AuthFlow {
   }
 
   hasRefreshToken(): boolean {
-    return this.secrets.get(SECRET_KEYS.refreshToken) !== null
+    return this.secrets.get(this.keys.refreshToken) !== null
+  }
+
+  // True once the user has granted youtube.force-ssl (D-032) — checked
+  // before any write action (B-010 unsubscribe, and future like/comment).
+  hasWriteScope(): boolean {
+    const granted = this.secrets.get(this.keys.grantedScopes)
+    return granted !== null && granted.includes(YOUTUBE_FORCE_SSL_SCOPE)
   }
 
   async connect(): Promise<void> {
+    await this.runFlow(YOUTUBE_READONLY_SCOPE, false)
+  }
+
+  // Incremental authorization (D-032): re-runs the same system-browser +
+  // loopback handshake, merging the write scope onto whatever is already
+  // granted. Two clicks for an already-signed-in user.
+  async requestWriteScope(): Promise<void> {
+    await this.runFlow(`${YOUTUBE_READONLY_SCOPE} ${YOUTUBE_FORCE_SSL_SCOPE}`, true)
+  }
+
+  private async runFlow(scope: string, includeGrantedScopes: boolean): Promise<void> {
     const credentials = readStoredCredentials(this.secrets)
     if (credentials === null) throw invalidClientSecret('no OAuth client imported yet')
 
@@ -106,7 +160,9 @@ export class AuthFlow {
         clientId: credentials.clientId,
         redirectUri: loopback.redirectUri,
         state,
-        codeChallenge: challenge
+        codeChallenge: challenge,
+        scope,
+        includeGrantedScopes
       })
       await this.openInSystemBrowser(url)
       const code = await loopback.waitForCode(state)
@@ -119,7 +175,8 @@ export class AuthFlow {
       if (grant.refreshToken === null) {
         throw invalidClientSecret('Google returned no refresh token — retry the connection')
       }
-      this.secrets.set(SECRET_KEYS.refreshToken, grant.refreshToken)
+      this.secrets.set(this.keys.refreshToken, grant.refreshToken)
+      this.secrets.set(this.keys.grantedScopes, grant.scope ?? scope)
     } finally {
       loopback.close()
     }
@@ -128,10 +185,11 @@ export class AuthFlow {
   // Deletes the local token and revokes it best-effort. Local data is never
   // deleted on sign-out (authentication.md).
   async signOut(): Promise<void> {
-    const refreshToken = this.secrets.get(SECRET_KEYS.refreshToken)
+    const refreshToken = this.secrets.get(this.keys.refreshToken)
     if (refreshToken !== null) {
       await this.oauth.revoke(refreshToken)
-      this.secrets.delete(SECRET_KEYS.refreshToken)
+      this.secrets.delete(this.keys.refreshToken)
     }
+    this.secrets.delete(this.keys.grantedScopes)
   }
 }

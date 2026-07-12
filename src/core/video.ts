@@ -2,6 +2,10 @@ export interface Channel {
   channelId: string
   title: string
   thumbnailUrl: string | null
+  // YouTube's subscription resource id — distinct from channelId, needed for
+  // subscriptions.delete (B-010). Only populated when sourced from
+  // subscriptions.list; undefined for fixtures/externally-opened channels.
+  subscriptionId?: string | null
 }
 
 export interface Video {

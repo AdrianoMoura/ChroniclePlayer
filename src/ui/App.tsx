@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  AccountDto,
   AuthStatusDto,
   ChannelDto,
   ChronicleEventDto,
@@ -10,14 +11,17 @@ import type {
   FeedViewDto,
   PlayerVideoDto,
   ReadStatusDto,
+  SearchResultDto,
   SettingsDto,
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
+import { AddAccount } from './AddAccount'
 import { ConnectPanel } from './ConnectPanel'
-import { FeedList, ITEM_SIZES, type FeedRow, type VideoActions } from './FeedList'
+import { FeedList, ITEM_SIZES, VideoRow, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
+import { t } from './i18n'
 import { PlayerView } from './PlayerView'
 import { SettingsView } from './SettingsView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
@@ -26,10 +30,10 @@ import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
 const BUCKET_LABELS: Record<FeedBucketDto, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  'this-week': 'This Week',
-  earlier: 'Earlier'
+  today: t('app.bucket.today'),
+  yesterday: t('app.bucket.yesterday'),
+  'this-week': t('app.bucket.thisWeek'),
+  earlier: t('app.bucket.earlier')
 }
 
 const UNDO_WINDOW_MS = 5000
@@ -42,6 +46,11 @@ interface Banner {
 export function App() {
   const [view, setView] = useState<FeedViewDto>('all')
   const [channelFilter, setChannelFilter] = useState<string | null>(null)
+  // B-003: a second, independent filter dimension alongside channelFilter —
+  // undefined/null means the combined feed across every connected account.
+  const [accountFilter, setAccountFilter] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<AccountDto[]>([])
+  const [addAccountOpen, setAddAccountOpen] = useState(false)
   const [videos, setVideos] = useState<FeedVideoDto[]>([])
   const [nextCursor, setNextCursor] = useState<FeedCursorDto | null>(null)
   const [meta, setMeta] = useState<FeedMetaDto>({
@@ -59,6 +68,14 @@ export function App() {
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [channels, setChannels] = useState<ChannelDto[]>([])
+  // B-042: unread videos from favorited channels — bucket-less priority
+  // section shown above the chronological feed (main views only, D-039).
+  const [priorityVideos, setPriorityVideos] = useState<FeedVideoDto[]>([])
+  // B-009/D-031: search is inert until the user presses Enter — never
+  // fired on keystroke (search.list costs 100 units/call).
+  const [searchScope, setSearchScope] = useState<'mine' | 'youtube'>('mine')
+  const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
+  const [searching, setSearching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [progress, setProgress] = useState<{
     phase: 'channels' | 'shorts'
@@ -71,6 +88,10 @@ export function App() {
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
   const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
+  // B-010: topbar Unsubscribe arms on first click, fires on the second
+  // (mirrors Settings' delete-all confirmation), auto-disarms after 6s.
+  const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
+  const confirmUnsubscribeTimer = useRef<number | null>(null)
   // B-037: default expanded; entering the player auto-collapses it (more
   // room for the video) and leaving restores whatever the user had before.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -86,6 +107,7 @@ export function App() {
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
+  const accountRef = useRef<string | null>(null)
   const loadingRef = useRef(false)
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
   const lastG = useRef(0)
@@ -94,6 +116,12 @@ export function App() {
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
+  // B-002: last cursor actually requested (as opposed to nextCursor, which
+  // goes null once the local archive is exhausted) — needed to resume the
+  // same page after an on-demand backfill adds fresh local rows.
+  const lastCursorRef = useRef<FeedCursorDto | null>(null)
+  const backfillingRef = useRef(false)
+  const [archiveExhausted, setArchiveExhausted] = useState<ReadonlySet<string>>(new Set())
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
@@ -117,36 +145,72 @@ export function App() {
   // or one that slipped through — self-heals here instead of spinning
   // forever until a manual reload.
   const syncMeta = useCallback(() => {
-    void window.chronicle.getFeedMeta().then((next) => {
+    void window.chronicle.getFeedMeta(accountRef.current).then((next) => {
       setMeta(next)
       setRefreshing(next.refreshing)
     })
+    // B-042: the priority section only makes sense in the main feed
+    // ('all'/'unread', unfiltered) — cleared everywhere else.
+    if (channelRef.current === null && (viewRef.current === 'all' || viewRef.current === 'unread')) {
+      void window.chronicle.getPriorityFeed(accountRef.current).then(setPriorityVideos)
+    } else {
+      setPriorityVideos([])
+    }
   }, [])
 
-  const loadView = useCallback((target?: FeedViewDto, channel?: string | null) => {
-    const nextView = target ?? viewRef.current
-    const nextChannel = channel === undefined ? channelRef.current : channel
-    viewRef.current = nextView
-    channelRef.current = nextChannel
-    loadingRef.current = true
-    setNewVideosPill(null)
-    void window.chronicle.getFeed(nextView, null, nextChannel).then((slice) => {
-      if (viewRef.current !== nextView || channelRef.current !== nextChannel) return
-      loadingRef.current = false
-      setVideos(slice.videos)
-      setNextCursor(slice.nextCursor)
-      setCursorIdx(0)
-    })
-    syncMeta()
-  }, [syncMeta])
+  const loadView = useCallback(
+    (target?: FeedViewDto, channel?: string | null, account?: string | null) => {
+      const nextView = target ?? viewRef.current
+      const nextChannel = channel === undefined ? channelRef.current : channel
+      const nextAccount = account === undefined ? accountRef.current : account
+      viewRef.current = nextView
+      channelRef.current = nextChannel
+      accountRef.current = nextAccount
+      loadingRef.current = true
+      lastCursorRef.current = null
+      setNewVideosPill(null)
+      void window.chronicle.getFeed(nextView, null, nextChannel, nextAccount).then((slice) => {
+        if (
+          viewRef.current !== nextView ||
+          channelRef.current !== nextChannel ||
+          accountRef.current !== nextAccount
+        ) {
+          return
+        }
+        loadingRef.current = false
+        setVideos(slice.videos)
+        setNextCursor(slice.nextCursor)
+        setCursorIdx(0)
+      })
+      syncMeta()
+    },
+    [syncMeta]
+  )
 
   const loadChannels = useCallback(() => {
-    void window.chronicle.getChannels().then(setChannels)
+    void window.chronicle.getChannels(accountRef.current).then(setChannels)
+    void window.chronicle.listAccounts().then(setAccounts)
   }, [])
 
   useEffect(() => {
-    loadView(view, channelFilter)
-  }, [view, channelFilter, loadView])
+    loadView(view, channelFilter, accountFilter)
+  }, [view, channelFilter, accountFilter, loadView])
+
+  // B-009: search results are a transient overlay over the current
+  // view/channel — navigating away always drops them.
+  useEffect(() => {
+    setSearchResults(null)
+  }, [view, channelFilter, accountFilter])
+
+  // Switching channels (or leaving the channel screen) disarms any pending
+  // Unsubscribe confirmation — it must never carry over to a different channel.
+  useEffect(() => {
+    setConfirmingUnsubscribe(false)
+    if (confirmUnsubscribeTimer.current !== null) {
+      window.clearTimeout(confirmUnsubscribeTimer.current)
+      confirmUnsubscribeTimer.current = null
+    }
+  }, [channelFilter])
 
   useEffect(() => {
     void window.chronicle.getAuthStatus().then(setAuth)
@@ -208,35 +272,172 @@ export function App() {
       if (result.ok) {
         setAuth(result.value)
       } else {
-        setBanner({ text: `Connection failed: ${result.message}` })
+        setBanner({ text: t('app.banner.connectionFailed', { message: result.message }) })
       }
     })
   }, [])
 
   const doRefresh = useCallback(() => {
-    // B-036: a channel-filtered view refreshes only that channel.
-    void window.chronicle.refreshFeed(channelFilter).then((result) => {
+    // B-036: a channel-filtered view refreshes only that channel. B-003: an
+    // account-filtered view refreshes only that account.
+    void window.chronicle.refreshFeed(channelFilter, accountFilter).then((result) => {
       if (result.ok || result.errorKind === 'busy') return
       if (result.errorKind === 'auth-expired') {
         setBanner({
-          text: 'Reconnect to Google — your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
-          action: { label: 'Reconnect', run: connect }
+          text: t('app.banner.reconnectRequired'),
+          action: { label: t('app.banner.reconnectAction'), run: connect }
         })
       } else if (result.errorKind === 'network-unavailable') {
-        setBanner({ text: 'You appear to be offline — showing local data. Refresh will retry.' })
+        setBanner({ text: t('app.banner.offline') })
       } else {
-        setBanner({ text: `Refresh failed: ${result.message}` })
+        setBanner({ text: t('app.banner.refreshFailed', { message: result.message }) })
       }
     })
-  }, [connect, channelFilter])
+  }, [connect, channelFilter, accountFilter])
 
   // Bulk unread → read over the current scope (B-020, D-010 semantics).
   const markAllRead = useCallback(() => {
-    void window.chronicle.markAllRead(channelFilter).then(() => {
+    void window.chronicle.markAllRead(channelFilter, accountFilter).then(() => {
       loadView()
       loadChannels()
     })
-  }, [channelFilter, loadView, loadChannels])
+  }, [channelFilter, accountFilter, loadView, loadChannels])
+
+  // B-010: real subscriptions.delete plus the local soft-delete — may open
+  // the system browser once for incremental write-scope consent (D-032).
+  const unsubscribeChannel = useCallback(
+    (channelId: string) => {
+      void window.chronicle.unsubscribeChannel(channelId).then((result) => {
+        if (!result.ok) {
+          if (result.errorKind === 'auth-expired') {
+            setBanner({
+              text: t('app.banner.reconnectRequired'),
+              action: { label: t('app.banner.reconnectAction'), run: connect }
+            })
+          } else if (result.errorKind === 'network-unavailable') {
+            setBanner({ text: t('app.banner.offline') })
+          } else {
+            setBanner({ text: t('app.banner.unsubscribeFailed', { message: result.message }) })
+          }
+          return
+        }
+        loadChannels()
+        if (channelFilter === channelId) setChannelFilter(null)
+        else loadView()
+      })
+    },
+    [channelFilter, connect, loadChannels, loadView]
+  )
+
+  // B-009/D-031: explicit user action only — never fired on keystroke.
+  const runSearch = useCallback((query: string) => {
+    const q = query.trim()
+    if (q === '') {
+      setSearchResults(null)
+      return
+    }
+    setSearching(true)
+    void window.chronicle.searchYouTube(q).then((result) => {
+      setSearching(false)
+      if (!result.ok) {
+        if (result.errorKind === 'quota-exceeded') {
+          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else {
+          setBanner({ text: t('app.banner.searchFailed', { message: result.message }) })
+        }
+        setSearchResults([])
+        return
+      }
+      setSearchResults(result.value)
+    })
+  }, [])
+
+  // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
+  // may open the system browser once for incremental write-scope consent.
+  const subscribeToChannel = useCallback((channelId: string) => {
+    void window.chronicle.subscribeChannel(channelId).then((result) => {
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else {
+          setBanner({ text: t('app.banner.subscribeFailed', { message: result.message }) })
+        }
+        return
+      }
+      loadChannels()
+      setSearchResults((current) =>
+        current === null
+          ? null
+          : current.map((r) => (r.kind === 'channel' && r.channelId === channelId ? { ...r, subscribed: true } : r))
+      )
+    })
+  }, [connect, loadChannels])
+
+  // B-042: local-only priority marker — never touches YouTube.
+  const toggleChannelFavorite = useCallback(
+    (channelId: string) => {
+      void window.chronicle.toggleChannelFavorite(channelId).then(() => {
+        loadChannels()
+        syncMeta()
+      })
+    },
+    [loadChannels, syncMeta]
+  )
+
+  // B-003: selecting an account is a second, independent filter dimension —
+  // same mechanics as selecting a channel (clears on reselect).
+  const selectAccount = useCallback((accountId: string | null) => {
+    setPlayerStack([])
+    setScreen('feed')
+    setAccountFilter(accountId)
+  }, [])
+
+  const removeAccount = useCallback(
+    (accountId: string) => {
+      if (accountFilter === accountId) setAccountFilter(null)
+      void window.chronicle.removeAccount(accountId).then(() => {
+        loadChannels()
+        loadView()
+      })
+    },
+    [accountFilter, loadChannels, loadView]
+  )
+
+  const syncAccountNow = useCallback((accountId: string) => {
+    void window.chronicle.syncAccountNow(accountId).then((result) => {
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else {
+          setBanner({ text: t('app.banner.accountSyncFailed', { message: result.message }) })
+        }
+      }
+    })
+  }, [connect])
+
+  function handleTopbarUnsubscribe(): void {
+    if (!confirmingUnsubscribe) {
+      setConfirmingUnsubscribe(true)
+      confirmUnsubscribeTimer.current = window.setTimeout(
+        () => setConfirmingUnsubscribe(false),
+        6000
+      )
+      return
+    }
+    if (confirmUnsubscribeTimer.current !== null) window.clearTimeout(confirmUnsubscribeTimer.current)
+    setConfirmingUnsubscribe(false)
+    if (channelFilter !== null) unsubscribeChannel(channelFilter)
+  }
 
   const patch = useCallback(
     (videoId: string, state: VideoStateDto) => {
@@ -253,7 +454,7 @@ export function App() {
     (videoId: string, mode: 'push' | 'replace' = 'push') => {
       void window.chronicle.getVideo(videoId).then(async (result) => {
         if (!result.ok) {
-          setBanner({ text: `Could not open the video: ${result.message}` })
+          setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
           return
         }
         const state = await window.chronicle.setReadStatus(videoId, 'read')
@@ -322,7 +523,7 @@ export function App() {
           }
           if (event.report.outcome === 'partial') {
             setBanner({
-              text: `Refresh finished, but ${event.report.channelsFailed} channel(s) failed — they will be retried next cycle.`
+              text: t('app.banner.refreshPartial', { count: event.report.channelsFailed })
             })
           }
           break
@@ -331,18 +532,18 @@ export function App() {
           // spinner runs forever with no recovery short of a manual reload.
           setRefreshing(false)
           setProgress(null)
-          setBanner({ text: `Refresh failed: ${event.message}` })
+          setBanner({ text: t('app.banner.refreshFailed', { message: event.message }) })
           break
         case 'auth:required':
           setRefreshing(false)
           setBanner({
-            text: 'Reconnect to Google — your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
-            action: { label: 'Reconnect', run: connect }
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
           })
           break
         case 'quota:exceeded':
           setBanner({
-            text: `Daily API limit reached — it resets at ${quotaResetLocalTime()} your time. Chronicle keeps working from local data; discovery via RSS continues free.`
+            text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() })
           })
           break
       }
@@ -350,17 +551,65 @@ export function App() {
   }, [loadView, loadChannels, connect, syncMeta])
 
   const loadMore = useCallback(() => {
-    if (loadingRef.current || !nextCursor) return
-    loadingRef.current = true
+    if (loadingRef.current) return
     const targetView = viewRef.current
     const targetChannel = channelRef.current
-    void window.chronicle.getFeed(targetView, nextCursor, targetChannel).then((slice) => {
-      loadingRef.current = false
-      if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
-      setVideos((current) => [...current, ...slice.videos])
-      setNextCursor(slice.nextCursor)
+    const targetAccount = accountRef.current
+
+    if (nextCursor) {
+      lastCursorRef.current = nextCursor
+      loadingRef.current = true
+      void window.chronicle.getFeed(targetView, nextCursor, targetChannel, targetAccount).then((slice) => {
+        loadingRef.current = false
+        if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+        setVideos((current) => [...current, ...slice.videos])
+        setNextCursor(slice.nextCursor)
+      })
+      return
+    }
+
+    // B-002: local archive exhausted in a channel-filtered view — fetch
+    // older videos from YouTube (uploads playlist paging + hydration) on
+    // demand, then resume the exact same page instead of resetting to the top.
+    if (
+      targetChannel === null ||
+      archiveExhausted.has(targetChannel) ||
+      backfillingRef.current
+    ) {
+      return
+    }
+    backfillingRef.current = true
+    const cursorToRetry = lastCursorRef.current
+    void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
+      backfillingRef.current = false
+      if (channelRef.current !== targetChannel) return
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else if (result.errorKind === 'quota-exceeded') {
+          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+        }
+        return
+      }
+      if (result.value.exhausted) {
+        setArchiveExhausted((set) => new Set(set).add(targetChannel))
+      }
+      if (result.value.videosNew > 0) {
+        void window.chronicle
+          .getFeed(targetView, cursorToRetry, targetChannel, targetAccount)
+          .then((slice) => {
+            if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+            setVideos((current) => [...current, ...slice.videos])
+            setNextCursor(slice.nextCursor)
+          })
+      }
     })
-  }, [nextCursor])
+  }, [nextCursor, archiveExhausted, connect])
 
   // Local text filter over loaded rows (ui.md `/`) — never YouTube search.
   const filtered = useMemo(() => {
@@ -559,6 +808,10 @@ export function App() {
         case 'c':
           channelQueryRef.current?.focus()
           break
+        case 's':
+          // B-043: sidebar collapse/expand (B-037) had no keyboard path at all.
+          toggleSidebar()
+          break
         case '?':
           setHelpOpen(true)
           break
@@ -593,7 +846,8 @@ export function App() {
     playerOpen,
     urlPromptOpen,
     openFromFeed,
-    screen
+    screen,
+    toggleSidebar
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
@@ -646,17 +900,17 @@ export function App() {
   const statusText = refreshing
     ? progress !== null
       ? progress.phase === 'shorts'
-        ? `filtering Shorts — ${progress.checked} of ${progress.total} checked…`
-        : `checking ${progress.checked} of ${progress.total} channels…`
-      : 'refreshing…'
+        ? t('app.status.filteringShorts', { checked: progress.checked, total: progress.total })
+        : t('app.status.checkingChannels', { checked: progress.checked, total: progress.total })
+      : t('app.status.refreshing')
     : meta.caughtUp
-      ? `All caught up${meta.lastRefreshAt ? ` · last refresh ${formatClockTime(meta.lastRefreshAt)}` : ''}`
-      : `${meta.unreadCount} unread`
+      ? `${t('app.status.caughtUp')}${meta.lastRefreshAt ? t('app.status.lastRefreshSuffix', { time: formatClockTime(meta.lastRefreshAt) }) : ''}`
+      : t('app.status.unreadCount', { count: meta.unreadCount })
 
   return (
     <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {sidebarCollapsed ? (
-        <button className="sidebar-expand" title="Show sidebar" onClick={toggleSidebar}>
+        <button className="sidebar-expand" title={t('app.sidebar.showTitle')} onClick={toggleSidebar}>
           ☰
         </button>
       ) : (
@@ -682,8 +936,19 @@ export function App() {
           onOpenSettings={() => {
             setPlayerStack([])
             setScreen('settings')
+            // B-015: refetch so the granted-scope line reflects any write
+            // action (comment/like/subscribe/unsubscribe) taken since mount.
+            void window.chronicle.getAuthStatus().then(setAuth)
           }}
           onToggleCollapse={toggleSidebar}
+          onUnsubscribe={unsubscribeChannel}
+          onToggleFavorite={toggleChannelFavorite}
+          accounts={accounts}
+          accountFilter={accountFilter}
+          onSelectAccount={selectAccount}
+          onAddAccount={() => setAddAccountOpen(true)}
+          onRemoveAccount={removeAccount}
+          onSyncAccountNow={syncAccountNow}
         />
       )}
       <main className="feed">
@@ -693,7 +958,11 @@ export function App() {
               <div className="banner">
                 <span>{banner.text}</span>
                 <span className="banner-actions">
-                  <button className="banner-dismiss" title="Dismiss" onClick={() => setBanner(null)}>
+                  <button
+                    className="banner-dismiss"
+                    title={t('app.banner.dismissTitle')}
+                    onClick={() => setBanner(null)}
+                  >
                     ✕
                   </button>
                 </span>
@@ -709,7 +978,7 @@ export function App() {
               onSignOut={() => {
                 void window.chronicle.signOut().then((status) => {
                   setAuth(status)
-                  setBanner({ text: 'Signed out. Local data was kept — reconnect anytime.' })
+                  setBanner({ text: t('app.banner.signedOut') })
                 })
               }}
               onBanner={(text) => setBanner({ text })}
@@ -718,37 +987,82 @@ export function App() {
         ) : (
           <>
         <header className="topbar">
-          <button className="refresh" title="Refresh (r)" onClick={doRefresh}>
+          <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
             <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
           </button>
           <span className="topbar-view">
             {channelFilter !== null
-              ? (channels.find((c) => c.channelId === channelFilter)?.title ?? 'Channel')
+              ? (channels.find((c) => c.channelId === channelFilter)?.title ??
+                t('app.topbar.channelFallback'))
               : VIEW_LABELS[view]}
+            {accountFilter !== null && (
+              <span className="topbar-account-suffix">
+                {' · '}
+                {accounts.find((a) => a.accountId === accountFilter)?.label ??
+                  t('app.topbar.channelFallback')}
+              </span>
+            )}
           </span>
+          {channelFilter !== null && (
+            <button
+              className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
+              onClick={handleTopbarUnsubscribe}
+            >
+              {confirmingUnsubscribe
+                ? t('app.topbar.confirmUnsubscribe')
+                : t('app.topbar.unsubscribe')}
+            </button>
+          )}
           <span className="status">{statusText}</span>
           {showMarkAllRead && (
             <button className="mark-all-read" onClick={markAllRead}>
-              Mark all as read
+              {t('app.topbar.markAllRead')}
             </button>
+          )}
+          {channelFilter === null && (
+            <div className="search-scope" title={t('app.topbar.searchScopeTitle')}>
+              <button
+                className={`scope-option${searchScope === 'mine' ? ' active' : ''}`}
+                onClick={() => {
+                  setSearchScope('mine')
+                  setSearchResults(null)
+                }}
+              >
+                {t('app.topbar.searchScopeMine')}
+              </button>
+              <button
+                className={`scope-option${searchScope === 'youtube' ? ' active' : ''}`}
+                onClick={() => setSearchScope('youtube')}
+              >
+                {t('app.topbar.searchScopeYoutube')}
+              </button>
+            </div>
           )}
           <div className="field-wrap">
             <input
               ref={filterInputRef}
               className="filter"
-              placeholder="Filter in view  /"
+              placeholder={
+                searchScope === 'youtube'
+                  ? t('app.topbar.searchYouTubePlaceholder')
+                  : t('app.topbar.filterPlaceholder')
+              }
               value={filter}
               onChange={(event) => {
                 setFilter(event.target.value)
                 setCursorIdx(0)
               }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && searchScope === 'youtube') runSearch(filter)
+              }}
             />
             {filter !== '' && (
               <button
                 className="field-clear"
-                title="Clear"
+                title={t('app.topbar.clearFilterTitle')}
                 onClick={() => {
                   setFilter('')
+                  setSearchResults(null)
                   filterInputRef.current?.focus()
                 }}
               >
@@ -763,14 +1077,18 @@ export function App() {
             max={ITEM_SIZES.length - 1}
             step={1}
             value={ITEM_SIZES.indexOf(settings.itemSize)}
-            title={`Item size: ${settings.itemSize}`}
+            title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
             onChange={(event) =>
               changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
             }
           />
           <button
             className="layout-toggle"
-            title={settings.layout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+            title={
+              settings.layout === 'grid'
+                ? t('app.topbar.switchToListView')
+                : t('app.topbar.switchToGridView')
+            }
             onClick={() => changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })}
           >
             {settings.layout === 'grid' ? '☰' : '⊞'}
@@ -786,7 +1104,11 @@ export function App() {
                   {banner.action.label}
                 </button>
               )}
-              <button className="banner-dismiss" title="Dismiss" onClick={() => setBanner(null)}>
+              <button
+                className="banner-dismiss"
+                title={t('app.banner.dismissTitle')}
+                onClick={() => setBanner(null)}
+              >
                 ✕
               </button>
             </span>
@@ -809,31 +1131,119 @@ export function App() {
           <div className="feed-region">
             {newVideosPill !== null && (
               <button className="new-videos-pill" onClick={() => loadView()}>
-                {newVideosPill} new video{newVideosPill > 1 ? 's' : ''}
+                {t('app.banner.newVideos', {
+                  count: newVideosPill,
+                  plural: newVideosPill > 1 ? 's' : ''
+                })}
               </button>
             )}
-            {filtered.length === 0 ? (
-              <div className="empty">
-                {filter ? 'Nothing matches the filter.' : 'Nothing here yet.'}
+            {searchResults !== null ? (
+              <div className="search-results">
+                {searching && <div className="empty">{t('search.searching')}</div>}
+                {!searching && searchResults.length === 0 && (
+                  <div className="empty">{t('search.empty')}</div>
+                )}
+                {searchResults.map((result) =>
+                  result.kind === 'video' ? (
+                    // B-043: this list has no other keyboard path (unlike the
+                    // main FeedList, which has global j/k/Enter navigation).
+                    <div
+                      key={result.videoId}
+                      className="row search-result-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openVideo(result.videoId)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          openVideo(result.videoId)
+                        }
+                      }}
+                    >
+                      {result.thumbnailUrl !== null ? (
+                        <img
+                          className="thumb"
+                          loading="lazy"
+                          alt=""
+                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
+                        />
+                      ) : (
+                        <div className="thumb" />
+                      )}
+                      <div className="row-text">
+                        <span className="title">{result.title}</span>
+                        <span className="meta">{result.channelTitle}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={result.channelId} className="row search-result-row search-result-channel">
+                      {result.thumbnailUrl !== null ? (
+                        <img
+                          className="thumb"
+                          loading="lazy"
+                          alt=""
+                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
+                        />
+                      ) : (
+                        <div className="thumb" />
+                      )}
+                      <div className="row-text">
+                        <span className="title">{result.title}</span>
+                      </div>
+                      <button
+                        className="primary"
+                        disabled={result.subscribed}
+                        onClick={() => subscribeToChannel(result.channelId)}
+                      >
+                        {result.subscribed ? t('search.subscribedButton') : t('search.subscribeButton')}
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             ) : (
-              <FeedList
-                rows={rows}
-                cursorVideoIndex={effectiveCursor}
-                undoable={undoable}
-                actions={actions}
-                onOpen={(videoIndex) => {
-                  setCursorIdx(videoIndex)
-                  openFromFeed(videoIndex, filtered)
-                }}
-                onNearEnd={loadMore}
-                onAtTopChange={(atTop) => {
-                  atTopRef.current = atTop
-                }}
-                itemSize={settings.itemSize}
-                layout={settings.layout}
-                showViewCounts={settings.showViewCounts}
-              />
+              <>
+                {priorityVideos.length > 0 && (
+                  <div className="priority-section">
+                    <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
+                    {priorityVideos.map((video) => (
+                      <VideoRow
+                        key={video.videoId}
+                        video={video}
+                        selected={false}
+                        undoable={undoable.has(video.videoId)}
+                        actions={actions}
+                        onOpen={() => openVideo(video.videoId)}
+                        showViewCounts={settings.showViewCounts}
+                        focusable
+                      />
+                    ))}
+                  </div>
+                )}
+                {filtered.length === 0 ? (
+                  <div className="empty">
+                    {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
+                  </div>
+                ) : (
+                  <FeedList
+                    rows={rows}
+                    cursorVideoIndex={effectiveCursor}
+                    undoable={undoable}
+                    actions={actions}
+                    onOpen={(videoIndex) => {
+                      setCursorIdx(videoIndex)
+                      openFromFeed(videoIndex, filtered)
+                    }}
+                    onNearEnd={loadMore}
+                    onAtTopChange={(atTop) => {
+                      atTopRef.current = atTop
+                    }}
+                    itemSize={settings.itemSize}
+                    layout={settings.layout}
+                    showViewCounts={settings.showViewCounts}
+                  />
+                )}
+              </>
             )}
             {playerOpen && currentPlayerVideo && (
               <PlayerView
@@ -853,6 +1263,15 @@ export function App() {
         )}
       </main>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {addAccountOpen && (
+        <AddAccount
+          onCancel={() => setAddAccountOpen(false)}
+          onConnected={() => {
+            setAddAccountOpen(false)
+            loadChannels()
+          }}
+        />
+      )}
       {urlPromptOpen && (
         <UrlPrompt
           onOpenVideo={(videoId) => {

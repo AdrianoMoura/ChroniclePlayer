@@ -222,7 +222,14 @@ worked in batches when the product owner says so). **Batch plan agreed 2026-07-1
 reconciliation); batch 2 = i18n infrastructure (B-017), so new feature UIs are born
 localized; batch 3 = write scopes + discovery (B-015 first, then B-010, B-009, B-006,
 and B-002 — diagnosed as archive-bounded, needs back-catalog API fetch, see its notes);
-B-003 (multi-account) stays milestone-sized, after M6.
+batch 4 = B-003 (multi-account) — milestone-sized (schema account scoping, wizard
+rework, per-account sync) but **not** deferred past M6: M6 is release packaging only
+and starts once the owner is satisfied the app is functional, so it comes *after* all
+of these batches, not the other way around. **Corrected 2026-07-12** — an earlier
+version of this note read "B-003 stays milestone-sized, after M6", which read as
+"wait until M6 is done first" and inverted the actual sequencing already established
+above (M6 moves to the end). B-003 is just the last of the dogfooding batches, still
+ahead of M6.
 Roadmap-relevant signals from the list:
 
 - Several items **pull the post-MVP discovery bundle forward**: B-009 (global YouTube

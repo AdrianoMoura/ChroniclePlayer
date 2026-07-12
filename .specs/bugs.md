@@ -306,251 +306,6 @@ Resolved entries add:
   the timestamp (on pause/unmount only vs. periodic ticks) — worth a one-line note in
   `playback.md` when it moves from Future idea to Final.
 
-### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / other (process)
-- **What happens:** `ui.md`'s keyboard shortcuts table (§Keyboard shortcuts) was written
-  for the v1 surface and states the right principle ("full keyboard operability is a
-  requirement, not an enhancement... all bindings also exist as visible UI affordances —
-  keyboard-first, not keyboard-only"), but several controls added since (sidebar
-  collapse/expand [[B-037]], the layout/item-size toolbar controls [[B-007]], the
-  inline field-clear buttons [[B-033]], the sidebar channel filter [[B-024]], Settings
-  navigation and its rows, the mouse-back-button request [[B-039]]) were built
-  mouse-first without an explicit check for a matching keyboard path, and the shortcut
-  table/help overlay (`?`) was not consistently revisited when they landed. The owner
-  finds today's shortcuts "nem sempre super acessíveis" (not always easy to
-  discover/reach).
-- **Expected:** two parts. (1) **Process, going forward:** every new interactive
-  feature's design/implementation must state its keyboard path (a binding, or
-  reachability via existing focus/arrow navigation) alongside its mouse affordance,
-  before it's considered done — not bolted on after the owner notices a gap. (2)
-  **One-time audit:** walk the current UI surface control by control (sidebar toggle,
-  layout/size controls, field-clear buttons, channel filter, Settings rows and its
-  back/reconnect actions, context menus as they land per [[B-010]]/[[B-042]]) and either
-  confirm each has a discoverable keyboard path or add one; refactor bindings that are
-  inconsistent or hard to reach (e.g. no visible hint, buried behind a mouse-only
-  hover). Update `ui.md`'s shortcut table and the in-app `?` help overlay to match
-  whatever the audit lands on.
-- **Code refs:** `.specs/ui.md` (§Keyboard shortcuts, §Accessibility — the table and
-  principle to update); `src/ui/App.tsx` (the global keydown handler and the `?` help
-  overlay content); `src/ui/Sidebar.tsx`, `src/ui/SettingsView.tsx`, `src/ui/FeedList.tsx`,
-  `src/ui/PlayerView.tsx` (per-component handlers and hover-only affordances to check).
-- **Notes:** this is as much a standing rule as a fix — no single commit "resolves" the
-  process half. Treat the audit as attackable in one batch (produces the `ui.md`/help
-  overlay update and whatever bindings it adds), but the "every new feature states its
-  keyboard path" rule stays in force afterward rather than closing with the batch.
-
-### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** feed / ui-shell
-- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
-  but channels cannot — there is no way to mark a whole channel as a priority, and the
-  main feed has no way to surface favorited channels' videos ahead of everything else.
-- **Expected:** the per-channel `…` context menu planned in [[B-010]] (sidebar +
-  channel screen, today just Unsubscribe) gains a **Favorite** toggle. The main feed
-  gains a section at the very top listing recent videos from favorited channels first,
-  ahead of the normal chronological grouping (Today / Yesterday / This Week / Earlier,
-  `feed.md`) — favorited-channel videos get priority placement, not a separate
-  exclusive view.
-- **Code refs:** `src/adapters/storage/migrations.ts` (new schema migration —
-  `channels` table needs a `favorite` column, alongside the existing `subscribed`
-  column around line 11); `src/core/ports.ts` + `src/adapters/storage/repositories.ts`
-  (channel favorite toggle + feed query changes to surface favorited-channel videos
-  first); `src/ipc/contract.ts` (new IPC surface for toggling + the DTO field);
-  `src/ui/Sidebar.tsx` (the `…` context menu itself is still [[B-010]]'s to build —
-  this adds one more entry to it); `src/ui/FeedList.tsx` / `src/ui/App.tsx` (the new
-  top-of-feed priority section, mirrors the existing bucket-header rendering pattern
-  used for Today/Yesterday/etc.).
-- **Notes:** depends on [[B-010]]'s context-menu work landing first (or alongside) —
-  this is an additional option on that menu, not a separate UI surface. Needs a
-  `feed.md` update when attacked (new "favorited channels" section ahead of the
-  existing chronological buckets) and a `decisions.md` entry if the exact priority
-  placement/ordering needs a Final decision (e.g. do favorited videos also appear
-  again in their normal chronological bucket, or only in the priority section?).
-
-### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
-  `.settings-view` (and the banner above it, when present) almost touching the
-  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
-  overlap.
-- **Expected:** the same left clearance the feed screen already gets when collapsed
-  (the hamburger has clear room, nothing crowds it), regardless of which screen
-  (`feed` or `settings`) is showing.
-- **Code refs:** `src/ui/styles.css` — `.app.sidebar-collapsed .topbar { padding-left:
-  52px }` (around line 207) only reserves room for the floating `.sidebar-expand`
-  button on the feed screen's `<header className="topbar">`; the Settings screen
-  (`src/ui/App.tsx`, `screen === 'settings'` branch around line 689) renders no
-  `topbar`, so nothing gives `.settings-view` (`styles.css` ~line 1059, `padding: 26px
-  32px 60px`) or `.banner` the same left offset when collapsed.
-- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
-  screen instead of the feed topbar — fix likely generalizes the `padding-left: 52px`
-  reservation to `.app.sidebar-collapsed .feed` (or another selector covering both
-  `.topbar` and `.settings-view`/`.banner`) instead of scoping it to `.topbar` alone.
-
-### B-040 — More space between the Settings button and the channel list above it
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
-  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` has no CSS
-  rule at all, so the visual gap between the last channel row and the Settings button
-  is purely emergent from `.sidebar`'s `justify-content: space-between` and
-  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
-  end up reading as touching.
-- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
-  button, consistent with the sidebar's other section spacing (e.g. the gap
-  `.channel-list` already gets above it: `margin-top: 14px; border-top: 1px solid
-  var(--border); padding-top: 10px`).
-- **Code refs:** `src/ui/Sidebar.tsx` (`sidebar-footer` div wrapping the Settings
-  button, rendered right after the `channel-list` div); `src/ui/styles.css`
-  (`.sidebar` — `justify-content: space-between`; `.channel-list` around line 261 —
-  `flex: 1`, no bottom padding/margin; no existing `.sidebar-footer` rule to anchor a
-  `margin-top`/`border-top` on).
-- **Notes:** purely a spacing/polish tweak, no behavior change.
-
-### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player
-- **What happens:** many mice have a dedicated back/side button (browsers bind it to
-  history-back); Chronicle doesn't listen for it, so it does nothing in the player.
-- **Expected:** pressing the mouse back button while in the player closes the player
-  and returns to the previous screen — the same action as pressing Esc or clicking the
-  visible Back button ([[B-001]]).
-- **Code refs:** `src/ui/PlayerView.tsx` (the `Escape` case in the keydown handler
-  around the `onClose()` call — add a `mouseup`/`pointerup` listener checking
-  `event.button === 3` for the browser's back mouse button, calling the same
-  `onClose`).
-- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
-  XButton1; some mice map this to a "Backward" "navigate back" browser gesture instead
-  of a plain button event — verify empirically which fires in Electron/Chromium
-  (owner to verify live, per [[no-live-app-verification]]).
-
-### B-002 — Channel video list is truncated and does not paginate
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** feed
-- **What happens:** a channel's video list shows only some videos and scrolling does not
-  load more.
-- **Expected:** scroll pagination per D-027 (keyset), same behavior as the main feed.
-- **Code refs:** `src/ui/App.tsx` (`loadView` — check the cursor path when
-  `channelFilter` is set); `src/ui/FeedList.tsx` (load-more trigger);
-  `src/adapters/storage/repositories.ts` (keyset pagination); `src/ipc/contract.ts`
-  (`getFeed`).
-- **Notes (diagnosis, 2026-07-11):** keyset pagination with a channel filter is
-  **correct** — a regression test now pages a channel-filtered feed end-to-end
-  (`repositories.test.ts`). The truncation is the *archive*, not the query: sync
-  discovers via RSS (~15 entries/channel — the 2026-07-11 smoke's 3,261 videos across
-  229 subs ≈ 14/channel confirms it), so the channel view already shows everything
-  Chronicle has locally. The real fix is user-initiated back-catalog fetch (uploads
-  playlist paging + hydration, ~2 units per 50 older videos) when scrolling past the
-  local archive in a channel view. That is new API surface with quota costs to record
-  in `youtube-api.md` — moved to **batch 3** with the channel-screen work ([[B-009]],
-  [[B-010]]), out of the local-polish batch 1.
-
-### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** auth / ui-shell
-- **What happens:** the app forces the connection wizard on first launch; only one
-  account is supported.
-- **Expected:** the app is usable authenticated or not (relates to D-033, accountless
-  mode). Sidebar gains an **Accounts** section (placed before Settings) where the user
-  adds one or several accounts. The wizard opens **in a modal**: first account ever gets
-  the full Google Cloud console walkthrough (project + OAuth key); additional accounts
-  skip that — just remind the user to add the new e-mail as a test user on the existing
-  project, then run the connect flow. Feeds from all accounts are combined in listings,
-  with the option to filter by account.
-- **Code refs:** `src/adapters/oauth/` + `src/adapters/secrets/` (token storage is
-  single-account today); `src/adapters/storage/migrations.ts` (schema needs account
-  scoping); `src/core/sync-service.ts` (per-account sync); `src/ui/Sidebar.tsx`
-  (Accounts section); `src/ui/onboarding/Wizard.tsx` (modal mode + skip-console path
-  for additional accounts); `src/platform/main.ts` (composition root wires it all).
-- **Notes:** exact UX is open — owner's sketch: a collapsible section (default open)
-  listing connected accounts, each with a `…` menu offering **Remove** and **Sync now**.
-  This is milestone-sized: touches schema (account scoping), sync, wizard, sidebar.
-  Needs decisions.md entries when attacked (supersedes the single-account assumption).
-
-### B-006 — Comments: read, add, reply; likes on videos and comments
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** player
-- **Expected:** read the comment thread, post comments, reply to comments, like the
-  video and like comments — all user-initiated (in scope per D-030/D-031/D-032 framing).
-- **Code refs:** `src/adapters/youtube/api-client.ts` (new `commentThreads` /
-  `comments` / `videos.rate` calls + quota accounting); `src/core/ports.ts` (new port);
-  `src/ipc/contract.ts`; `src/ui/PlayerView.tsx` (comments UI);
-  `src/adapters/oauth/google-oauth.ts` (write scopes, D-032).
-- **Notes:** requires new API surface + write scopes (incremental, per D-032 and
-  [[B-015]]). Quota costs must be stated in `youtube-api.md` when attacked.
-
-### B-009 — Search all of YouTube, not only synced content
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** other (search)
-- **What happens:** search/filter only covers synced channels' content.
-- **Expected:** a scope option in the search/filter UI choosing between "my channels"
-  and "all of YouTube" (D-031). From global results the user can open any video
-  (D-029 already hydrates external videos), discover new channels, and subscribe to
-  them (D-030).
-- **Code refs:** `src/ui/FeedList.tsx` (the local `/` filter gains the scope option);
-  `src/adapters/youtube/api-client.ts` (`search.list`); `src/core/ports.ts` +
-  `src/ipc/contract.ts` (new search surface); subscribe path shares [[B-010]]'s API.
-- **Notes:** `search.list` costs 100 units/call — quota framing in `youtube-api.md`
-  must be respected and surfaced when attacked.
-
-### B-010 — Easy unsubscribe: channel screen + sidebar context menu
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell
-- **Expected:** an obvious Unsubscribe option on the channel screen, plus a `…` icon
-  button per channel in the sidebar opening a context menu with Unsubscribe.
-- **Code refs:** `src/ui/Sidebar.tsx` (`…` context menu); `src/ui/App.tsx` (the
-  channel-filtered view is today's "channel screen");
-  `src/adapters/youtube/api-client.ts` (`subscriptions.delete`);
-  `src/adapters/oauth/google-oauth.ts` (write scope).
-- **Notes:** unsubscribing writes to YouTube — needs the write scope path (D-032,
-  [[B-015]]).
-
-### B-015 — App wrongly presents itself as read-only
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** other (copy / scopes model)
-- **What happens:** app copy states Chronicle is read-only.
-- **Expected:** Chronicle is not read-only: subscribe, unsubscribe, comment, and like
-  are all in scope (user-initiated — D-030/D-032). What actually happens is that OAuth
-  permissions are added incrementally as the user first performs each write action
-  (D-032). Fix the copy everywhere it appears (UI, wizard, docs) and make incremental
-  scope consent the explicit model.
-- **Code refs:** `src/ui/onboarding/Wizard.tsx` (read-only wording, e.g. the step-4b
-  publish copy); `docs/setup.md`; `src/adapters/oauth/google-oauth.ts` (scope list —
-  incremental consent lands here); grep `read-only` / `readonly` across `src/ui/` and
-  docs for the full surface.
-- **Notes:** umbrella for the write-action items [[B-006]] and [[B-010]]. **Left
-  untouched in the 2026-07-12 small-adjustments batch on purpose:** today the app has
-  zero real YouTube writes (subscribe/unsubscribe/comment/like are all still Open, in
-  [[B-006]]/[[B-009]]/[[B-010]]) — only local-only state (favorite, watch later, read
-  status). So the "read-only" copy is currently *accurate*; rewriting it now would have
-  the UI claim capabilities that don't exist yet. Fix the copy in the same change that
-  lands B-006/B-010 (or B-009's subscribe path), not before.
-
-### B-017 — Multi-language support via lang files (English only for now)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell / other (i18n)
-- **Expected:** a language system where all UI strings live in lang files
-  (e.g., `en.json`), loaded through an i18n layer — no hardcoded strings in components.
-  Only English ships for now; the infrastructure makes future locales a file drop.
-- **Code refs:** all of `src/ui/` (hardcoded strings — `src/ui/onboarding/Wizard.tsx`
-  is by far the largest surface); new i18n layer + `lang/en.json` to create.
-- **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
-  to infrastructure-now, strings-later. Wizard copy is the biggest surface.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -591,6 +346,524 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
+- **Type:** adjustment
+- **Status:** Fixed (the audit — the process half stays a standing rule, see notes) ·
+  **Reported:** 2026-07-12
+- **Area:** ui-shell / other (process)
+- **What happens:** `ui.md`'s keyboard shortcuts table (§Keyboard shortcuts) was written
+  for the v1 surface and states the right principle ("full keyboard operability is a
+  requirement, not an enhancement... all bindings also exist as visible UI affordances —
+  keyboard-first, not keyboard-only"), but several controls added since (sidebar
+  collapse/expand [[B-037]], the layout/item-size toolbar controls [[B-007]], the
+  inline field-clear buttons [[B-033]], the sidebar channel filter [[B-024]], Settings
+  navigation and its rows, the mouse-back-button request [[B-039]]) were built
+  mouse-first without an explicit check for a matching keyboard path, and the shortcut
+  table/help overlay (`?`) was not consistently revisited when they landed. The owner
+  finds today's shortcuts "nem sempre super acessíveis" (not always easy to
+  discover/reach).
+- **Expected:** two parts. (1) **Process, going forward:** every new interactive
+  feature's design/implementation must state its keyboard path (a binding, or
+  reachability via existing focus/arrow navigation) alongside its mouse affordance,
+  before it's considered done — not bolted on after the owner notices a gap. (2)
+  **One-time audit:** walk the current UI surface control by control (sidebar toggle,
+  layout/size controls, field-clear buttons, channel filter, Settings rows and its
+  back/reconnect actions, context menus as they land per [[B-010]]/[[B-042]]) and either
+  confirm each has a discoverable keyboard path or add one; refactor bindings that are
+  inconsistent or hard to reach (e.g. no visible hint, buried behind a mouse-only
+  hover). Update `ui.md`'s shortcut table and the in-app `?` help overlay to match
+  whatever the audit lands on.
+- **Code refs:** `.specs/ui.md` (§Keyboard shortcuts, §Accessibility — table + standing
+  rule + audit note added); `src/ui/App.tsx` (new `s` sidebar-toggle binding; the
+  priority-section/search-result rows made keyboard-reachable); `src/ui/FeedList.tsx`
+  (`VideoRow`'s new `focusable` prop); `src/ui/HelpOverlay.tsx` +
+  `src/ui/i18n/en.ts` (`s` added to the `?` overlay); `src/ui/AddAccount.tsx` (Esc-to-close,
+  matching every other overlay).
+- **Notes:**
+  - **Audit findings, control by control:**
+    - **Sidebar collapse/expand (B-037):** genuinely had zero keyboard path — fixed,
+      bound to `s`.
+    - **Layout/item-size toolbar (B-007):** the layout toggle is a real button (Tab +
+      Enter); the size slider is a native `<input type="range">`, already arrow-key
+      operable once focused — no code change needed, just confirmed.
+    - **Field-clear buttons (B-033), channel filter (B-024):** already fine — real
+      buttons, plus `Esc`-to-clear on the field itself. `c` (channel-filter focus)
+      already existed in code and in the `?` overlay; it was only missing from
+      `ui.md`'s table, now added.
+    - **Settings rows, back/reconnect actions:** all real `<button>`/`<a>` elements,
+      Tab-reachable — no gap, but see the new standing note in `ui.md` making this
+      "Tab is a sufficient keyboard path for secondary screens" policy explicit rather
+      than implicit.
+    - **Channel/account `…` context menus (B-010/B-042/B-003, built this session):**
+      already keyboard-operable without extra work — the trigger and every menu item
+      are real `<button>`s (Tab + Enter/Space), and both menus already close on `Esc`
+      (built alongside B-010/B-003, not new here).
+    - **One real violation found and fixed:** the priority section's and search
+      results' video rows (both built this session, B-042/B-009) were plain
+      `<div onClick>` with **no keyboard path at all** — unlike the main `FeedList`,
+      which has an equivalent (global `j`/`k`/`Enter` cursor navigation), these two
+      lists have nothing else reaching them. Fixed via `VideoRow`'s new `focusable`
+      prop (`role="button"`, `tabIndex`, Enter/Space activation) for the priority
+      section, and the same pattern applied directly to the search-result row.
+      Deliberately **not** applied to `VideoRow`/`VideoCard` inside the main virtualized
+      `FeedList` itself — adding `tabIndex` there would make Tab cycle through
+      potentially thousands of rows, which the existing cursor-navigation model is
+      correctly designed to avoid.
+    - Also fixed in passing: `AddAccount.tsx` (built alongside B-003, same session) had
+      no `Esc`-to-close, inconsistent with every other overlay (Help, URL prompt) — added.
+  - **The process half does not close with this batch, by design** — per the bug's own
+    framing, "every new interactive control states its keyboard path before it's
+    considered done" is now written into `ui.md` itself as a standing rule, not a
+    one-time checklist item. Future sessions should treat it the same way CLAUDE.md's
+    other standing conventions are treated.
+  - No live-app check this session (keyboard reachability was verified by reading the
+    DOM/handler structure, not by physically tabbing through a running window per
+    [[no-live-app-verification]]); verified via
+    `npm run typecheck && npm run lint && npm test` (171/171). The owner should validate
+    live: actually Tab through the priority section and search results, confirm `s`
+    toggles the sidebar, and skim the updated `?` overlay/`ui.md` table for accuracy.
+- **Resolved:** 2026-07-12 · **Commit:** 9236344 · **Outcome:** Fixed
+
+### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
+- **Type:** adjustment
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-11
+- **Area:** auth / ui-shell
+- **What happens:** the app forces the connection wizard on first launch; only one
+  account is supported.
+- **Expected:** the app is usable authenticated or not (relates to D-033, accountless
+  mode). Sidebar gains an **Accounts** section (placed before Settings) where the user
+  adds one or several accounts. The wizard opens **in a modal**: first account ever gets
+  the full Google Cloud console walkthrough (project + OAuth key); additional accounts
+  skip that — just remind the user to add the new e-mail as a test user on the existing
+  project, then run the connect flow. Feeds from all accounts are combined in listings,
+  with the option to filter by account.
+- **Code refs:** `src/adapters/storage/migrations.ts` (schema v6: `accounts` +
+  `account_channels` junction table — D-040); `src/core/ports.ts` +
+  `src/adapters/storage/repositories.ts`/`sync-repository.ts` (every feed/channel query
+  threaded with an optional `accountId`, `EXISTS` subqueries not `JOIN`s, so a channel
+  followed by two accounts never fans out into duplicate rows); `src/core/sync-service.ts`
+  (`refresh`/`backfillArchive` take an `accountId`); `src/adapters/oauth/auth.ts`
+  (`accountSecretKeys` — per-account refresh token/scopes, one shared `oauthClient`);
+  `src/platform/main.ts` (the `AccountStack` registry — one `authFlow`/`authProvider`/
+  `apiClient`/`syncService` per account, sharing the repo and quota counter; new
+  `accounts:*` IPC surface); `src/ui/Sidebar.tsx` (the Accounts section); `src/ui/
+  AddAccount.tsx` (new — the short add-account flow); `src/ui/App.tsx` (`accountFilter`,
+  a second independent filter dimension alongside `channelFilter`).
+- **Notes:**
+  - **Not fully built as specced — scoped down deliberately, not by oversight:** "the app
+    is usable authenticated or not" (fully accountless browsing) is D-033's territory, a
+    separate, still-unimplemented decision — this bug's real, load-bearing ask was
+    genuine **multi**-account support (several authenticated accounts), which is what's
+    built. Zero-account/local-only-follow browsing remains future work.
+  - **The wizard itself was never touched.** Rather than adding a "modal mode" with
+    conditional step-skipping to the existing multi-step `Wizard.tsx` component, additional
+    accounts get their own small, separate flow (`AddAccount.tsx`) — a reminder to add the
+    new email as a Test user on the *same* Google Cloud project, then Connect. This still
+    satisfies the bug's actual requirement (skip the console walkthrough for accounts
+    after the first) without refactoring the wizard's step-sequencing logic to support two
+    modes — see [[D-041]] for the reasoning.
+  - **Schema (D-040):** the first design considered — a plain `account_id` column added to
+    `channels` — was rejected mid-implementation: it would let a second account's
+    subscribe silently overwrite the first account's row for the same channel (channel_id
+    stays a single-owner primary key). The `account_channels` junction table is the only
+    one of the two that's actually correct for two accounts following the same channel;
+    channel facts (title, uploads playlist, RSS validators) stay shared/deduped in
+    `channels`, matching D-029's existing "external channel" precedent.
+  - **`video_state`/`videos` stay account-agnostic (D-003 extended, not superseded):**
+    read/favorite/watch-later are the Chronicle user's own facts, not tied to whichever
+    account's subscription surfaced a video. Two accounts following the same channel share
+    one unread/favorite state per video, which is the intended behavior for one person
+    running multiple YouTube accounts.
+  - **One Google Cloud project, one quota pool, per-account tokens only** — this is what
+    makes "just add a Test user" additional-account onboarding possible at all; confirmed
+    against D-030's own framing, not a new assumption.
+  - **[[D-041]] simplifications, all deliberate:** Settings' Connection section and the
+    first-run wizard keep managing one "primary" account only, completely unchanged;
+    the primary account can't be removed from the new Accounts section (Settings' existing
+    Sign Out covers that case); subscribing to a channel found via search always
+    subscribes under the primary account (no account picker); an action on a channel
+    followed by more than one account (favorite/unsubscribe) applies to whichever account
+    owns it first if there's more than one — a narrow edge case (two of *your own*
+    accounts both following the identical channel).
+  - No live-app check this session (needs the owner's second real Google account to
+    verify end-to-end); verified via `npm run typecheck && npm run lint && npm test`
+    (171/171), including new cross-account isolation tests (a channel followed by two
+    accounts dedupes in the combined sidebar list but stays independent per account —
+    unsubscribing one account never affects another following the same channel). The
+    owner should validate live: adding a real second account (Test-user step included),
+    the combined vs. account-filtered feed, and Remove/Sync now from the Accounts menu.
+- **Resolved:** 2026-07-12 · **Commit:** 3b13f25 · **Outcome:** Fixed
+
+### B-015 — App wrongly presents itself as read-only
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** other (copy / scopes model)
+- **What happens:** app copy states Chronicle is read-only.
+- **Expected:** Chronicle is not read-only: subscribe, unsubscribe, comment, and like
+  are all in scope (user-initiated — D-030/D-032). What actually happens is that OAuth
+  permissions are added incrementally as the user first performs each write action
+  (D-032). Fix the copy everywhere it appears (UI, wizard, docs) and make incremental
+  scope consent the explicit model.
+- **Code refs:** `src/ui/i18n/en.ts` (`wizard.step.enableApi.why`,
+  `settings.connection.scopeName.*`/`scopeGrantedSuffix.*` — now two variants each,
+  switched on granted scope); `src/ui/SettingsView.tsx` (renders the matching
+  variant); `src/ui/App.tsx` (`onOpenSettings` refetches auth status so the copy
+  never lags behind the last write action used); `src/ipc/contract.ts` +
+  `src/platform/main.ts` (`AuthStatusDto.writeScopeGranted`, from
+  `authFlow.hasWriteScope()`); `docs/setup.md` (§What Chronicle does and never
+  does); `.specs/onboarding.md` (step 2's "why" copy).
+- **Notes:**
+  - **This was the last piece of D-032's settings-screen requirement** ("shows
+    which scopes are currently granted... with a revoke link") — [[B-010]]'s notes
+    had explicitly deferred the display half of that to this bug; the revoke link
+    itself already existed.
+  - **What was actually wrong, precisely:** not every "read-only" mention was
+    false — the *initial* OAuth grant genuinely is readonly-only (D-032), so
+    `docs/setup.md`'s Step 6 wording ("Grant the readonly scope") stayed
+    untouched. The false claims were the ones stating or implying Chronicle can
+    *never* write: `settings.connection.scopeGrantedSuffix` ("Chronicle never
+    writes to your YouTube account"), the wizard's step-2 "why" copy ("read-only
+    YouTube data" describing the *enabled API*, not just the initial scope — the
+    same API also serves every write call), and `docs/setup.md`'s "That's all the
+    readonly scope allows" line.
+  - **Grep for the word alone would have over-corrected:** several hits were
+    TypeScript's `readonly` keyword (arrays, class fields) or accurate
+    descriptions of a specific *read* endpoint's scope requirement (e.g.
+    `commentThreads.list`/`videos.getRating` genuinely only need the readonly
+    scope) — left untouched, since flagging every occurrence of the substring
+    would have been noise, not signal.
+  - Settings' scope description was previously a **static string**, unable to
+    ever reflect reality once write scope was granted — now it's derived from
+    `authFlow.hasWriteScope()` live, refetched on every Settings open (not just
+    app launch), so it can't silently go stale again the way the static copy did.
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (162/162). The owner should
+    validate live: that the Settings scope line actually flips after using
+    Unsubscribe/Subscribe/Like/Comment, and re-read the wizard's step 2 copy for
+    tone (it's necessarily a longer sentence now than the original one-liner).
+- **Resolved:** 2026-07-12 · **Commit:** 4f786ce · **Outcome:** Fixed
+
+### B-006 — Comments: read, add, reply; likes on videos and comments
+- **Type:** adjustment
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-11
+- **Area:** player
+- **Expected:** read the comment thread, post comments, reply to comments, like the
+  video and like comments — all user-initiated (in scope per D-030/D-031/D-032 framing).
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`listComments`/`postComment`/
+  `replyToComment` — `commentThreads`/`comments`; `rateVideo`/`getVideoRating` —
+  `videos.rate`/`.getRating`); `src/ipc/contract.ts` (`CommentDto`, `VideoRatingDto`,
+  five new channels); `src/platform/main.ts` (handlers — write actions gate on
+  [[B-010]]'s incremental write-scope consent, reads don't); `src/ui/Comments.tsx`
+  (new — the comment thread UI, one level of nesting per YouTube's own model);
+  `src/ui/PlayerView.tsx` (Like action button + silent rating pre-fetch on open).
+- **Notes:**
+  - **Not fully buildable as specced — API gap, not a scope cut:** the public
+    YouTube Data API v3 has **no endpoint to like a comment**, only videos
+    (`videos.rate`). This was discovered while implementing, not assumed going in.
+    Comment `likeCount` is shown (read from the API response) but there is no like
+    button on a comment — there is nothing to call. Recorded as a permanent
+    limitation in `decisions.md` (D-032), not a future TODO, since no amount of
+    further work on Chronicle's side unlocks it.
+  - **Read needs no write scope:** `commentThreads.list` works on the existing
+    `youtube.readonly` grant — only posting a comment/reply and rating a video
+    trigger [[B-010]]'s incremental write-scope flow (shared `AuthFlow` mechanism,
+    same `youtube.force-ssl` scope covers subscribe/unsubscribe/comment/like).
+  - **Rating fetch is silent by design:** `getVideoRating` runs automatically on
+    every video open (1 unit, trivial even at high viewing volume — no manual gate,
+    consistent with [[product-frictionless-over-quota]]) but failures (e.g. not
+    connected) are swallowed rather than shown as a banner, since it's a passive
+    background check, not a direct user action. Explicit actions (posting, rating)
+    do surface errors — inline near the action bar for rating, inline in the
+    comment composer for posting/replying.
+  - **Comments are never stored locally** — always fetched live per player open,
+    consistent with the local-only-state boundary (comments are YouTube's data,
+    not Chronicle's).
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (162/162). The owner should
+    validate live: posting a real comment/reply, the Like button against a real
+    account, and that the comment-like gap doesn't read as a bug to testers (worth
+    a line in `docs/setup.md` or the help overlay if it comes up).
+- **Resolved:** 2026-07-12 · **Commit:** 627f371 · **Outcome:** Fixed
+
+### B-009 — Search all of YouTube, not only synced content
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** other (search)
+- **What happens:** search/filter only covers synced channels' content.
+- **Expected:** a scope option in the search/filter UI choosing between "my channels"
+  and "all of YouTube" (D-031). From global results the user can open any video
+  (D-029 already hydrates external videos), discover new channels, and subscribe to
+  them (D-030).
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`search()` — `search.list`,
+  100 units; `subscribe()` — `subscriptions.insert`, 50 units); `src/ipc/contract.ts`
+  (`SearchResultDto`, `youtube:search`, `channel:subscribe`); `src/adapters/storage/
+  repositories.ts` (`isSubscribed` — cross-references result channels against local
+  state); `src/adapters/storage/sync-repository.ts` (`upsertSubscribedChannel`,
+  reusing `applySubscriptions`' single-row upsert shape); `src/platform/main.ts`
+  (both IPC handlers; subscribe fetches the uploads playlist and runs a
+  channel-scoped sync right after, so videos appear without waiting); `src/ui/App.tsx`
+  (the "Mine"/"YouTube" scope toggle next to the existing `/` filter, and a
+  transient search-results list that replaces the feed while active).
+- **Notes:**
+  - **Explicit action, not live search:** per D-031, `search.list` only fires on
+    Enter (never per keystroke) — it costs 100 units/call, ~100/day headroom at
+    default quota. The scope toggle is hidden in a channel-filtered view (global
+    search doesn't apply there); switching back to "Mine" or clearing the field
+    drops any results.
+  - **Search results are intentionally minimal:** video results are click-to-open
+    only (no favorite/watch-later/mark-read buttons) — those actions upsert a
+    `video_state` row with a foreign-key dependency on the `videos` table, which a
+    fresh, never-opened search result doesn't have yet. Opening the video first
+    (via the existing D-029 hydrate-on-open path) is what creates that row; acting
+    on it from the player afterward already works unchanged. Channel results show
+    only a Subscribe/Subscribed button, not a full channel view — browsing an
+    unfollowed channel's own catalog is future scope, not this bug's ask.
+  - **D-030's "Follow locally" mechanism is still not built** — this only
+    implements "Subscribe on YouTube." Flagged in `decisions.md`.
+  - Subscribing reuses [[B-010]]'s incremental write-scope consent
+    (`AuthFlow.requestWriteScope()`/`hasWriteScope()`) — the same mechanism, same
+    scope (`youtube.force-ssl` covers both insert and delete), so a user who's
+    already unsubscribed something once won't see a second consent prompt when
+    they later subscribe from search (or vice versa).
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (156/156). The owner should
+    validate live: a real `search.list` query against quota, the incremental
+    write-scope popup on first subscribe (if not already granted via unsubscribe),
+    and that a freshly subscribed channel's videos actually appear after the
+    triggered sync.
+- **Resolved:** 2026-07-12 · **Commit:** 76bf78e · **Outcome:** Fixed
+
+### B-002 — Channel video list is truncated and does not paginate
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** feed
+- **What happens:** a channel's video list shows only some videos and scrolling does not
+  load more.
+- **Expected:** scroll pagination per D-027 (keyset), same behavior as the main feed.
+- **Code refs:** `src/core/sync-service.ts` (`backfillArchive` — the on-demand
+  back-catalog fetch); `src/adapters/storage/migrations.ts` (schema v5,
+  `channels.backfill_page_token`/`backfill_exhausted`); `src/core/ports.ts` +
+  `src/adapters/storage/sync-repository.ts` (`getBackfillState`/`setBackfillState`);
+  `src/ipc/contract.ts` (`channel:backfillArchive`); `src/ui/App.tsx` (`loadMore` —
+  now triggers backfill when `nextCursor` is null in a channel-filtered view, then
+  resumes the same page rather than resetting to the top).
+- **Notes (diagnosis, 2026-07-11):** keyset pagination with a channel filter is
+  **correct** — a regression test now pages a channel-filtered feed end-to-end
+  (`repositories.test.ts`). The truncation is the *archive*, not the query: sync
+  discovers via RSS (~15 entries/channel — the 2026-07-11 smoke's 3,261 videos across
+  229 subs ≈ 14/channel confirms it), so the channel view already shows everything
+  Chronicle has locally. The real fix is user-initiated back-catalog fetch (uploads
+  playlist paging + hydration, ~2 units per 50 older videos) when scrolling past the
+  local archive in a channel view — exactly what `feed.md`'s Backfill rules section
+  had already sketched (`playlistItems.list` deeper-history-on-demand), now built.
+- **Notes (fix, 2026-07-12):**
+  - `SyncService.backfillArchive(channelId)` pages the channel's uploads playlist
+    from a stored per-channel continuation cursor, skips already-known video ids
+    (dedup against concurrent routine syncs), hydrates whatever is genuinely new,
+    and persists both the next cursor and an `exhausted` flag once the whole
+    playlist has been walked (checked client-side before every future call — no
+    wasted request once exhausted).
+  - Bounded at 4 pages (200 videos, 4 units) per scroll-triggered call — mirrors
+    the existing `backfillGap`'s 200-video bound (`GAP_BACKFILL_MAX`) but as its
+    own constant, since this is a distinct, resumable, on-demand path rather than
+    routine sync's one-shot gap detection.
+  - **UX detail worth flagging:** naively reloading the channel view after a
+    successful backfill (`getFeed(view, null, channel)`) would have reset the
+    user's scroll position to the top. Fixed by tracking the last cursor actually
+    requested (`lastCursorRef`, distinct from `nextCursor`, which the backend sets
+    to `null` once local data runs out) and resuming that exact page afterward, so
+    backfilled results append seamlessly where the user was scrolling.
+  - No live-app check this session (needs a real account with a channel whose
+    archive exceeds the RSS window); verified via
+    `npm run typecheck && npm run lint && npm test` (151/151). The owner should
+    validate live: scrolling to the end of a deep channel's archive, that it
+    resumes without jumping, and that quota accounting matches expectations.
+- **Resolved:** 2026-07-12 · **Commit:** b9b6e00 · **Outcome:** Fixed
+
+### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
+  but channels cannot — there is no way to mark a whole channel as a priority, and the
+  main feed has no way to surface favorited channels' videos ahead of everything else.
+- **Expected:** the per-channel `…` context menu built in [[B-010]] (sidebar +
+  channel screen, previously just Unsubscribe) gains a **Favorite** toggle. The main
+  feed gains a section at the very top listing recent videos from favorited channels
+  first, ahead of the normal chronological grouping (Today / Yesterday / This Week /
+  Earlier, `feed.md`) — favorited-channel videos get priority placement, not a separate
+  exclusive view.
+- **Code refs:** `src/adapters/storage/migrations.ts` (schema v4, `channels.favorite`);
+  `src/core/ports.ts` (`FollowedChannel.favorite`, `FeedRepository.toggleChannelFavorite`/
+  `listPriorityVideos`); `src/adapters/storage/repositories.ts` (implementations);
+  `src/core/feed-service.ts` (`FeedService.getPriorityVideos`, bucket-less like the
+  watch-later queue); `src/ipc/contract.ts` (`ChannelDto.favorite`,
+  `channel:toggleFavorite`, `feed:priority`); `src/ui/Sidebar.tsx` (Favorite/Unfavorite
+  entry in the `…` menu, plus a ★ indicator on favorited channel rows);
+  `src/ui/FeedList.tsx` (`VideoRow` exported for reuse); `src/ui/App.tsx` (the
+  top-of-feed priority section — a small non-virtualized list reusing `VideoRow`
+  directly, not merged into the main virtualized `FeedList`).
+- **Notes:**
+  - **D-039 (new decision, exercised in this change):** a favorited channel's video
+    appears in **both** the priority section and its normal chronological bucket —
+    duplicated, not moved. Consistent with D-010's orthogonal-flags model; see
+    `decisions.md` and `feed.md`'s new "Favorited channels" subsection for the full
+    rationale. This was the ambiguity the original bug entry flagged as needing a
+    decision — resolved per the product owner's "resolve everything, I'll redirect if
+    needed" instruction for this batch, not asked about individually.
+  - **Architecture choice:** the priority section is a *separate* query
+    (`listPriorityVideos`, capped at 20, unread-only) rendered as a plain list above
+    the main `FeedList`, not spliced into the keyset-paginated feed's row/index space.
+    Mirrors the existing Watch Later queue precedent (already a separate,
+    non-paginated list) — far simpler than trying to merge two orderings into one
+    cursor-paginated, keyboard-navigable index, and avoids a cross-page video-index
+    resolution problem (a favorited channel's unread video could in principle sit
+    outside the currently-loaded feed page).
+  - Favoriting a channel does not change its sidebar sort order (still B-008
+    freshest-first) and does not affect Favorites/Watch Later/Ignored views or a
+    channel-filtered screen — it's specifically a main-feed ("all"/"unread")
+    affordance, per `feed.md`.
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (144/144). The owner should
+    validate live: the priority section's placement/visibility, and that favoriting
+    doesn't reorder the sidebar.
+- **Resolved:** 2026-07-12 · **Commit:** 3880228 · **Outcome:** Fixed
+
+### B-010 — Easy unsubscribe: channel screen + sidebar context menu
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell
+- **Expected:** an obvious Unsubscribe option on the channel screen, plus a `…` icon
+  button per channel in the sidebar opening a context menu with Unsubscribe.
+- **Code refs:** `src/ui/Sidebar.tsx` (`…` context menu, double-arm confirm, now fully
+  i18n'd — its remaining hardcoded strings were folded in here rather than left for
+  later, per the file being rewritten anyway); `src/ui/App.tsx` (topbar Unsubscribe
+  button on the channel screen, same double-arm confirm as Settings' delete-all);
+  `src/adapters/youtube/api-client.ts` (`unsubscribe()` — `subscriptions.delete`, 50
+  units; `findSubscriptionId()` fallback lookup, 1 unit); `src/adapters/oauth/auth.ts`
+  (`AuthFlow.requestWriteScope()`/`hasWriteScope()` — D-032 incremental consent, now
+  implemented, not just specified); `src/adapters/oauth/google-oauth.ts`
+  (`YOUTUBE_FORCE_SSL_SCOPE`, `include_granted_scopes`); `src/platform/main.ts`
+  (`channel:unsubscribe` IPC handler ties it together); schema v3
+  (`src/adapters/storage/migrations.ts` — `channels.subscription_id`).
+- **Notes:** unsubscribing writes to YouTube — needed the write scope path (D-032),
+  which this bug is the first caller of. Design points worth recording:
+  - **`subscription_id` vs `channel_id`:** `subscriptions.delete` needs YouTube's
+    subscription resource id, not the channel id — a gap the original code-refs
+    didn't anticipate. Added as an optional `Channel.subscriptionId` field
+    (`src/core/video.ts`) populated by `listSubscriptions()` and persisted in schema
+    v3, so it costs nothing extra (same call already returns it). Channels synced
+    before this migration have no cached id yet; `findSubscriptionId()` is a 1-unit
+    fallback lookup (`subscriptions.list?mine=true&forChannelId=`) used only then —
+    self-healing after this point since every future subscription sync populates it.
+  - **Granted-scope tracking:** rather than a bare boolean, `AuthFlow` stores the
+    scope string Google actually returned (`SECRET_KEYS.grantedScopes`) and
+    `hasWriteScope()` checks it for `youtube.force-ssl` — truthful to what Google
+    granted instead of trusting our own request succeeded exactly as asked.
+    `signOut()` clears it, so reconnecting starts read-only again.
+  - **Deferred to [[B-015]] on purpose:** the settings screen's granted-scopes
+    display + revoke link (documented in `authentication.md` D-032) and the
+    read-only copy fix are explicitly that bug's scope, not repeated here.
+  - Confirmation UX reuses Settings' delete-all pattern (click arms, click again
+    within 6s fires) rather than a native `confirm()` dialog, everywhere a
+    destructive action needs a guard rail.
+  - No live-app check this session (OAuth/quota need the owner's real credentials
+    per [[no-live-app-verification]]) — verified via
+    `npm run typecheck && npm run lint && npm test` (141/141). The owner should
+    validate live: the incremental-consent browser popup, the fallback lookup path
+    for pre-existing subscriptions, and that unsubscribing actually reflects on
+    youtube.com.
+- **Resolved:** 2026-07-12 · **Commit:** 54a90fb · **Outcome:** Fixed
+
+### B-017 — Multi-language support via lang files (English only for now)
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell / other (i18n)
+- **Expected:** a language system where all UI strings live in lang files, loaded
+  through an i18n layer — no hardcoded strings in components. Only English ships for
+  now; the infrastructure makes future locales a file drop.
+- **Code refs:** `src/ui/i18n/index.ts` (the `t(key, vars?)` function + `Dict`/
+  `MessageKey` types), `src/ui/i18n/en.ts` (the single dict, ~200 keys); every
+  component in `src/ui/` now imports `t` instead of inlining copy, plus
+  `src/ui/format.ts`'s relative-date/view-count helpers.
+- **Notes:** shipped as TypeScript dict modules (`en.ts`) rather than the originally
+  sketched `lang/en.json` — same effect (one file holds every string, `Dict`'s keys
+  are enforced at compile time so a locale file missing a key is a build error, not a
+  silent runtime miss), but keeps strict-TypeScript parity checking instead of an
+  untyped JSON import. A future locale is a new file with the same keys, switched in
+  `activeDict` (`index.ts`) — no component changes. `Wizard.tsx` was indeed the
+  largest surface (95 keys); `App.tsx` (32), `FeedList.tsx` (10), `PlayerView.tsx`
+  (20), plus the smaller `HelpOverlay`/`Titlebar`/`UrlPrompt`/`ConnectPanel`/
+  `SettingsView` (~45 combined) round it out. `Sidebar.tsx`'s few remaining literals
+  are left for [[B-010]], which rewrites that file anyway (new copy is born
+  localized from the start, per the batch-2-before-batch-3 rationale in
+  `roadmap.md`). No UI component tests exist in this repo; verified via
+  `npm run typecheck && npm run lint && npm test` (133/133) — no live-app check per
+  this session's workflow, owner validates live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
+  `.settings-view` (and the banner above it, when present) almost touching the
+  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
+  overlap.
+- **Expected:** the same left clearance the feed screen already gets when collapsed
+  (the hamburger has clear room, nothing crowds it), regardless of which screen
+  (`feed` or `settings`) is showing.
+- **Code refs:** `src/ui/styles.css` — generalized the `.app.sidebar-collapsed
+  .topbar { padding-left: 52px }` reservation with two new rules:
+  `.app.sidebar-collapsed .feed > .banner:first-child { margin-left: 52px }` (the
+  banner only needs it when it's the very first thing in `.feed`, i.e. no topbar
+  precedes it — which only happens on the Settings screen) and
+  `.app.sidebar-collapsed .settings-view { padding-left: 52px }`.
+- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
+  screen instead of the feed topbar. No live-app check this session, owner validates
+  live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-040 — More space between the Settings button and the channel list above it
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
+  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` had no CSS
+  rule at all, so the visual gap between the last channel row and the Settings button
+  was purely emergent from `.sidebar`'s `justify-content: space-between` and
+  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
+  ended up reading as touching.
+- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
+  button, consistent with the sidebar's other section spacing.
+- **Code refs:** `src/ui/styles.css` — new `.sidebar-footer { margin-top: 14px;
+  border-top: 1px solid var(--border); padding-top: 10px }`, mirroring
+  `.channel-list`'s own separator above it exactly.
+- **Notes:** purely a spacing/polish tweak, no behavior change. No live-app check
+  this session, owner validates live.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
+
+### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** many mice have a dedicated back/side button (browsers bind it to
+  history-back); Chronicle didn't listen for it, so it did nothing in the player.
+- **Expected:** pressing the mouse back button while in the player closes the player
+  and returns to the previous screen — the same action as pressing Esc or clicking the
+  visible Back button ([[B-001]]).
+- **Code refs:** `src/ui/PlayerView.tsx` — new `mouseup` listener (separate `useEffect`
+  from the keydown handler) checking `event.button === 3`, calling the same `onClose`
+  as Esc.
+- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
+  XButton1; some mice map this to a "Backward" "navigate back" browser gesture instead
+  of a plain button event. **Still needs live verification** of which event actually
+  fires in Electron/Chromium on the owner's hardware, per
+  [[no-live-app-verification]] — flagging here in case the owner finds the listener
+  doesn't fire on their mouse, which would mean swapping to an `auxclick` listener or
+  handling both.
+- **Resolved:** 2026-07-12 · **Commit:** d4acaea · **Outcome:** Fixed
 
 ### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
 - **Type:** adjustment

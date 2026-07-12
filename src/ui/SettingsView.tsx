@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto } from '../ipc/contract'
+import { t } from './i18n'
 
 // Settings surface (M5). One column, five quiet sections — every control
 // maps to a spec decision: D-016 interval, theme (ui.md), D-018 view
@@ -38,10 +39,14 @@ export function SettingsView({
     const result = await window.chronicle.exportData()
     if (result.ok) {
       onBanner(
-        `Exported ${result.value.videos} videos and ${result.value.states} states to ${result.value.path}`
+        t('settings.data.exportedBanner', {
+          videos: result.value.videos,
+          states: result.value.states,
+          path: result.value.path
+        })
       )
     } else if (result.errorKind !== 'canceled') {
-      onBanner(`Export failed: ${result.message}`)
+      onBanner(t('settings.data.exportFailedBanner', { message: result.message }))
     }
   }
 
@@ -58,18 +63,28 @@ export function SettingsView({
   return (
     <div className="settings-view">
       <section>
-        <h2>Connection</h2>
+        <h2>{t('settings.connection.heading')}</h2>
         <p className="settings-line">
           {auth?.state === 'connected'
-            ? 'Connected to your Google account.'
+            ? t('settings.connection.stateConnected')
             : auth?.state === 'disconnected'
-              ? 'API key imported, but not connected.'
-              : 'No API key imported yet.'}
+              ? t('settings.connection.stateDisconnected')
+              : t('settings.connection.stateUnconfigured')}
         </p>
         <p className="settings-line dim">
-          Granted scope: <strong>YouTube read-only</strong> — used solely to list your
-          subscriptions and fetch video metadata. Chronicle never writes to your YouTube
-          account (local states stay local).{' '}
+          {t('settings.connection.scopeGrantedPrefix')}{' '}
+          <strong>
+            {t(
+              auth?.writeScopeGranted
+                ? 'settings.connection.scopeName.readonlyPlusWrite'
+                : 'settings.connection.scopeName.readonly'
+            )}
+          </strong>{' '}
+          {t(
+            auth?.writeScopeGranted
+              ? 'settings.connection.scopeGrantedSuffix.readonlyPlusWrite'
+              : 'settings.connection.scopeGrantedSuffix.readonly'
+          )}{' '}
           <a
             href="https://myaccount.google.com/permissions"
             onClick={(event) => {
@@ -77,90 +92,81 @@ export function SettingsView({
               void window.chronicle.openExternalUrl('https://myaccount.google.com/permissions')
             }}
           >
-            Revoke anytime ↗
+            {t('settings.connection.revokeLink')}
           </a>
         </p>
         <p className="settings-line dim">
           {auth?.secureStorage
-            ? 'Your key and token are stored in your system keychain.'
-            : 'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it (D-013 fallback).'}
+            ? t('settings.connection.keychainOk')
+            : t('settings.connection.keychainFallback')}
         </p>
-        <p className="settings-line dim">
-          The embedded player uses its own browser session, separate from this connection —
-          if you use YouTube Premium, sign in once inside the player for ad-free playback.
-        </p>
+        <p className="settings-line dim">{t('settings.connection.playerSessionNote')}</p>
         <div className="settings-actions">
           <button className="primary" onClick={onReconnect}>
-            Reconnect Google account
+            {t('settings.connection.reconnectButton')}
           </button>
           <button className="primary" onClick={onReplaceKey}>
-            Replace API key
+            {t('settings.connection.replaceKeyButton')}
           </button>
           <button className="primary" onClick={onFixWeeklyLogout}>
-            Fix weekly logout
+            {t('settings.connection.fixWeeklyLogoutButton')}
           </button>
           <button className="primary" onClick={onSignOut}>
-            Sign out
+            {t('settings.connection.signOutButton')}
           </button>
         </div>
       </section>
 
       <section>
-        <h2>Sync</h2>
+        <h2>{t('settings.sync.heading')}</h2>
         <label className="settings-row">
-          <span>Background refresh</span>
+          <span>{t('settings.sync.backgroundRefresh')}</span>
           <select
             value={settings.refreshMinutes}
             onChange={(event) => set('refreshMinutes', Number(event.target.value))}
           >
-            <option value={15}>Every 15 minutes</option>
-            <option value={30}>Every 30 minutes</option>
-            <option value={60}>Every hour</option>
-            <option value={0}>Manual only</option>
+            <option value={15}>{t('settings.sync.every15')}</option>
+            <option value={30}>{t('settings.sync.every30')}</option>
+            <option value={60}>{t('settings.sync.everyHour')}</option>
+            <option value={0}>{t('settings.sync.manualOnly')}</option>
           </select>
         </label>
-        <p className="settings-line dim">
-          Every refresh also re-checks your subscription list, so a new subscription shows
-          up on the very next sync — nothing to do here.
-        </p>
+        <p className="settings-line dim">{t('settings.sync.note')}</p>
       </section>
 
       <section>
-        <h2>Playback</h2>
+        <h2>{t('settings.playback.heading')}</h2>
         <label className="settings-row">
-          <span>Default speed</span>
+          <span>{t('settings.playback.defaultSpeed')}</span>
           <select
             value={settings.defaultPlaybackRate}
             onChange={(event) => set('defaultPlaybackRate', Number(event.target.value))}
           >
             {PLAYBACK_RATES.map((rate) => (
               <option key={rate} value={rate}>
-                {rate === 1 ? 'Normal' : `${rate}×`}
+                {rate === 1 ? t('settings.playback.speedNormal') : `${rate}×`}
               </option>
             ))}
           </select>
         </label>
-        <p className="settings-line dim">
-          The player opens already set to this speed. You can still change it per video
-          from the embed's own controls — that never changes this default.
-        </p>
+        <p className="settings-line dim">{t('settings.playback.note')}</p>
       </section>
 
       <section>
-        <h2>Appearance</h2>
+        <h2>{t('settings.appearance.heading')}</h2>
         <label className="settings-row">
-          <span>Theme</span>
+          <span>{t('settings.appearance.theme')}</span>
           <select
             value={settings.theme}
             onChange={(event) => set('theme', event.target.value as SettingsDto['theme'])}
           >
-            <option value="system">Follow system</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
+            <option value="system">{t('settings.appearance.themeSystem')}</option>
+            <option value="dark">{t('settings.appearance.themeDark')}</option>
+            <option value="light">{t('settings.appearance.themeLight')}</option>
           </select>
         </label>
         <label className="settings-row">
-          <span>Show view counts</span>
+          <span>{t('settings.appearance.showViewCounts')}</span>
           <input
             type="checkbox"
             checked={settings.showViewCounts}
@@ -168,7 +174,7 @@ export function SettingsView({
           />
         </label>
         <label className="settings-row">
-          <span>Show Shorts</span>
+          <span>{t('settings.appearance.showShorts')}</span>
           <input
             type="checkbox"
             checked={settings.showShorts}
@@ -178,20 +184,16 @@ export function SettingsView({
       </section>
 
       <section>
-        <h2>Data</h2>
-        <p className="settings-line dim">
-          Everything Chronicle knows lives on this computer. The export is a single
-          documented JSON file (see FORMAT.md in the repository) — you can leave with
-          everything, anytime. The SQLite file itself is also a legitimate backup.
-        </p>
+        <h2>{t('settings.data.heading')}</h2>
+        <p className="settings-line dim">{t('settings.data.note')}</p>
         <div className="settings-actions">
           <button className="primary" onClick={() => void exportData()}>
-            Export data…
+            {t('settings.data.exportButton')}
           </button>
           <button className={`primary${confirmingDelete ? ' danger' : ''}`} onClick={deleteAll}>
             {confirmingDelete
-              ? 'Click again to wipe the database and your key'
-              : 'Delete all local data'}
+              ? t('settings.data.deleteConfirmButton')
+              : t('settings.data.deleteButton')}
           </button>
         </div>
       </section>

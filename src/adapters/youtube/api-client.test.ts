@@ -19,6 +19,7 @@ const SUBSCRIPTIONS_PAGE_1 = {
   nextPageToken: 'p2',
   items: [
     {
+      id: 'subAAA',
       snippet: {
         title: 'Alpha Channel',
         resourceId: { channelId: 'UCaaa' },
@@ -30,6 +31,7 @@ const SUBSCRIPTIONS_PAGE_1 = {
 const SUBSCRIPTIONS_PAGE_2 = {
   items: [
     {
+      id: 'subBBB',
       snippet: { title: 'Beta Channel', resourceId: { channelId: 'UCbbb' }, thumbnails: {} }
     }
   ]
@@ -76,8 +78,13 @@ describe('YouTubeApiClient', () => {
     }
     const channels = await new YouTubeApiClient(auth, fetchFn, quota).listSubscriptions()
     expect(channels).toEqual([
-      { channelId: 'UCaaa', title: 'Alpha Channel', thumbnailUrl: 'https://yt3.example/a-med' },
-      { channelId: 'UCbbb', title: 'Beta Channel', thumbnailUrl: null }
+      {
+        channelId: 'UCaaa',
+        title: 'Alpha Channel',
+        thumbnailUrl: 'https://yt3.example/a-med',
+        subscriptionId: 'subAAA'
+      },
+      { channelId: 'UCbbb', title: 'Beta Channel', thumbnailUrl: null, subscriptionId: 'subBBB' }
     ])
     expect(quota.spent).toBe(2)
   })
@@ -118,6 +125,270 @@ describe('YouTubeApiClient', () => {
       'UCaaa'
     ])
     expect(map.get('UCaaa')).toBe('UUaaa')
+  })
+
+  it('unsubscribe DELETEs subscriptions?id= and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let method = ''
+    let idParam = ''
+    const fetchFn: FetchFn = (url, init) => {
+      method = String(init?.method)
+      idParam = new URL(String(url)).searchParams.get('id') ?? ''
+      return Promise.resolve(new Response(null, { status: 204 }))
+    }
+    await new YouTubeApiClient(auth, fetchFn, quota).unsubscribe('subAAA')
+    expect(method).toBe('DELETE')
+    expect(idParam).toBe('subAAA')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('unsubscribe maps a failed delete to a domain error', async () => {
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(jsonResponse(401, { error: { message: 'unauthorized' } }))
+    await expect(
+      new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).unsubscribe('subAAA')
+    ).rejects.toMatchObject({ kind: 'auth-expired' })
+  })
+
+  it('findSubscriptionId looks up subscriptions.list forChannelId — 1 unit', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const params = new URL(String(url)).searchParams
+      expect(params.get('forChannelId')).toBe('UCaaa')
+      expect(params.get('mine')).toBe('true')
+      return Promise.resolve(jsonResponse(200, { items: [{ id: 'subAAA' }] }))
+    }
+    const id = await new YouTubeApiClient(auth, fetchFn, quota).findSubscriptionId('UCaaa')
+    expect(id).toBe('subAAA')
+    expect(quota.spent).toBe(1)
+  })
+
+  it('findSubscriptionId returns null when there is no matching subscription', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, { items: [] }))
+    const id = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).findSubscriptionId(
+      'UCaaa'
+    )
+    expect(id).toBeNull()
+  })
+
+  it('subscribe POSTs subscriptions?part=snippet and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let method = ''
+    let body: Record<string, unknown> = {}
+    const fetchFn: FetchFn = (_url, init) => {
+      method = String(init?.method)
+      body = JSON.parse(String(init?.body))
+      return Promise.resolve(
+        jsonResponse(200, {
+          id: 'subNEW',
+          snippet: {
+            title: 'New Channel',
+            resourceId: { channelId: 'UCnew' },
+            thumbnails: { medium: { url: 'https://yt3.example/new' } }
+          }
+        })
+      )
+    }
+    const channel = await new YouTubeApiClient(auth, fetchFn, quota).subscribe('UCnew')
+    expect(method).toBe('POST')
+    expect(body).toEqual({ snippet: { resourceId: { kind: 'youtube#channel', channelId: 'UCnew' } } })
+    expect(channel).toEqual({
+      channelId: 'UCnew',
+      title: 'New Channel',
+      thumbnailUrl: 'https://yt3.example/new',
+      subscriptionId: 'subNEW'
+    })
+    expect(quota.spent).toBe(50)
+  })
+
+  it('search maps video and channel results and counts 100 units', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const params = new URL(String(url)).searchParams
+      expect(params.get('q')).toBe('cats')
+      expect(params.get('type')).toBe('video,channel')
+      return Promise.resolve(
+        jsonResponse(200, {
+          items: [
+            {
+              id: { kind: 'youtube#video', videoId: 'v1' },
+              snippet: {
+                title: 'Cat video',
+                channelId: 'UCcat',
+                channelTitle: 'Cats Inc',
+                publishedAt: '2026-07-10T08:00:00Z',
+                thumbnails: {}
+              }
+            },
+            {
+              id: { kind: 'youtube#channel', channelId: 'UCcat' },
+              snippet: { title: 'Cats Inc', thumbnails: {} }
+            }
+          ]
+        })
+      )
+    }
+    const results = await new YouTubeApiClient(auth, fetchFn, quota).search('cats')
+    expect(results).toEqual([
+      {
+        kind: 'video',
+        videoId: 'v1',
+        title: 'Cat video',
+        channelId: 'UCcat',
+        channelTitle: 'Cats Inc',
+        publishedAt: '2026-07-10T08:00:00Z',
+        thumbnailUrl: null
+      },
+      { kind: 'channel', channelId: 'UCcat', title: 'Cats Inc', thumbnailUrl: null }
+    ])
+    expect(quota.spent).toBe(100)
+  })
+
+  it('listComments maps threads with nested replies and counts 1 unit', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, {
+          items: [
+            {
+              snippet: {
+                topLevelComment: {
+                  id: 'c1',
+                  snippet: {
+                    authorDisplayName: 'Alice',
+                    authorProfileImageUrl: 'https://yt3.example/alice',
+                    textDisplay: 'Great video!',
+                    publishedAt: '2026-07-10T08:00:00Z',
+                    likeCount: 3
+                  }
+                }
+              },
+              replies: {
+                comments: [
+                  {
+                    id: 'r1',
+                    snippet: {
+                      authorDisplayName: 'Bob',
+                      textDisplay: 'Agreed',
+                      publishedAt: '2026-07-10T09:00:00Z',
+                      likeCount: 1
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        })
+      )
+    const result = await new YouTubeApiClient(auth, fetchFn, quota).listComments('v1')
+    expect(result.comments).toEqual([
+      {
+        commentId: 'c1',
+        authorDisplayName: 'Alice',
+        authorProfileImageUrl: 'https://yt3.example/alice',
+        textDisplay: 'Great video!',
+        publishedAt: '2026-07-10T08:00:00Z',
+        likeCount: 3,
+        replies: [
+          {
+            commentId: 'r1',
+            authorDisplayName: 'Bob',
+            authorProfileImageUrl: null,
+            textDisplay: 'Agreed',
+            publishedAt: '2026-07-10T09:00:00Z',
+            likeCount: 1,
+            replies: []
+          }
+        ]
+      }
+    ])
+    expect(quota.spent).toBe(1)
+  })
+
+  it('postComment POSTs commentThreads?part=snippet and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let body: Record<string, unknown> = {}
+    const fetchFn: FetchFn = (_url, init) => {
+      body = JSON.parse(String(init?.body))
+      return Promise.resolve(
+        jsonResponse(200, {
+          snippet: {
+            topLevelComment: {
+              id: 'cNEW',
+              snippet: {
+                authorDisplayName: 'Me',
+                textDisplay: 'Nice!',
+                publishedAt: '2026-07-12T10:00:00Z',
+                likeCount: 0
+              }
+            }
+          }
+        })
+      )
+    }
+    const comment = await new YouTubeApiClient(auth, fetchFn, quota).postComment('v1', 'Nice!')
+    expect(body).toEqual({
+      snippet: { videoId: 'v1', topLevelComment: { snippet: { textOriginal: 'Nice!' } } }
+    })
+    expect(comment.commentId).toBe('cNEW')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('replyToComment POSTs comments?part=snippet and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let body: Record<string, unknown> = {}
+    const fetchFn: FetchFn = (_url, init) => {
+      body = JSON.parse(String(init?.body))
+      return Promise.resolve(
+        jsonResponse(200, {
+          id: 'rNEW',
+          snippet: { authorDisplayName: 'Me', textDisplay: 'Thanks!', publishedAt: '2026-07-12T10:05:00Z' }
+        })
+      )
+    }
+    const reply = await new YouTubeApiClient(auth, fetchFn, quota).replyToComment('c1', 'Thanks!')
+    expect(body).toEqual({ snippet: { parentId: 'c1', textOriginal: 'Thanks!' } })
+    expect(reply).toEqual({
+      commentId: 'rNEW',
+      authorDisplayName: 'Me',
+      authorProfileImageUrl: null,
+      textDisplay: 'Thanks!',
+      publishedAt: '2026-07-12T10:05:00Z',
+      likeCount: 0,
+      replies: []
+    })
+    expect(quota.spent).toBe(50)
+  })
+
+  it('rateVideo POSTs videos/rate with id and rating, counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let calledUrl = ''
+    let method = ''
+    const fetchFn: FetchFn = (url, init) => {
+      calledUrl = String(url)
+      method = String(init?.method)
+      return Promise.resolve(new Response(null, { status: 204 }))
+    }
+    await new YouTubeApiClient(auth, fetchFn, quota).rateVideo('v1', 'like')
+    expect(method).toBe('POST')
+    const params = new URL(calledUrl).searchParams
+    expect(params.get('id')).toBe('v1')
+    expect(params.get('rating')).toBe('like')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('getVideoRating reads the items[0].rating field, counts 1 unit', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, { items: [{ rating: 'like' }] }))
+    const rating = await new YouTubeApiClient(auth, fetchFn, quota).getVideoRating('v1')
+    expect(rating).toBe('like')
+    expect(quota.spent).toBe(1)
+  })
+
+  it('getVideoRating defaults to none when there is no rating item', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, { items: [] }))
+    const rating = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).getVideoRating('v1')
+    expect(rating).toBe('none')
   })
 
   it('maps 403 quotaExceeded / accessNotConfigured and 401 to domain errors', async () => {

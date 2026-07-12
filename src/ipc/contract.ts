@@ -67,6 +67,23 @@ export interface ChannelDto {
   // Unread videos for the sidebar badge (B-008); Shorts count unless hidden
   // by the showShorts setting (B-028).
   unreadCount: number
+  // Channel-level priority marker (B-042) — distinct from a video's own
+  // favorite (VideoStateDto.favorite).
+  favorite: boolean
+}
+
+// B-003: a connected Google account. The OAuth client (one Google Cloud
+// project) is shared across every account — only the token/scope state is
+// per-account, hence no "unconfigured" state here (that's global, see
+// AuthStatusDto — still used for the first/primary account's own connect
+// flow, which is unchanged by multi-account: Settings keeps managing that
+// one account exactly as before; the sidebar Accounts section manages the
+// rest).
+export interface AccountDto {
+  accountId: string
+  label: string
+  connected: boolean
+  writeScopeGranted: boolean
 }
 
 // Expected failures cross the boundary as values, not thrown strings
@@ -114,12 +131,53 @@ export interface SettingsDto {
   defaultPlaybackRate: number // D-038, default 1 — player loads already at this speed
 }
 
+// B-009/D-031: a free-text search result — video or channel, across all of
+// YouTube, not just subscribed content. Never stored or injected into the
+// feed; exists only for the lifetime of one search.
+export interface SearchVideoResultDto {
+  kind: 'video'
+  videoId: string
+  title: string
+  channelId: string
+  channelTitle: string
+  publishedAt: string
+  thumbnailUrl: string | null
+}
+
+export interface SearchChannelResultDto {
+  kind: 'channel'
+  channelId: string
+  title: string
+  thumbnailUrl: string | null
+  // Cross-referenced against local state so the UI shows "Subscribed", not
+  // a live Subscribe button, for channels already followed.
+  subscribed: boolean
+}
+
+export type SearchResultDto = SearchVideoResultDto | SearchChannelResultDto
+
+// B-006: one level of nesting only, matching YouTube's own comment model.
+export interface CommentDto {
+  commentId: string
+  authorDisplayName: string
+  authorProfileImageUrl: string | null
+  textDisplay: string
+  publishedAt: string
+  likeCount: number
+  replies: CommentDto[]
+}
+
+export type VideoRatingDto = 'like' | 'dislike' | 'none'
+
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
 
 export interface AuthStatusDto {
   state: AuthStateDto
   // false = D-013 fallback encryption; the UI shows the honest warning.
   secureStorage: boolean
+  // B-015/D-032: true once youtube.force-ssl has been granted (first write
+  // action) — drives the Settings screen's granted-scope description.
+  writeScopeGranted: boolean
 }
 
 export interface SyncReportDto {
@@ -170,6 +228,22 @@ export const IpcChannel = {
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
   windowControl: 'window:control',
+  unsubscribeChannel: 'channel:unsubscribe',
+  toggleChannelFavorite: 'channel:toggleFavorite',
+  getPriorityFeed: 'feed:priority',
+  backfillChannelArchive: 'channel:backfillArchive',
+  subscribeChannel: 'channel:subscribe',
+  searchYouTube: 'youtube:search',
+  getComments: 'video:getComments',
+  postComment: 'video:postComment',
+  replyToComment: 'video:replyToComment',
+  rateVideo: 'video:rate',
+  getVideoRating: 'video:getRating',
+  listAccounts: 'accounts:list',
+  startAddAccount: 'accounts:startAdd',
+  connectAccount: 'accounts:connect',
+  removeAccount: 'accounts:remove',
+  syncAccountNow: 'accounts:syncNow',
   events: 'chronicle:event'
 } as const
 
@@ -178,20 +252,25 @@ export type WindowControlDto = 'minimize' | 'toggle-maximize' | 'close'
 
 // The surface preload exposes as window.chronicle.
 export interface ChronicleApi {
+  // accountId (B-003) narrows the combined feed to one account; omit/null
+  // for every connected account combined (the default).
   getFeed(
     view: FeedViewDto,
     cursor: FeedCursorDto | null,
-    channelId?: string | null
+    channelId?: string | null,
+    accountId?: string | null
   ): Promise<FeedSliceDto>
-  getFeedMeta(): Promise<FeedMetaDto>
-  getChannels(): Promise<ChannelDto[]>
+  getFeedMeta(accountId?: string | null): Promise<FeedMetaDto>
+  getChannels(accountId?: string | null): Promise<ChannelDto[]>
   // channelId scopes the sync to one channel (B-036) — omit/null for the
-  // full subscription refresh.
-  refreshFeed(channelId?: string | null): Promise<ResultDto<SyncReportDto>>
+  // full subscription refresh. accountId (B-003) scopes to one account;
+  // omit/null refreshes every connected account.
+  refreshFeed(channelId?: string | null, accountId?: string | null): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
   // Bulk unread → read over the feed or one channel (B-020, D-010
-  // semantics). Returns how many videos changed.
-  markAllRead(channelId: string | null): Promise<number>
+  // semantics). Returns how many videos changed. accountId (B-003) narrows
+  // to one account.
+  markAllRead(channelId: string | null, accountId?: string | null): Promise<number>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
@@ -227,5 +306,61 @@ export interface ChronicleApi {
   // Removes the database, secrets and caches, then relaunches (local-data.md
   // §Privacy invariants). The UI confirms before calling.
   deleteAllData(): Promise<void>
+  // Real subscriptions.delete (B-010, 50 units) plus the local soft-delete.
+  // Requests the youtube.force-ssl write scope incrementally on first use
+  // (D-032) — may briefly open the system browser for consent.
+  unsubscribeChannel(channelId: string): Promise<ResultDto<void>>
+  // B-042: local-only channel priority marker — never touches YouTube.
+  // Returns the new favorite state.
+  toggleChannelFavorite(channelId: string): Promise<boolean>
+  // B-042: unread videos from favorited channels, capped and bucket-less
+  // (D-039) — additive to, not a filter over, the main feed.
+  getPriorityFeed(accountId?: string | null): Promise<FeedVideoDto[]>
+  // B-002: on-demand back-catalog fetch (uploads playlist paging + hydration,
+  // ~2 units/call) — triggered when scrolling past the local archive in a
+  // channel-filtered view. Resumable across calls; exhausted once the
+  // channel's whole uploads playlist has been walked.
+  backfillChannelArchive(
+    channelId: string
+  ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>>
+  // B-009/D-031: search.list, 100 units/call — explicit user-typed queries
+  // only, surfaced as a scope toggle next to the local filter.
+  searchYouTube(query: string): Promise<ResultDto<SearchResultDto[]>>
+  // subscriptions.insert (D-030, 50 units) — the other half of B-010's
+  // unsubscribe; shares the same incremental write-scope consent (D-032).
+  subscribeChannel(channelId: string): Promise<ResultDto<void>>
+  // B-006: commentThreads.list (1 unit/page) — public, readonly scope suffices.
+  getComments(
+    videoId: string,
+    pageToken?: string | null
+  ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>>
+  // commentThreads.insert (50 units, write scope, D-032).
+  postComment(videoId: string, text: string): Promise<ResultDto<CommentDto>>
+  // comments.insert (50 units, write scope) — replies to a top-level comment.
+  replyToComment(parentId: string, text: string): Promise<ResultDto<CommentDto>>
+  // videos.rate (50 units, write scope). No public API exists to like a
+  // *comment* — only videos; see B-006's notes.
+  rateVideo(videoId: string, rating: 'like' | 'none'): Promise<ResultDto<void>>
+  // videos.getRating (1 unit, readonly scope) — the user's own existing rating.
+  getVideoRating(videoId: string): Promise<ResultDto<VideoRatingDto>>
+  // B-003: connected accounts, oldest first. The very first/primary account
+  // (Settings' Connection section, the first-run wizard) is unaffected by
+  // any of this — these five methods manage every *additional* account.
+  listAccounts(): Promise<AccountDto[]>
+  // Allocates a fresh account id for the "add another account" flow (no
+  // Google-console walkthrough — the same OAuth client is reused, the user
+  // just needs to add the new email as a Test user, then connect) and
+  // reports whether this is the very first account ever (drives whether the
+  // UI shows the full wizard or the shortened reminder+Connect flow).
+  startAddAccount(): Promise<{ accountId: string; isFirstAccount: boolean }>
+  // Runs the connect handshake (system browser + loopback) for the given
+  // account id — freshly allocated (startAddAccount) or an existing one
+  // being reconnected. Persists the account on success.
+  connectAccount(accountId: string): Promise<ResultDto<AccountDto>>
+  // Revokes the token best-effort and removes the account's local
+  // subscriptions (account_channels) — channels/videos/local states from
+  // other accounts or externally opened videos are untouched.
+  removeAccount(accountId: string): Promise<void>
+  syncAccountNow(accountId: string): Promise<ResultDto<SyncReportDto>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

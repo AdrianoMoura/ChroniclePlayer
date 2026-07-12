@@ -63,7 +63,8 @@ button {
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+[role='button']:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -208,6 +209,18 @@ input:focus-visible {
   padding-left: 52px;
 }
 
+/* B-041: same reservation as .topbar above, for the Settings screen, which
+   renders no topbar of its own — .banner (when it's the first thing in
+   .feed, i.e. no topbar precedes it) and .settings-view sit where the
+   hamburger floats otherwise. */
+.app.sidebar-collapsed .feed > .banner:first-child {
+  margin-left: 52px;
+}
+
+.app.sidebar-collapsed .settings-view {
+  padding-left: 52px;
+}
+
 .view {
   display: flex;
   align-items: center;
@@ -267,6 +280,43 @@ input:focus-visible {
   padding-top: 10px;
 }
 
+/* B-040: fixed gap above the Settings button, same shape as .channel-list's
+   own separator above it — without this the gap was purely emergent from
+   the sidebar's flex layout and could read as touching. */
+.sidebar-footer {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* B-003: Accounts section, between the channel list and Settings. */
+.account-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.account-badge {
+  font-size: 10px;
+  color: #e0a3a3;
+  border: 1px solid #a05252;
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.account-add {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.account-add:hover {
+  color: var(--text);
+}
+
 .channel-list-header {
   font-size: 11px;
   font-weight: 600;
@@ -279,6 +329,65 @@ input:focus-visible {
 .view.channel {
   padding: 4px 10px;
   font-size: 13px;
+}
+
+/* B-010: the "…" context menu per channel row. */
+.channel-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.channel-row .view.channel {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-menu-btn {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  opacity: 0;
+}
+
+.channel-row:hover .channel-menu-btn,
+.channel-menu-btn:focus-visible {
+  opacity: 1;
+}
+
+.channel-menu-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.channel-menu {
+  position: absolute;
+  top: 100%;
+  right: 4px;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  min-width: 170px;
+}
+
+.channel-menu button {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+  color: var(--text);
+}
+
+.channel-menu button:hover {
+  background: var(--surface-2);
+}
+
+.channel-menu button.danger {
+  color: #e0a3a3;
 }
 
 /* B-033: wraps a filter/search input to position an inline clear button. */
@@ -368,6 +477,12 @@ input:focus-visible {
   font-weight: 600;
 }
 
+/* B-003: shown when an account filter narrows the combined feed. */
+.topbar-account-suffix {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
 .status {
   color: var(--text-dim);
   font-size: 12.5px;
@@ -387,6 +502,70 @@ input:focus-visible {
 .mark-all-read:hover {
   color: var(--text);
   background: var(--surface);
+}
+
+/* B-010: topbar Unsubscribe on the channel screen — same shape as
+   mark-all-read, armed red on the confirm click. */
+.unsubscribe-btn {
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.unsubscribe-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.unsubscribe-btn.danger {
+  border-color: #a05252;
+  color: #e0a3a3;
+}
+
+/* B-009: "Mine" / "YouTube" search-scope toggle, next to the filter field. */
+.search-scope {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.scope-option {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.scope-option:hover {
+  background: var(--surface);
+}
+
+.scope-option.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* B-009: YouTube-wide search results replace the feed while active. */
+.search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+}
+
+.search-result-row {
+  margin-top: 4px;
+}
+
+.search-result-channel {
+  cursor: default;
+}
+
+.search-result-channel .primary {
+  flex-shrink: 0;
 }
 
 .topbar .field-wrap {
@@ -574,6 +753,17 @@ button.primary:disabled {
 .empty {
   padding: 40px 24px;
   color: var(--text-dim);
+}
+
+/* B-042: favorited-channel priority section, above the chronological feed —
+   not virtualized (capped at 20 rows), scrolls its own overflow. */
+.priority-section {
+  flex-shrink: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
 }
 
 /* ── Virtualized list ────────────────────────────────── */
@@ -952,8 +1142,133 @@ button.primary.active {
   color: var(--accent);
 }
 
+/* B-006: shown on a failed Like/rating action. */
+.player-action-error {
+  color: #e0a3a3;
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
 .player-description {
   margin-top: 18px;
+}
+
+/* B-006: comment thread — read, post, reply. */
+.comments-section {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.comments-toggle {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.comments-toggle:hover {
+  color: var(--text);
+}
+
+.comments-body {
+  margin-top: 10px;
+}
+
+.comment-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.comment-composer textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-composer .primary {
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.comment-composer.reply {
+  margin: 8px 0 4px 0;
+}
+
+.comments-error {
+  color: #e0a3a3;
+  font-size: 12.5px;
+}
+
+.comments-loading,
+.comments-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.comment {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.comment:first-child {
+  border-top: none;
+}
+
+.comment-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.comment-author {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.comment-meta {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.comment-text {
+  margin: 6px 0 4px;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+}
+
+.comment-reply-toggle {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.comment-reply-toggle:hover {
+  color: var(--text);
+}
+
+.comment-replies {
+  margin-left: 32px;
+  margin-top: 6px;
+}
+
+.comment-replies .comment {
+  padding: 8px 0;
 }
 
 .description-toggle {
@@ -1441,4 +1756,21 @@ button.primary.danger {
   font-family: monospace;
   padding-right: 26px;
   white-space: nowrap;
+}
+
+/* B-003: "add another account" overlay. */
+.add-account {
+  max-width: 460px;
+}
+
+.add-account p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.add-account-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
 }

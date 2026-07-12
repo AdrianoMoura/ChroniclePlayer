@@ -1,11 +1,13 @@
+import { t } from './i18n'
+
 // feed.md §Feed item presentation: relative within 7 days, absolute date beyond.
 export function publishedLabel(publishedAt: string, now = Date.now()): string {
   const minutes = Math.floor((now - Date.parse(publishedAt)) / 60_000)
-  if (minutes < 60) return `${Math.max(minutes, 0)} min ago`
+  if (minutes < 60) return t('format.minutesAgo', { minutes: Math.max(minutes, 0) })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} h ago`
+  if (hours < 24) return t('format.hoursAgo', { hours })
   const days = Math.floor(hours / 24)
-  if (days <= 7) return `${days} d ago`
+  if (days <= 7) return t('format.daysAgo', { days })
   return new Date(publishedAt).toLocaleDateString()
 }
 
@@ -29,7 +31,9 @@ export function quotaResetLocalTime(): string {
 
 // D-018: shown only when the setting enables it.
 export function formatViews(viewCount: number): string {
-  return `${new Intl.NumberFormat(undefined, { notation: 'compact' }).format(viewCount)} views`
+  return t('format.views', {
+    count: new Intl.NumberFormat(undefined, { notation: 'compact' }).format(viewCount)
+  })
 }
 
 export function formatDuration(totalSeconds: number): string {

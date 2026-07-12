@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
 import { formatDuration, formatViews, publishedLabel } from './format'
+import { t } from './i18n'
 
 export type FeedRow =
   | { kind: 'header'; key: string; label: string }
@@ -207,6 +208,14 @@ interface VideoRowProps {
   actions: VideoActions
   onOpen: () => void
   showViewCounts: boolean
+  // B-043: the main virtualized FeedList has its own keyboard path (global
+  // j/k/Enter cursor navigation) — making every row individually Tab-
+  // focusable there would make Tab cycle through hundreds of rows, so it
+  // stays off (the default) for that caller. Callers that render VideoRow
+  // *outside* that cursor-navigated list — the priority section (B-042),
+  // search results (B-009) — have no other keyboard path to it at all, so
+  // they opt in.
+  focusable?: boolean
 }
 
 // Thumbnails go through the backend cache (thumb:// protocol) — the
@@ -215,12 +224,20 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoRowProps) {
+export function VideoRow({
+  video,
+  selected,
+  undoable,
+  actions,
+  onOpen,
+  showViewCounts,
+  focusable = false
+}: VideoRowProps) {
   if (undoable) {
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
-        <span>Ignored — it will leave this view</span>
-        <button onClick={() => actions.undo(video)}>Undo (u)</button>
+        <span>{t('feed.card.undoLabel')}</span>
+        <button onClick={() => actions.undo(video)}>{t('feed.card.undoButton')}</button>
       </div>
     )
   }
@@ -231,6 +248,18 @@ function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
       onClick={onOpen}
+      {...(focusable
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onOpen()
+              }
+            }
+          }
+        : {})}
     >
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
@@ -243,37 +272,42 @@ function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }
         <span className="meta">
           {video.channelTitle} · {publishedLabel(video.publishedAt)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
-          {state.favorite && <span className="glyph" title="Favorite"> ★</span>}
-          {state.watchLater && <span className="glyph" title="Watch Later"> ▶︎⁺</span>}
+          {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
+          {state.watchLater && (
+            <span className="glyph" title={t('feed.card.watchLaterTitle')}> ▶︎⁺</span>
+          )}
         </span>
       </div>
       <div className="row-actions">
-        <button title="Toggle read (m)" onClick={(e) => stop(e, () => actions.toggleRead(video))}>
+        <button
+          title={t('feed.card.toggleReadTitle')}
+          onClick={(e) => stop(e, () => actions.toggleRead(video))}
+        >
           ✓
         </button>
-        <button title="Ignore (i)" onClick={(e) => stop(e, () => actions.ignore(video))}>
+        <button title={t('feed.card.ignoreTitle')} onClick={(e) => stop(e, () => actions.ignore(video))}>
           ⊘
         </button>
         <button
-          title="Toggle favorite (f)"
+          title={t('feed.card.toggleFavoriteTitle')}
           onClick={(e) => stop(e, () => actions.toggleFavorite(video))}
         >
           ★
         </button>
         <button
-          title="Toggle watch later (w)"
+          title={t('feed.card.toggleWatchLaterTitle')}
           onClick={(e) => stop(e, () => actions.toggleWatchLater(video))}
         >
           ▶︎⁺
         </button>
         <button
-          title="Open in browser (b)"
+          title={t('feed.card.openInBrowserTitle')}
           onClick={(e) => stop(e, () => actions.openInBrowser(video))}
         >
           ↗
         </button>
       </div>
-      {video.isShort && <span className="short-badge">Short</span>}
+      {video.isShort && <span className="short-badge">{t('feed.card.shortBadge')}</span>}
       {video.durationSeconds !== null && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}
@@ -294,8 +328,8 @@ function VideoCard({ video, selected, undoable, actions, onOpen, showViewCounts 
   if (undoable) {
     return (
       <div className={`card undo-strip${selected ? ' selected' : ''}`}>
-        <span>Ignored — it will leave this view</span>
-        <button onClick={() => actions.undo(video)}>Undo (u)</button>
+        <span>{t('feed.card.undoLabel')}</span>
+        <button onClick={() => actions.undo(video)}>{t('feed.card.undoButton')}</button>
       </div>
     )
   }
@@ -311,31 +345,34 @@ function VideoCard({ video, selected, undoable, actions, onOpen, showViewCounts 
           <div className="thumb" />
         )}
         <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
-        {video.isShort && <span className="short-badge card-short-badge">Short</span>}
+        {video.isShort && <span className="short-badge card-short-badge">{t('feed.card.shortBadge')}</span>}
         {video.durationSeconds !== null && (
           <span className="duration card-duration">{formatDuration(video.durationSeconds)}</span>
         )}
         <div className="row-actions card-actions">
-          <button title="Toggle read (m)" onClick={(e) => stop(e, () => actions.toggleRead(video))}>
+          <button
+            title={t('feed.card.toggleReadTitle')}
+            onClick={(e) => stop(e, () => actions.toggleRead(video))}
+          >
             ✓
           </button>
-          <button title="Ignore (i)" onClick={(e) => stop(e, () => actions.ignore(video))}>
+          <button title={t('feed.card.ignoreTitle')} onClick={(e) => stop(e, () => actions.ignore(video))}>
             ⊘
           </button>
           <button
-            title="Toggle favorite (f)"
+            title={t('feed.card.toggleFavoriteTitle')}
             onClick={(e) => stop(e, () => actions.toggleFavorite(video))}
           >
             ★
           </button>
           <button
-            title="Toggle watch later (w)"
+            title={t('feed.card.toggleWatchLaterTitle')}
             onClick={(e) => stop(e, () => actions.toggleWatchLater(video))}
           >
             ▶︎⁺
           </button>
           <button
-            title="Open in browser (b)"
+            title={t('feed.card.openInBrowserTitle')}
             onClick={(e) => stop(e, () => actions.openInBrowser(video))}
           >
             ↗
@@ -347,8 +384,10 @@ function VideoCard({ video, selected, undoable, actions, onOpen, showViewCounts 
         <span className="meta">
           {video.channelTitle} · {publishedLabel(video.publishedAt)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
-          {state.favorite && <span className="glyph" title="Favorite"> ★</span>}
-          {state.watchLater && <span className="glyph" title="Watch Later"> ▶︎⁺</span>}
+          {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
+          {state.watchLater && (
+            <span className="glyph" title={t('feed.card.watchLaterTitle')}> ▶︎⁺</span>
+          )}
         </span>
       </div>
     </div>

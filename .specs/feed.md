@@ -11,6 +11,13 @@ plus local follows when D-030 lands) — and nothing else. Videos opened via lin
 as unread; they are reachable through the states the user gave them (Favorites, Watch
 Later).
 
+- **Multi-account (B-003, implemented 2026-07-12):** with more than one connected Google
+  account, the feed is every connected account's subscriptions **combined** by default —
+  selecting an account in the sidebar narrows it to just that one, exactly like selecting
+  a channel (the two filters are independent and can combine: one channel within one
+  account). Read/favorite/watch-later state is shared across accounts for the same video
+  (D-003, `local-data.md`) — it is not duplicated per account.
+
 ## Ordering (Final)
 
 - Videos are ordered by **`publishedAt` descending**. Nothing else ever influences order:
@@ -52,6 +59,27 @@ The feed is grouped under date headers, computed in the **user's local timezone*
   in mechanical order, with a real end (the oldest upload of their subscriptions). The
   session's natural stopping point is preserved: new content at the top is finite and the
   "caught up" state is unaffected by how deep the archive goes.
+
+### Favorited channels — a priority section (B-042, implemented 2026-07-12)
+
+Channels can be marked **favorite** (the sidebar/channel-screen `…` menu, alongside
+Unsubscribe from B-010) — a channel-level priority marker, distinct from a video's own
+`favorite` state (D-010). The **'all'/'unread' feed views** gain a section above the
+chronological buckets: unread videos from favorited channels, most recent first, capped
+at 20. This is user-driven prioritization of channels the user explicitly marked, not
+algorithmic ranking — the same "who is driving?" test other agency-preserving features
+pass (`vision.md`).
+
+- **D-039 (Final in this change):** a favorited channel's video appears in **both** the
+  priority section and its normal chronological bucket — it is not removed from Today/
+  Yesterday/etc. Mirrors D-010: favorite/watch-later are orthogonal flags, never
+  exclusive membership.
+  - The priority section only ever lists **unread** videos (mirroring the unread view) —
+    once read, a video drops out of it (but stays in its normal bucket, per D-010).
+  - Not shown in Favorites/Watch Later/Ignored views, or when channel-filtered to a
+    single channel — it is specifically a main-feed ("all"/"unread") affordance.
+  - Favoriting a channel does not change its sidebar sort order (still B-008's
+    freshest-first); it only affects the priority section.
 
 ## Video state model — D-010 (Final, 2026-07-10)
 
@@ -125,6 +153,17 @@ appear. (Predictability over liveliness.)
   per-channel "load more history" action, both paging `playlistItems.list`
   (1 unit/50 videos). **D-019 (Pending):** default initial backfill depth.
   Recommendation: RSS window only (~15).
+  - **Implemented (2026-07-12, B-002):** scrolling to the end of a channel-filtered
+    view with no local pages left (`nextCursor === null`) triggers
+    `SyncService.backfillArchive(channelId)` — pages the channel's uploads playlist
+    from a per-channel stored continuation cursor (`channels.backfill_page_token`,
+    schema v5), skipping already-known video ids, up to 4 pages (200 videos, 4 units)
+    per scroll-triggered call before giving up for that call (never an unbounded
+    walk). Whatever is genuinely new is hydrated (`videos.list`, 1 unit/50) —
+    ~2 units/call in the common case. Once the whole playlist has been walked,
+    `channels.backfill_exhausted` is set and further scrolling is a no-op (checked
+    client-side first, no wasted call). The UI resumes the exact page the user was
+    on afterward rather than resetting to the top.
 - **First-ever sync (onboarding step 8):** same rule per channel — RSS window only.
   200 subs ≈ 3,000 candidate videos discovered free, hydrated for ~60 units, well within
   quota (see `youtube-api.md`).

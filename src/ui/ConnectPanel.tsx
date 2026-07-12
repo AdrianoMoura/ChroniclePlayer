@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { AuthStatusDto } from '../ipc/contract'
+import { t } from './i18n'
 
 interface ConnectPanelProps {
   auth: AuthStatusDto
@@ -21,30 +22,29 @@ export function ConnectPanel({ auth, connecting, onImportSecret, onConnect }: Co
       onImportSecret(await file.text())
       setReadError(null)
     } catch {
-      setReadError('Could not read the file.')
+      setReadError(t('connect.readError'))
     }
   }
 
   return (
     <div className="connect-panel">
-      <h1>Connect Chronicle to your YouTube account</h1>
+      <h1>{t('connect.title')}</h1>
       <p>
-        Chronicle ships with no credentials: you bring your own Google Cloud project, so
-        your data and API quota belong to you alone. The one-time setup takes about ten
-        minutes — see <code>docs/setup.md</code> in the repository for the step-by-step
-        guide to creating the project and downloading your <code>client_secret.json</code>.
+        {t('connect.intro.part1')} <code>docs/setup.md</code> {t('connect.intro.part2')}{' '}
+        <code>client_secret.json</code>
+        {t('connect.intro.part3')}
       </p>
 
       <ol className="connect-steps">
         <li className={auth.state !== 'unconfigured' ? 'done' : ''}>
-          <span className="step-title">Import your OAuth client</span>
+          <span className="step-title">{t('connect.step1.title')}</span>
           <span className="step-detail">
             {auth.state !== 'unconfigured'
-              ? 'client_secret.json imported.'
-              : 'Select the client_secret.json you downloaded from your Google Cloud console (Desktop app type).'}
+              ? t('connect.step1.detailDone')
+              : t('connect.step1.detailPending')}
           </span>
           <button className="primary" onClick={() => fileInput.current?.click()}>
-            {auth.state !== 'unconfigured' ? 'Replace file…' : 'Select client_secret.json…'}
+            {auth.state !== 'unconfigured' ? t('connect.step1.buttonDone') : t('connect.step1.button')}
           </button>
           <input
             ref={fileInput}
@@ -60,28 +60,19 @@ export function ConnectPanel({ auth, connecting, onImportSecret, onConnect }: Co
           {readError !== null && <span className="step-error">{readError}</span>}
         </li>
         <li>
-          <span className="step-title">Authorize in your browser</span>
-          <span className="step-detail">
-            Your default browser opens Google’s consent screen; Chronicle listens locally
-            (127.0.0.1) for the answer. Tokens never leave this machine.
-          </span>
+          <span className="step-title">{t('connect.step2.title')}</span>
+          <span className="step-detail">{t('connect.step2.detail')}</span>
           <button
             className="primary"
             disabled={auth.state === 'unconfigured' || connecting}
             onClick={onConnect}
           >
-            {connecting ? 'Waiting for the browser…' : 'Connect Google'}
+            {connecting ? t('connect.step2.buttonConnecting') : t('connect.step2.button')}
           </button>
         </li>
       </ol>
 
-      {!auth.secureStorage && (
-        <p className="storage-warning">
-          Heads-up: no OS keychain was detected, so your token will be stored with
-          reversible local encryption — anyone with access to your user account could
-          read it. (D-013 fallback.)
-        </p>
-      )}
+      {!auth.secureStorage && <p className="storage-warning">{t('connect.storageWarning')}</p>}
     </div>
   )
 }

@@ -34,12 +34,36 @@ Platform-standard app data directories:
 ```sql
 -- Schema versioning: PRAGMA user_version, forward-only numbered migrations.
 
+-- v6 (B-003, multi-account): channels holds only account-agnostic facts —
+-- title, uploads playlist, RSS validators, availability — shared/deduped
+-- across every account that follows it (or that opened one of its videos
+-- externally, D-029). The *relationship* a specific account has with a
+-- channel (subscribed, favorite, subscription id, backfill cursor) lives in
+-- account_channels instead, since two accounts can now independently follow
+-- the same channel.
+CREATE TABLE accounts (
+  account_id TEXT PRIMARY KEY,               -- our own generated id, not the Google user id
+  label      TEXT NOT NULL,                  -- the connected channel's title, best-effort
+  added_at   TEXT NOT NULL
+);
+
+CREATE TABLE account_channels (
+  account_id          TEXT NOT NULL REFERENCES accounts(account_id) ON DELETE CASCADE,
+  channel_id          TEXT NOT NULL REFERENCES channels(channel_id),
+  subscribed          INTEGER NOT NULL DEFAULT 1,  -- 0 = unsubscribed on YT, data retained
+  favorite            INTEGER NOT NULL DEFAULT 0,  -- B-042 priority marker, per account
+  subscription_id     TEXT,                 -- B-010: YouTube's subscription resource id
+  added_at            TEXT NOT NULL,
+  backfill_page_token TEXT,                 -- B-002: on-demand back-catalog continuation
+  backfill_exhausted  INTEGER NOT NULL DEFAULT 0,  -- 1 = whole uploads playlist already walked
+  PRIMARY KEY (account_id, channel_id)
+);
+
 CREATE TABLE channels (
   channel_id        TEXT PRIMARY KEY,        -- UC…
   title             TEXT NOT NULL,
   thumbnail_url     TEXT,
   uploads_playlist  TEXT,                    -- UU…
-  subscribed        INTEGER NOT NULL DEFAULT 1,  -- 0 = unsubscribed on YT, data retained
   available         INTEGER NOT NULL DEFAULT 1,  -- 0 = channel deleted/terminated
   rss_etag          TEXT,                    -- conditional GET support
   rss_last_modified TEXT,
@@ -58,7 +82,8 @@ CREATE TABLE videos (
   live_content      TEXT,                    -- none | live | upcoming (from liveBroadcastContent)
   thumbnail_url     TEXT,
   hydrated_at       TEXT,                    -- NULL = RSS-only, awaiting videos.list
-  fetched_at        TEXT NOT NULL
+  fetched_at        TEXT NOT NULL,
+  view_count        INTEGER                  -- v2 (D-018): captured at hydration, NULL until then
 );
 CREATE INDEX idx_videos_feed ON videos (published_at DESC);
 CREATE INDEX idx_videos_channel ON videos (channel_id, published_at DESC);
@@ -90,10 +115,26 @@ CREATE TABLE meta (                      -- misc durable key-values (profile id,
 ```
 
 Design notes:
-- `channels` also holds rows with `subscribed = 0` for channels of externally opened
-  videos (D-029) and unsubscribed-but-retained channels; feed queries filter on
-  `subscribed = 1`. A `followed_locally` flag is anticipated for local follows (D-030) —
-  feed membership then becomes `subscribed = 1 OR followed_locally = 1`.
+- **Multi-account (B-003, implemented 2026-07-12):** a channel with *no* `account_channels`
+  row at all (any account) is exactly D-029's externally-opened-channel case — no flag
+  needed, absence of membership *is* the "not subscribed" state. Feed membership queries
+  use an `EXISTS` subquery against `account_channels`, never a plain `JOIN` — a `JOIN`
+  would duplicate a video row once per subscribing account when more than one account
+  follows the same channel. Omitting the account filter means "any connected account"
+  (the combined-feed default); specifying one narrows to it. A `followed_locally` flag is
+  still anticipated for local follows (D-030/D-033) — it would live on `account_channels`
+  too, or a parallel row keyed by a synthetic "local" pseudo-account, once built.
+- **`videos`/`video_state` stay account-agnostic on purpose:** a video's core facts don't
+  change based on which account's subscription surfaced it, and read/favorite/watch-later
+  are the *Chronicle user's own* facts (D-003) — not tied to a specific YouTube account.
+  Two accounts following the same channel see the exact same read/unread state for its
+  videos, which is the intended behavior (one person operating multiple YouTube accounts
+  still has one unified "have I seen this" state).
+- **One Google Cloud project, one quota pool, many accounts:** additional accounts don't
+  create new OAuth clients — they reuse the first account's project (the user just adds
+  the new email as a Test user on the existing consent screen) and share its 10,000
+  units/day. Only refresh tokens and granted scopes are per-account (secret store keys are
+  `{accountId}/refresh-token` etc., `authentication.md`).
 - `videos` (facts from YouTube) and `video_state` (the user's data) are **separate tables
   on purpose**: they have different owners, different lifecycles, and different
   export/privacy meaning. A video row can be re-fetched/updated freely; a state row is

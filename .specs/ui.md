@@ -28,7 +28,12 @@ Three-region desktop layout:
 ```
 
 - **Sidebar**: views (All, Unread, Watch Later, Favorites, Ignored), then the channel
-  list (click = filter feed to that channel), then Settings. Collapsible to icons.
+  list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
+  Unsubscribe — B-010/B-042), then an **Accounts** section (B-003, implemented
+  2026-07-12: connected accounts, each with a `…` menu for Sync now/Remove, click =
+  filter the combined feed to that account, "+ Add account" opens a short reminder+
+  Connect flow — no Google-console walkthrough, since additional accounts reuse the
+  first account's OAuth client), then Settings. Collapsible to icons.
 - **Feed**: the grouped chronological list (`feed.md`). List rows are the default —
   calmer, rank information (title first) over imagery — but **D-037** adds an optional
   thumbnail grid, since a masonry/grid view is a layout preference, not an engagement
@@ -76,12 +81,37 @@ with a visible cursor row.
 | `r` | refresh |
 | `Ctrl+O` | open a YouTube video by URL (D-029) |
 | `/` | filter-in-view (local text filter; not YouTube search) |
+| `c` | focus the sidebar's channel-filter field (B-024) |
+| `s` | show/hide the sidebar (B-037) — added in the B-043 audit, had no keyboard path at all |
 | `?` | shortcut overlay |
-| `Esc` | back / close overlay |
+| `Esc` | back / close overlay, or cancel the current field |
 
 - Vim-flavored because the audience overlaps heavily; **all** bindings also exist as
   visible UI affordances (hover actions on rows) — keyboard-first, not keyboard-only.
 - Rebindable via `settings.json` (documented format); no in-app remap UI in MVP.
+- **Secondary screens and menus (Settings, the sidebar's Accounts/channel "…" menus,
+  wizard/dialog buttons) intentionally have no single-key bindings of their own** — they
+  rely on standard Tab/Shift+Tab focus order and Enter/Space activation on real
+  `<button>`/`<a>`/`<input>` elements, which is itself a complete keyboard path per the
+  Accessibility section's "no div-soup buttons" rule. This is not a gap: single-key
+  bindings are reserved for the main feed's high-frequency actions (the table above);
+  everything else being reachable by Tab is the intended, sufficient keyboard path.
+- **B-043 audit (2026-07-12):** walked every control added since this table was last
+  current — sidebar collapse (B-037, now `s`), the layout/item-size toolbar (B-007, the
+  size slider is a native `<input type=range>`, already arrow-key operable once focused),
+  field-clear buttons (B-033, real buttons, plus `Esc`-to-clear on the field itself),
+  the channel-filter field (B-024, now documented as `c` above — it already existed in
+  code and in the `?` overlay, just missing from this table), Settings rows, and the
+  channel/account `…` context menus (B-010/B-042/B-003). Found and fixed one real
+  violation of the "no div-soup buttons" rule: the priority section's and search
+  results' video rows (`App.tsx`) were plain `<div onClick>` with no keyboard path
+  at all — unlike the main `FeedList`, they have no cursor-navigation equivalent, so
+  Tab-reachability is their *only* keyboard path. Fixed by making them focusable
+  (`role="button"`, `tabIndex`, Enter/Space activation) — see `VideoRow`'s `focusable`
+  prop in `FeedList.tsx`. **Standing rule going forward, not just this one-time fix:**
+  every new interactive control must state its keyboard path (a binding, or which
+  existing mechanism — Tab order, cursor navigation — already covers it) before it's
+  considered done.
 
 ## States & feedback (Final)
 

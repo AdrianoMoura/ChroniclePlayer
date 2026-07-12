@@ -3,11 +3,19 @@ import { createHash } from 'node:crypto'
 import { generatePkce, randomState } from './pkce'
 import { GoogleOAuth } from './google-oauth'
 import { startLoopback } from './loopback'
-import { AuthFlow, GoogleAuthProvider, parseClientSecretJson, SECRET_KEYS } from './auth'
+import {
+  accountSecretKeys,
+  AuthFlow,
+  DEFAULT_ACCOUNT_ID,
+  GoogleAuthProvider,
+  parseClientSecretJson,
+  SECRET_KEYS
+} from './auth'
 import type { Clock, SecretStore } from '../../core/ports'
 import type { FetchFn } from '../http'
 
 const credentials = { clientId: 'id-123.apps.googleusercontent.com', clientSecret: 'sec-xyz' }
+const accountKeys = accountSecretKeys(DEFAULT_ACCOUNT_ID)
 
 class MemorySecrets implements SecretStore {
   map = new Map<string, string>()
@@ -79,7 +87,12 @@ describe('GoogleOAuth', () => {
     })
     expect(form?.get('grant_type')).toBe('authorization_code')
     expect(form?.get('code_verifier')).toBe('the-verifier')
-    expect(grant).toEqual({ accessToken: 'at', expiresInSeconds: 3599, refreshToken: 'rt' })
+    expect(grant).toEqual({
+      accessToken: 'at',
+      expiresInSeconds: 3599,
+      refreshToken: 'rt',
+      scope: null
+    })
   })
 
   it('maps invalid_grant to the auth-expired domain error (D-012 path)', async () => {
@@ -146,7 +159,7 @@ describe('GoogleAuthProvider', () => {
   function connectedSecrets(): MemorySecrets {
     const secrets = new MemorySecrets()
     secrets.set(SECRET_KEYS.oauthClient, JSON.stringify(credentials))
-    secrets.set(SECRET_KEYS.refreshToken, 'rt')
+    secrets.set(accountKeys.refreshToken, 'rt')
     return secrets
   }
 
@@ -156,15 +169,38 @@ describe('GoogleAuthProvider', () => {
       calls += 1
       return Promise.resolve(jsonResponse(200, { access_token: `at-${calls}`, expires_in: 3600 }))
     }
-    const provider = new GoogleAuthProvider(connectedSecrets(), new GoogleOAuth(fetchFn), clock)
+    const provider = new GoogleAuthProvider(
+      connectedSecrets(),
+      new GoogleOAuth(fetchFn),
+      clock,
+      DEFAULT_ACCOUNT_ID
+    )
     expect(await provider.getAccessToken()).toBe('at-1')
     expect(await provider.getAccessToken()).toBe('at-1')
     expect(calls).toBe(1)
   })
 
   it('throws auth-expired when nothing is stored', async () => {
-    const provider = new GoogleAuthProvider(new MemorySecrets(), new GoogleOAuth(fetch), clock)
+    const provider = new GoogleAuthProvider(
+      new MemorySecrets(),
+      new GoogleOAuth(fetch),
+      clock,
+      DEFAULT_ACCOUNT_ID
+    )
     await expect(provider.getAccessToken()).rejects.toMatchObject({ kind: 'auth-expired' })
+  })
+
+  it('mints independently per account — a second account never reads the first one\'s token', async () => {
+    const secrets = new MemorySecrets()
+    secrets.set(SECRET_KEYS.oauthClient, JSON.stringify(credentials))
+    secrets.set(accountSecretKeys('acc1').refreshToken, 'rt-1')
+    // 'acc2' has no stored refresh token at all.
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(jsonResponse(200, { access_token: 'at', expires_in: 3600 }))
+    const providerAcc1 = new GoogleAuthProvider(secrets, new GoogleOAuth(fetchFn), clock, 'acc1')
+    const providerAcc2 = new GoogleAuthProvider(secrets, new GoogleOAuth(fetchFn), clock, 'acc2')
+    await expect(providerAcc1.getAccessToken()).resolves.toBe('at')
+    await expect(providerAcc2.getAccessToken()).rejects.toMatchObject({ kind: 'auth-expired' })
   })
 })
 
@@ -181,6 +217,7 @@ describe('AuthFlow', () => {
         openedUrl = url
         return Promise.resolve()
       },
+      DEFAULT_ACCOUNT_ID,
       () =>
         Promise.resolve({
           redirectUri: 'http://127.0.0.1:9999',
@@ -194,22 +231,73 @@ describe('AuthFlow', () => {
     await flow.connect()
 
     expect(openedUrl).toContain('accounts.google.com')
-    expect(secrets.get(SECRET_KEYS.refreshToken)).toBe('rt-new')
+    expect(secrets.get(accountKeys.refreshToken)).toBe('rt-new')
     // access token is never written to the store
-    expect([...secrets.map.keys()]).toEqual([SECRET_KEYS.oauthClient, SECRET_KEYS.refreshToken])
+    expect([...secrets.map.keys()]).toEqual([
+      SECRET_KEYS.oauthClient,
+      accountKeys.refreshToken,
+      accountKeys.grantedScopes
+    ])
+  })
+
+  it('requestWriteScope merges the write scope and updates hasWriteScope', async () => {
+    const secrets = new MemorySecrets()
+    secrets.set(SECRET_KEYS.oauthClient, JSON.stringify(credentials))
+    let openedUrl = ''
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, { access_token: 'at', expires_in: 3600, refresh_token: 'rt' })
+      )
+    const flow = new AuthFlow(
+      secrets,
+      new GoogleOAuth(fetchFn),
+      (url) => {
+        openedUrl = url
+        return Promise.resolve()
+      },
+      DEFAULT_ACCOUNT_ID,
+      () =>
+        Promise.resolve({
+          redirectUri: 'http://127.0.0.1:9999',
+          waitForCode: () => Promise.resolve('the-code'),
+          close: () => {}
+        })
+    )
+    expect(flow.hasWriteScope()).toBe(false)
+    await flow.requestWriteScope()
+    const params = new URL(openedUrl).searchParams
+    expect(params.get('scope')).toContain('youtube.force-ssl')
+    expect(params.get('include_granted_scopes')).toBe('true')
+    expect(flow.hasWriteScope()).toBe(true)
   })
 
   it('signOut revokes best-effort and deletes the stored token', async () => {
     const secrets = new MemorySecrets()
-    secrets.set(SECRET_KEYS.refreshToken, 'rt')
+    secrets.set(accountKeys.refreshToken, 'rt')
     let revoked = ''
     const fetchFn: FetchFn = (_url, init) => {
       revoked = String(init?.body)
       return Promise.resolve(new Response('', { status: 200 }))
     }
-    const flow = new AuthFlow(secrets, new GoogleOAuth(fetchFn), () => Promise.resolve())
+    const flow = new AuthFlow(
+      secrets,
+      new GoogleOAuth(fetchFn),
+      () => Promise.resolve(),
+      DEFAULT_ACCOUNT_ID
+    )
     await flow.signOut()
     expect(revoked).toContain('token=rt')
-    expect(secrets.get(SECRET_KEYS.refreshToken)).toBeNull()
+    expect(secrets.get(accountKeys.refreshToken)).toBeNull()
+  })
+
+  it('signOut on one account never touches another account\'s token', async () => {
+    const secrets = new MemorySecrets()
+    secrets.set(accountSecretKeys('acc1').refreshToken, 'rt-1')
+    secrets.set(accountSecretKeys('acc2').refreshToken, 'rt-2')
+    const fetchFn: FetchFn = () => Promise.resolve(new Response('', { status: 200 }))
+    const flow = new AuthFlow(secrets, new GoogleOAuth(fetchFn), () => Promise.resolve(), 'acc1')
+    await flow.signOut()
+    expect(secrets.get(accountSecretKeys('acc1').refreshToken)).toBeNull()
+    expect(secrets.get(accountSecretKeys('acc2').refreshToken)).toBe('rt-2')
   })
 })
