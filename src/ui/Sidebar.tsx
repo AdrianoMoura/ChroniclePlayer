@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react'
-import type { ChannelDto, FeedViewDto } from '../ipc/contract'
+import type { AccountDto, ChannelDto, FeedViewDto } from '../ipc/contract'
 import { t } from './i18n'
 
 export const VIEW_ORDER: readonly FeedViewDto[] = [
@@ -32,6 +32,13 @@ interface SidebarProps {
   onToggleCollapse: () => void
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
+  // B-003
+  accounts: AccountDto[]
+  accountFilter: string | null
+  onSelectAccount: (accountId: string | null) => void
+  onAddAccount: () => void
+  onRemoveAccount: (accountId: string) => void
+  onSyncAccountNow: (accountId: string) => void
 }
 
 export function Sidebar({
@@ -47,7 +54,13 @@ export function Sidebar({
   onOpenSettings,
   onToggleCollapse,
   onUnsubscribe,
-  onToggleFavorite
+  onToggleFavorite,
+  accounts,
+  accountFilter,
+  onSelectAccount,
+  onAddAccount,
+  onRemoveAccount,
+  onSyncAccountNow
 }: SidebarProps) {
   // Local channel-name filter (B-024) — over the user's own subscriptions,
   // never YouTube search.
@@ -56,6 +69,9 @@ export function Sidebar({
   // same pattern as Settings' delete-all confirmation.
   const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
   const [confirmingUnsub, setConfirmingUnsub] = useState<string | null>(null)
+  // B-003: same double-arm pattern, for the Accounts "…" menu.
+  const [menuAccountId, setMenuAccountId] = useState<string | null>(null)
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
 
   const visibleChannels = useMemo(() => {
     const query = channelQuery.trim().toLowerCase()
@@ -79,6 +95,23 @@ export function Sidebar({
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [menuChannelId])
+
+  useEffect(() => {
+    if (menuAccountId === null) return
+    function closeMenu(): void {
+      setMenuAccountId(null)
+      setConfirmingRemove(null)
+    }
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') closeMenu()
+    }
+    document.addEventListener('click', closeMenu)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('click', closeMenu)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuAccountId])
 
   return (
     <aside className="sidebar">
@@ -216,6 +249,68 @@ export function Sidebar({
           )}
         </div>
       )}
+
+      <div className="account-list">
+        <h3 className="channel-list-header">{t('sidebar.accountsHeader')}</h3>
+        {accounts.map((account) => (
+          <div key={account.accountId} className="channel-row">
+            <button
+              className={`view channel${accountFilter === account.accountId ? ' active' : ''}`}
+              title={account.label}
+              onClick={() =>
+                onSelectAccount(accountFilter === account.accountId ? null : account.accountId)
+              }
+            >
+              <span className="view-label ellipsis">{account.label}</span>
+              {!account.connected && (
+                <span className="account-badge">{t('sidebar.accountDisconnected')}</span>
+              )}
+            </button>
+            <button
+              className="channel-menu-btn"
+              title={t('sidebar.accountMenu.title')}
+              onClick={(event) => {
+                event.stopPropagation()
+                setConfirmingRemove(null)
+                setMenuAccountId((current) => (current === account.accountId ? null : account.accountId))
+              }}
+            >
+              ⋯
+            </button>
+            {menuAccountId === account.accountId && (
+              <div className="channel-menu" onClick={(event) => event.stopPropagation()}>
+                <button
+                  onClick={() => {
+                    onSyncAccountNow(account.accountId)
+                    setMenuAccountId(null)
+                  }}
+                >
+                  {t('sidebar.accountMenu.syncNow')}
+                </button>
+                <button
+                  className={confirmingRemove === account.accountId ? 'danger' : ''}
+                  onClick={() => {
+                    if (confirmingRemove === account.accountId) {
+                      onRemoveAccount(account.accountId)
+                      setMenuAccountId(null)
+                      setConfirmingRemove(null)
+                    } else {
+                      setConfirmingRemove(account.accountId)
+                    }
+                  }}
+                >
+                  {confirmingRemove === account.accountId
+                    ? t('sidebar.accountMenu.confirmRemove')
+                    : t('sidebar.accountMenu.remove')}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        <button className="view account-add" onClick={onAddAccount}>
+          <span className="view-label">{t('sidebar.addAccount')}</span>
+        </button>
+      </div>
 
       <div className="sidebar-footer">
         <button className={`view${settingsOpen ? ' active' : ''}`} onClick={onOpenSettings}>

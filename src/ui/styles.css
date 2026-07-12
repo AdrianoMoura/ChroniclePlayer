@@ -288,6 +288,34 @@ input:focus-visible {
   padding-top: 10px;
 }
 
+/* B-003: Accounts section, between the channel list and Settings. */
+.account-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.account-badge {
+  font-size: 10px;
+  color: #e0a3a3;
+  border: 1px solid #a05252;
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.account-add {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.account-add:hover {
+  color: var(--text);
+}
+
 .channel-list-header {
   font-size: 11px;
   font-weight: 600;
@@ -446,6 +474,12 @@ input:focus-visible {
 
 .topbar-view {
   font-weight: 600;
+}
+
+/* B-003: shown when an account filter narrows the combined feed. */
+.topbar-account-suffix {
+  font-weight: 400;
+  color: var(--text-dim);
 }
 
 .status {
@@ -1721,4 +1755,21 @@ button.primary.danger {
   font-family: monospace;
   padding-right: 26px;
   white-space: nowrap;
+}
+
+/* B-003: "add another account" overlay. */
+.add-account {
+  max-width: 460px;
+}
+
+.add-account p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.add-account-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
 }

@@ -280,6 +280,8 @@ export const en = {
   'app.banner.unsubscribeFailed': "Couldn't unsubscribe: {message}",
   'app.banner.searchFailed': 'Search failed: {message}',
   'app.banner.subscribeFailed': "Couldn't subscribe: {message}",
+  'app.banner.accountConnectFailed': "Couldn't connect the account: {message}",
+  'app.banner.accountSyncFailed': "Couldn't sync this account: {message}",
 
   // App — sidebar
   'app.sidebar.showTitle': 'Show sidebar',
@@ -361,6 +363,15 @@ export const en = {
   'sidebar.clearTitle': 'Clear',
   'sidebar.noChannelMatch': 'No channel matches.',
   'sidebar.settingsLabel': 'Settings',
+
+  // Sidebar — Accounts (B-003)
+  'sidebar.accountsHeader': 'Accounts',
+  'sidebar.accountDisconnected': 'Reconnect needed',
+  'sidebar.addAccount': '+ Add account',
+  'sidebar.accountMenu.title': 'More',
+  'sidebar.accountMenu.syncNow': 'Sync now',
+  'sidebar.accountMenu.remove': 'Remove account',
+  'sidebar.accountMenu.confirmRemove': 'Click again to remove',
   'sidebar.channelMenu.title': 'More',
   'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
   'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',
@@ -384,5 +395,15 @@ export const en = {
   'comments.replyPlaceholder': 'Write a reply…',
   'comments.postButton': 'Post',
   'comments.posting': 'Posting…',
-  'comments.replyButton': 'Reply'
+  'comments.replyButton': 'Reply',
+
+  // Add another account (B-003) — no Google-console walkthrough, unlike
+  // the first-run wizard: the OAuth client is already set up and shared.
+  'addAccount.title': 'Add another Google account',
+  'addAccount.instructions':
+    'Add the new account’s email as a Test user on your existing Google Cloud project (the same one from your first setup), then connect it below.',
+  'addAccount.openTestUsersLink': 'Open Test users settings',
+  'addAccount.connectButton': 'Connect Google account',
+  'addAccount.connecting': 'Waiting for the browser…',
+  'addAccount.cancelButton': 'Cancel'
 } as const

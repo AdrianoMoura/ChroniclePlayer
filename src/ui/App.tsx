@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  AccountDto,
   AuthStatusDto,
   ChannelDto,
   ChronicleEventDto,
@@ -15,6 +16,7 @@ import type {
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
+import { AddAccount } from './AddAccount'
 import { ConnectPanel } from './ConnectPanel'
 import { FeedList, ITEM_SIZES, VideoRow, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
@@ -44,6 +46,11 @@ interface Banner {
 export function App() {
   const [view, setView] = useState<FeedViewDto>('all')
   const [channelFilter, setChannelFilter] = useState<string | null>(null)
+  // B-003: a second, independent filter dimension alongside channelFilter —
+  // undefined/null means the combined feed across every connected account.
+  const [accountFilter, setAccountFilter] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<AccountDto[]>([])
+  const [addAccountOpen, setAddAccountOpen] = useState(false)
   const [videos, setVideos] = useState<FeedVideoDto[]>([])
   const [nextCursor, setNextCursor] = useState<FeedCursorDto | null>(null)
   const [meta, setMeta] = useState<FeedMetaDto>({
@@ -100,6 +107,7 @@ export function App() {
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
+  const accountRef = useRef<string | null>(null)
   const loadingRef = useRef(false)
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
   const lastG = useRef(0)
@@ -137,50 +145,62 @@ export function App() {
   // or one that slipped through — self-heals here instead of spinning
   // forever until a manual reload.
   const syncMeta = useCallback(() => {
-    void window.chronicle.getFeedMeta().then((next) => {
+    void window.chronicle.getFeedMeta(accountRef.current).then((next) => {
       setMeta(next)
       setRefreshing(next.refreshing)
     })
     // B-042: the priority section only makes sense in the main feed
     // ('all'/'unread', unfiltered) — cleared everywhere else.
     if (channelRef.current === null && (viewRef.current === 'all' || viewRef.current === 'unread')) {
-      void window.chronicle.getPriorityFeed().then(setPriorityVideos)
+      void window.chronicle.getPriorityFeed(accountRef.current).then(setPriorityVideos)
     } else {
       setPriorityVideos([])
     }
   }, [])
 
-  const loadView = useCallback((target?: FeedViewDto, channel?: string | null) => {
-    const nextView = target ?? viewRef.current
-    const nextChannel = channel === undefined ? channelRef.current : channel
-    viewRef.current = nextView
-    channelRef.current = nextChannel
-    loadingRef.current = true
-    lastCursorRef.current = null
-    setNewVideosPill(null)
-    void window.chronicle.getFeed(nextView, null, nextChannel).then((slice) => {
-      if (viewRef.current !== nextView || channelRef.current !== nextChannel) return
-      loadingRef.current = false
-      setVideos(slice.videos)
-      setNextCursor(slice.nextCursor)
-      setCursorIdx(0)
-    })
-    syncMeta()
-  }, [syncMeta])
+  const loadView = useCallback(
+    (target?: FeedViewDto, channel?: string | null, account?: string | null) => {
+      const nextView = target ?? viewRef.current
+      const nextChannel = channel === undefined ? channelRef.current : channel
+      const nextAccount = account === undefined ? accountRef.current : account
+      viewRef.current = nextView
+      channelRef.current = nextChannel
+      accountRef.current = nextAccount
+      loadingRef.current = true
+      lastCursorRef.current = null
+      setNewVideosPill(null)
+      void window.chronicle.getFeed(nextView, null, nextChannel, nextAccount).then((slice) => {
+        if (
+          viewRef.current !== nextView ||
+          channelRef.current !== nextChannel ||
+          accountRef.current !== nextAccount
+        ) {
+          return
+        }
+        loadingRef.current = false
+        setVideos(slice.videos)
+        setNextCursor(slice.nextCursor)
+        setCursorIdx(0)
+      })
+      syncMeta()
+    },
+    [syncMeta]
+  )
 
   const loadChannels = useCallback(() => {
-    void window.chronicle.getChannels().then(setChannels)
+    void window.chronicle.getChannels(accountRef.current).then(setChannels)
+    void window.chronicle.listAccounts().then(setAccounts)
   }, [])
 
   useEffect(() => {
-    loadView(view, channelFilter)
-  }, [view, channelFilter, loadView])
+    loadView(view, channelFilter, accountFilter)
+  }, [view, channelFilter, accountFilter, loadView])
 
   // B-009: search results are a transient overlay over the current
   // view/channel — navigating away always drops them.
   useEffect(() => {
     setSearchResults(null)
-  }, [view, channelFilter])
+  }, [view, channelFilter, accountFilter])
 
   // Switching channels (or leaving the channel screen) disarms any pending
   // Unsubscribe confirmation — it must never carry over to a different channel.
@@ -258,8 +278,9 @@ export function App() {
   }, [])
 
   const doRefresh = useCallback(() => {
-    // B-036: a channel-filtered view refreshes only that channel.
-    void window.chronicle.refreshFeed(channelFilter).then((result) => {
+    // B-036: a channel-filtered view refreshes only that channel. B-003: an
+    // account-filtered view refreshes only that account.
+    void window.chronicle.refreshFeed(channelFilter, accountFilter).then((result) => {
       if (result.ok || result.errorKind === 'busy') return
       if (result.errorKind === 'auth-expired') {
         setBanner({
@@ -272,15 +293,15 @@ export function App() {
         setBanner({ text: t('app.banner.refreshFailed', { message: result.message }) })
       }
     })
-  }, [connect, channelFilter])
+  }, [connect, channelFilter, accountFilter])
 
   // Bulk unread → read over the current scope (B-020, D-010 semantics).
   const markAllRead = useCallback(() => {
-    void window.chronicle.markAllRead(channelFilter).then(() => {
+    void window.chronicle.markAllRead(channelFilter, accountFilter).then(() => {
       loadView()
       loadChannels()
     })
-  }, [channelFilter, loadView, loadChannels])
+  }, [channelFilter, accountFilter, loadView, loadChannels])
 
   // B-010: real subscriptions.delete plus the local soft-delete — may open
   // the system browser once for incremental write-scope consent (D-032).
@@ -369,6 +390,40 @@ export function App() {
     },
     [loadChannels, syncMeta]
   )
+
+  // B-003: selecting an account is a second, independent filter dimension —
+  // same mechanics as selecting a channel (clears on reselect).
+  const selectAccount = useCallback((accountId: string | null) => {
+    setPlayerStack([])
+    setScreen('feed')
+    setAccountFilter(accountId)
+  }, [])
+
+  const removeAccount = useCallback(
+    (accountId: string) => {
+      if (accountFilter === accountId) setAccountFilter(null)
+      void window.chronicle.removeAccount(accountId).then(() => {
+        loadChannels()
+        loadView()
+      })
+    },
+    [accountFilter, loadChannels, loadView]
+  )
+
+  const syncAccountNow = useCallback((accountId: string) => {
+    void window.chronicle.syncAccountNow(accountId).then((result) => {
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else {
+          setBanner({ text: t('app.banner.accountSyncFailed', { message: result.message }) })
+        }
+      }
+    })
+  }, [connect])
 
   function handleTopbarUnsubscribe(): void {
     if (!confirmingUnsubscribe) {
@@ -499,11 +554,12 @@ export function App() {
     if (loadingRef.current) return
     const targetView = viewRef.current
     const targetChannel = channelRef.current
+    const targetAccount = accountRef.current
 
     if (nextCursor) {
       lastCursorRef.current = nextCursor
       loadingRef.current = true
-      void window.chronicle.getFeed(targetView, nextCursor, targetChannel).then((slice) => {
+      void window.chronicle.getFeed(targetView, nextCursor, targetChannel, targetAccount).then((slice) => {
         loadingRef.current = false
         if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
         setVideos((current) => [...current, ...slice.videos])
@@ -544,11 +600,13 @@ export function App() {
         setArchiveExhausted((set) => new Set(set).add(targetChannel))
       }
       if (result.value.videosNew > 0) {
-        void window.chronicle.getFeed(targetView, cursorToRetry, targetChannel).then((slice) => {
-          if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
-          setVideos((current) => [...current, ...slice.videos])
-          setNextCursor(slice.nextCursor)
-        })
+        void window.chronicle
+          .getFeed(targetView, cursorToRetry, targetChannel, targetAccount)
+          .then((slice) => {
+            if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+            setVideos((current) => [...current, ...slice.videos])
+            setNextCursor(slice.nextCursor)
+          })
       }
     })
   }, [nextCursor, archiveExhausted, connect])
@@ -880,6 +938,12 @@ export function App() {
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}
           onToggleFavorite={toggleChannelFavorite}
+          accounts={accounts}
+          accountFilter={accountFilter}
+          onSelectAccount={selectAccount}
+          onAddAccount={() => setAddAccountOpen(true)}
+          onRemoveAccount={removeAccount}
+          onSyncAccountNow={syncAccountNow}
         />
       )}
       <main className="feed">
@@ -926,6 +990,13 @@ export function App() {
               ? (channels.find((c) => c.channelId === channelFilter)?.title ??
                 t('app.topbar.channelFallback'))
               : VIEW_LABELS[view]}
+            {accountFilter !== null && (
+              <span className="topbar-account-suffix">
+                {' · '}
+                {accounts.find((a) => a.accountId === accountFilter)?.label ??
+                  t('app.topbar.channelFallback')}
+              </span>
+            )}
           </span>
           {channelFilter !== null && (
             <button
@@ -1176,6 +1247,15 @@ export function App() {
         )}
       </main>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {addAccountOpen && (
+        <AddAccount
+          onCancel={() => setAddAccountOpen(false)}
+          onConnected={() => {
+            setAddAccountOpen(false)
+            loadChannels()
+          }}
+        />
+      )}
       {urlPromptOpen && (
         <UrlPrompt
           onOpenVideo={(videoId) => {
