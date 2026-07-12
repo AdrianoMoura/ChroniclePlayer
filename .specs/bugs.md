@@ -213,7 +213,7 @@ Resolved entries add:
     validate live: posting a real comment/reply, the Like button against a real
     account, and that the comment-like gap doesn't read as a bug to testers (worth
     a line in `docs/setup.md` or the help overlay if it comes up).
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 627f371 · **Outcome:** Fixed
 
 ### B-009 — Search all of YouTube, not only synced content
 - **Type:** adjustment
