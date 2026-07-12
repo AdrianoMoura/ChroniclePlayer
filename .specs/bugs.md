@@ -270,7 +270,7 @@ Resolved entries add:
     `npm run typecheck && npm run lint && npm test` (144/144). The owner should
     validate live: the priority section's placement/visibility, and that favoriting
     doesn't reorder the sidebar.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 3880228 · **Outcome:** Fixed
 
 ### B-010 — Easy unsubscribe: channel screen + sidebar context menu
 - **Type:** adjustment
