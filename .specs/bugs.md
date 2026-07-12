@@ -110,16 +110,6 @@ Resolved entries add:
 - **Notes:** requires new API surface + write scopes (incremental, per D-032 and
   [[B-015]]). Quota costs must be stated in `youtube-api.md` when attacked.
 
-### B-007 — List vs. grid view toggle, persisted
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** feed
-- **Expected:** the user chooses between the current list layout and a grid layout for
-  videos; the choice persists across restarts (settings).
-- **Code refs:** `src/ui/FeedList.tsx` (row rendering + virtualization — grid changes
-  the row model); `src/ui/styles.css`; persistence via the M5 settings surface
-  (settings.json — not on the M4-based branch at time of writing).
-
 ### B-009 — Search all of YouTube, not only synced content
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-11
@@ -216,6 +206,32 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-007 — List vs. grid view toggle, persisted
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** feed
+- **Expected:** the user chooses between the current list layout and a grid layout for
+  videos; the choice persists across restarts (settings).
+- **Code refs:** `src/platform/settings-store.ts` (`layout: 'list' | 'grid'`, default
+  `list`); `src/ipc/contract.ts` (`SettingsDto.layout`); `src/ui/SettingsView.tsx`
+  ("Feed layout" select, mirrors the existing density control); `src/ui/App.tsx`
+  (default settings state, `FeedList` wiring); `src/ui/FeedList.tsx` (grid rendering:
+  `buildCardRows` chunks consecutive video rows into `columns`-wide card rows per
+  bucket, column count tracked via `ResizeObserver` on the scroll container at a
+  ~220px min card width, virtualizer re-measures on layout/column changes, new
+  `VideoCard` component reusing `VideoActions`/thumbnail cache); `src/ui/styles.css`
+  (`.grid-row`, `.card` and related classes).
+- **Notes:** reverses the "one column; no masonry/grid" clause of `ui.md`'s Layout
+  decision — captured as **D-037** (new entry in `decisions.md`, `ui.md` updated in
+  the same change). List stays the default; grid is opt-in. Both layouts share the
+  same row data, virtualization, row density (D-022) and per-video actions — the grid
+  is a rendering mode of `FeedList`, not a second component. No UI component tests
+  exist in this repo (`src/ui/` has none); verified via `npm run typecheck && npm run
+  lint && npm test` — no live-app check per this session's workflow, owner validates
+  live.
+- **Resolved:** 2026-07-12 · **Commit:** 61c9563 ·
+  **Outcome:** Fixed
 
 ### B-028 — Show Shorts in the feed, marked and filterable (reverses D-028)
 - **Type:** adjustment
