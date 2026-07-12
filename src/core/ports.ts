@@ -24,6 +24,13 @@ export interface FeedPage {
   nextCursor: FeedCursor | null
 }
 
+export interface FollowedChannel {
+  channel: Channel
+  // Freshest non-Short video; null for channels with nothing synced yet.
+  latestPublishedAt: string | null
+  unreadCount: number
+}
+
 export interface FeedRepository {
   // channelId narrows the feed to one channel (ui.md sidebar channel list).
   listPage(view: FeedView, cursor: FeedCursor | null, limit: number, channelId?: string): FeedPage
@@ -32,7 +39,8 @@ export interface FeedRepository {
   countUnread(): number
   // Unread within the recent window (feeds the caught-up state).
   countUnreadSince(publishedAtIso: string): number
-  listFollowedChannels(): Channel[]
+  // Sidebar list (B-008): freshest channel first, with its unread count.
+  listFollowedChannels(): FollowedChannel[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
 }

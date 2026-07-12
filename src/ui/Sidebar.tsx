@@ -68,6 +68,9 @@ export function Sidebar({
               }
             >
               <span className="view-label ellipsis">{channel.title}</span>
+              {channel.unreadCount > 0 && (
+                <span className="view-count">{channel.unreadCount}</span>
+              )}
             </button>
           ))}
         </div>

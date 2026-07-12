@@ -316,7 +316,14 @@ void app.whenReady().then(() => {
       lastRefreshAt: syncRepository.lastSyncStartedAt()
     }
   })
-  ipcMain.handle(IpcChannel.getChannels, () => feedRepository.listFollowedChannels())
+  ipcMain.handle(IpcChannel.getChannels, () =>
+    feedRepository.listFollowedChannels().map((followed) => ({
+      channelId: followed.channel.channelId,
+      title: followed.channel.title,
+      thumbnailUrl: followed.channel.thumbnailUrl,
+      unreadCount: followed.unreadCount
+    }))
+  )
   ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
 
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>

@@ -55,6 +55,8 @@ export interface ChannelDto {
   channelId: string
   title: string
   thumbnailUrl: string | null
+  // Unread (non-Short) videos for the sidebar badge (B-008).
+  unreadCount: number
 }
 
 // Expected failures cross the boundary as values, not thrown strings

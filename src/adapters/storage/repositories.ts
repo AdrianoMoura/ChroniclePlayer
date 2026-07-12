@@ -5,6 +5,7 @@ import type {
   FeedCursor,
   FeedPage,
   FeedRepository,
+  FollowedChannel,
   StateRepository
 } from '../../core/ports'
 import type { FeedEntry } from '../../core/feed'
@@ -180,18 +181,41 @@ export class SqliteFeedRepository implements FeedRepository {
     return { entry: toEntry(row), description: row.description }
   }
 
-  listFollowedChannels(): Channel[] {
+  listFollowedChannels(): FollowedChannel[] {
+    // Freshest channel first (B-008); channels with nothing synced sink to
+    // the bottom alphabetically. Counts mirror the unread view predicate.
     const rows = this.db
       .prepare(
-        `SELECT channel_id, title, thumbnail_url FROM channels
-         WHERE subscribed = 1
-         ORDER BY title COLLATE NOCASE ASC`
+        `SELECT
+           c.channel_id,
+           c.title,
+           c.thumbnail_url,
+           (SELECT MAX(v.published_at) FROM videos v
+             WHERE v.channel_id = c.channel_id AND ${NOT_SHORT}) AS latest_published_at,
+           (SELECT COUNT(*) FROM videos v
+             LEFT JOIN video_state s ON s.video_id = v.video_id
+             WHERE v.channel_id = c.channel_id AND ${NOT_SHORT}
+               AND COALESCE(s.read_status, 'unread') = 'unread') AS unread_count
+         FROM channels c
+         WHERE c.subscribed = 1
+         ORDER BY latest_published_at IS NULL, latest_published_at DESC,
+                  c.title COLLATE NOCASE ASC`
       )
-      .all() as unknown as { channel_id: string; title: string; thumbnail_url: string | null }[]
+      .all() as unknown as {
+      channel_id: string
+      title: string
+      thumbnail_url: string | null
+      latest_published_at: string | null
+      unread_count: number | bigint
+    }[]
     return rows.map((row) => ({
-      channelId: row.channel_id,
-      title: row.title,
-      thumbnailUrl: row.thumbnail_url
+      channel: {
+        channelId: row.channel_id,
+        title: row.title,
+        thumbnailUrl: row.thumbnail_url
+      },
+      latestPublishedAt: row.latest_published_at,
+      unreadCount: Number(row.unread_count)
     }))
   }
 }
