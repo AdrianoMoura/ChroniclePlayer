@@ -99,8 +99,9 @@ video (bounded backfill; see `feed.md` §Backfill).
 
 ## Refresh policy (Final in shape; parameters Pending D-016)
 
-- Refresh triggers: app launch (if last refresh > 10 min ago), manual refresh button
-  (always), background timer while the app runs.
+- Refresh triggers: every app launch (B-011, 2026-07-11 — previously guarded by a
+  10-min staleness check; RSS conditional GETs make a no-change pass cost ~0 quota),
+  manual refresh button (always), background timer while the app runs.
 - **D-016 (Pending):** background interval default. Recommendation: **30 minutes**,
   user-configurable 15 min–manual-only. Rationale: RSS discovery is free, but more
   frequent than 15 min adds nothing (creators don't publish that fast) and contradicts

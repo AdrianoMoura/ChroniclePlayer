@@ -59,10 +59,9 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'thumb', privileges: { standard: true, secure: true, stream: true } }
 ])
 
-// Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
+// Refresh triggers (youtube-api.md §Refresh policy): every launch (B-011),
 // manual always, background timer while running. Interval per D-016 —
 // default 30 min, user-configurable down to 15 min or manual-only.
-const LAUNCH_REFRESH_IF_OLDER_MS = 10 * 60_000
 
 function toStateDto(state: VideoState): VideoStateDto {
   return { readStatus: state.readStatus, favorite: state.favorite, watchLater: state.watchLater }
@@ -297,10 +296,9 @@ void app.whenReady().then(() => {
       }
       return // offline etc. — local browsing is unaffected
     }
-    const last = syncRepository.lastSyncStartedAt()
-    if (last === null || clock.now().getTime() - Date.parse(last) > LAUNCH_REFRESH_IF_OLDER_MS) {
-      void runRefresh('launch')
-    }
+    // Every launch syncs (B-011) — RSS conditional GETs make a no-change
+    // pass cost ~0 quota, so no staleness guard is needed.
+    void runRefresh('launch')
   }
 
   ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown, channelId: unknown) =>
