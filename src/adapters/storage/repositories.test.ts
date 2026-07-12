@@ -161,6 +161,46 @@ describe('SqliteFeedRepository', () => {
     expect(feed.listPage('all', null, 50).nextCursor).toBeNull()
   })
 
+  it('lists followed channels freshest-first with unread counts (B-008)', () => {
+    catalog.upsertChannel({ channelId: 'UCc', title: 'Zed', thumbnailUrl: null })
+    addVideo('a-old', '2026-07-01T10:00:00Z', 'UCa')
+    addVideo('a-new', '2026-07-08T10:00:00Z', 'UCa')
+    addVideo('b-mid', '2026-07-05T10:00:00Z', 'UCb')
+    states.setReadStatus('a-new', 'read')
+
+    const followed = feed.listFollowedChannels()
+    // Freshest channel first; channels with nothing synced sink to the end.
+    expect(followed.map((c) => c.channel.title)).toEqual(['Alpha', 'Beta', 'Zed'])
+    expect(followed.map((c) => c.unreadCount)).toEqual([1, 1, 0])
+    expect(followed[0].latestPublishedAt).toBe('2026-07-08T10:00:00Z')
+    expect(followed[2].latestPublishedAt).toBeNull()
+  })
+
+  it('paginates a channel-filtered feed through every page (B-002)', () => {
+    // Interleave two channels so the channel filter has rows to exclude
+    // between the target channel's keyset boundaries.
+    for (let i = 0; i < 7; i++) {
+      const stamp = `2026-07-0${(i % 7) + 1}T1${i % 10}:00:00Z`
+      addVideo(`a${i}`, stamp, 'UCa')
+      addVideo(`b${i}`, stamp, 'UCb')
+    }
+
+    const seen: string[] = []
+    let cursor = null
+    let pages = 0
+    for (;;) {
+      const page = feed.listPage('all', cursor, 3, 'UCa')
+      pages++
+      seen.push(...page.entries.map((e) => e.video.videoId))
+      expect(page.entries.every((e) => e.video.channelId === 'UCa')).toBe(true)
+      if (!page.nextCursor) break
+      cursor = page.nextCursor
+    }
+    expect(seen).toHaveLength(7)
+    expect(new Set(seen).size).toBe(7)
+    expect(pages).toBeGreaterThan(1)
+  })
+
   it('agrees with core belongsToView for every state × view combination', () => {
     // One video per reachable state combination, driven through the real
     // state repository so the SQL sees real rows.

@@ -179,6 +179,11 @@ which is the off state; the optional setting can ship post-MVP.
 
 ## M6 — Packaging & release
 
+*(Re-sequenced 2026-07-11 by the product owner: M6 moves to the **end**, after the
+dogfooding batches below — release prep only starts once the application is functional
+and the owner is happy with it. The MVP-from-source milestone (M5) already holds; the
+bugs.md batches are the path to "happy with it".)*
+
 - Packaging/signing for Linux (AppImage/Flatpak — **D-024 Pending**, recommend both,
   Flatpak primary), macOS (notarized dmg), Windows (signed installer if cert budget
   exists — **D-025 Pending**).
@@ -208,7 +213,14 @@ Exit criterion: a stranger can download, set up, and use Chronicle from the READ
 ## Dogfooding backlog (2026-07-11)
 
 The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
-worked in batches when the product owner says so). Roadmap-relevant signals from it:
+worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
+(all batches precede M6, per the re-sequencing note there): batch 1 = local polish
+(B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was closed by M5 during
+reconciliation); batch 2 = i18n infrastructure (B-017), so new feature UIs are born
+localized; batch 3 = write scopes + discovery (B-015 first, then B-010, B-009, B-006,
+and B-002 — diagnosed as archive-bounded, needs back-catalog API fetch, see its notes);
+B-003 (multi-account) stays milestone-sized, after M6.
+Roadmap-relevant signals from the list:
 
 - Several items **pull the post-MVP discovery bundle forward**: B-009 (global YouTube
   search + subscribe, D-031/D-030), B-010 (unsubscribe), B-006 (comments + likes,

@@ -7,6 +7,7 @@ import {
   type FeedViewDto,
   type ReadStatusDto,
   type SettingsDto,
+  type WindowControlDto,
   type WizardStateDto
 } from '../ipc/contract'
 
@@ -33,6 +34,9 @@ const api: ChronicleApi = {
   getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),
   setSettings: (settings: SettingsDto) => ipcRenderer.invoke(IpcChannel.setSettings, settings),
   exportData: () => ipcRenderer.invoke(IpcChannel.exportData),
+  windowControl: (action: WindowControlDto) =>
+    ipcRenderer.invoke(IpcChannel.windowControl, action),
+  platform: process.platform,
   deleteAllData: () => ipcRenderer.invoke(IpcChannel.deleteAllData),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)

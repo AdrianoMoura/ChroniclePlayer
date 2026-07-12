@@ -614,7 +614,7 @@ export function App() {
               auth={auth}
               settings={settings}
               onSettingsChange={changeSettings}
-              onReconnect={() => openWizardAt('connect')}
+              onReconnect={connect}
               onReplaceKey={() => openWizardAt('import')}
               onFixWeeklyLogout={() => openWizardAt('publish')}
               onSignOut={() => {

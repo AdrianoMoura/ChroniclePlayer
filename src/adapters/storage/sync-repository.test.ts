@@ -217,7 +217,7 @@ describe('feed channel filter (sidebar)', () => {
     sync.insertDiscoveredVideos('UCa', [discovered('a1')], NOW)
     sync.insertDiscoveredVideos('UCb', [discovered('b1')], NOW)
 
-    expect(feed.listFollowedChannels().map((c) => c.title)).toEqual(['Alpha', 'beta'])
+    expect(feed.listFollowedChannels().map((c) => c.channel.title)).toEqual(['Alpha', 'beta'])
     expect(feed.listPage('all', null, 10, 'UCb').entries.map((e) => e.video.videoId)).toEqual(['b1'])
   })
 })

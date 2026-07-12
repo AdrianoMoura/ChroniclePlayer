@@ -38,11 +38,13 @@ export function PlayerView({
   const [surface, setSurface] = useState<Surface>('playing')
   const [state, setState] = useState(video.state)
   const [descriptionOpen, setDescriptionOpen] = useState(false)
+  const [descriptionOverflows, setDescriptionOverflows] = useState(false)
 
   useEffect(() => {
     setSurface('playing')
     setState(video.state)
     setDescriptionOpen(false)
+    setDescriptionOverflows(false)
   }, [video.videoId, video.state])
 
   const command = useCallback((func: string, args: unknown[] = []) => {
@@ -151,6 +153,11 @@ export function PlayerView({
 
   return (
     <div className="player-view">
+      <div className="player-topbar">
+        <button className="player-back" onClick={onClose}>
+          ← {stackDepth > 1 ? 'Back' : 'Back to feed'} <kbd>Esc</kbd>
+        </button>
+      </div>
       <div className="player-stage" ref={wrapperRef}>
         {surface !== 'embed-blocked' && (
           <iframe
@@ -250,11 +257,19 @@ export function PlayerView({
 
         {video.description !== null && video.description.length > 0 && (
           <div className="player-description">
-            <button className="description-toggle" onClick={() => setDescriptionOpen((o) => !o)}>
-              {descriptionOpen ? 'Hide description' : 'Show description'}
-            </button>
-            {descriptionOpen && (
-              <Description text={video.description} onOpenVideo={onOpenVideo} />
+            <Description
+              text={video.description}
+              onOpenVideo={onOpenVideo}
+              clamped={!descriptionOpen}
+              onOverflowChange={setDescriptionOverflows}
+            />
+            {(descriptionOverflows || descriptionOpen) && (
+              <button
+                className="description-toggle"
+                onClick={() => setDescriptionOpen((o) => !o)}
+              >
+                {descriptionOpen ? 'Show less' : 'Show more'}
+              </button>
             )}
           </div>
         )}
@@ -285,14 +300,28 @@ const URL_PATTERN = /(https?:\/\/[^\s<>()]+)/g
 
 function Description({
   text,
-  onOpenVideo
+  onOpenVideo,
+  clamped,
+  onOverflowChange
 }: {
   text: string
   onOpenVideo: (videoId: string) => void
+  clamped: boolean
+  onOverflowChange: (overflows: boolean) => void
 }) {
+  const textRef = useRef<HTMLParagraphElement>(null)
+
+  // Only measurable while clamped: expanded, scrollHeight == clientHeight,
+  // which must not retract the toggle.
+  useEffect(() => {
+    if (!clamped) return
+    const el = textRef.current
+    if (el) onOverflowChange(el.scrollHeight > el.clientHeight + 1)
+  }, [text, clamped, onOverflowChange])
+
   const parts = text.split(URL_PATTERN)
   return (
-    <p className="description-text">
+    <p ref={textRef} className={`description-text${clamped ? ' clamped' : ''}`}>
       {parts.map((part, index) => {
         if (!URL_PATTERN.test(part) && !/^https?:\/\//.test(part)) {
           return <span key={index}>{part}</span>

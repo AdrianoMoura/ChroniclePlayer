@@ -59,10 +59,9 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'thumb', privileges: { standard: true, secure: true, stream: true } }
 ])
 
-// Refresh triggers (youtube-api.md §Refresh policy): launch when stale,
+// Refresh triggers (youtube-api.md §Refresh policy): every launch (B-011),
 // manual always, background timer while running. Interval per D-016 —
 // default 30 min, user-configurable down to 15 min or manual-only.
-const LAUNCH_REFRESH_IF_OLDER_MS = 10 * 60_000
 
 function toStateDto(state: VideoState): VideoStateDto {
   return { readStatus: state.readStatus, favorite: state.favorite, watchLater: state.watchLater }
@@ -171,6 +170,11 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     backgroundColor: '#101014',
+    // Frameless shell (B-014): Chronicle draws its own titlebar. On macOS
+    // the native traffic lights are kept as an overlay instead.
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hidden' as const }
+      : { frame: false }),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -297,10 +301,9 @@ void app.whenReady().then(() => {
       }
       return // offline etc. — local browsing is unaffected
     }
-    const last = syncRepository.lastSyncStartedAt()
-    if (last === null || clock.now().getTime() - Date.parse(last) > LAUNCH_REFRESH_IF_OLDER_MS) {
-      void runRefresh('launch')
-    }
+    // Every launch syncs (B-011) — RSS conditional GETs make a no-change
+    // pass cost ~0 quota, so no staleness guard is needed.
+    void runRefresh('launch')
   }
 
   ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown, channelId: unknown) =>
@@ -316,8 +319,25 @@ void app.whenReady().then(() => {
       lastRefreshAt: syncRepository.lastSyncStartedAt()
     }
   })
-  ipcMain.handle(IpcChannel.getChannels, () => feedRepository.listFollowedChannels())
+  ipcMain.handle(IpcChannel.getChannels, () =>
+    feedRepository.listFollowedChannels().map((followed) => ({
+      channelId: followed.channel.channelId,
+      title: followed.channel.title,
+      thumbnailUrl: followed.channel.thumbnailUrl,
+      unreadCount: followed.unreadCount
+    }))
+  )
   ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
+  ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
+    const target = BrowserWindow.fromWebContents(event.sender)
+    if (target === null) return
+    if (action === 'minimize') target.minimize()
+    else if (action === 'toggle-maximize') {
+      if (target.isMaximized()) target.unmaximize()
+      else target.maximize()
+    } else if (action === 'close') target.close()
+    else throw new Error(`invalid window control: ${String(action)}`)
+  })
 
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
     toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))

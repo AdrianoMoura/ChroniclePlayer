@@ -146,7 +146,9 @@ YouTube account"). In the MVP, the wizard is the sole entry path.
 ## Re-entry points (Final)
 
 The wizard is not once-and-gone; individual steps are re-runnable from Settings:
-- "Reconnect Google account" → Step 7 alone.
+- "Reconnect Google account" → starts the Google login directly, no wizard detour
+  (B-012, 2026-07-11 — originally Step 7 alone; the step remains reachable through
+  wizard failure routing when the login itself fails).
 - "Replace API key" → Steps 6–7.
 - "Fix weekly logout" → Step 4b.
 - Full reset → entire wizard, preserving local video states (they are independent of auth).

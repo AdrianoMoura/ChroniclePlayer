@@ -68,6 +68,9 @@ export function Sidebar({
               }
             >
               <span className="view-label ellipsis">{channel.title}</span>
+              {channel.unreadCount > 0 && (
+                <span className="view-count">{channel.unreadCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -75,7 +78,8 @@ export function Sidebar({
 
       <div className="sidebar-footer">
         <button className={`view${settingsOpen ? ' active' : ''}`} onClick={onOpenSettings}>
-          Settings
+          <span className="view-key">⚙</span>
+          <span className="view-label">Settings</span>
         </button>
       </div>
     </aside>
