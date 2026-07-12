@@ -36,6 +36,8 @@ export interface FeedRepository {
   listPage(view: FeedView, cursor: FeedCursor | null, limit: number, channelId?: string): FeedPage
   // Watch Later is an ordered queue, not a chronological view (feed.md).
   listWatchLaterQueue(): FeedEntry[]
+  // Queue size for the sidebar badge (B-025) — same membership as the queue.
+  countWatchLater(): number
   countUnread(): number
   // Unread within the recent window (feeds the caught-up state).
   countUnreadSince(publishedAtIso: string): number
@@ -43,6 +45,12 @@ export interface FeedRepository {
   listFollowedChannels(): FollowedChannel[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
+  // Bulk unread → read (B-020, D-010 semantics — manual and automatic
+  // marking are indistinguishable). channelId scopes to one channel, null
+  // is the whole feed. beforeIso, when set, only touches videos published
+  // strictly before it (the connect-time backlog auto-read). Returns the
+  // number of videos changed.
+  markManyRead(channelId: string | null, beforeIso: string | null, now: string): number
 }
 
 export interface StateRepository {

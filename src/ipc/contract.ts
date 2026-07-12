@@ -49,6 +49,12 @@ export interface FeedMetaDto {
   unreadCount: number
   caughtUp: boolean
   lastRefreshAt: string | null
+  // Watch Later queue size for the sidebar badge (B-025).
+  watchLaterCount: number
+  // True while a sync is running, so a renderer that mounts (or reloads)
+  // mid-sync can adopt the in-flight state instead of relying only on
+  // events it may have missed (B-023).
+  refreshing: boolean
 }
 
 export interface ChannelDto {
@@ -112,13 +118,20 @@ export interface SyncReportDto {
   videosNew: number
   quotaSpent: number
   finishedAt: string
+  // Filled when this run re-listed the subscription list (weekly gate or
+  // the user-initiated force path, B-021); null otherwise.
+  subscriptions: { added: number; removed: number } | null
 }
 
 // Backend → UI push (architecture.md §IPC: the UI never polls).
+// Every refresh:started is paired with exactly one terminal event:
+// refresh:done, refresh:failed, or auth:required (B-023 — a started with
+// no terminal event left the spinner running forever).
 export type ChronicleEventDto =
   | { type: 'refresh:started'; trigger: 'launch' | 'manual' | 'timer' }
   | { type: 'refresh:progress'; phase: 'channels' | 'shorts'; checked: number; total: number }
   | { type: 'refresh:done'; report: SyncReportDto }
+  | { type: 'refresh:failed'; errorKind: string; message: string }
   | { type: 'auth:required' }
   | { type: 'quota:exceeded' }
 
@@ -127,7 +140,9 @@ export const IpcChannel = {
   getFeedMeta: 'feed:meta',
   getChannels: 'feed:channels',
   refreshFeed: 'feed:refresh',
+  refreshSubscriptions: 'subscriptions:refresh',
   setReadStatus: 'state:setReadStatus',
+  markAllRead: 'state:markAllRead',
   toggleFavorite: 'state:toggleFavorite',
   toggleWatchLater: 'state:toggleWatchLater',
   openInBrowser: 'system:openInBrowser',
@@ -161,7 +176,13 @@ export interface ChronicleApi {
   getFeedMeta(): Promise<FeedMetaDto>
   getChannels(): Promise<ChannelDto[]>
   refreshFeed(): Promise<ResultDto<SyncReportDto>>
+  // User-initiated subscription re-list that bypasses the weekly gate
+  // (B-021) — a full refresh, so new channels get their initial backfill.
+  refreshSubscriptions(): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
+  // Bulk unread → read over the feed or one channel (B-020, D-010
+  // semantics). Returns how many videos changed.
+  markAllRead(channelId: string | null): Promise<number>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.

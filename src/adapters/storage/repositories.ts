@@ -149,6 +149,18 @@ export class SqliteFeedRepository implements FeedRepository {
     return rows.map(toEntry)
   }
 
+  countWatchLater(): number {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n
+         FROM videos v
+         LEFT JOIN video_state s ON s.video_id = v.video_id
+         WHERE COALESCE(s.watch_later, 0) = 1 AND ${NOT_SHORT}`
+      )
+      .get() as { n: number | bigint }
+    return Number(row.n)
+  }
+
   countUnread(): number {
     return this.unreadCountWhere('')
   }
@@ -168,6 +180,28 @@ export class SqliteFeedRepository implements FeedRepository {
       )
       .get(params) as { n: number | bigint }
     return Number(row.n)
+  }
+
+  markManyRead(channelId: string | null, beforeIso: string | null, now: string): number {
+    const result = this.db
+      .prepare(
+        `INSERT INTO video_state
+           (video_id, read_status, favorite, watch_later, watch_later_pos, status_changed_at, updated_at)
+         SELECT v.video_id, 'read', 0, 0, NULL, :now, :now
+         FROM videos v
+         JOIN channels c ON c.channel_id = v.channel_id
+         LEFT JOIN video_state s ON s.video_id = v.video_id
+         WHERE c.subscribed = 1
+           AND COALESCE(s.read_status, 'unread') = 'unread'
+           AND (:channelId IS NULL OR v.channel_id = :channelId)
+           AND (:before IS NULL OR v.published_at < :before)
+         ON CONFLICT(video_id) DO UPDATE SET
+           read_status = 'read',
+           status_changed_at = :now,
+           updated_at = :now`
+      )
+      .run({ now, channelId, before: beforeIso })
+    return Number(result.changes)
   }
 
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null {

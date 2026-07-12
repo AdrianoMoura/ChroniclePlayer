@@ -19,9 +19,10 @@ import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
 import { FeedService, type FeedSlice } from '../core/feed-service'
+import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { QuotaCounter, type Clock } from '../core/ports'
-import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
+import { SyncService, type RefreshOptions, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
@@ -94,7 +95,8 @@ function toReportDto(report: SyncReport): SyncReportDto {
     channelsFailed: report.channelsFailed,
     videosNew: report.videosNew,
     quotaSpent: report.quotaSpent,
-    finishedAt: report.finishedAt
+    finishedAt: report.finishedAt,
+    subscriptions: report.subscriptions
   }
 }
 
@@ -262,7 +264,10 @@ void app.whenReady().then(() => {
   }
 
   let refreshing = false
-  async function runRefresh(trigger: SyncTrigger): Promise<ResultDto<SyncReportDto>> {
+  async function runRefresh(
+    trigger: SyncTrigger,
+    options: RefreshOptions = {}
+  ): Promise<ResultDto<SyncReportDto>> {
     if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
     if (!authFlow.hasRefreshToken()) {
       return { ok: false, errorKind: 'auth-expired', message: 'not connected to Google' }
@@ -270,7 +275,15 @@ void app.whenReady().then(() => {
     refreshing = true
     broadcast({ type: 'refresh:started', trigger })
     try {
-      const report = await syncService.refresh(trigger)
+      const report = await syncService.refresh(trigger, options)
+      // B-020: on an account's very first subscription sync, videos already
+      // published before today start read — the user opens onto "what's
+      // new", not an unclearable backlog. Runs before refresh:done so the
+      // event's unread count already reflects it.
+      if (report.firstSync) {
+        const now = clock.now()
+        feedRepository.markManyRead(null, startOfToday(now).toISOString(), now.toISOString())
+      }
       const dto = toReportDto(report)
       broadcast({ type: 'refresh:done', report: dto })
       if (report.outcome === 'quota') broadcast({ type: 'quota:exceeded' })
@@ -282,7 +295,12 @@ void app.whenReady().then(() => {
         return { ok: false, errorKind: 'auth-expired', message: error.message }
       }
       const kind = isDomainError(error) ? error.kind : 'internal'
-      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      const message = String((error as Error).message ?? error)
+      // B-023: every refresh:started must be paired with a terminal event,
+      // or a renderer that saw "started" spins its refresh indicator
+      // forever with no way to recover short of a manual reload.
+      broadcast({ type: 'refresh:failed', errorKind: kind, message })
+      return { ok: false, errorKind: kind, message }
     } finally {
       refreshing = false
     }
@@ -316,7 +334,9 @@ void app.whenReady().then(() => {
     return {
       unreadCount: slice.unreadCount,
       caughtUp: slice.caughtUp,
-      lastRefreshAt: syncRepository.lastSyncStartedAt()
+      lastRefreshAt: syncRepository.lastSyncStartedAt(),
+      watchLaterCount: feedRepository.countWatchLater(),
+      refreshing
     }
   })
   ipcMain.handle(IpcChannel.getChannels, () =>
@@ -328,6 +348,9 @@ void app.whenReady().then(() => {
     }))
   )
   ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
+  ipcMain.handle(IpcChannel.refreshSubscriptions, () =>
+    runRefresh('manual', { forceSubscriptions: true })
+  )
   ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
     const target = BrowserWindow.fromWebContents(event.sender)
     if (target === null) return
@@ -341,6 +364,9 @@ void app.whenReady().then(() => {
 
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
     toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))
+  )
+  ipcMain.handle(IpcChannel.markAllRead, (_event, channelId: unknown) =>
+    feedRepository.markManyRead(parseChannelId(channelId) ?? null, null, clock.now().toISOString())
   )
   ipcMain.handle(IpcChannel.toggleFavorite, (_event, videoId: unknown) =>
     toStateDto(stateRepository.toggleFavorite(parseVideoId(videoId)))
@@ -529,7 +555,14 @@ void app.whenReady().then(() => {
     rmSync(join(dataDir, 'secrets.json'), { force: true })
     rmSync(chronicleCacheDir(), { recursive: true, force: true })
     app.relaunch()
-    app.exit(0)
+    // B-022: app.exit() skips window teardown and the normal quit sequence
+    // — the relaunched window can start before the old one's GPU/compositor
+    // surface is gone, which lands as a frozen/blank window on some
+    // compositors (observed on niri/Wayland). Destroying windows and quitting
+    // normally lets the old instance tear down cleanly before the new one
+    // starts.
+    for (const window of BrowserWindow.getAllWindows()) window.destroy()
+    app.quit()
   })
 
   createWindow()

@@ -44,7 +44,13 @@ export function App() {
   const [channelFilter, setChannelFilter] = useState<string | null>(null)
   const [videos, setVideos] = useState<FeedVideoDto[]>([])
   const [nextCursor, setNextCursor] = useState<FeedCursorDto | null>(null)
-  const [meta, setMeta] = useState<FeedMetaDto>({ unreadCount: 0, caughtUp: false, lastRefreshAt: null })
+  const [meta, setMeta] = useState<FeedMetaDto>({
+    unreadCount: 0,
+    caughtUp: false,
+    lastRefreshAt: null,
+    watchLaterCount: 0,
+    refreshing: false
+  })
   const [cursorIdx, setCursorIdx] = useState(0)
   const [filter, setFilter] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
@@ -78,11 +84,23 @@ export function App() {
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
   const lastG = useRef(0)
   const filterInputRef = useRef<HTMLInputElement>(null)
+  const channelQueryRef = useRef<HTMLInputElement>(null)
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
+
+  // Fetches feed meta and reconciles `refreshing` against backend truth
+  // (B-023): a renderer that missed a terminal sync event — mounting mid-run,
+  // or one that slipped through — self-heals here instead of spinning
+  // forever until a manual reload.
+  const syncMeta = useCallback(() => {
+    void window.chronicle.getFeedMeta().then((next) => {
+      setMeta(next)
+      setRefreshing(next.refreshing)
+    })
+  }, [])
 
   const loadView = useCallback((target?: FeedViewDto, channel?: string | null) => {
     const nextView = target ?? viewRef.current
@@ -98,8 +116,8 @@ export function App() {
       setNextCursor(slice.nextCursor)
       setCursorIdx(0)
     })
-    void window.chronicle.getFeedMeta().then(setMeta)
-  }, [])
+    syncMeta()
+  }, [syncMeta])
 
   const loadChannels = useCallback(() => {
     void window.chronicle.getChannels().then(setChannels)
@@ -179,12 +197,23 @@ export function App() {
     })
   }, [connect])
 
-  const patch = useCallback((videoId: string, state: VideoStateDto) => {
-    setVideos((current) =>
-      current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
-    )
-    void window.chronicle.getFeedMeta().then(setMeta)
-  }, [])
+  // Bulk unread → read over the current scope (B-020, D-010 semantics).
+  const markAllRead = useCallback(() => {
+    void window.chronicle.markAllRead(channelFilter).then(() => {
+      loadView()
+      loadChannels()
+    })
+  }, [channelFilter, loadView, loadChannels])
+
+  const patch = useCallback(
+    (videoId: string, state: VideoStateDto) => {
+      setVideos((current) =>
+        current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+      )
+      syncMeta()
+    },
+    [syncMeta]
+  )
 
   // Opening the player marks the video read immediately (playback.md).
   const openVideo = useCallback(
@@ -250,7 +279,7 @@ export function App() {
           setRefreshing(false)
           setProgress(null)
           loadChannels()
-          void window.chronicle.getFeedMeta().then(setMeta)
+          syncMeta()
           // New videos never shift content under the cursor (feed.md): only
           // reload in place when the user is at the top; otherwise, the pill.
           if (event.report.videosNew > 0 && !atTopRef.current) {
@@ -263,6 +292,13 @@ export function App() {
               text: `Refresh finished, but ${event.report.channelsFailed} channel(s) failed — they will be retried next cycle.`
             })
           }
+          break
+        case 'refresh:failed':
+          // B-023: always pair refresh:started with a terminal event, or the
+          // spinner runs forever with no recovery short of a manual reload.
+          setRefreshing(false)
+          setProgress(null)
+          setBanner({ text: `Refresh failed: ${event.message}` })
           break
         case 'auth:required':
           setRefreshing(false)
@@ -278,7 +314,7 @@ export function App() {
           break
       }
     })
-  }, [loadView, loadChannels, connect])
+  }, [loadView, loadChannels, connect, syncMeta])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current || !nextCursor) return
@@ -487,6 +523,9 @@ export function App() {
         case '/':
           filterInputRef.current?.focus()
           break
+        case 'c':
+          channelQueryRef.current?.focus()
+          break
         case '?':
           setHelpOpen(true)
           break
@@ -525,6 +564,14 @@ export function App() {
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
+
+  // Scoped to the current view/channel (B-020) — only offered where "unread"
+  // is a meaningful concept and there is something to clear.
+  const currentUnreadCount =
+    channelFilter !== null
+      ? (channels.find((c) => c.channelId === channelFilter)?.unreadCount ?? 0)
+      : meta.unreadCount
+  const showMarkAllRead = (view === 'all' || view === 'unread') && currentUnreadCount > 0
 
   // Settings re-entry into specific wizard steps (ephemeral run).
   if (wizardEntry !== null) {
@@ -578,8 +625,10 @@ export function App() {
       <Sidebar
         view={view}
         unreadCount={meta.unreadCount}
+        watchLaterCount={meta.watchLaterCount}
         channels={channels}
         channelFilter={channelFilter}
+        channelQueryRef={channelQueryRef}
         settingsOpen={screen === 'settings'}
         onSelectView={(next) => {
           setPlayerStack([])
@@ -642,6 +691,11 @@ export function App() {
               : VIEW_LABELS[view]}
           </span>
           <span className="status">{statusText}</span>
+          {showMarkAllRead && (
+            <button className="mark-all-read" onClick={markAllRead}>
+              Mark all as read
+            </button>
+          )}
           <input
             ref={filterInputRef}
             className="filter"

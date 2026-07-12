@@ -85,3 +85,10 @@ export function recentWindowStart(now: Date): Date {
   const daysBack = Math.max(isoWeekdayIndex(now), 1)
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBack)
 }
+
+// Start of the local calendar day — same boundary bucketOf uses for
+// "Today" (B-020: the connect-time auto-read cutoff is "published before
+// today", so it must agree with what the feed itself calls today).
+export function startOfToday(now: Date): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}

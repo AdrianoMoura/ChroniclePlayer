@@ -270,6 +270,63 @@ describe('SqliteFeedRepository', () => {
     states.setReadStatus('r1', 'read')
     expect(feed.countUnread()).toBe(2)
   })
+
+  it('countWatchLater mirrors the queue (B-025)', () => {
+    addVideo('a', '2026-07-08T10:00:00Z')
+    addVideo('b', '2026-07-08T11:00:00Z')
+    expect(feed.countWatchLater()).toBe(0)
+    states.toggleWatchLater('a')
+    states.toggleWatchLater('b')
+    expect(feed.countWatchLater()).toBe(2)
+    states.toggleWatchLater('a')
+    expect(feed.countWatchLater()).toBe(1)
+  })
+
+  describe('markManyRead (B-020)', () => {
+    it('marks every unread video in the feed as read, globally', () => {
+      addVideo('a', '2026-07-08T10:00:00Z', 'UCa')
+      addVideo('b', '2026-07-08T10:00:00Z', 'UCb')
+      states.setReadStatus('a', 'ignored') // untouched: not "unread"
+
+      const changed = feed.markManyRead(null, null, fixedClock.now().toISOString())
+
+      expect(changed).toBe(1)
+      expect(states.get('a').readStatus).toBe('ignored')
+      expect(states.get('b').readStatus).toBe('read')
+    })
+
+    it('scopes to one channel when channelId is given', () => {
+      addVideo('a', '2026-07-08T10:00:00Z', 'UCa')
+      addVideo('b', '2026-07-08T10:00:00Z', 'UCb')
+
+      const changed = feed.markManyRead('UCa', null, fixedClock.now().toISOString())
+
+      expect(changed).toBe(1)
+      expect(states.get('a').readStatus).toBe('read')
+      expect(states.get('b').readStatus).toBe('unread')
+    })
+
+    it('only touches videos published before the cutoff (connect-time backlog auto-read)', () => {
+      addVideo('old', '2026-07-07T10:00:00Z')
+      addVideo('today', '2026-07-08T10:00:00Z')
+
+      const changed = feed.markManyRead(null, '2026-07-08T00:00:00Z', fixedClock.now().toISOString())
+
+      expect(changed).toBe(1)
+      expect(states.get('old').readStatus).toBe('read')
+      expect(states.get('today').readStatus).toBe('unread')
+    })
+
+    it('preserves favorite/watch-later flags on rows it touches', () => {
+      addVideo('a', '2026-07-08T10:00:00Z')
+      states.toggleFavorite('a')
+      states.toggleWatchLater('a')
+
+      feed.markManyRead(null, null, fixedClock.now().toISOString())
+
+      expect(states.get('a')).toEqual({ readStatus: 'read', favorite: true, watchLater: true })
+    })
+  })
 })
 
 describe('SqliteCatalogRepository', () => {

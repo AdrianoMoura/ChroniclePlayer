@@ -126,7 +126,7 @@ input:focus-visible {
 /* ── Sidebar ─────────────────────────────────────────── */
 
 .sidebar {
-  width: 210px;
+  width: 315px; /* B-019: ~50% wider than the original 210px */
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -167,6 +167,14 @@ input:focus-visible {
   width: 10px;
 }
 
+/* B-018: the gear shares the key slot with the 1–5 digits but is a glyph,
+   not a hint — render it at label size so it reads at a glance. */
+.view-key.gear {
+  font-size: 15px;
+  line-height: 1;
+  opacity: 1;
+}
+
 .view-label {
   flex: 1;
 }
@@ -197,6 +205,29 @@ input:focus-visible {
 
 .view.channel {
   padding: 4px 10px;
+  font-size: 13px;
+}
+
+/* Channel-name filter (B-024) */
+.channel-query {
+  width: calc(100% - 8px);
+  margin: 0 4px 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.channel-query::placeholder {
+  color: var(--text-dim);
+  opacity: 0.7;
+}
+
+.channel-query-empty {
+  padding: 4px 10px;
+  color: var(--text-dim);
   font-size: 13px;
 }
 
@@ -243,6 +274,21 @@ input:focus-visible {
   color: var(--text-dim);
   font-size: 12.5px;
   flex: 1;
+}
+
+/* B-020 */
+.mark-all-read {
+  color: var(--text-dim);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.mark-all-read:hover {
+  color: var(--text);
+  background: var(--surface);
 }
 
 .filter {

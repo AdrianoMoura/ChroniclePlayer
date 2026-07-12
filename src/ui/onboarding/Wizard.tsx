@@ -551,6 +551,7 @@ function FirstSyncStep({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle')
   const [statusLine, setStatusLine] = useState('')
   const [summary, setSummary] = useState<{ channels: number; videos: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     return window.chronicle.onEvent((event: ChronicleEventDto) => {
@@ -565,10 +566,17 @@ function FirstSyncStep({ onDone }: { onDone: () => void }) {
         setPhase('done')
         setSummary({ channels: event.report.channelsPolled, videos: event.report.videosNew })
       }
+      // B-023: without this, a failure mid-sync left the step stuck on
+      // "Working…" forever with no way forward except quitting the wizard.
+      if (event.type === 'refresh:failed') {
+        setPhase('idle')
+        setError(event.message)
+      }
     })
   }, [])
 
   function start(): void {
+    setError(null)
     setPhase('running')
     setStatusLine('Importing your subscriptions…')
     void window.chronicle.refreshFeed()
@@ -585,9 +593,10 @@ function FirstSyncStep({ onDone }: { onDone: () => void }) {
 
       {phase === 'idle' && (
         <button className="primary" onClick={start}>
-          Import my subscriptions
+          {error !== null ? 'Try again' : 'Import my subscriptions'}
         </button>
       )}
+      {error !== null && phase === 'idle' && <p className="wizard-error">{error}</p>}
       {phase === 'running' && <p className="wizard-dim">{statusLine || 'Working…'}</p>}
       {phase === 'done' && summary !== null && (
         <div className="wizard-ok">

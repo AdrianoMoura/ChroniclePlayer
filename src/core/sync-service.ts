@@ -32,6 +32,19 @@ export interface SyncReport {
   videosNew: number
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
+  // Filled when this run actually re-listed subscriptions (weekly gate or
+  // the forced path, B-021); null when the gate skipped it.
+  subscriptions: { added: number; removed: number } | null
+  // True the very first time this account ever synced subscriptions
+  // (B-020: drives the connect-time backlog auto-read — the composition
+  // root marks pre-existing videos read after this report comes back).
+  firstSync: boolean
+}
+
+export interface RefreshOptions {
+  // Bypasses the weekly re-list gate (B-021, youtube-api.md §Subscription
+  // import & sync — user-initiated "Refresh subscriptions").
+  forceSubscriptions?: boolean
 }
 
 const RSS_CONCURRENCY = 8 // youtube-api.md politeness rule
@@ -58,7 +71,7 @@ interface RefreshContext {
 export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
-  async refresh(trigger: SyncTrigger): Promise<SyncReport> {
+  async refresh(trigger: SyncTrigger, options: RefreshOptions = {}): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
     const quotaBefore = quota.spent
@@ -66,10 +79,12 @@ export class SyncService {
     let channelsFailed = 0
     let channelsPolled = 0
     let videosNew = 0
+    let subscriptions: { added: number; removed: number } | null = null
+    const firstSync = repo.getMeta(META_SUBSCRIPTIONS_SYNCED_AT) === null
 
     try {
       try {
-        await this.syncSubscriptionsIfDue()
+        subscriptions = await this.syncSubscriptionsIfDue(options.forceSubscriptions ?? false)
       } catch (error) {
         if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
         else if (isDomainError(error, 'auth-expired')) throw error
@@ -126,10 +141,30 @@ export class SyncService {
           : channelsPolled > 0 && channelsFailed >= channelsPolled
             ? 'failed'
             : 'partial'
-      return this.finish(trigger, startedAt, channelsPolled, channelsFailed, videosNew, quotaBefore, outcome)
+      return this.finish(
+        trigger,
+        startedAt,
+        channelsPolled,
+        channelsFailed,
+        videosNew,
+        quotaBefore,
+        outcome,
+        subscriptions,
+        firstSync
+      )
     } catch (error) {
       if (isDomainError(error, 'auth-expired')) {
-        this.finish(trigger, startedAt, channelsPolled, channelsFailed, videosNew, quotaBefore, 'failed')
+        this.finish(
+          trigger,
+          startedAt,
+          channelsPolled,
+          channelsFailed,
+          videosNew,
+          quotaBefore,
+          'failed',
+          subscriptions,
+          firstSync
+        )
       }
       throw error
     }
@@ -142,7 +177,9 @@ export class SyncService {
     channelsFailed: number,
     videosNew: number,
     quotaBefore: number,
-    outcome: SyncReport['outcome']
+    outcome: SyncReport['outcome'],
+    subscriptions: { added: number; removed: number } | null,
+    firstSync: boolean
   ): SyncReport {
     const finishedAt = this.deps.clock.now().toISOString()
     const report: SyncReport = {
@@ -153,7 +190,9 @@ export class SyncService {
       channelsFailed,
       videosNew,
       quotaSpent: this.deps.quota.spent - quotaBefore,
-      outcome
+      outcome,
+      subscriptions,
+      firstSync
     }
     this.deps.repo.recordSync({
       startedAt,
@@ -167,16 +206,23 @@ export class SyncService {
     return report
   }
 
-  // Initial import (first refresh) or the automatic weekly re-list
-  // (youtube-api.md §Subscription import & sync).
-  private async syncSubscriptionsIfDue(): Promise<void> {
+  // Initial import (first refresh), the automatic weekly re-list, or a
+  // user-initiated force (B-021 — bypasses the gate; new channels still get
+  // their normal initial backfill) (youtube-api.md §Subscription import &
+  // sync). Returns the diff when it actually ran, null when the gate
+  // skipped it.
+  private async syncSubscriptionsIfDue(
+    force: boolean
+  ): Promise<{ added: number; removed: number } | null> {
     const { repo, subscriptions, clock } = this.deps
     const last = repo.getMeta(META_SUBSCRIPTIONS_SYNCED_AT)
     const now = clock.now()
-    if (last !== null && now.getTime() - Date.parse(last) < SUBSCRIPTION_RESYNC_MS) return
+    if (!force && last !== null && now.getTime() - Date.parse(last) < SUBSCRIPTION_RESYNC_MS) {
+      return null
+    }
 
     const current = await subscriptions.listSubscriptions()
-    repo.applySubscriptions(current, now.toISOString())
+    const diff = repo.applySubscriptions(current, now.toISOString())
 
     const missingPlaylist = repo
       .listSubscribedChannels()
@@ -189,6 +235,7 @@ export class SyncService {
       }
     }
     repo.setMeta(META_SUBSCRIPTIONS_SYNCED_AT, now.toISOString())
+    return diff
   }
 
   // Returns the channel's new videoIds (RSS window + gap backfill).

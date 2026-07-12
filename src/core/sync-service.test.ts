@@ -194,18 +194,39 @@ describe('SyncService.refresh', () => {
   it('imports subscriptions on first refresh and fetches uploads playlists', async () => {
     const repo = new FakeRepo()
     const subs = fakeSubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }])
-    await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('launch')
+    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('launch')
 
     expect(repo.appliedSubscriptions).toHaveLength(1)
     expect(repo.uploadsSet.get('UCa')).toBe('UUa')
     expect(repo.getMeta('subscriptions_synced_at')).not.toBeNull()
+    expect(report.subscriptions).toEqual({ added: 1, removed: 0 })
+    expect(report.firstSync).toBe(true) // B-020: drives the connect-time auto-read
+  })
+
+  it('is not a firstSync once subscriptions have synced before (B-020)', async () => {
+    const repo = new FakeRepo()
+    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago, within the gate
+    const report = await service(repo, fakeVideoSource()).refresh('timer')
+    expect(report.firstSync).toBe(false)
   })
 
   it('skips subscription re-sync when the last one is recent', async () => {
     const repo = new FakeRepo()
     repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago
-    await service(repo, fakeVideoSource()).refresh('timer')
+    const report = await service(repo, fakeVideoSource()).refresh('timer')
     expect(repo.appliedSubscriptions).toHaveLength(0)
+    expect(report.subscriptions).toBeNull()
+  })
+
+  it('forceSubscriptions bypasses the weekly gate (B-021)', async () => {
+    const repo = new FakeRepo()
+    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago — normally gated
+    const subs = fakeSubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }])
+    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('manual', {
+      forceSubscriptions: true
+    })
+    expect(repo.appliedSubscriptions).toHaveLength(1)
+    expect(report.subscriptions).toEqual({ added: 1, removed: 0 })
   })
 
   it('re-syncs subscriptions after a week', async () => {

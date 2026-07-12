@@ -4,6 +4,7 @@ import {
   groupFeed,
   isCaughtUp,
   recentWindowStart,
+  startOfToday,
   unreadCount,
   type FeedEntry
 } from './feed'
@@ -122,6 +123,15 @@ describe('recentWindowStart', () => {
     const boundary = recentWindowStart(NOW)
     expect(bucketOf(boundary, NOW)).not.toBe('earlier')
     expect(bucketOf(new Date(boundary.getTime() - 1), NOW)).toBe('earlier')
+  })
+})
+
+describe('startOfToday', () => {
+  it('is midnight of the local calendar day, agreeing with bucketOf\'s "today" (B-020)', () => {
+    const start = startOfToday(NOW)
+    expect(start).toEqual(new Date(2026, 6, 8))
+    expect(bucketOf(start, NOW)).toBe('today')
+    expect(bucketOf(new Date(start.getTime() - 1), NOW)).toBe('yesterday')
   })
 })
 

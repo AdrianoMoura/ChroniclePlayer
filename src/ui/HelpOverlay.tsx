@@ -13,6 +13,7 @@ const SHORTCUTS: readonly [string, string][] = [
   ['1…5', 'switch view (All, Unread, WL, Fav, Ignored)'],
   ['r', 'reload from local data'],
   ['/', 'filter in view'],
+  ['c', 'find channel (sidebar)'],
   ['?', 'this overlay'],
   ['Esc', 'back / close']
 ]
