@@ -52,18 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-001 — Back button inside the player view
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** player
-- **What happens:** while watching a video there is no visible control to return to the
-  previous screen.
-- **Expected:** a Back button in the player view that pops the navigation stack (the
-  stack already exists per D-029; this is about making it visible/clickable, not only
-  keyboard-driven).
-- **Code refs:** `src/ui/PlayerView.tsx` (player chrome); `src/ui/App.tsx`
-  (`playerStack` / `closePlayer` — the pop already exists, wire a visible button to it).
-
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
@@ -109,26 +97,6 @@ Resolved entries add:
   This is milestone-sized: touches schema (account scoping), sync, wizard, sidebar.
   Needs decisions.md entries when attacked (supersedes the single-account assumption).
 
-### B-004 — Content should fill the available screen; player always theater-width
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell / player
-- **What happens:** the usable area is not well optimized; content doesn't occupy the
-  available width.
-- **Expected:** main content stretches to the available area. The video player always
-  renders in the equivalent of theater mode, taking the full horizontal width.
-- **Code refs:** `src/ui/styles.css` (shell/layout widths); `src/ui/App.tsx` (shell
-  structure); `src/ui/PlayerView.tsx` (player sizing).
-
-### B-005 — Description always visible, clamped to N lines with expand
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** player
-- **Expected:** the video description is always visible up to a fixed number of lines;
-  a "show more" affordance expands it when it is longer.
-- **Code refs:** `src/ui/PlayerView.tsx` (description block); `src/ui/styles.css`
-  (line clamp).
-
 ### B-006 — Comments: read, add, reply; likes on videos and comments
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-11
@@ -151,17 +119,6 @@ Resolved entries add:
 - **Code refs:** `src/ui/FeedList.tsx` (row rendering + virtualization — grid changes
   the row model); `src/ui/styles.css`; persistence via the M5 settings surface
   (settings.json — not on the M4-based branch at time of writing).
-
-### B-008 — Sidebar channel list: sort by most recent video + unseen count
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell / feed
-- **What happens:** the left channel list is sorted alphabetically.
-- **Expected:** sorted by most recent video (channels with fresh content on top), with
-  the channel's unseen-video count shown next to it.
-- **Code refs:** `src/ui/Sidebar.tsx` (channel list); `src/adapters/storage/repositories.ts`
-  (channel listing query — needs latest-video ordering + unseen count);
-  `src/ipc/contract.ts` (channel DTO).
 
 ### B-009 — Search all of YouTube, not only synced content
 - **Type:** adjustment
@@ -190,48 +147,6 @@ Resolved entries add:
   `src/adapters/oauth/google-oauth.ts` (write scope).
 - **Notes:** unsubscribing writes to YouTube — needs the write scope path (D-032,
   [[B-015]]).
-
-### B-011 — Always sync on launch; expired connection shows a direct Reconnect button
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** sync / auth
-- **Expected:** every launch triggers a sync (launch refresh exists per D-016 — verify
-  it always fires). If the connection is expired, show a Reconnect button that goes
-  straight into the reconnect flow (Google login), not into the wizard. Same direct
-  flow as [[B-012]].
-- **Code refs:** `src/platform/main.ts` (startup validation + refresh timer wiring);
-  `src/core/sync-service.ts`; `src/ui/ConnectPanel.tsx` + `src/ui/App.tsx`
-  (auth-expired banner / reconnect button); `src/adapters/oauth/auth.ts` (login flow).
-
-### B-012 — Settings → Reconnect drops into wizard step 7
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** auth / onboarding
-- **What happens:** clicking Reconnect in Settings routes to the onboarding wizard at
-  step 7 (reconnection).
-- **Expected:** the button starts the Google login directly — no wizard detour.
-- **Code refs:** the M5 Settings view (not on the M4-based branch at time of writing);
-  `src/ui/onboarding/Wizard.tsx` (step-7 reconnect entry being bypassed);
-  `src/adapters/oauth/auth.ts` (direct login flow to call instead).
-
-### B-013 — Settings button gets a gear icon
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell
-- **Expected:** the Settings entry in the sidebar shows a gear icon.
-- **Code refs:** `src/ui/Sidebar.tsx` (Settings entry — a disabled placeholder on the
-  M4 base; the M5 Settings surface is the real target).
-
-### B-014 — Remove Electron toolbar; custom window controls in the layout
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** ui-shell
-- **What happens:** the app shows the default Electron/system toolbar.
-- **Expected:** frameless window; close and maximize buttons rendered as part of
-  Chronicle's own layout instead of the system chrome.
-- **Code refs:** `src/platform/main.ts` (`new BrowserWindow(...)` — `frame` /
-  `titleBarStyle` options); new window-controls component under `src/ui/`;
-  `src/ui/styles.css` (`-webkit-app-region` drag zones).
 
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor
@@ -266,6 +181,125 @@ Resolved entries add:
 *(none)*
 
 ## Resolved
+
+### B-014 — Remove Electron toolbar; custom window controls in the layout
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell
+- **What happens:** the app shows the default Electron/system toolbar.
+- **Expected:** frameless window; close and maximize buttons rendered as part of
+  Chronicle's own layout instead of the system chrome.
+- **Code refs:** `src/platform/main.ts` (`new BrowserWindow(...)` — `frame` /
+  `titleBarStyle` options); new window-controls component under `src/ui/`;
+  `src/ui/styles.css` (`-webkit-app-region` drag zones).
+- **Resolved:** 2026-07-11 · **Commit:** 983e6b5 · **Outcome:** Fixed
+- **Resolution:** `frame: false` (macOS keeps native traffic lights via
+  `titleBarStyle: 'hidden'`); a 34px drag-strip titlebar (`src/ui/Titlebar.tsx`) hosts
+  minimize / toggle-maximize / close through a validated `window:control` IPC channel.
+  **Needs live validation on niri/Wayland** (drag regions and client-side decorations
+  are the risky part).
+
+### B-012 — Settings → Reconnect drops into wizard step 7
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** auth / onboarding
+- **What happens:** clicking Reconnect in Settings routes to the onboarding wizard at
+  step 7 (reconnection).
+- **Expected:** the button starts the Google login directly — no wizard detour.
+- **Code refs:** the M5 Settings view (not on the M4-based branch at time of writing);
+  `src/ui/onboarding/Wizard.tsx` (step-7 reconnect entry being bypassed);
+  `src/adapters/oauth/auth.ts` (direct login flow to call instead).
+- **Resolved:** 2026-07-11 · **Commit:** 16da3e8 · **Outcome:** Fixed
+- **Resolution:** Settings → Reconnect now calls the direct Google login (`connect`),
+  bypassing the wizard. This amends the M5 re-entry design ("Reconnect→7") —
+  `onboarding.md` §Re-entry points updated in the same change; step 7 stays reachable
+  through wizard failure routing.
+
+### B-011 — Always sync on launch; expired connection shows a direct Reconnect button
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** sync / auth
+- **Expected:** every launch triggers a sync (launch refresh exists per D-016 — verify
+  it always fires). If the connection is expired, show a Reconnect button that goes
+  straight into the reconnect flow (Google login), not into the wizard. Same direct
+  flow as [[B-012]].
+- **Code refs:** `src/platform/main.ts` (startup validation + refresh timer wiring);
+  `src/core/sync-service.ts`; `src/ui/ConnectPanel.tsx` + `src/ui/App.tsx`
+  (auth-expired banner / reconnect button); `src/adapters/oauth/auth.ts` (login flow).
+- **Resolved:** 2026-07-11 · **Commit:** 16da3e8 · **Outcome:** Fixed
+- **Resolution:** the launch refresh had a 10-minute staleness guard — removed, so
+  every launch syncs (RSS conditional GETs make a no-change pass ~0 quota;
+  `youtube-api.md` §Refresh policy updated). The auth-expired banner already ran the
+  direct login; no change needed there.
+
+### B-008 — Sidebar channel list: sort by most recent video + unseen count
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell / feed
+- **What happens:** the left channel list is sorted alphabetically.
+- **Expected:** sorted by most recent video (channels with fresh content on top), with
+  the channel's unseen-video count shown next to it.
+- **Code refs:** `src/ui/Sidebar.tsx` (channel list); `src/adapters/storage/repositories.ts`
+  (channel listing query — needs latest-video ordering + unseen count);
+  `src/ipc/contract.ts` (channel DTO).
+- **Resolved:** 2026-07-11 · **Commit:** 708c286 · **Outcome:** Fixed
+- **Resolution:** `listFollowedChannels` returns `FollowedChannel` (latest non-Short
+  `published_at` + unread count mirroring the unread view predicate), freshest-first
+  with empty channels last; sidebar shows the count badge. Covered by a repository
+  test.
+
+### B-005 — Description always visible, clamped to N lines with expand
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** player
+- **Expected:** the video description is always visible up to a fixed number of lines;
+  a "show more" affordance expands it when it is longer.
+- **Code refs:** `src/ui/PlayerView.tsx` (description block); `src/ui/styles.css`
+  (line clamp).
+- **Resolved:** 2026-07-11 · **Commit:** b857f40 · **Outcome:** Fixed
+- **Resolution:** description renders clamped to 5 lines by default; Show more / Show
+  less appears only when the text actually overflows the clamp.
+
+### B-004 — Content should fill the available screen; player always theater-width
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell / player
+- **What happens:** the usable area is not well optimized; content doesn't occupy the
+  available width.
+- **Expected:** main content stretches to the available area. The video player always
+  renders in the equivalent of theater mode, taking the full horizontal width.
+- **Code refs:** `src/ui/styles.css` (shell/layout widths); `src/ui/App.tsx` (shell
+  structure); `src/ui/PlayerView.tsx` (player sizing).
+- **Resolved:** 2026-07-11 · **Commit:** 4ac18c4 · **Outcome:** Fixed
+- **Resolution:** dropped the 900px feed column cap and the 1080px player caps; the
+  stage spans full width with a viewport height cap (YouTube letterboxes inside the
+  iframe on wide/short windows — theater behavior).
+
+### B-013 — Settings button gets a gear icon
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** ui-shell
+- **Expected:** the Settings entry in the sidebar shows a gear icon.
+- **Code refs:** `src/ui/Sidebar.tsx` (Settings entry — a disabled placeholder on the
+  M4 base; the M5 Settings surface is the real target).
+- **Resolved:** 2026-07-11 · **Commit:** 10e0a1c · **Outcome:** Fixed
+- **Resolution:** ⚙ glyph in the entry's key slot, matching the app's text-glyph
+  iconography.
+
+### B-001 — Back button inside the player view
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** player
+- **What happens:** while watching a video there is no visible control to return to the
+  previous screen.
+- **Expected:** a Back button in the player view that pops the navigation stack (the
+  stack already exists per D-029; this is about making it visible/clickable, not only
+  keyboard-driven).
+- **Code refs:** `src/ui/PlayerView.tsx` (player chrome); `src/ui/App.tsx`
+  (`playerStack` / `closePlayer` — the pop already exists, wire a visible button to it).
+- **Resolved:** 2026-07-11 · **Commit:** bcc706b · **Outcome:** Fixed
+- **Resolution:** topbar above the stage with a Back button on the same `onClose` path
+  as Esc; label reflects stack depth like the end-overlay button.
 
 ### B-016 — Theme mode setting: dark, light, and auto (system default)
 - **Type:** adjustment
