@@ -242,6 +242,26 @@ Resolved entries add:
   trigger (launch / timer / manual). An alternative or complement: re-list on every
   launch-triggered sync (a few units/day at worst), keeping the timer syncs gated.
 
+### B-022 — Delete all data: app relaunches into a frozen screen instead of a clean state
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / storage
+- **What happens:** Settings → delete all data wipes and restarts the app, but the
+  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
+  install.
+- **Expected:** after the wipe the app comes back in its clean first-run state. Today
+  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
+  so the post-wipe landing should be whatever "fresh start without an account" becomes
+  once B-003 lands — design the fix so the landing screen is the normal first-run
+  entrypoint, not a hardcoded wizard jump.
+- **Code refs:** `src/platform/main.ts` (`data:deleteAll` handler — `app.relaunch()` +
+  `app.exit(0)` after removing DB/settings/secrets/cache); `src/ui/onboarding/`
+  (first-run detection); check startup connection validation (D-012) against the
+  wiped-state path.
+- **Notes:** hypotheses: relaunch racing the exit; startup code assuming a DB/settings
+  file exists and hanging when none does; or dev-mode `app.relaunch()` not reproducing
+  the packaged behavior. Reproduce first, then pick.
+
 ## In progress
 
 *(none)*
