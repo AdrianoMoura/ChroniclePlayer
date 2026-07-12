@@ -176,6 +176,17 @@ Resolved entries add:
 - **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
   to infrastructure-now, strings-later. Wizard copy is the biggest surface.
 
+### B-018 — Settings gear icon is too small
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the ⚙ gear glyph on the Settings sidebar entry renders too small.
+- **Expected:** the gear reads at a glance, sized consistently with the sidebar's other
+  key-slot glyphs.
+- **Code refs:** `src/ui/Sidebar.tsx` (Settings entry key slot); `src/ui/styles.css`
+  (sidebar key-slot sizing).
+- **Notes:** follow-up to [[B-013]], which introduced the glyph.
+
 ## In progress
 
 *(none)*
