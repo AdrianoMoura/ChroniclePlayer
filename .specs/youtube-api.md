@@ -91,10 +91,16 @@ video (bounded backfill; see `feed.md` §Backfill).
   200 channels) to capture the uploads playlist ID (`UC…` → `UU…` is a stable convention,
   but we fetch rather than assume — **Assumption to verify:** the string transform is
   reliable; if verified, `channels.list` here becomes optional).
-- Re-sync (manual "Refresh subscriptions" + automatic weekly): re-list and diff — new
-  channels are added (with initial backfill), removed channels are marked `unsubscribed`
-  locally but **their videos and local states are retained** (data ownership; the user
-  can purge via settings). (Final)
+- Re-sync: re-listed and diffed on **every sync** (launch/manual/timer alike, no gate) —
+  new channels are added (with initial backfill) and show up on the very next sync,
+  removed channels are marked `unsubscribed` locally but **their videos and local states
+  are retained** (data ownership; the user can purge via settings). At ~230 subs this
+  costs ~5 units/run; even at the fastest 15-minute background interval that's under 500
+  units/day — cheap enough that gating it (an earlier version of this spec had a manual
+  "Refresh subscriptions" action plus a weekly automatic re-list) only added friction for
+  no real saving. **Amended 2026-07-12** at the product owner's direction: prioritize a
+  frictionless, simple experience over conserving quota headroom that isn't actually
+  scarce — deal with quota as a real constraint only if it becomes one. (Final)
 - Chronicle **never writes** subscriptions to YouTube (readonly scope, D-003).
 
 ## Refresh policy (Final in shape; parameters Pending D-016)

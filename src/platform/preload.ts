@@ -11,13 +11,18 @@ import {
   type WizardStateDto
 } from '../ipc/contract'
 
+// niri sets this for its own IPC; sway/i3 take the same "minimize is
+// incompatible with tiling" stance but don't expose an equivalent marker
+// we can check cheaply, so this only covers the compositor actually
+// reported broken (B-026).
+const minimizeSupported = process.env['NIRI_SOCKET'] === undefined
+
 const api: ChronicleApi = {
   getFeed: (view: FeedViewDto, cursor: FeedCursorDto | null, channelId?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getFeed, view, cursor, channelId ?? null),
   getFeedMeta: () => ipcRenderer.invoke(IpcChannel.getFeedMeta),
   getChannels: () => ipcRenderer.invoke(IpcChannel.getChannels),
   refreshFeed: () => ipcRenderer.invoke(IpcChannel.refreshFeed),
-  refreshSubscriptions: () => ipcRenderer.invoke(IpcChannel.refreshSubscriptions),
   setReadStatus: (videoId: string, status: ReadStatusDto) =>
     ipcRenderer.invoke(IpcChannel.setReadStatus, videoId, status),
   markAllRead: (channelId: string | null) => ipcRenderer.invoke(IpcChannel.markAllRead, channelId),
@@ -39,6 +44,7 @@ const api: ChronicleApi = {
   windowControl: (action: WindowControlDto) =>
     ipcRenderer.invoke(IpcChannel.windowControl, action),
   platform: process.platform,
+  minimizeSupported,
   deleteAllData: () => ipcRenderer.invoke(IpcChannel.deleteAllData),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)

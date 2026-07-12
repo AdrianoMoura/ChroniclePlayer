@@ -28,25 +28,6 @@ export function SettingsView({
 }: SettingsViewProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const confirmTimer = useRef<number | null>(null)
-  const [refreshingSubs, setRefreshingSubs] = useState(false)
-
-  // B-021: bypasses the weekly re-list gate — user-initiated, so new
-  // channels don't wait up to a week to show up.
-  async function refreshSubscriptions(): Promise<void> {
-    setRefreshingSubs(true)
-    const result = await window.chronicle.refreshSubscriptions()
-    setRefreshingSubs(false)
-    if (result.ok) {
-      const diff = result.value.subscriptions
-      onBanner(
-        diff !== null
-          ? `Subscriptions refreshed — ${diff.added} added, ${diff.removed} removed.`
-          : 'Subscriptions refreshed.'
-      )
-    } else if (result.errorKind !== 'busy') {
-      onBanner(`Refresh failed: ${result.message}`)
-    }
-  }
 
   const set = <K extends keyof SettingsDto>(key: K, value: SettingsDto[K]): void =>
     onSettingsChange({ ...settings, [key]: value })
@@ -137,18 +118,8 @@ export function SettingsView({
           </select>
         </label>
         <p className="settings-line dim">
-          Discovery uses free RSS; a typical refresh costs single-digit units of your
-          10,000/day API quota.
-        </p>
-        <div className="settings-actions">
-          <button className="primary" disabled={refreshingSubs} onClick={() => void refreshSubscriptions()}>
-            {refreshingSubs ? 'Refreshing…' : 'Refresh subscriptions'}
-          </button>
-        </div>
-        <p className="settings-line dim">
-          New subscriptions are picked up automatically within a week. Use this to see them
-          right away — it re-lists your subscriptions (a few units) and backfills any new
-          channel.
+          Every refresh also re-checks your subscription list, so a new subscription shows
+          up on the very next sync — nothing to do here.
         </p>
       </section>
 

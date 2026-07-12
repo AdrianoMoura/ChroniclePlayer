@@ -22,7 +22,7 @@ import { FeedService, type FeedSlice } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { QuotaCounter, type Clock } from '../core/ports'
-import { SyncService, type RefreshOptions, type SyncReport, type SyncTrigger } from '../core/sync-service'
+import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
@@ -264,10 +264,7 @@ void app.whenReady().then(() => {
   }
 
   let refreshing = false
-  async function runRefresh(
-    trigger: SyncTrigger,
-    options: RefreshOptions = {}
-  ): Promise<ResultDto<SyncReportDto>> {
+  async function runRefresh(trigger: SyncTrigger): Promise<ResultDto<SyncReportDto>> {
     if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
     if (!authFlow.hasRefreshToken()) {
       return { ok: false, errorKind: 'auth-expired', message: 'not connected to Google' }
@@ -275,7 +272,7 @@ void app.whenReady().then(() => {
     refreshing = true
     broadcast({ type: 'refresh:started', trigger })
     try {
-      const report = await syncService.refresh(trigger, options)
+      const report = await syncService.refresh(trigger)
       // B-020: on an account's very first subscription sync, videos already
       // published before today start read — the user opens onto "what's
       // new", not an unclearable backlog. Runs before refresh:done so the
@@ -348,9 +345,6 @@ void app.whenReady().then(() => {
     }))
   )
   ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
-  ipcMain.handle(IpcChannel.refreshSubscriptions, () =>
-    runRefresh('manual', { forceSubscriptions: true })
-  )
   ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
     const target = BrowserWindow.fromWebContents(event.sender)
     if (target === null) return

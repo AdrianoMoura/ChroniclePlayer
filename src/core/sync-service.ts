@@ -32,8 +32,8 @@ export interface SyncReport {
   videosNew: number
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
-  // Filled when this run actually re-listed subscriptions (weekly gate or
-  // the forced path, B-021); null when the gate skipped it.
+  // The subscription-list diff for this run (B-021: every sync re-lists —
+  // no gate, no separate manual action; new channels never wait).
   subscriptions: { added: number; removed: number } | null
   // True the very first time this account ever synced subscriptions
   // (B-020: drives the connect-time backlog auto-read — the composition
@@ -41,17 +41,10 @@ export interface SyncReport {
   firstSync: boolean
 }
 
-export interface RefreshOptions {
-  // Bypasses the weekly re-list gate (B-021, youtube-api.md §Subscription
-  // import & sync — user-initiated "Refresh subscriptions").
-  forceSubscriptions?: boolean
-}
-
 const RSS_CONCURRENCY = 8 // youtube-api.md politeness rule
 const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle
-const SUBSCRIPTION_RESYNC_MS = 7 * 24 * 3_600_000 // automatic weekly re-list
 const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
 
 interface SyncDeps {
@@ -71,7 +64,7 @@ interface RefreshContext {
 export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
-  async refresh(trigger: SyncTrigger, options: RefreshOptions = {}): Promise<SyncReport> {
+  async refresh(trigger: SyncTrigger): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
     const quotaBefore = quota.spent
@@ -84,7 +77,7 @@ export class SyncService {
 
     try {
       try {
-        subscriptions = await this.syncSubscriptionsIfDue(options.forceSubscriptions ?? false)
+        subscriptions = await this.syncSubscriptions()
       } catch (error) {
         if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
         else if (isDomainError(error, 'auth-expired')) throw error
@@ -206,20 +199,15 @@ export class SyncService {
     return report
   }
 
-  // Initial import (first refresh), the automatic weekly re-list, or a
-  // user-initiated force (B-021 — bypasses the gate; new channels still get
-  // their normal initial backfill) (youtube-api.md §Subscription import &
-  // sync). Returns the diff when it actually ran, null when the gate
-  // skipped it.
-  private async syncSubscriptionsIfDue(
-    force: boolean
-  ): Promise<{ added: number; removed: number } | null> {
+  // Re-lists subscriptions on every sync (B-021 — no gate, no separate
+  // manual action: a new subscription shows up on the very next sync,
+  // launch/manual/timer alike). Cost is a few units per run
+  // (subscriptions.list, 1 unit per 50) — cheap enough at any reasonable
+  // refresh interval that gating it added friction for no real saving
+  // (youtube-api.md §Subscription import & sync).
+  private async syncSubscriptions(): Promise<{ added: number; removed: number }> {
     const { repo, subscriptions, clock } = this.deps
-    const last = repo.getMeta(META_SUBSCRIPTIONS_SYNCED_AT)
     const now = clock.now()
-    if (!force && last !== null && now.getTime() - Date.parse(last) < SUBSCRIPTION_RESYNC_MS) {
-      return null
-    }
 
     const current = await subscriptions.listSubscriptions()
     const diff = repo.applySubscriptions(current, now.toISOString())

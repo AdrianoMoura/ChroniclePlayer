@@ -205,35 +205,18 @@ describe('SyncService.refresh', () => {
 
   it('is not a firstSync once subscriptions have synced before (B-020)', async () => {
     const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago, within the gate
+    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // synced before
     const report = await service(repo, fakeVideoSource()).refresh('timer')
     expect(report.firstSync).toBe(false)
   })
 
-  it('skips subscription re-sync when the last one is recent', async () => {
+  it('re-lists subscriptions on every sync, regardless of trigger or recency (B-021 — no gate)', async () => {
     const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago
-    const report = await service(repo, fakeVideoSource()).refresh('timer')
-    expect(repo.appliedSubscriptions).toHaveLength(0)
-    expect(report.subscriptions).toBeNull()
-  })
-
-  it('forceSubscriptions bypasses the weekly gate (B-021)', async () => {
-    const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-10T12:00:00Z') // 1 day ago — normally gated
+    repo.setMeta('subscriptions_synced_at', '2026-07-11T11:59:00Z') // 1 minute ago
     const subs = fakeSubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }])
-    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('manual', {
-      forceSubscriptions: true
-    })
+    const report = await service(repo, fakeVideoSource(), { subscriptions: subs }).refresh('timer')
     expect(repo.appliedSubscriptions).toHaveLength(1)
     expect(report.subscriptions).toEqual({ added: 1, removed: 0 })
-  })
-
-  it('re-syncs subscriptions after a week', async () => {
-    const repo = new FakeRepo()
-    repo.setMeta('subscriptions_synced_at', '2026-07-01T12:00:00Z') // 10 days ago
-    await service(repo, fakeVideoSource()).refresh('timer')
-    expect(repo.appliedSubscriptions).toHaveLength(1)
   })
 
   it('discovers only genuinely new videos and hydrates them in 50-id batches', async () => {

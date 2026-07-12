@@ -8,12 +8,14 @@ export function Titlebar() {
       <span className="titlebar-title">Chronicle</span>
       {showControls && (
         <div className="titlebar-controls">
-          <button
-            title="Minimize"
-            onClick={() => void window.chronicle.windowControl('minimize')}
-          >
-            ─
-          </button>
+          {window.chronicle.minimizeSupported && (
+            <button
+              title="Minimize"
+              onClick={() => void window.chronicle.windowControl('minimize')}
+            >
+              ─
+            </button>
+          )}
           <button
             title="Maximize / restore"
             onClick={() => void window.chronicle.windowControl('toggle-maximize')}

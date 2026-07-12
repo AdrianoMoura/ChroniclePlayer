@@ -182,6 +182,35 @@ Resolved entries add:
 
 ## Resolved
 
+### B-026 — Minimize button is broken on niri (Wayland)
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** clicking the custom titlebar's Minimize button (B-014) does not
+  work correctly on the product owner's system (niri, a scrolling-tiling Wayland
+  compositor).
+- **Expected:** either minimize works, or the control isn't offered where it can't.
+- **Code refs:** `src/platform/preload.ts` (`minimizeSupported`); `src/ipc/contract.ts`
+  (`ChronicleApi.minimizeSupported`); `src/ui/Titlebar.tsx` (conditional render).
+- **Notes:** scrolling/tiling Wayland compositors (niri, and by the same documented
+  design stance sway/i3) don't implement window minimization — there's no "iconified"
+  state in a model built around columns/workspaces rather than a taskbar, so an
+  `xdg_toplevel.set_minimized` request there is at best a silent no-op and at worst
+  leaves the window in a state the user can't get back from (matches "quebra" — it
+  doesn't just fail quietly). Native GTK/Qt apps solve this by querying the
+  compositor's `xdg_toplevel.wm_capabilities` (part of newer xdg-shell versions) and
+  hiding controls it doesn't support; Electron does not expose that capability query
+  to app code, so a real capability check isn't available here. This mirrors why B-014's
+  own resolution already flagged niri/Wayland as the risky surface for this app's
+  frameless shell.
+- **Resolved:** 2026-07-12 · **Commit:** (pending — implemented same session as the
+  B-021 revision above) · **Outcome:** Fixed
+- **Resolution:** best-effort, not a real capability check: `preload.ts` detects niri
+  via the `NIRI_SOCKET` env var it sets for its own IPC, and `Titlebar.tsx` hides the
+  Minimize button when set (Maximize/restore and Close are unaffected — both are
+  meaningful even in niri's scrolling model). **Needs live validation** on the product
+  owner's system — this session has no display to exercise it against.
+
 ### B-018 — Settings gear icon is too small
 - **Type:** adjustment
 - **Status:** Fixed · **Reported:** 2026-07-12
@@ -247,24 +276,25 @@ Resolved entries add:
   refresh does not help: it goes through the same weekly gate. The manual "Refresh
   subscriptions" action specced in `youtube-api.md` §Subscription import & sync was
   never implemented.
-- **Expected:** a user-initiated "Refresh subscriptions" action (Settings and/or feed
-  refresh affordance) that bypasses the weekly gate and re-lists immediately; new
-  channels get their normal initial backfill. Cost per run at ~230 subs: ~5 units
-  (`subscriptions.list`, 1 unit per 50) plus `channels.list` for new channels only —
-  fine for a user-initiated action, which is why the periodic gate stays weekly.
-- **Code refs:** `src/core/sync-service.ts` (`syncSubscriptionsIfDue` now takes
-  `force`; `SyncService.refresh` takes `RefreshOptions.forceSubscriptions`);
-  `src/ipc/contract.ts` (`subscriptions:refresh`); `src/platform/main.ts`
-  (`IpcChannel.refreshSubscriptions` handler); `src/ui/SettingsView.tsx` (Sync section
-  "Refresh subscriptions" button, reports added/removed).
+- **Expected:** subscriptions are re-listed on every sync — no gate, no separate manual
+  action, so a new channel shows up on the very next sync (launch, manual, or timer
+  alike). Cost per run at ~230 subs: ~5 units (`subscriptions.list`, 1 unit per 50) —
+  cheap enough at any reasonable refresh interval to just always do it.
+- **Code refs:** `src/core/sync-service.ts` (`syncSubscriptions`, called
+  unconditionally from `refresh` — no more `syncSubscriptionsIfDue` gate);
+  `src/ui/SettingsView.tsx` (Sync section copy only, no button/action).
 - **Notes:** verified 2026-07-12 by code inspection: `syncSubscriptionsIfDue` returned
   early unless 7 days had passed since `subscriptions_synced_at`, regardless of
-  trigger. Implemented exactly per the spec's existing "manual Refresh subscriptions"
-  design (`youtube-api.md` §Subscription import & sync already described this as
-  Final — no spec change needed, only the implementation was missing). The periodic
-  (launch/timer) gate is untouched — still weekly.
-- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
-- **Resolution:** as described above.
+  trigger. **First iteration** added a gated weekly re-list plus a manual "Refresh
+  subscriptions" button (per the then-current `youtube-api.md` text) — the **product
+  owner rejected that as friction** ("não gostei de ter uma opção separada... precisa
+  ser automática junto com qualquer sync") and separately said not to over-index on
+  quota conservatism ("vc tá se prendendo mto a regra de limitar uso de API... eu
+  preciso que a ferramenta seja simples"). Revised same day to always re-list on every
+  sync, gate and button both removed; `youtube-api.md` §Subscription import & sync
+  updated to match and records the rationale.
+- **Resolved:** 2026-07-12 · **Commit:** 877a30d, amended same day (see note above) ·
+  **Outcome:** Fixed
 
 ### B-022 — Delete all data: app relaunches into a frozen screen instead of a clean state
 - **Type:** bug · **Severity:** major

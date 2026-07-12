@@ -140,7 +140,6 @@ export const IpcChannel = {
   getFeedMeta: 'feed:meta',
   getChannels: 'feed:channels',
   refreshFeed: 'feed:refresh',
-  refreshSubscriptions: 'subscriptions:refresh',
   setReadStatus: 'state:setReadStatus',
   markAllRead: 'state:markAllRead',
   toggleFavorite: 'state:toggleFavorite',
@@ -176,9 +175,6 @@ export interface ChronicleApi {
   getFeedMeta(): Promise<FeedMetaDto>
   getChannels(): Promise<ChannelDto[]>
   refreshFeed(): Promise<ResultDto<SyncReportDto>>
-  // User-initiated subscription re-list that bypasses the weekly gate
-  // (B-021) — a full refresh, so new channels get their initial backfill.
-  refreshSubscriptions(): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
   // Bulk unread → read over the feed or one channel (B-020, D-010
   // semantics). Returns how many videos changed.
@@ -207,6 +203,12 @@ export interface ChronicleApi {
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>
   platform: string
+  // Best-effort (Electron doesn't expose the Wayland compositor's
+  // xdg_toplevel wm_capabilities, which is how native GTK/Qt apps know to
+  // hide controls the compositor won't honor): false hides the Minimize
+  // button on compositors known not to support it — scrolling/tiling ones
+  // like niri, by the same design stance as sway/i3.
+  minimizeSupported: boolean
   // Writes the documented JSON export (FORMAT.md) where the user chooses.
   exportData(): Promise<ResultDto<{ path: string; videos: number; states: number }>>
   // Removes the database, secrets and caches, then relaunches (local-data.md
