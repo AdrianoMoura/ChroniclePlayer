@@ -234,7 +234,7 @@ Resolved entries add:
   width) — this adds a third state (hidden) on top of both. No UI component tests exist
   in this repo; verified via `npm run typecheck && npm run lint && npm test` — no
   live-app check per this session's workflow, owner validates live.
-- **Resolved:** 2026-07-12 · **Commit:** (pending — same session as B-038 below) ·
+- **Resolved:** 2026-07-12 · **Commit:** 6e6f674 ·
   **Outcome:** Fixed
 
 ### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
@@ -256,7 +256,7 @@ Resolved entries add:
   `onReady` was the originally-suspected gap. **Needs live verification** (owner to
   confirm quality actually sticks across a real video) — per
   [[no-live-app-verification]] this isn't tested by running the app here.
-- **Resolved:** 2026-07-12 · **Commit:** (pending — same session as B-037 above) ·
+- **Resolved:** 2026-07-12 · **Commit:** 6e6f674 ·
   **Outcome:** Fixed
 
 ### B-007 — List vs. grid view toggle, persisted
