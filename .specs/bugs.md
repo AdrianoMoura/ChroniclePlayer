@@ -52,38 +52,23 @@ Resolved entries add:
 
 ## Open
 
-### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
+### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
 - **Area:** player
-- **What happens:** the embedded player appears to settle on 1080p even when a video
-  has higher-resolution renditions (1440p/4K) available; quality is not forced.
-- **Expected:** on load, the player should request the highest quality YouTube offers
-  for that video, not rely on the iframe's own default selection (which favors
-  bandwidth/viewport heuristics over "best available").
-- **Code refs:** `src/ui/PlayerView.tsx` (widget protocol `command()` helper +
-  `announce()`/`onReady` handling — call `setPlaybackQuality('highres')` or use
-  `suggestedQuality`/`vq` once the widget reports ready; also check `onPlaybackQualityChange`
-  to confirm it stuck, since YouTube can still downgrade for buffering).
-- **Notes:** YouTube's IFrame API only takes a suggested quality, not a hard guarantee
-  — confirm behavior empirically (owner to verify live, per
-  [[no-live-app-verification]] this isn't tested by running the app here).
-
-### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / player
-- **What happens:** the sidebar has no collapse control; it stays at fixed width on
-  every screen, including the player, where it eats into video width.
-- **Expected:** a hamburger icon toggles the sidebar collapsed/expanded. Default is
-  expanded on every screen. Entering the player view auto-collapses it (more room for
-  the video); leaving the player restores the previous state. When collapsed, the
-  sidebar fully disappears (width 0) rather than shrinking to an icon rail.
-- **Code refs:** `src/ui/Sidebar.tsx` (collapse state, hamburger control);
-  `src/ui/App.tsx` (shell layout, player-enter/exit hook to drive auto-collapse);
-  `src/ui/styles.css` (collapsed = 0 width, not a narrow rail).
-- **Notes:** related to [[B-004]] (player always full width) and [[B-019]] (sidebar
-  width) — this adds a third state (hidden) on top of both.
+- **What happens:** many mice have a dedicated back/side button (browsers bind it to
+  history-back); Chronicle doesn't listen for it, so it does nothing in the player.
+- **Expected:** pressing the mouse back button while in the player closes the player
+  and returns to the previous screen — the same action as pressing Esc or clicking the
+  visible Back button ([[B-001]]).
+- **Code refs:** `src/ui/PlayerView.tsx` (the `Escape` case in the keydown handler
+  around the `onClose()` call — add a `mouseup`/`pointerup` listener checking
+  `event.button === 3` for the browser's back mouse button, calling the same
+  `onClose`).
+- **Notes:** browsers also fire an `auxclick`/`mouseup` with `button === 3` for
+  XButton1; some mice map this to a "Backward" "navigate back" browser gesture instead
+  of a plain button event — verify empirically which fires in Electron/Chromium
+  (owner to verify live, per [[no-live-app-verification]]).
 
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
@@ -185,7 +170,13 @@ Resolved entries add:
   publish copy); `docs/setup.md`; `src/adapters/oauth/google-oauth.ts` (scope list —
   incremental consent lands here); grep `read-only` / `readonly` across `src/ui/` and
   docs for the full surface.
-- **Notes:** umbrella for the write-action items [[B-006]] and [[B-010]].
+- **Notes:** umbrella for the write-action items [[B-006]] and [[B-010]]. **Left
+  untouched in the 2026-07-12 small-adjustments batch on purpose:** today the app has
+  zero real YouTube writes (subscribe/unsubscribe/comment/like are all still Open, in
+  [[B-006]]/[[B-009]]/[[B-010]]) — only local-only state (favorite, watch later, read
+  status). So the "read-only" copy is currently *accurate*; rewriting it now would have
+  the UI claim capabilities that don't exist yet. Fix the copy in the same change that
+  lands B-006/B-010 (or B-009's subscribe path), not before.
 
 ### B-017 — Multi-language support via lang files (English only for now)
 - **Type:** adjustment
@@ -239,6 +230,52 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-037 — Collapsible sidebar: hamburger toggle, default open, auto-collapse in player
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / player
+- **What happens:** the sidebar had no collapse control; it stayed at fixed width on
+  every screen, including the player, where it ate into video width.
+- **Expected:** a hamburger icon toggles the sidebar collapsed/expanded. Default is
+  expanded on every screen. Entering the player view auto-collapses it (more room for
+  the video); leaving the player restores the previous state. When collapsed, the
+  sidebar fully disappears (width 0) rather than shrinking to an icon rail.
+- **Code refs:** `src/ui/Sidebar.tsx` (`sidebar-header` hamburger button, `onToggleCollapse`
+  prop); `src/ui/App.tsx` (`sidebarCollapsed` state, `toggleSidebar`, the `playerOpen`
+  effect that auto-collapses on entry and restores the pre-player state via
+  `sidebarBeforePlayerRef` on exit); `src/ui/styles.css` (`.sidebar-header`,
+  `.sidebar-toggle`/`.sidebar-expand` — collapsed renders no `<aside>` at all, so there
+  is no icon rail; a small floating `.sidebar-expand` button anchored to `.app`, now
+  `position: relative`, is the only persistent control while collapsed).
+- **Notes:** related to [[B-004]] (player always full width) and [[B-019]] (sidebar
+  width) — this adds a third state (hidden) on top of both. No UI component tests exist
+  in this repo; verified via `npm run typecheck && npm run lint && npm test` — no
+  live-app check per this session's workflow, owner validates live.
+- **Resolved:** 2026-07-12 · **Commit:** 6e6f674 ·
+  **Outcome:** Fixed
+
+### B-038 — Player should default to the highest available quality (e.g. 1440p), not cap at 1080p
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** the embedded player appeared to settle on 1080p even when a video
+  has higher-resolution renditions (1440p/4K) available; quality was not forced.
+- **Expected:** on load, the player should request the highest quality YouTube offers
+  for that video, not rely on the iframe's own default selection (which favors
+  bandwidth/viewport heuristics over "best available").
+- **Code refs:** `src/ui/PlayerView.tsx` (`announce()` now sends `setPlaybackQuality`
+  with `'highres'` right after the `listening` handshake; the `onStateChange` handler
+  re-issues the same command when state becomes `1` (playing), the widget protocol's
+  `onMessage` effect now depends on `command`).
+- **Notes:** YouTube's IFrame API only takes a suggested quality, not a hard guarantee
+  — the re-issue on playback start is a best-effort hedge against YouTube resetting to
+  a bandwidth heuristic once the stream actually begins, since a single call right after
+  `onReady` was the originally-suspected gap. **Needs live verification** (owner to
+  confirm quality actually sticks across a real video) — per
+  [[no-live-app-verification]] this isn't tested by running the app here.
+- **Resolved:** 2026-07-12 · **Commit:** 6e6f674 ·
+  **Outcome:** Fixed
 
 ### B-007 — List vs. grid view toggle + item-size control, inline in the listing
 - **Type:** adjustment
