@@ -44,6 +44,7 @@ Confirmed by the product owner (2026-07-10, decision session):
 | D-018 | Show view counts on feed rows = **on by default**, with a Settings toggle to hide. Supersedes the "hidden by default" choice exercised in M5 — the product owner reported the default as friction (B-029): the data costs no extra quota (captured at hydration) and is normal context on a video row. | `feed.md` |
 | D-023 | Muted-thumbnail treatment = **rejected; thumbnails render at normal (full) opacity always**. The M3 prototype (dimmed at rest, full opacity on hover/selection) was reported as an unwanted default (B-034) and dropped rather than kept. | `ui.md` |
 | D-035 | **Shorts are shown in the feed, tagged with a badge, with a "Show Shorts" Settings toggle (default on) to hide them.** Supersedes D-028's unconditional exclusion (2026-07-12, B-028) — the product owner argued unconditional exclusion contradicted the app's own "agency, not austerity" test: the feed only shows content from channels the user chose to follow, so filtering some of it without consent is the algorithm's will in miniature. Detection pipeline (duration candidate + `/shorts/{id}` HEAD confirmation) is untouched; only the display policy reversed. | `feed.md`, `non-goals.md`, `features.md` |
+| D-037 | **List vs. grid feed layout, persisted setting (default list).** Supersedes the "one column; no masonry/grid" clause of the original Layout decision (2026-07-12, B-007) — the product owner argued a thumbnail grid is a personal layout preference, not an engagement mechanic, so the "who is driving?" test does not ban it. Grid is opt-in via Settings → Appearance; list rows, virtualization, row density (D-022) and all per-video actions are unchanged and shared between both layouts (`FeedList.tsx`). Column count is derived from the feed container's width (`ResizeObserver`, ~220px min card width), not hardcoded. | `ui.md` |
 | D-034 | **M0 toolchain** (2026-07-11): **npm** as package manager (explicit product-owner choice — no pnpm), **electron-vite** (dev/build for main+preload+renderer), **node:sqlite** (Node's built-in synchronous SQLite driver), **Vitest** (unit tests), **ESLint + Prettier**, **dependency-cruiser** enforcing the architecture.md layer rules as lint errors. (Amended same day by product owner: standalone GitHub Actions CI removed from M0 — a single smarter pipeline with releases + automatic binary builds will be designed later, see `roadmap.md` M5. Amended in M1: better-sqlite3 replaced by node:sqlite — no native module, no Electron ABI rebuild, and storage contract tests run under the system Node in Vitest; stable in Electron's Node 24, experimental-but-functional in system Node 22.) All replaceable without touching `core/`/`ipc/`. | `architecture.md`, `roadmap.md` |
 
 ## Pending decisions
@@ -82,7 +83,7 @@ Ordered by how urgently they block work (see `roadmap.md`).
 
 ## How to add an entry
 
-Next free ID: **D-036**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-038**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.

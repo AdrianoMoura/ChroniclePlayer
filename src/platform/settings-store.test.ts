@@ -20,6 +20,7 @@ describe('settings store', () => {
     const custom = {
       theme: 'light',
       density: 'compact',
+      layout: 'grid',
       refreshMinutes: 15,
       showViewCounts: true,
       showShorts: false
@@ -39,6 +40,7 @@ describe('settings store', () => {
       normalizeSettings({
         theme: 'light',
         density: 'huge',
+        layout: 'masonry',
         refreshMinutes: -5,
         showViewCounts: true,
         showShorts: false
@@ -46,6 +48,7 @@ describe('settings store', () => {
     ).toEqual({
       theme: 'light',
       density: 'comfortable',
+      layout: 'list',
       refreshMinutes: 30,
       showViewCounts: true,
       showShorts: false

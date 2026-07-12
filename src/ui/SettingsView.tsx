@@ -147,6 +147,16 @@ export function SettingsView({
           </select>
         </label>
         <label className="settings-row">
+          <span>Feed layout</span>
+          <select
+            value={settings.layout}
+            onChange={(event) => set('layout', event.target.value as SettingsDto['layout'])}
+          >
+            <option value="list">List</option>
+            <option value="grid">Grid</option>
+          </select>
+        </label>
+        <label className="settings-row">
           <span>Show view counts</span>
           <input
             type="checkbox"

@@ -8,6 +8,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 export interface AppSettings {
   theme: 'system' | 'dark' | 'light'
   density: 'comfortable' | 'compact'
+  // B-007: list rows vs. a thumbnail grid, same data either way.
+  layout: 'list' | 'grid'
   // Background refresh interval (D-016). 0 = manual only.
   refreshMinutes: number
   // B-029: shown by default (revisits D-018's "hidden by default").
@@ -20,6 +22,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   density: 'comfortable',
+  layout: 'list',
   refreshMinutes: 30,
   showViewCounts: true,
   showShorts: true
@@ -30,12 +33,14 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const theme = source['theme']
   const density = source['density']
+  const layout = source['layout']
   const refresh = source['refreshMinutes']
   const views = source['showViewCounts']
   const shorts = source['showShorts']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' || density === 'comfortable' ? density : DEFAULT_SETTINGS.density,
+    layout: layout === 'list' || layout === 'grid' ? layout : DEFAULT_SETTINGS.layout,
     refreshMinutes:
       typeof refresh === 'number' && Number.isInteger(refresh) && refresh >= 0 && refresh <= 24 * 60
         ? refresh

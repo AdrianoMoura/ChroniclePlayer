@@ -29,8 +29,10 @@ Three-region desktop layout:
 
 - **Sidebar**: views (All, Unread, Watch Later, Favorites, Ignored), then the channel
   list (click = filter feed to that channel), then Settings. Collapsible to icons.
-- **Feed**: the grouped chronological list (`feed.md`). One column; no masonry/grid of
-  thumbnails — list rows read calmer and rank information (title first) over imagery.
+- **Feed**: the grouped chronological list (`feed.md`). List rows are the default —
+  calmer, rank information (title first) over imagery — but **D-037** adds an optional
+  thumbnail grid, since a masonry/grid view is a layout preference, not an engagement
+  mechanic; the same rows and actions render either way.
   **D-022 (Pending):** row density — compact list vs. comfortable rows with larger
   thumbnails. Recommendation: comfortable default with a compact-density setting; both
   are the same component, so cost is low.

@@ -675,6 +675,95 @@ button.primary:disabled {
   background: var(--surface-2);
 }
 
+/* ── Grid layout (B-007): same rows, thumbnail-first cards ─────── */
+
+.feed-item.card-row {
+  padding-top: 4px;
+}
+
+.grid-row {
+  display: grid;
+  gap: 16px;
+  height: 100%;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.card:hover {
+  background: var(--surface);
+}
+
+.card.selected {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.card.dimmed .title,
+.card.dimmed .meta {
+  opacity: 0.55;
+}
+
+.card.undo-strip {
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+}
+
+.card-thumb-wrap {
+  position: relative;
+}
+
+.card-thumb-wrap .thumb {
+  width: 100%;
+}
+
+.card-thumb-wrap .unread-dot {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+
+.card-short-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--surface);
+}
+
+.card-duration {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 4px;
+  width: auto;
+}
+
+.card-actions {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 1px;
+}
+
+.card .title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* ── Feed region + player view ───────────────────────── */
 
 .feed-region {

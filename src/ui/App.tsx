@@ -74,6 +74,7 @@ export function App() {
   const [settings, setSettings] = useState<SettingsDto>({
     theme: 'system',
     density: 'comfortable',
+    layout: 'list',
     refreshMinutes: 30,
     showViewCounts: true,
     showShorts: true
@@ -785,6 +786,7 @@ export function App() {
                   atTopRef.current = atTop
                 }}
                 density={settings.density}
+                layout={settings.layout}
                 showViewCounts={settings.showViewCounts}
               />
             )}
