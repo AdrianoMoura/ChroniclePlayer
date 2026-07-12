@@ -52,6 +52,78 @@ Resolved entries add:
 
 ## Open
 
+### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
+  but channels cannot — there is no way to mark a whole channel as a priority, and the
+  main feed has no way to surface favorited channels' videos ahead of everything else.
+- **Expected:** the per-channel `…` context menu planned in [[B-010]] (sidebar +
+  channel screen, today just Unsubscribe) gains a **Favorite** toggle. The main feed
+  gains a section at the very top listing recent videos from favorited channels first,
+  ahead of the normal chronological grouping (Today / Yesterday / This Week / Earlier,
+  `feed.md`) — favorited-channel videos get priority placement, not a separate
+  exclusive view.
+- **Code refs:** `src/adapters/storage/migrations.ts` (new schema migration —
+  `channels` table needs a `favorite` column, alongside the existing `subscribed`
+  column around line 11); `src/core/ports.ts` + `src/adapters/storage/repositories.ts`
+  (channel favorite toggle + feed query changes to surface favorited-channel videos
+  first); `src/ipc/contract.ts` (new IPC surface for toggling + the DTO field);
+  `src/ui/Sidebar.tsx` (the `…` context menu itself is still [[B-010]]'s to build —
+  this adds one more entry to it); `src/ui/FeedList.tsx` / `src/ui/App.tsx` (the new
+  top-of-feed priority section, mirrors the existing bucket-header rendering pattern
+  used for Today/Yesterday/etc.).
+- **Notes:** depends on [[B-010]]'s context-menu work landing first (or alongside) —
+  this is an additional option on that menu, not a separate UI surface. Needs a
+  `feed.md` update when attacked (new "favorited channels" section ahead of the
+  existing chronological buckets) and a `decisions.md` entry if the exact priority
+  placement/ordering needs a Final decision (e.g. do favorited videos also appear
+  again in their normal chronological bucket, or only in the priority section?).
+
+### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** with the sidebar collapsed ([[B-037]]), opening Settings renders
+  `.settings-view` (and the banner above it, when present) almost touching the
+  floating `.sidebar-expand` hamburger button in the top-left corner — the two nearly
+  overlap.
+- **Expected:** the same left clearance the feed screen already gets when collapsed
+  (the hamburger has clear room, nothing crowds it), regardless of which screen
+  (`feed` or `settings`) is showing.
+- **Code refs:** `src/ui/styles.css` — `.app.sidebar-collapsed .topbar { padding-left:
+  52px }` (around line 207) only reserves room for the floating `.sidebar-expand`
+  button on the feed screen's `<header className="topbar">`; the Settings screen
+  (`src/ui/App.tsx`, `screen === 'settings'` branch around line 689) renders no
+  `topbar`, so nothing gives `.settings-view` (`styles.css` ~line 1059, `padding: 26px
+  32px 60px`) or `.banner` the same left offset when collapsed.
+- **Notes:** same root shape as [[B-037]]'s original overlap, just on the Settings
+  screen instead of the feed topbar — fix likely generalizes the `padding-left: 52px`
+  reservation to `.app.sidebar-collapsed .feed` (or another selector covering both
+  `.topbar` and `.settings-view`/`.banner`) instead of scoping it to `.topbar` alone.
+
+### B-040 — More space between the Settings button and the channel list above it
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the Settings button sits in `.sidebar-footer`, a sibling right
+  after `.channel-list` in the sidebar's flex column; `.sidebar-footer` has no CSS
+  rule at all, so the visual gap between the last channel row and the Settings button
+  is purely emergent from `.sidebar`'s `justify-content: space-between` and
+  `.channel-list`'s `flex: 1` — with a long channel list (scrolled or not) the two
+  end up reading as touching.
+- **Expected:** a visible, fixed margin/gap between the channel list and the Settings
+  button, consistent with the sidebar's other section spacing (e.g. the gap
+  `.channel-list` already gets above it: `margin-top: 14px; border-top: 1px solid
+  var(--border); padding-top: 10px`).
+- **Code refs:** `src/ui/Sidebar.tsx` (`sidebar-footer` div wrapping the Settings
+  button, rendered right after the `channel-list` div); `src/ui/styles.css`
+  (`.sidebar` — `justify-content: space-between`; `.channel-list` around line 261 —
+  `flex: 1`, no bottom padding/margin; no existing `.sidebar-footer` rule to anchor a
+  `margin-top`/`border-top` on).
+- **Notes:** purely a spacing/polish tweak, no behavior change.
+
 ### B-039 — Mouse "back" button (XButton1) should exit the player, like Esc or the Back button
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
