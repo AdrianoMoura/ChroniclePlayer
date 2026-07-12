@@ -52,6 +52,35 @@ Resolved entries add:
 
 ## Open
 
+### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** videos can be favorited (existing `favorite` video state, D-010),
+  but channels cannot — there is no way to mark a whole channel as a priority, and the
+  main feed has no way to surface favorited channels' videos ahead of everything else.
+- **Expected:** the per-channel `…` context menu planned in [[B-010]] (sidebar +
+  channel screen, today just Unsubscribe) gains a **Favorite** toggle. The main feed
+  gains a section at the very top listing recent videos from favorited channels first,
+  ahead of the normal chronological grouping (Today / Yesterday / This Week / Earlier,
+  `feed.md`) — favorited-channel videos get priority placement, not a separate
+  exclusive view.
+- **Code refs:** `src/adapters/storage/migrations.ts` (new schema migration —
+  `channels` table needs a `favorite` column, alongside the existing `subscribed`
+  column around line 11); `src/core/ports.ts` + `src/adapters/storage/repositories.ts`
+  (channel favorite toggle + feed query changes to surface favorited-channel videos
+  first); `src/ipc/contract.ts` (new IPC surface for toggling + the DTO field);
+  `src/ui/Sidebar.tsx` (the `…` context menu itself is still [[B-010]]'s to build —
+  this adds one more entry to it); `src/ui/FeedList.tsx` / `src/ui/App.tsx` (the new
+  top-of-feed priority section, mirrors the existing bucket-header rendering pattern
+  used for Today/Yesterday/etc.).
+- **Notes:** depends on [[B-010]]'s context-menu work landing first (or alongside) —
+  this is an additional option on that menu, not a separate UI surface. Needs a
+  `feed.md` update when attacked (new "favorited channels" section ahead of the
+  existing chronological buckets) and a `decisions.md` entry if the exact priority
+  placement/ordering needs a Final decision (e.g. do favorited videos also appear
+  again in their normal chronological bucket, or only in the priority section?).
+
 ### B-041 — Settings screen sits flush left, almost touching the hamburger when the sidebar is collapsed
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-12
