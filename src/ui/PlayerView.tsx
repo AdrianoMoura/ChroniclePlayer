@@ -67,6 +67,10 @@ export function PlayerView({
       if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
         playerStateRef.current = payload.info
         if (payload.info === 0) setSurface('ended') // our overlay, never YouTube's
+        // B-038: quality only takes effect once playback actually starts —
+        // requesting it on ready alone isn't enough, YouTube can still pick
+        // a bandwidth-heuristic default the moment the stream begins.
+        if (payload.info === 1) command('setPlaybackQuality', ['highres'])
       }
       if (payload.event === 'onError' && typeof payload.info === 'number') {
         // 101/150 = embedding disabled by the owner (playback.md).
@@ -79,14 +83,18 @@ export function PlayerView({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [])
+  }, [command])
 
   const announce = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
       JSON.stringify({ event: 'listening', id: 'chronicle', channel: 'widget' }),
       PLAYER_ORIGIN
     )
-  }, [])
+    // B-038: request the highest quality up front too, so it's already
+    // set once playback starts (the onStateChange re-issue is the fallback
+    // for the case YouTube resets it when the stream actually begins).
+    command('setPlaybackQuality', ['highres'])
+  }, [command])
 
   // Player keyboard map (playback.md): keys are proxied through the widget
   // protocol because the iframe swallows focus.

@@ -71,6 +71,9 @@ export function App() {
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
   const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
+  // B-037: default expanded; entering the player auto-collapses it (more
+  // room for the video) and leaving restores whatever the user had before.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settings, setSettings] = useState<SettingsDto>({
     theme: 'system',
     density: 'comfortable',
@@ -89,9 +92,24 @@ export function App() {
   const channelQueryRef = useRef<HTMLInputElement>(null)
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
+  const sidebarBeforePlayerRef = useRef<boolean | null>(null)
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
+
+  const toggleSidebar = useCallback(() => setSidebarCollapsed((collapsed) => !collapsed), [])
+
+  useEffect(() => {
+    if (playerOpen) {
+      setSidebarCollapsed((current) => {
+        sidebarBeforePlayerRef.current = current
+        return true
+      })
+    } else if (sidebarBeforePlayerRef.current !== null) {
+      setSidebarCollapsed(sidebarBeforePlayerRef.current)
+      sidebarBeforePlayerRef.current = null
+    }
+  }, [playerOpen])
 
   // Fetches feed meta and reconciles `refreshing` against backend truth
   // (B-023): a renderer that missed a terminal sync event — mounting mid-run,
@@ -636,30 +654,37 @@ export function App() {
 
   return (
     <div className="app">
-      <Sidebar
-        view={view}
-        unreadCount={meta.unreadCount}
-        watchLaterCount={meta.watchLaterCount}
-        channels={channels}
-        channelFilter={channelFilter}
-        channelQueryRef={channelQueryRef}
-        settingsOpen={screen === 'settings'}
-        onSelectView={(next) => {
-          setPlayerStack([])
-          setScreen('feed')
-          setChannelFilter(null)
-          setView(next)
-        }}
-        onSelectChannel={(channelId) => {
-          setPlayerStack([])
-          setScreen('feed')
-          setChannelFilter(channelId)
-        }}
-        onOpenSettings={() => {
-          setPlayerStack([])
-          setScreen('settings')
-        }}
-      />
+      {sidebarCollapsed ? (
+        <button className="sidebar-expand" title="Show sidebar" onClick={toggleSidebar}>
+          ☰
+        </button>
+      ) : (
+        <Sidebar
+          view={view}
+          unreadCount={meta.unreadCount}
+          watchLaterCount={meta.watchLaterCount}
+          channels={channels}
+          channelFilter={channelFilter}
+          channelQueryRef={channelQueryRef}
+          settingsOpen={screen === 'settings'}
+          onSelectView={(next) => {
+            setPlayerStack([])
+            setScreen('feed')
+            setChannelFilter(null)
+            setView(next)
+          }}
+          onSelectChannel={(channelId) => {
+            setPlayerStack([])
+            setScreen('feed')
+            setChannelFilter(channelId)
+          }}
+          onOpenSettings={() => {
+            setPlayerStack([])
+            setScreen('settings')
+          }}
+          onToggleCollapse={toggleSidebar}
+        />
+      )}
       <main className="feed">
         {screen === 'settings' ? (
           <>
