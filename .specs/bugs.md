@@ -297,6 +297,22 @@ Resolved entries add:
 - **Notes:** keyboard-first (ui.md): the field should be reachable by shortcut and
   Escape should clear it. Pairs with [[B-019]] (wider sidebar).
 
+### B-025 — Counter on the Watch Later sidebar entry
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the Watch Later entry in the sidebar gives no hint of how many
+  videos are queued.
+- **Expected:** the Watch Later entry shows its queue size, in the same visual style as
+  the per-channel unread counts ([[B-008]]).
+- **Code refs:** `src/ui/Sidebar.tsx` (views list — `watch-later` entry);
+  `src/ipc/contract.ts` + `src/core/ports.ts` (`listWatchLaterQueue` exists; a count
+  needs exposing to the UI, e.g. alongside `getFeedMeta`);
+  `src/adapters/storage/repositories.ts` (queue query — a `COUNT` variant is trivial).
+- **Notes:** update on `refresh:done` and on `toggleWatchLater`, so the number never
+  goes stale. This is a static queue-size count, not an engagement nudge — it changes
+  only by the user's own actions.
+
 ## In progress
 
 *(none)*
