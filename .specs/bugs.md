@@ -196,7 +196,7 @@ Resolved entries add:
     unsubscribing one account never affects another following the same channel). The
     owner should validate live: adding a real second account (Test-user step included),
     the combined vs. account-filtered feed, and Remove/Sync now from the Accounts menu.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 3b13f25 · **Outcome:** Fixed
 
 ### B-015 — App wrongly presents itself as read-only
 - **Type:** bug · **Severity:** minor
