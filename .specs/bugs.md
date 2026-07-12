@@ -169,7 +169,7 @@ Resolved entries add:
     `npm run typecheck && npm run lint && npm test` (171/171). The owner should validate
     live: actually Tab through the priority section and search results, confirm `s`
     toggles the sidebar, and skim the updated `?` overlay/`ui.md` table for accuracy.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 9236344 · **Outcome:** Fixed
 
 ### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
 - **Type:** adjustment
