@@ -511,7 +511,7 @@ void app.whenReady().then(() => {
     syncRepository.setMeta('wizard_state', JSON.stringify(state))
   })
 
-  // Settings (settings.json) drive the refresh timer, theme and density.
+  // Settings (settings.json) drive the refresh timer, theme, item size and layout.
   const settingsFile = join(dataDir, 'settings.json')
   const loaded = loadSettings(settingsFile)
   let settings: AppSettings = loaded.settings

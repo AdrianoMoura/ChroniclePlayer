@@ -2,8 +2,10 @@ import { useRef, useState } from 'react'
 import type { AuthStatusDto, SettingsDto } from '../ipc/contract'
 
 // Settings surface (M5). One column, four quiet sections — every control
-// maps to a spec decision: D-016 interval, theme/density (ui.md), D-018
-// view counts, D-013 storage honesty, export/delete (local-data.md).
+// maps to a spec decision: D-016 interval, theme (ui.md), D-018 view
+// counts, D-013 storage honesty, export/delete (local-data.md). Layout and
+// item size (D-022, D-037) live inline in the feed topbar instead — see
+// App.tsx — not here.
 
 interface SettingsViewProps {
   auth: AuthStatusDto | null
@@ -134,26 +136,6 @@ export function SettingsView({
             <option value="system">Follow system</option>
             <option value="dark">Dark</option>
             <option value="light">Light</option>
-          </select>
-        </label>
-        <label className="settings-row">
-          <span>Feed density</span>
-          <select
-            value={settings.density}
-            onChange={(event) => set('density', event.target.value as SettingsDto['density'])}
-          >
-            <option value="comfortable">Comfortable</option>
-            <option value="compact">Compact</option>
-          </select>
-        </label>
-        <label className="settings-row">
-          <span>Feed layout</span>
-          <select
-            value={settings.layout}
-            onChange={(event) => set('layout', event.target.value as SettingsDto['layout'])}
-          >
-            <option value="list">List</option>
-            <option value="grid">Grid</option>
           </select>
         </label>
         <label className="settings-row">

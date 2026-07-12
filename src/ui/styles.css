@@ -353,6 +353,28 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
+/* B-007: file-explorer-style item-size slider, inline in the listing
+   itself — three steps (small/medium/large), no numeric readout needed. */
+.size-slider {
+  width: 64px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+/* B-007: quick list/grid toggle, inline in the listing itself. */
+.layout-toggle {
+  font-size: 16px;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.layout-toggle:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
 .filter {
   width: 100%;
   padding: 5px 24px 5px 10px;
@@ -958,18 +980,37 @@ button.primary.active {
   font-size: 13px;
 }
 
-/* Compact density (D-022): same component, tighter rows. */
-.feed-scroll.compact .row {
+/* Item size (D-022, B-007): a file-explorer-style small/medium/large step,
+   shared by list rows and grid cards. Medium matches the original row/thumb
+   dimensions above; small/large scale both. */
+.feed-scroll.size-small .row {
   height: 48px;
   gap: 10px;
 }
 
-.feed-scroll.compact .thumb {
+.feed-scroll.size-small .thumb {
   width: 72px;
 }
 
-.feed-scroll.compact .row-text {
+.feed-scroll.size-small .row-text {
   gap: 1px;
+}
+
+.feed-scroll.size-large .row {
+  height: 92px;
+  gap: 14px;
+}
+
+.feed-scroll.size-large .thumb {
+  width: 160px;
+}
+
+.feed-scroll.size-large .title {
+  font-size: 15px;
+}
+
+.feed-scroll.size-small .card .title {
+  font-size: 12.5px;
 }
 
 /* ── Settings ────────────────────────────────────────── */

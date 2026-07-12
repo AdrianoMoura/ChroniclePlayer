@@ -15,7 +15,7 @@ import type {
   WizardStateDto
 } from '../ipc/contract'
 import { ConnectPanel } from './ConnectPanel'
-import { FeedList, type FeedRow, type VideoActions } from './FeedList'
+import { FeedList, ITEM_SIZES, type FeedRow, type VideoActions } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { PlayerView } from './PlayerView'
@@ -73,7 +73,7 @@ export function App() {
   const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
   const [settings, setSettings] = useState<SettingsDto>({
     theme: 'system',
-    density: 'comfortable',
+    itemSize: 'medium',
     layout: 'list',
     refreshMinutes: 30,
     showViewCounts: true,
@@ -730,6 +730,25 @@ export function App() {
               </button>
             )}
           </div>
+          <input
+            className="size-slider"
+            type="range"
+            min={0}
+            max={ITEM_SIZES.length - 1}
+            step={1}
+            value={ITEM_SIZES.indexOf(settings.itemSize)}
+            title={`Item size: ${settings.itemSize}`}
+            onChange={(event) =>
+              changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
+            }
+          />
+          <button
+            className="layout-toggle"
+            title={settings.layout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+            onClick={() => changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })}
+          >
+            {settings.layout === 'grid' ? '☰' : '⊞'}
+          </button>
         </header>
 
         {banner !== null && (
@@ -785,7 +804,7 @@ export function App() {
                 onAtTopChange={(atTop) => {
                   atTopRef.current = atTop
                 }}
-                density={settings.density}
+                itemSize={settings.itemSize}
                 layout={settings.layout}
                 showViewCounts={settings.showViewCounts}
               />

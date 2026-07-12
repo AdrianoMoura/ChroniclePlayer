@@ -102,7 +102,7 @@ export interface WizardStateDto {
 // Mirrors platform settings.json (human-editable; local-data.md).
 export interface SettingsDto {
   theme: 'system' | 'dark' | 'light'
-  density: 'comfortable' | 'compact'
+  itemSize: 'small' | 'medium' | 'large' // B-007, default medium — list + grid
   layout: 'list' | 'grid' // B-007, default list
   refreshMinutes: number // 0 = manual only (D-016)
   showViewCounts: boolean // D-018

@@ -19,7 +19,7 @@ describe('settings store', () => {
     const file = tempFile()
     const custom = {
       theme: 'light',
-      density: 'compact',
+      itemSize: 'small',
       layout: 'grid',
       refreshMinutes: 15,
       showViewCounts: true,
@@ -39,7 +39,7 @@ describe('settings store', () => {
     expect(
       normalizeSettings({
         theme: 'light',
-        density: 'huge',
+        itemSize: 'huge',
         layout: 'masonry',
         refreshMinutes: -5,
         showViewCounts: true,
@@ -47,7 +47,7 @@ describe('settings store', () => {
       })
     ).toEqual({
       theme: 'light',
-      density: 'comfortable',
+      itemSize: 'medium',
       layout: 'list',
       refreshMinutes: 30,
       showViewCounts: true,

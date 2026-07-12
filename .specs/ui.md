@@ -32,10 +32,11 @@ Three-region desktop layout:
 - **Feed**: the grouped chronological list (`feed.md`). List rows are the default —
   calmer, rank information (title first) over imagery — but **D-037** adds an optional
   thumbnail grid, since a masonry/grid view is a layout preference, not an engagement
-  mechanic; the same rows and actions render either way.
-  **D-022 (Pending):** row density — compact list vs. comfortable rows with larger
-  thumbnails. Recommendation: comfortable default with a compact-density setting; both
-  are the same component, so cost is low.
+  mechanic; the same rows and actions render either way. Both the list/grid toggle
+  and a small/medium/large item-size slider (**D-037**, supersedes D-022's two-step
+  "density") live as inline controls in the feed topbar itself — not in Settings —
+  since these are properties of the listing the user is looking at, not
+  general preferences to hunt for on another screen.
 - **Player view** replaces the feed region when watching (sidebar persists);
   esc returns. See `playback.md`.
 - No third pane, no tabs, no dashboard. Every screen answers one question.

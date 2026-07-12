@@ -15,13 +15,19 @@ type DisplayRow =
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
   | { kind: 'card-row'; key: string; items: { video: FeedVideoDto; videoIndex: number }[] }
 
-// Comfortable is the default; compact is the setting (D-022).
-const ROW_HEIGHTS = { comfortable: 76, compact: 56 } as const
+// File-explorer-style item size (B-007): three steps, shared by list rows
+// and grid cards. Medium is the default (formerly "comfortable" density).
+export type ItemSize = 'small' | 'medium' | 'large'
+export const ITEM_SIZES: ItemSize[] = ['small', 'medium', 'large']
+const ROW_HEIGHTS: Record<ItemSize, number> = { small: 56, medium: 76, large: 108 }
 const HEADER_HEIGHT = 38
 // Card target width; actual column count is derived from container width so
-// the grid reflows instead of overflowing (D-037).
-const GRID_CARD_MIN_WIDTH = 220
-const GRID_CARD_HEIGHT = 210
+// the grid reflows instead of overflowing (D-037). Both grow with itemSize.
+const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
+  small: { minWidth: 160, height: 150 },
+  medium: { minWidth: 220, height: 210 },
+  large: { minWidth: 300, height: 290 }
+}
 
 function buildCardRows(
   rows: FeedRow[],
@@ -65,7 +71,7 @@ interface FeedListProps {
   onOpen: (videoIndex: number) => void
   onNearEnd: () => void
   onAtTopChange: (atTop: boolean) => void
-  density: 'comfortable' | 'compact'
+  itemSize: ItemSize
   layout: 'list' | 'grid'
   showViewCounts: boolean
 }
@@ -78,12 +84,13 @@ export function FeedList({
   onOpen,
   onNearEnd,
   onAtTopChange,
-  density,
+  itemSize,
   layout,
   showViewCounts
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const rowHeight = ROW_HEIGHTS[density]
+  const rowHeight = ROW_HEIGHTS[itemSize]
+  const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
 
   // Column count follows the scroll container's width so the grid reflows
@@ -93,12 +100,12 @@ export function FeedList({
     const el = scrollRef.current
     if (!el) return
     const observe = (width: number) =>
-      setColumns(Math.max(1, Math.floor(width / GRID_CARD_MIN_WIDTH)))
+      setColumns(Math.max(1, Math.floor(width / gridCardSize.minWidth)))
     observe(el.clientWidth)
     const observer = new ResizeObserver((entries) => observe(entries[0].contentRect.width))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [layout])
+  }, [layout, gridCardSize.minWidth])
 
   const displayRows = useMemo<DisplayRow[]>(
     () => (layout === 'grid' ? buildCardRows(rows, columns) : rows),
@@ -110,15 +117,15 @@ export function FeedList({
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => {
       const row = displayRows[index]
-      return row.kind === 'header' ? HEADER_HEIGHT : row.kind === 'card-row' ? GRID_CARD_HEIGHT : rowHeight
+      return row.kind === 'header' ? HEADER_HEIGHT : row.kind === 'card-row' ? gridCardSize.height : rowHeight
     },
     overscan: 12
   })
 
-  // Density/layout/column switches change row sizes; re-measure.
+  // Item size/layout/column switches change row sizes; re-measure.
   useEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, layout, columns, virtualizer])
+  }, [rowHeight, gridCardSize.height, layout, columns, virtualizer])
 
   const items = virtualizer.getVirtualItems()
 
@@ -142,7 +149,7 @@ export function FeedList({
 
   return (
     <div
-      className={`feed-scroll${density === 'compact' ? ' compact' : ''}`}
+      className={`feed-scroll size-${itemSize}`}
       ref={scrollRef}
       onScroll={(event) => onAtTopChange(event.currentTarget.scrollTop < 40)}
     >
