@@ -52,6 +52,24 @@ Resolved entries add:
 
 ## Open
 
+### B-027 — View counts should show by default, not be an opt-in setting
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the "Show view counts" toggle in Settings defaults to off
+  (`DEFAULT_SETTINGS.showViewCounts = false`), so feed rows hide view counts unless
+  the user finds and flips the setting.
+- **Expected:** view counts show by default. The data costs no extra quota (captured
+  at hydration per D-018) and view counts are a normal, expected piece of context on a
+  video row — hiding them by default adds friction with no clear benefit. Whether the
+  toggle should be removed entirely or just default to `true` is open; leaning toward
+  keeping the toggle (some users may still prefer to hide it) but flipping the default.
+- **Code refs:** `src/platform/settings-store.ts` (`DEFAULT_SETTINGS.showViewCounts`);
+  `src/ui/App.tsx` (matching initial state, line ~78); `src/ui/SettingsView.tsx`
+  (the toggle itself).
+- **Notes:** revisits D-018, which recorded "hidden by default" as the recommended
+  option exercised in M5 — update `decisions.md` when this is attacked.
+
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
