@@ -144,8 +144,12 @@ export const IpcChannel = {
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
+  windowControl: 'window:control',
   events: 'chronicle:event'
 } as const
+
+// Custom window controls for the frameless shell (B-014).
+export type WindowControlDto = 'minimize' | 'toggle-maximize' | 'close'
 
 // The surface preload exposes as window.chronicle.
 export interface ChronicleApi {
@@ -178,6 +182,10 @@ export interface ChronicleApi {
   setWizardState(state: WizardStateDto): Promise<void>
   getSettings(): Promise<{ settings: SettingsDto; warning: string | null }>
   setSettings(settings: SettingsDto): Promise<void>
+  // Frameless-shell titlebar (B-014). On macOS the native traffic lights
+  // stay, so the custom buttons are hidden there via `platform`.
+  windowControl(action: WindowControlDto): Promise<void>
+  platform: string
   // Writes the documented JSON export (FORMAT.md) where the user chooses.
   exportData(): Promise<ResultDto<{ path: string; videos: number; states: number }>>
   // Removes the database, secrets and caches, then relaunches (local-data.md

@@ -170,6 +170,11 @@ function createWindow(): void {
     width: 1200,
     height: 800,
     backgroundColor: '#101014',
+    // Frameless shell (B-014): Chronicle draws its own titlebar. On macOS
+    // the native traffic lights are kept as an overlay instead.
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hidden' as const }
+      : { frame: false }),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -323,6 +328,16 @@ void app.whenReady().then(() => {
     }))
   )
   ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
+  ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
+    const target = BrowserWindow.fromWebContents(event.sender)
+    if (target === null) return
+    if (action === 'minimize') target.minimize()
+    else if (action === 'toggle-maximize') {
+      if (target.isMaximized()) target.unmaximize()
+      else target.maximize()
+    } else if (action === 'close') target.close()
+    else throw new Error(`invalid window control: ${String(action)}`)
+  })
 
   ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
     toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))
