@@ -69,9 +69,12 @@ export const en = {
   'settings.connection.stateDisconnected': 'API key imported, but not connected.',
   'settings.connection.stateUnconfigured': 'No API key imported yet.',
   'settings.connection.scopeGrantedPrefix': 'Granted scope:',
-  'settings.connection.scopeName': 'YouTube read-only',
-  'settings.connection.scopeGrantedSuffix':
-    '— used solely to list your subscriptions and fetch video metadata. Chronicle never writes to your YouTube account (local states stay local).',
+  'settings.connection.scopeName.readonly': 'YouTube read-only',
+  'settings.connection.scopeName.readonlyPlusWrite': 'YouTube read-only + subscribe/comment/like',
+  'settings.connection.scopeGrantedSuffix.readonly':
+    '— used to list your subscriptions and fetch video metadata. Subscribing, commenting, and liking are also available from inside the app; the first time you use one, Chronicle will ask for this additional permission.',
+  'settings.connection.scopeGrantedSuffix.readonlyPlusWrite':
+    "— used to list your subscriptions, fetch video metadata, and act on your behalf only for actions you take yourself (subscribe/unsubscribe, comment, like). Chronicle's own read/watch/favorite states stay local either way, never written to YouTube (D-003).",
   'settings.connection.revokeLink': 'Revoke anytime ↗',
   'settings.connection.keychainOk': 'Your key and token are stored in your system keychain.',
   'settings.connection.keychainFallback':
@@ -151,7 +154,7 @@ export const en = {
   // Wizard — ConsoleStep: enable-api
   'wizard.step.enableApi.title': 'Enable the YouTube Data API v3',
   'wizard.step.enableApi.why':
-    'Projects start with every API disabled; you are turning on just the one Chronicle needs — read-only YouTube data.',
+    'Projects start with every API disabled; you are turning on just the one Chronicle needs — your subscriptions, video metadata, and (only when you choose to subscribe, comment, or like something) those actions too.',
   'wizard.step.enableApi.urlLabel': 'Open the YouTube Data API page',
   'wizard.step.enableApi.confirmLabel': 'I clicked Enable.',
   'wizard.step.enableApi.variations':

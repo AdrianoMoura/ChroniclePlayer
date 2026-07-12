@@ -873,6 +873,9 @@ export function App() {
           onOpenSettings={() => {
             setPlayerStack([])
             setScreen('settings')
+            // B-015: refetch so the granted-scope line reflects any write
+            // action (comment/like/subscribe/unsubscribe) taken since mount.
+            void window.chronicle.getAuthStatus().then(setAuth)
           }}
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}

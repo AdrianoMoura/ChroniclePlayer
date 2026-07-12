@@ -161,6 +161,9 @@ export interface AuthStatusDto {
   state: AuthStateDto
   // false = D-013 fallback encryption; the UI shows the honest warning.
   secureStorage: boolean
+  // B-015/D-032: true once youtube.force-ssl has been granted (first write
+  // action) — drives the Settings screen's granted-scope description.
+  writeScopeGranted: boolean
 }
 
 export interface SyncReportDto {

@@ -72,8 +72,19 @@ export function SettingsView({
               : t('settings.connection.stateUnconfigured')}
         </p>
         <p className="settings-line dim">
-          {t('settings.connection.scopeGrantedPrefix')} <strong>{t('settings.connection.scopeName')}</strong>{' '}
-          {t('settings.connection.scopeGrantedSuffix')}{' '}
+          {t('settings.connection.scopeGrantedPrefix')}{' '}
+          <strong>
+            {t(
+              auth?.writeScopeGranted
+                ? 'settings.connection.scopeName.readonlyPlusWrite'
+                : 'settings.connection.scopeName.readonly'
+            )}
+          </strong>{' '}
+          {t(
+            auth?.writeScopeGranted
+              ? 'settings.connection.scopeGrantedSuffix.readonlyPlusWrite'
+              : 'settings.connection.scopeGrantedSuffix.readonly'
+          )}{' '}
           <a
             href="https://myaccount.google.com/permissions"
             onClick={(event) => {

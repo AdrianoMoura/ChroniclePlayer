@@ -110,28 +110,6 @@ Resolved entries add:
   This is milestone-sized: touches schema (account scoping), sync, wizard, sidebar.
   Needs decisions.md entries when attacked (supersedes the single-account assumption).
 
-### B-015 — App wrongly presents itself as read-only
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** other (copy / scopes model)
-- **What happens:** app copy states Chronicle is read-only.
-- **Expected:** Chronicle is not read-only: subscribe, unsubscribe, comment, and like
-  are all in scope (user-initiated — D-030/D-032). What actually happens is that OAuth
-  permissions are added incrementally as the user first performs each write action
-  (D-032). Fix the copy everywhere it appears (UI, wizard, docs) and make incremental
-  scope consent the explicit model.
-- **Code refs:** `src/ui/onboarding/Wizard.tsx` (read-only wording, e.g. the step-4b
-  publish copy); `docs/setup.md`; `src/adapters/oauth/google-oauth.ts` (scope list —
-  incremental consent lands here); grep `read-only` / `readonly` across `src/ui/` and
-  docs for the full surface.
-- **Notes:** umbrella for the write-action items [[B-006]] and [[B-010]]. **Left
-  untouched in the 2026-07-12 small-adjustments batch on purpose:** today the app has
-  zero real YouTube writes (subscribe/unsubscribe/comment/like are all still Open, in
-  [[B-006]]/[[B-009]]/[[B-010]]) — only local-only state (favorite, watch later, read
-  status). So the "read-only" copy is currently *accurate*; rewriting it now would have
-  the UI claim capabilities that don't exist yet. Fix the copy in the same change that
-  lands B-006/B-010 (or B-009's subscribe path), not before.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -172,6 +150,55 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-015 — App wrongly presents itself as read-only
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** other (copy / scopes model)
+- **What happens:** app copy states Chronicle is read-only.
+- **Expected:** Chronicle is not read-only: subscribe, unsubscribe, comment, and like
+  are all in scope (user-initiated — D-030/D-032). What actually happens is that OAuth
+  permissions are added incrementally as the user first performs each write action
+  (D-032). Fix the copy everywhere it appears (UI, wizard, docs) and make incremental
+  scope consent the explicit model.
+- **Code refs:** `src/ui/i18n/en.ts` (`wizard.step.enableApi.why`,
+  `settings.connection.scopeName.*`/`scopeGrantedSuffix.*` — now two variants each,
+  switched on granted scope); `src/ui/SettingsView.tsx` (renders the matching
+  variant); `src/ui/App.tsx` (`onOpenSettings` refetches auth status so the copy
+  never lags behind the last write action used); `src/ipc/contract.ts` +
+  `src/platform/main.ts` (`AuthStatusDto.writeScopeGranted`, from
+  `authFlow.hasWriteScope()`); `docs/setup.md` (§What Chronicle does and never
+  does); `.specs/onboarding.md` (step 2's "why" copy).
+- **Notes:**
+  - **This was the last piece of D-032's settings-screen requirement** ("shows
+    which scopes are currently granted... with a revoke link") — [[B-010]]'s notes
+    had explicitly deferred the display half of that to this bug; the revoke link
+    itself already existed.
+  - **What was actually wrong, precisely:** not every "read-only" mention was
+    false — the *initial* OAuth grant genuinely is readonly-only (D-032), so
+    `docs/setup.md`'s Step 6 wording ("Grant the readonly scope") stayed
+    untouched. The false claims were the ones stating or implying Chronicle can
+    *never* write: `settings.connection.scopeGrantedSuffix` ("Chronicle never
+    writes to your YouTube account"), the wizard's step-2 "why" copy ("read-only
+    YouTube data" describing the *enabled API*, not just the initial scope — the
+    same API also serves every write call), and `docs/setup.md`'s "That's all the
+    readonly scope allows" line.
+  - **Grep for the word alone would have over-corrected:** several hits were
+    TypeScript's `readonly` keyword (arrays, class fields) or accurate
+    descriptions of a specific *read* endpoint's scope requirement (e.g.
+    `commentThreads.list`/`videos.getRating` genuinely only need the readonly
+    scope) — left untouched, since flagging every occurrence of the substring
+    would have been noise, not signal.
+  - Settings' scope description was previously a **static string**, unable to
+    ever reflect reality once write scope was granted — now it's derived from
+    `authFlow.hasWriteScope()` live, refetched on every Settings open (not just
+    app launch), so it can't silently go stale again the way the static copy did.
+  - No live-app check this session; verified via
+    `npm run typecheck && npm run lint && npm test` (162/162). The owner should
+    validate live: that the Settings scope line actually flips after using
+    Unsubscribe/Subscribe/Like/Comment, and re-read the wizard's step 2 copy for
+    tone (it's necessarily a longer sentence now than the original one-liner).
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-006 — Comments: read, add, reply; likes on videos and comments
 - **Type:** adjustment

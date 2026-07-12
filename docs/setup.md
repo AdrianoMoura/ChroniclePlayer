@@ -84,8 +84,17 @@ detects the expiry and offers one-click re-auth either way.
 
 ## What Chronicle does and never does with this access
 
-- Reads your subscription list and video metadata. That's all the readonly scope allows.
-- Read states / favorites / watch-later are **local only** — never written to YouTube (D-003).
+- The initial connection above grants only the **readonly** scope: reading your
+  subscription list and video metadata. Chronicle is **not** read-only forever,
+  though — subscribing, unsubscribing, liking a video, and posting or replying to
+  comments are all available from inside the app. Each of these asks for one
+  additional permission (`youtube.force-ssl`) **only the first time you use it** —
+  your browser opens for a two-click confirmation, then it's granted for every
+  future write action, not asked again per-action.
+- Read/watch state, favorites, and Watch Later are **local only** — never written
+  to YouTube regardless of what you've granted (D-003).
 - Tokens live in your OS keychain; access tokens only ever in memory (authentication.md).
 - Every API call is frugal with *your* quota: a typical refresh costs **single-digit
-  units** out of your 10,000/day (hybrid RSS+API strategy, D-007).
+  units** out of your 10,000/day (hybrid RSS+API strategy, D-007). Write actions
+  (subscribe/unsubscribe/comment/like) cost 50 units each — still cheap at normal
+  usage; see `youtube-api.md` for the full table.

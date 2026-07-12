@@ -293,7 +293,7 @@ void app.whenReady().then(() => {
       : authFlow.hasRefreshToken()
         ? 'connected'
         : 'disconnected'
-    return { state, secureStorage: secrets.isSecure() }
+    return { state, secureStorage: secrets.isSecure(), writeScopeGranted: authFlow.hasWriteScope() }
   }
 
   let refreshing = false

@@ -56,9 +56,14 @@ open-source Google API clients) use this same "bring your own OAuth client" patt
   - **Implemented (2026-07-12, [[B-010]]):** the mechanism described above —
     `AuthFlow.requestWriteScope()`/`hasWriteScope()` (`src/adapters/oauth/auth.ts`),
     granted scopes tracked in the secret store (`SECRET_KEYS.grantedScopes`), and
-    Unsubscribe as the first write action to trigger it. **Still open:** the settings
-    screen's granted-scopes display + revoke link, and the read-only copy fix — both
-    are [[B-015]]'s scope, not repeated here.
+    Unsubscribe as the first write action to trigger it.
+  - **Settings screen granted-scopes display + revoke link — implemented
+    (2026-07-12, [[B-015]]):** `AuthStatusDto.writeScopeGranted` (computed from
+    `hasWriteScope()`) drives the Connection section's copy — "YouTube read-only"
+    vs. "YouTube read-only + subscribe/comment/like" — refetched every time
+    Settings is opened, so it never lags behind whatever write action was last
+    used. The revoke link (`myaccount.google.com/permissions`) predates this and
+    was already present; it now sits under an accurate scope description.
 - **Endpoints:** standard Google OAuth2 (`accounts.google.com/o/oauth2/v2/auth`,
   `oauth2.googleapis.com/token`). No Google SDK dependency required; the flow is simple
   enough to implement directly, which keeps the adapter replaceable and auditable.

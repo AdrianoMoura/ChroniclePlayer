@@ -49,7 +49,12 @@ YouTube account"). In the MVP, the wizard is the sole entry path.
 ### Step 2 — Enable the YouTube Data API v3
 
 - Why: "Projects start with every API disabled; you're turning on just the one Chronicle
-  needs — read-only YouTube data."
+  needs — your subscriptions, video metadata, and (only when you choose to subscribe,
+  comment, or like something) those actions too." **Updated 2026-07-12 (B-015):** the
+  original wording said "read-only YouTube data," which stopped being accurate once
+  B-006/B-009/B-010 added write actions (subscribe/unsubscribe/comment/like) via
+  incremental scope consent (D-032) — the enabled API itself isn't read-only, only the
+  *initial* OAuth grant is.
 - Button: open `https://console.cloud.google.com/apis/library/youtube.googleapis.com`.
 - Screenshot shows the "Enable" button state.
 - Validation: none yet → confirmation checkbox. (Post-auth, Chronicle *can* detect a
