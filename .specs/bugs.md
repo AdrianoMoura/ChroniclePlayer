@@ -68,6 +68,41 @@ Resolved entries add:
   `.refresh.spinning`, `@keyframes spin` — wrap the icon in its own `<span>` and move
   the spin animation to that inner element).
 
+### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
+- **Type:** bug · **Severity:** major
+- **Status:** Open (reopened) · **Reported:** 2026-07-12
+- **Area:** ui-shell / storage
+- **What happens:** Settings → delete all data wipes and restarts the app, but the
+  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
+  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
+  the product owner, live, after the first fix attempt below — reopening.
+- **Expected:** after the wipe the app comes back in its clean first-run state. Today
+  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
+  so the post-wipe landing should be whatever "fresh start without an account" becomes
+  once B-003 lands — design the fix so the landing screen is the normal first-run
+  entrypoint, not a hardcoded wizard jump.
+- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler — `app.relaunch()` +
+  per-window `destroy()` + `app.quit()`; `createWindow()`'s dev-vs-packaged branch a
+  few lines above it).
+- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
+  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
+  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
+  Fixed without live validation ("could not be exercised headlessly") — the owner's
+  live test now shows the blank/frozen screen still happens, so the teardown-race
+  theory is disproven or at least incomplete. **New hypothesis, untested:**
+  `createWindow()` picks the renderer source with
+  `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ? loadURL(...) :
+  loadFile(...renderer/index.html)`. In dev (`npm run dev`, via electron-vite),
+  `ELECTRON_RENDERER_URL` is injected by the electron-vite dev orchestrator when it
+  first spawns Electron. `app.relaunch()` respawns `process.execPath` directly — if
+  that env var doesn't survive the relaunch, the new instance falls through to
+  `loadFile()` against a renderer bundle that only exists in a packaged build, which
+  would present as exactly this blank/frozen window. Needs a same-day check: (1) does
+  the bug reproduce in a **packaged** build, not just `npm run dev`? (2) if dev-only,
+  log `process.env['ELECTRON_RENDERER_URL']` and `app.isPackaged` right after the
+  relaunch to confirm. Do not re-mark Fixed without a live re-test — Electron
+  relaunch/compositor behavior cannot be verified headlessly in this environment.
+
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
@@ -311,34 +346,6 @@ Resolved entries add:
   updated to match and records the rationale.
 - **Resolved:** 2026-07-12 · **Commit:** 877a30d, amended same day (see note above) ·
   **Outcome:** Fixed
-
-### B-022 — Delete all data: app relaunches into a frozen screen instead of a clean state
-- **Type:** bug · **Severity:** major
-- **Status:** Fixed · **Reported:** 2026-07-12
-- **Area:** ui-shell / storage
-- **What happens:** Settings → delete all data wipes and restarts the app, but the
-  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
-  install.
-- **Expected:** after the wipe the app comes back in its clean first-run state. Today
-  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
-  so the post-wipe landing should be whatever "fresh start without an account" becomes
-  once B-003 lands — design the fix so the landing screen is the normal first-run
-  entrypoint, not a hardcoded wizard jump.
-- **Code refs:** `src/platform/main.ts` (`data:deleteAll` handler).
-- **Notes:** three hypotheses were on the table: a relaunch/exit race, startup code
-  assuming a DB/settings file exists, or dev-mode `app.relaunch()` not reproducing
-  packaged behavior. The DB/settings-missing path is already proven to work (every
-  genuine first launch goes through it, per M4 dogfooding), which points at the
-  relaunch mechanics themselves. **Needs live validation** — could not be exercised
-  headlessly in this session; re-open if the frozen screen recurs.
-- **Resolved:** 2026-07-12 · **Commit:** 877a30d · **Outcome:** Fixed
-- **Resolution:** swapped `app.exit(0)` for an explicit window `destroy()` +
-  `app.quit()`. `app.exit()` skips window teardown and the normal quit sequence, so the
-  relaunched window could start before the old instance's GPU/compositor surface was
-  gone — plausible root cause on compositors like niri/Wayland, which B-014's
-  resolution already flagged as the risky surface for this app's frameless shell.
-  `app.relaunch()` is unchanged (still called before quitting, per Electron's
-  documented pairing).
 
 ### B-023 — First sync after a fresh setup doesn't refresh the UI; spinner spins forever
 - **Type:** bug · **Severity:** major
