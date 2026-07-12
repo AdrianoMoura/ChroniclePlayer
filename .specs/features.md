@@ -56,12 +56,14 @@ Acceptance: one-click JSON export of channels/videos/states/settings in the docu
 format. (Small feature, but it is the "user owns their data" promise made concrete —
 it ships in MVP.)
 
-### 9. Shorts exclusion (D-028, Final — promoted from Future to MVP on 2026-07-10)
-Full spec: `feed.md` §Shorts exclusion.
-Chronicle never displays Shorts — no toggle, no filter, unconditional. Acceptance:
-detection pipeline (duration candidate signal + `/shorts/{id}` HEAD confirmation, cached
-in `videos.is_short`) runs inside sync; confirmed Shorts appear in no view and never
-count as unread.
+### 9. Shorts visibility (D-028, Final — reversed 2026-07-12 by B-028)
+Full spec: `feed.md` §Shorts.
+Shorts are shown in the feed like any other video, tagged with a "Short" badge, with a
+"Show Shorts" Settings toggle (default on) to hide them. Acceptance: detection pipeline
+(duration candidate signal + `/shorts/{id}` HEAD confirmation, cached in
+`videos.is_short`) runs inside sync unchanged; confirmed Shorts are tagged, count as
+unread, and disappear from every view (including Watch Later/Favorites) only while the
+toggle is off.
 
 ## Future features (sketches — build nothing yet)
 
@@ -92,9 +94,9 @@ YouTube search (D-031 — the API requires credentials), full metadata hydration
 interactions (D-032). Graceful degradation without an account:
 - No `videos.list` hydration → no duration badges, no live/premiere flags (RSS-only
   metadata: title, thumbnail, date, description).
-- Shorts exclusion (D-028) still holds: without duration-based candidate filtering,
+- Shorts detection (D-028) still runs: without duration-based candidate filtering,
   **every** new video gets the `/shorts/{id}` HEAD confirmation (zero quota, cached
-  forever, bounded concurrency) — costlier in requests, same guarantee.
+  forever, bounded concurrency) — costlier in requests, same tagging guarantee.
 - Adding channels: by pasted channel URL/@handle. Without API access, @handle → channelId
   resolution needs a non-API path (**Assumption to verify:** the channel page's RSS
   `<link>` tag or canonical URL exposes the channelId without scraping-fragile parsing;
@@ -113,7 +115,7 @@ Cost design: pasted **@handle or channel/video URL** resolves via
 `channels.list`/`videos.list` (1 unit — detected and used automatically); free-text
 queries use `search.list` (100 units — fine for deliberate use, ~100 queries/day of
 headroom; the UI communicates quota use honestly). Search result videos get Shorts
-filtering like everything else (D-028).
+tagging/filtering like everything else (D-028).
 
 ### YouTube interactions: like & comment (D-032; after search/discovery)
 User-initiated interactions on YouTube, from the player view: **like** a video

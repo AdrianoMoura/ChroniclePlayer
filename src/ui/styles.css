@@ -68,6 +68,38 @@ input:focus-visible {
   outline-offset: 1px;
 }
 
+/* ── Scrollbars (B-031): slim, minimalist, matches the RSS-reader
+   aesthetic — no arrow buttons, subtle thumb that only reads as a hint. ── */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-dim);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 #root {
   display: flex;
   flex-direction: column;
@@ -208,11 +240,36 @@ input:focus-visible {
   font-size: 13px;
 }
 
+/* B-033: wraps a filter/search input to position an inline clear button. */
+.field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-clear {
+  position: absolute;
+  right: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.field-clear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.channel-list .field-wrap {
+  margin: 0 4px 8px;
+}
+
 /* Channel-name filter (B-024) */
 .channel-query {
-  width: calc(100% - 8px);
-  margin: 0 4px 8px;
-  padding: 4px 10px;
+  width: 100%;
+  padding: 4px 24px 4px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -291,9 +348,14 @@ input:focus-visible {
   background: var(--surface);
 }
 
-.filter {
+.topbar .field-wrap {
   width: 220px;
-  padding: 5px 10px;
+  flex-shrink: 0;
+}
+
+.filter {
+  width: 100%;
+  padding: 5px 24px 5px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -304,12 +366,6 @@ input:focus-visible {
 .filter::placeholder {
   color: var(--text-dim);
   opacity: 0.7;
-}
-
-.caught-up {
-  padding: 14px 24px;
-  color: var(--text-dim);
-  border-bottom: 1px solid var(--border);
 }
 
 /* Single dismissible banner slot (ui.md §States & feedback) — never modal,
@@ -352,7 +408,12 @@ input:focus-visible {
   border-radius: 6px;
 }
 
-.refresh.spinning {
+.refresh-icon {
+  display: inline-block;
+}
+
+/* B-027: only the glyph spins, not the button's background/border/hit-area. */
+.refresh-icon.spinning {
   animation: spin 1.2s linear infinite;
 }
 
@@ -518,8 +579,8 @@ button.primary:disabled {
   background: var(--accent);
 }
 
-/* Fixed dimensions = zero layout shift while lazy-loading (ui.md). D-023
-   prototype: muted thumbnails that rise on hover/selection. */
+/* Fixed dimensions = zero layout shift while lazy-loading (ui.md). B-034:
+   normal opacity always — the D-023 muted-thumbnail prototype is retired. */
 .thumb {
   width: 104px;
   aspect-ratio: 16 / 9;
@@ -527,13 +588,6 @@ button.primary:disabled {
   background: var(--surface-2);
   border-radius: 6px;
   object-fit: cover;
-  opacity: 0.72;
-  transition: opacity 0.12s ease-out;
-}
-
-.row:hover .thumb,
-.row.selected .thumb {
-  opacity: 1;
 }
 
 .row-text {
@@ -591,6 +645,17 @@ button.primary:disabled {
   font-variant-numeric: tabular-nums;
   width: 52px;
   text-align: right;
+}
+
+/* B-028: Shorts are tagged, not hidden — a quiet label, not a warning. */
+.short-badge {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
 .undo-strip {

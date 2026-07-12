@@ -26,23 +26,31 @@ export interface FeedPage {
 
 export interface FollowedChannel {
   channel: Channel
-  // Freshest non-Short video; null for channels with nothing synced yet.
+  // Freshest video (Shorts included unless the setting hides them).
   latestPublishedAt: string | null
   unreadCount: number
 }
 
 export interface FeedRepository {
   // channelId narrows the feed to one channel (ui.md sidebar channel list).
-  listPage(view: FeedView, cursor: FeedCursor | null, limit: number, channelId?: string): FeedPage
+  // showShorts (B-028, default true): false applies the same is_short
+  // exclusion the feed used unconditionally before D-028 was reversed.
+  listPage(
+    view: FeedView,
+    cursor: FeedCursor | null,
+    limit: number,
+    channelId?: string,
+    showShorts?: boolean
+  ): FeedPage
   // Watch Later is an ordered queue, not a chronological view (feed.md).
-  listWatchLaterQueue(): FeedEntry[]
+  listWatchLaterQueue(showShorts?: boolean): FeedEntry[]
   // Queue size for the sidebar badge (B-025) — same membership as the queue.
-  countWatchLater(): number
-  countUnread(): number
+  countWatchLater(showShorts?: boolean): number
+  countUnread(showShorts?: boolean): number
   // Unread within the recent window (feeds the caught-up state).
-  countUnreadSince(publishedAtIso: string): number
+  countUnreadSince(publishedAtIso: string, showShorts?: boolean): number
   // Sidebar list (B-008): freshest channel first, with its unread count.
-  listFollowedChannels(): FollowedChannel[]
+  listFollowedChannels(showShorts?: boolean): FollowedChannel[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
   // Bulk unread → read (B-020, D-010 semantics — manual and automatic
@@ -175,7 +183,8 @@ export interface SyncLogEntry {
 
 // Storage surface the sync engine needs (implemented by adapters/storage).
 export interface SyncRepository {
-  listSubscribedChannels(): ChannelSyncInfo[]
+  // channelId scopes to a single channel (B-036: channel-scoped refresh).
+  listSubscribedChannels(channelId?: string): ChannelSyncInfo[]
   // Diff-apply a fresh subscription list: upsert current, mark missing ones
   // unsubscribed — videos and states are retained (youtube-api.md).
   applySubscriptions(channels: readonly Channel[], now: string): { added: number; removed: number }
@@ -189,7 +198,8 @@ export interface SyncRepository {
   ): void
   markChannelUnavailable(channelId: string): void
   // duration ≤ 180 s and is_short IS NULL (feed.md §Shorts detection).
-  shortCandidates(): string[]
+  // channelId scopes to a single channel (B-036).
+  shortCandidates(channelId?: string): string[]
   setShortStatus(videoId: string, isShort: boolean): void
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null

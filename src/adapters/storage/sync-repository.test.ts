@@ -115,12 +115,24 @@ describe('shorts pipeline storage (D-028)', () => {
     expect(sync.shortCandidates().toSorted()).toEqual(['shorty'])
   })
 
-  it('a confirmed Short leaves every feed view; a cleared candidate stays', () => {
+  it('a confirmed Short is tagged but stays visible by default (B-028)', () => {
     sync.applyHydration([hydratedVideo('shorty', 60), hydratedVideo('fine', 90)], NOW)
     sync.setShortStatus('shorty', true)
     sync.setShortStatus('fine', false)
-    expect(feed.listPage('all', null, 10).entries.map((e) => e.video.videoId)).toEqual(['fine'])
-    expect(feed.countUnread()).toBe(1)
+    const entries = feed.listPage('all', null, 10).entries
+    expect(entries.map((e) => e.video.videoId).toSorted()).toEqual(['fine', 'shorty'])
+    expect(entries.find((e) => e.video.videoId === 'shorty')?.video.isShort).toBe(true)
+    expect(feed.countUnread()).toBe(2)
+  })
+
+  it('a confirmed Short leaves every feed view when showShorts is false', () => {
+    sync.applyHydration([hydratedVideo('shorty', 60), hydratedVideo('fine', 90)], NOW)
+    sync.setShortStatus('shorty', true)
+    sync.setShortStatus('fine', false)
+    expect(
+      feed.listPage('all', null, 10, undefined, false).entries.map((e) => e.video.videoId)
+    ).toEqual(['fine'])
+    expect(feed.countUnread(false)).toBe(1)
   })
 })
 

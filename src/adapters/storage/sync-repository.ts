@@ -20,13 +20,18 @@ function truncate(text: string | null): string | null {
 export class SqliteSyncRepository implements SyncRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  listSubscribedChannels(): ChannelSyncInfo[] {
-    const rows = this.db
-      .prepare(
-        `SELECT channel_id, title, uploads_playlist, rss_etag, rss_last_modified, last_synced_at
-         FROM channels WHERE subscribed = 1 AND available = 1`
-      )
-      .all() as unknown as {
+  listSubscribedChannels(channelId?: string): ChannelSyncInfo[] {
+    const rows = (
+      channelId === undefined
+        ? this.db.prepare(
+            `SELECT channel_id, title, uploads_playlist, rss_etag, rss_last_modified, last_synced_at
+             FROM channels WHERE subscribed = 1 AND available = 1`
+          )
+        : this.db.prepare(
+            `SELECT channel_id, title, uploads_playlist, rss_etag, rss_last_modified, last_synced_at
+             FROM channels WHERE subscribed = 1 AND available = 1 AND channel_id = ?`
+          )
+    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as {
       channel_id: string
       title: string
       uploads_playlist: string | null
@@ -202,13 +207,20 @@ export class SqliteSyncRepository implements SyncRepository {
   }
 
   // D-028 candidates: short-duration videos whose verdict is still unknown.
-  shortCandidates(): string[] {
-    const rows = this.db
-      .prepare(
-        `SELECT video_id FROM videos
-         WHERE duration_seconds IS NOT NULL AND duration_seconds <= 180 AND is_short IS NULL`
-      )
-      .all() as unknown as { video_id: string }[]
+  // channelId scopes to a single channel (B-036).
+  shortCandidates(channelId?: string): string[] {
+    const rows = (
+      channelId === undefined
+        ? this.db.prepare(
+            `SELECT video_id FROM videos
+             WHERE duration_seconds IS NOT NULL AND duration_seconds <= 180 AND is_short IS NULL`
+          )
+        : this.db.prepare(
+            `SELECT video_id FROM videos
+             WHERE duration_seconds IS NOT NULL AND duration_seconds <= 180 AND is_short IS NULL
+               AND channel_id = ?`
+          )
+    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
     return rows.map((row) => row.video_id)
   }
 

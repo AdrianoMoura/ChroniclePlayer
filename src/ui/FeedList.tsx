@@ -184,6 +184,7 @@ function VideoRow({ video, selected, undoable, actions, onOpen, showViewCounts }
           ↗
         </button>
       </div>
+      {video.isShort && <span className="short-badge">Short</span>}
       {video.durationSeconds !== null && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}

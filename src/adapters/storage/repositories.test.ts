@@ -36,7 +36,8 @@ function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void
       publishedAt,
       durationSeconds: 600,
       thumbnailUrl: null,
-      viewCount: null
+      viewCount: null,
+      isShort: false
     },
     fixedClock.now().toISOString()
   )
@@ -230,7 +231,7 @@ describe('SqliteFeedRepository', () => {
     }
   })
 
-  it('never returns confirmed Shorts, in any view (D-028)', () => {
+  it('includes confirmed Shorts by default, tagged, in every view (B-028)', () => {
     addVideo('regular', '2026-07-08T10:00:00Z')
     addVideo('short', '2026-07-08T11:00:00Z')
     addVideo('unknown', '2026-07-08T12:00:00Z')
@@ -241,11 +242,32 @@ describe('SqliteFeedRepository', () => {
 
     expect(feed.listPage('all', null, 50).entries.map((e) => e.video.videoId)).toEqual([
       'unknown',
+      'short',
       'regular'
     ])
-    expect(feed.listPage('favorites', null, 50).entries).toEqual([])
-    expect(feed.listWatchLaterQueue()).toEqual([])
-    expect(feed.countUnread()).toBe(2)
+    expect(feed.listPage('all', null, 50).entries.find((e) => e.video.videoId === 'short')?.video.isShort).toBe(
+      true
+    )
+    expect(feed.listPage('favorites', null, 50).entries.map((e) => e.video.videoId)).toEqual(['short'])
+    expect(feed.listWatchLaterQueue().map((e) => e.video.videoId)).toEqual(['short'])
+    expect(feed.countUnread()).toBe(3)
+  })
+
+  it('excludes confirmed Shorts when showShorts is false, in any view (B-028 setting)', () => {
+    addVideo('regular', '2026-07-08T10:00:00Z')
+    addVideo('short', '2026-07-08T11:00:00Z')
+    addVideo('unknown', '2026-07-08T12:00:00Z')
+    db.prepare(`UPDATE videos SET is_short = 1 WHERE video_id = 'short'`).run()
+    db.prepare(`UPDATE videos SET is_short = 0 WHERE video_id = 'regular'`).run()
+    states.toggleFavorite('short')
+    states.toggleWatchLater('short')
+
+    expect(
+      feed.listPage('all', null, 50, undefined, false).entries.map((e) => e.video.videoId)
+    ).toEqual(['unknown', 'regular'])
+    expect(feed.listPage('favorites', null, 50, undefined, false).entries).toEqual([])
+    expect(feed.listWatchLaterQueue(false)).toEqual([])
+    expect(feed.countUnread(false)).toBe(2)
   })
 
   it('feed views require subscribed channels; favorites/watch-later do not (D-029)', () => {
@@ -340,7 +362,8 @@ describe('SqliteCatalogRepository', () => {
         publishedAt: '2026-07-08T10:00:00Z',
         durationSeconds: 900,
         thumbnailUrl: 'thumb.jpg',
-        viewCount: 1234
+        viewCount: 1234,
+        isShort: false
       },
       fixedClock.now().toISOString()
     )

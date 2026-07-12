@@ -10,7 +10,8 @@ Dates are deliberately absent — this is sequencing, not scheduling.
 
 Decisions resolved 2026-07-10: D-006 (embedded player) → D-005 (**Electron**), D-009
 (**React + TypeScript**), D-007 (hybrid feed source), D-010 (state model), D-012 (auth
-expiry handling), D-027 (scroll pagination), D-028 (Shorts exclusion, now MVP), D-029
+expiry handling), D-027 (scroll pagination), D-028 (Shorts exclusion, now MVP —
+superseded by D-035 on 2026-07-12, see `feed.md` §Shorts), D-029
 (universal opening), D-030 (both follow mechanisms), D-031 (YouTube search), D-032
 (incremental scopes), D-033 (accountless mode, post-MVP). D-008 (SQLite) remains the
 working plan. **M0 is unblocked.**
@@ -52,8 +53,8 @@ unit-tested offline; feed UI with virtualized grouped list, cursor + keyboard ma
 caught-up state; deterministic dev fixtures (~24 channels / ~4k videos) seed an empty
 dev DB. Verified live on Linux. Deferred within scope: sidebar channel list (M2, needs
 real channels), new-videos pill (M2, needs sync), density setting + themes (M3).
-`Enter`/`o` marks read until the player exists (M3). D-017 (ISO Monday) and D-018
-(view counts hidden) exercised with their recommended options — awaiting confirmation.
+`Enter`/`o` marks read until the player exists (M3). D-017 (ISO Monday) exercised with
+its recommended option. D-018 (view counts) later flipped to shown-by-default (B-029).
 
 ## M2 — Auth + real data (the risk milestone)
 
@@ -62,9 +63,10 @@ real channels), new-videos pill (M2, needs sync), density setting + themes (M3).
   (publish-to-production behavior, 7-day testing expiry) — update specs with findings.
 - Subscriptions import; hybrid feed source (D-007): RSS discovery + batched hydration;
   sync planner + per-channel failure isolation; quota accounting; failure-state banners.
-- **Shorts exclusion pipeline (D-028)** inside sync: duration candidates + `/shorts/`
+- **Shorts detection pipeline (D-028)** inside sync: duration candidates + `/shorts/`
   HEAD confirmation + `is_short` caching — and early verification of the heuristic
-  itself (it is MVP-blocking).
+  itself (it is MVP-blocking). (Display policy — exclude vs. tag+toggle — later
+  reversed by D-035; the detection pipeline itself is unaffected.)
 - Startup connection validation + browser re-auth flow (D-012).
 - Developer-facing setup doc (the wizard's content in plain markdown first — it becomes
   the wizard copy in M4 and validates the steps early).
@@ -120,8 +122,9 @@ notice per D-028, Ctrl+O URL prompt, navigation stack, external videos hydrated 
 never shifts under the cursor); real thumbnails through a `thumb://` protocol backed by
 the LRU disk cache (500 MB default) — the renderer still never fetches Google hosts.
 Pending decisions exercised with recommendations: D-021 (no auto-advance — explicit
-button only), D-022 (comfortable density), D-023 (muted thumbnails prototyped — judge
-during dogfooding). Pause-overlay call recorded in `playback.md`. Performance budgets:
+button only), D-022 (comfortable density). D-023 (muted thumbnails) was prototyped here
+and later rejected after dogfooding (B-034) — full opacity always. Pause-overlay call
+recorded in `playback.md`. Performance budgets:
 virtualization in place; formal cold-start/scroll measurements still to be taken during
 dogfooding (they close the milestone).
 

@@ -52,177 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-030 — Enter in the channel-filter search opens the first matching channel
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** typing in the sidebar's "Find channel" box (B-024) filters the
-  channel list; pressing Enter just blurs the field and does nothing else.
-- **Expected:** pressing Enter opens (selects) the first channel in the filtered
-  results, same intent as a normal search-and-go field.
-- **Code refs:** `src/ui/Sidebar.tsx` (`channelQuery` / `visibleChannels` state, the
-  `onKeyDown` handler on the `.channel-query` input — currently only handles `Escape`
-  and blurs on `Enter`; needs to call `onSelectChannel(visibleChannels[0].channelId)`
-  when there's a match).
-
-### B-031 — System-wide scrollbar: minimalist style
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** scrollbars use the OS/Electron default everywhere (no custom
-  scrollbar rule exists in `styles.css`).
-- **Expected:** a slim, minimalist scrollbar treatment applied app-wide (thin track,
-  subtle thumb, no arrow buttons), consistent with the RSS-reader aesthetic in
-  `ui.md`.
-- **Code refs:** `src/ui/styles.css` (new `::-webkit-scrollbar` rule set — Electron is
-  Chromium-based so the WebKit scrollbar pseudo-elements apply; needs light/dark theme
-  variants alongside the existing `--surface`/`--border` custom properties).
-
-### B-032 — Video description: overflow sometimes cut off with no expand toggle
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player
-- **What happens:** the clamp-with-"Show more" behavior delivered for [[B-005]] isn't
-  always showing the toggle — the description gets visually cut off at the clamp with
-  no way to expand it.
-- **Expected:** whenever the description text actually overflows the clamped height,
-  the Show more/Show less toggle must appear (per B-005's original intent — clamping
-  without an escape hatch defeats the point).
-- **Code refs:** `src/ui/PlayerView.tsx` (`Description` component — `onOverflowChange`
-  fires from a `useEffect` comparing `scrollHeight`/`clientHeight` right after mount;
-  likely a measurement-timing issue, e.g. reading the height before fonts/layout settle
-  or before the clamped CSS class has applied); `src/ui/styles.css`
-  (`.description-text.clamped`).
-- **Notes:** regression/gap in [[B-005]]'s fix, not a new feature.
-
-### B-033 — Clear ("×") button inside filter/search fields when they have text
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** the sidebar channel-filter box and the topbar feed-filter box
-  (`/`) only clear via Escape or manual backspacing — no visible affordance.
-- **Expected:** an inline × button appears inside the field once it has text, clicking
-  it clears the field (and refocuses it), mirroring the existing Escape behavior.
-- **Code refs:** `src/ui/Sidebar.tsx` (`.channel-query` input); `src/ui/App.tsx`
-  (`.filter` input, `filter` state); `src/ui/styles.css` (both input styles — needs a
-  wrapper to position the button inside the field).
-
-### B-034 — Thumbnail opacity: keep at full opacity, not dimmed by default
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** feed
-- **What happens:** feed-row thumbnails render at `opacity: 0.72` by default, rising
-  to `1` only on hover/selection (the D-023 "muted thumbnail" prototype).
-- **Expected:** thumbnails render at normal (full) opacity always — no dimmed resting
-  state.
-- **Code refs:** `src/ui/styles.css` (`.thumb` — drop the `opacity: 0.72` and the
-  `.row:hover .thumb, .row.selected .thumb { opacity: 1 }` override becomes moot and
-  can go too).
-- **Notes:** revisits **D-023 (Pending)** — decisions.md already frames this as "keep
-  only if it works" with normal thumbnails as the alternative; update D-023's status
-  when this is attacked.
-
-### B-035 — "All caught up" message duplicated (topbar status + banner below)
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** when caught up, the same message renders twice: once as the
-  topbar status text next to the view title, and again as a `.caught-up` block at the
-  top of the feed region.
-- **Expected:** keep only the first occurrence (topbar status); remove the second.
-- **Code refs:** `src/ui/App.tsx` (topbar `statusText` around line 693 — keep; the
-  `.caught-up` block right after `feed-region` opens, around line 741-745 — remove).
-
-### B-036 — Refresh while viewing a channel should sync only that channel
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** sync
-- **What happens:** clicking Refresh always runs the full subscription sync
-  (`window.chronicle.refreshFeed()` → `feed:refresh` → `SyncService.refresh()` over
-  every followed channel), even when the user is inside a single channel's filtered
-  view.
-- **Expected:** when a channel filter is active, Refresh syncs only that channel
-  instead of the whole subscription list.
-- **Code refs:** `src/ui/App.tsx` (`doRefresh` — needs the current `channelFilter`
-  passed through); `src/ipc/contract.ts` (`refreshFeed()` — needs an optional
-  channel-id parameter, plus the `feed:refresh` channel); `src/platform/main.ts`
-  (`ipcMain.handle(IpcChannel.refreshFeed, ...)`); `src/core/sync-service.ts`
-  (`refresh(trigger)` / `discoverChannel(channel, ctx)` — per-channel sync already
-  exists internally in the loop; needs a scoped entry point that runs it for one
-  channel instead of iterating all).
-- **Notes:** internals already isolate per-channel work (each channel's discovery is
-  independently error-handled today), so this is mostly about exposing a scoped path
-  through the IPC contract, not new sync logic.
-
-### B-027 — Refresh button spin animation rotates the whole button, not just the icon
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** while a sync is in progress, the refresh button gets a `spinning`
-  class that applies `animation: spin` to the `.refresh` element itself. `.refresh` is
-  the button (has padding/border-radius/hover background), not just the glyph inside
-  it, so the whole square button — background included — visibly spins instead of just
-  the icon.
-- **Expected:** only the icon/glyph rotates; the button's background, border, and
-  hit-area stay static during refresh.
-- **Code refs:** `src/ui/App.tsx` (`className={`refresh${refreshing ? ' spinning' :
-  ''}`}` around line 682 — the glyph markup); `src/ui/styles.css` (`.refresh`,
-  `.refresh.spinning`, `@keyframes spin` — wrap the icon in its own `<span>` and move
-  the spin animation to that inner element).
-
-### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
-- **Type:** bug · **Severity:** major
-- **Status:** Open (reopened) · **Reported:** 2026-07-12
-- **Area:** ui-shell / storage
-- **What happens:** Settings → delete all data wipes and restarts the app, but the
-  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
-  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
-  the product owner, live, after the first fix attempt below — reopening.
-- **Expected:** after the wipe the app comes back in its clean first-run state. Today
-  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
-  so the post-wipe landing should be whatever "fresh start without an account" becomes
-  once B-003 lands — design the fix so the landing screen is the normal first-run
-  entrypoint, not a hardcoded wizard jump.
-- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler — `app.relaunch()` +
-  per-window `destroy()` + `app.quit()`; `createWindow()`'s dev-vs-packaged branch a
-  few lines above it).
-- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
-  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
-  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
-  Fixed without live validation ("could not be exercised headlessly") — the owner's
-  live test now shows the blank/frozen screen still happens, so the teardown-race
-  theory is disproven or at least incomplete. **New hypothesis, untested:**
-  `createWindow()` picks the renderer source with
-  `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ? loadURL(...) :
-  loadFile(...renderer/index.html)`. In dev (`npm run dev`, via electron-vite),
-  `ELECTRON_RENDERER_URL` is injected by the electron-vite dev orchestrator when it
-  first spawns Electron. `app.relaunch()` respawns `process.execPath` directly — if
-  that env var doesn't survive the relaunch, the new instance falls through to
-  `loadFile()` against a renderer bundle that only exists in a packaged build, which
-  would present as exactly this blank/frozen window. Needs a same-day check: (1) does
-  the bug reproduce in a **packaged** build, not just `npm run dev`? (2) if dev-only,
-  log `process.env['ELECTRON_RENDERER_URL']` and `app.isPackaged` right after the
-  relaunch to confirm. Do not re-mark Fixed without a live re-test — Electron
-  relaunch/compositor behavior cannot be verified headlessly in this environment.
-
-### B-029 — View counts should show by default, not be an opt-in setting
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** the "Show view counts" toggle in Settings defaults to off
-  (`DEFAULT_SETTINGS.showViewCounts = false`), so feed rows hide view counts unless
-  the user finds and flips the setting.
-- **Expected:** view counts show by default. The data costs no extra quota (captured
-  at hydration per D-018) and view counts are a normal, expected piece of context on a
-  video row — hiding them by default adds friction with no clear benefit. Whether the
-  toggle should be removed entirely or just default to `true` is open; leaning toward
-  keeping the toggle (some users may still prefer to hide it) but flipping the default.
-- **Code refs:** `src/platform/settings-store.ts` (`DEFAULT_SETTINGS.showViewCounts`);
-  `src/ui/App.tsx` (matching initial state, line ~78); `src/ui/SettingsView.tsx`
-  (the toggle itself).
-- **Notes:** revisits D-018, which recorded "hidden by default" as the recommended
-  option exercised in M5 — update `decisions.md` when this is attacked.
-
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-11
@@ -347,35 +176,212 @@ Resolved entries add:
 - **Notes:** promotes the "localization is a Future idea" note in `.specs/README.md`
   to infrastructure-now, strings-later. Wizard copy is the biggest surface.
 
+## In progress
+
+### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-07-12
+- **Area:** ui-shell / storage
+- **What happens:** Settings → delete all data wipes and restarts the app, but the
+  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
+  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
+  the product owner, live, after the first fix attempt (commit 877a30d) — reopened.
+- **Expected:** after the wipe the app comes back in its clean first-run state. Today
+  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
+  so the post-wipe landing should be whatever "fresh start without an account" becomes
+  once B-003 lands — design the fix so the landing screen is the normal first-run
+  entrypoint, not a hardcoded wizard jump.
+- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler, `devRendererUrl()`,
+  `createWindow()`).
+- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
+  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
+  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
+  Fixed without live validation — the owner's live re-test showed the blank/frozen
+  screen still happens, so the teardown-race theory is disproven or at least
+  incomplete. **Second attempt (this session):** `createWindow()` picked the renderer
+  source with `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ?
+  loadURL(...) : loadFile(...)`. `app.relaunch()` has no `env` option (only
+  `args`/`execPath`) — whether `ELECTRON_RENDERER_URL` (set by electron-vite's dev
+  orchestrator) survives into the relaunched process depends on env-inheritance
+  behavior the code never controlled explicitly. In dev, a relaunch that lost the
+  var would fall through to `loadFile()` against a renderer bundle that only exists
+  in a packaged build — exactly a blank window. Fixed by making the URL travel
+  explicitly through `args` (a new `devRendererUrl()` helper checks
+  `process.argv` for a `--chronicle-renderer-url=` flag as a fallback to the env var,
+  and `deleteAllData` now passes `app.relaunch({ args: [...relaunchArgs,
+  '--chronicle-renderer-url=...'] })`), removing the dependency on env-inheritance
+  entirely regardless of whether that was the true root cause. **Still needs live
+  validation** on the product owner's system in `npm run dev` — this session has no
+  display to exercise Electron relaunch/compositor behavior. Keep in "In progress"
+  (not Resolved) until confirmed live, per this bug's own established rule.
+
+## Resolved
+
 ### B-028 — Show Shorts in the feed, marked and filterable (reverses D-028)
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** feed
-- **What happens:** Shorts from subscribed channels are unconditionally excluded from
+- **What happens:** Shorts from subscribed channels were unconditionally excluded from
   every view per D-028 (Final) — detected via duration + `/shorts/{id}` HEAD check and
-  dropped before they ever reach the UI (`feed.md` §Shorts exclusion).
+  dropped before they ever reached the UI (`feed.md` §Shorts exclusion).
 - **Expected:** owner's proposal — since the feed only ever shows content from channels
   the user chose to follow, excluding Shorts outright works against the "agency, not
   austerity" test (who is driving — the user, or the app filtering on their behalf?).
-  Keep Shorts in the feed, tag them visibly in the listing (e.g., a "Short" badge next
-  to the duration), and add a user-controlled filter/toggle to show or hide them.
-- **Code refs:** Shorts detection/exclusion pipeline (D-028, `feed.md`); `is_short`
-  column on the video state model (`local-data.md`); feed query/repositories that
-  currently drop `is_short` rows before they reach the UI; feed list components for the
-  badge + filter control.
-- **Notes:** this directly reverses **D-028 (Final)** — "No Shorts. Ever. Not now, not
-  ever. There is no toggle." — and the matching "No Shorts. Ever." entry in
-  `non-goals.md`. Acting on it means updating `decisions.md` (D-028 → Superseded, new
-  decision recorded), `non-goals.md`, and `feed.md` §Shorts exclusion in the same
-  change as the implementation, not shipping UI against a spec that still says
-  otherwise. Logged as requested; per workflow this and the rest of the list are
-  attacked only when the owner says so.
+  Keep Shorts in the feed, tag them visibly in the listing (a "Short" badge next to the
+  duration), and add a user-controlled filter/toggle to show or hide them.
+- **Code refs:** `src/core/video.ts` (`Video.isShort`); `src/adapters/storage/repositories.ts`
+  (`shortsFilter`, threaded through `listPage`/`listWatchLaterQueue`/`countWatchLater`/
+  `countUnread`/`countUnreadSince`/`listFollowedChannels`); `src/core/ports.ts`
+  (`FeedRepository` — new `showShorts?` param); `src/core/feed-service.ts` (`getSlice`);
+  `src/ipc/contract.ts` (`FeedVideoDto.isShort`, `SettingsDto.showShorts`);
+  `src/platform/main.ts` (`toSliceDto`, `getFeed`/`getFeedMeta`/`getChannels` handlers
+  read `settings.showShorts`); `src/platform/settings-store.ts` (`showShorts`, default
+  `true`); `src/ui/SettingsView.tsx` ("Show Shorts" toggle); `src/ui/FeedList.tsx`
+  (`.short-badge`); `src/ui/App.tsx` (`changeSettings` re-fetches on toggle, since this
+  setting affects server-side counts, unlike the display-only settings).
+- **Notes:** this directly reverses **D-028 (Final)**, now superseded by **D-035** —
+  see `decisions.md`, `non-goals.md`, and `feed.md` §Shorts (renamed from §Shorts
+  exclusion), all updated in the same change. The detection pipeline itself (duration
+  candidate + HEAD confirmation, `is_short` caching) is untouched — only the display
+  policy reversed, from unconditional exclusion to shown-by-default-with-a-toggle,
+  mirroring [[B-029]]'s "on by default, toggle to hide" shape. Dev fixtures
+  (`src/platform/dev-fixtures.ts`) now seed ~8% confirmed Shorts so the badge/toggle
+  have something to exercise in `npm run dev`.
 
-## In progress
+### B-036 — Refresh while viewing a channel should sync only that channel
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** sync
+- **What happens:** clicking Refresh always ran the full subscription sync
+  (`window.chronicle.refreshFeed()` → `feed:refresh` → `SyncService.refresh()` over
+  every followed channel), even when the user was inside a single channel's filtered
+  view.
+- **Expected:** when a channel filter is active, Refresh syncs only that channel
+  instead of the whole subscription list.
+- **Code refs:** `src/ui/App.tsx` (`doRefresh` passes `channelFilter`);
+  `src/ipc/contract.ts` (`refreshFeed(channelId?)`); `src/platform/preload.ts`;
+  `src/platform/main.ts` (`runRefresh(trigger, channelId?)`, the `feed:refresh`
+  handler parses it via `parseChannelId`); `src/core/sync-service.ts`
+  (`refresh(trigger, channelId?)` skips `syncSubscriptions()` and scopes
+  `listSubscribedChannels`/`shortCandidates` to the one channel when set);
+  `src/core/ports.ts` + `src/adapters/storage/sync-repository.ts` (`channelId?` param
+  on both).
+- **Resolution:** matches the diagnosis in the original report — internals already
+  isolated per-channel work, so this was exposing a scoped path through the IPC
+  contract and repository queries, not new sync logic. Covered by a new
+  `sync-service.test.ts` case asserting no subscription re-list and no cross-channel
+  Shorts-candidate touch when scoped.
 
-*(none)*
+### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 
-## Resolved
+See **In progress** above — a second fix attempt landed this session (dev renderer URL
+now travels through relaunch `args`, not just env-inheritance) but stays open pending a
+live re-test; not moved to Resolved.
+
+### B-032 — Video description: overflow sometimes cut off with no expand toggle
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** the clamp-with-"Show more" behavior delivered for [[B-005]] wasn't
+  always showing the toggle — the description got visually cut off at the clamp with
+  no way to expand it.
+- **Expected:** whenever the description text actually overflows the clamped height,
+  the Show more/Show less toggle must appear.
+- **Code refs:** `src/ui/PlayerView.tsx` (`Description` component's overflow-measuring
+  `useEffect`).
+- **Resolution:** the single synchronous measurement right after mount could run
+  before web fonts finished loading or before the container's final width settled
+  (sidebar toggle, window resize) — both change line-wrapping and therefore whether
+  the clamp actually cuts text off. Now re-measures via `requestAnimationFrame`, on
+  `document.fonts.ready`, and on a `ResizeObserver` watching the element, in addition
+  to the immediate measurement.
+
+### B-033 — Clear ("×") button inside filter/search fields when they have text
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the sidebar channel-filter box and the topbar feed-filter box
+  (`/`) only cleared via Escape or manual backspacing — no visible affordance.
+- **Expected:** an inline × button appears inside the field once it has text, clicking
+  it clears the field (and refocuses it), mirroring the existing Escape behavior.
+- **Code refs:** `src/ui/Sidebar.tsx`, `src/ui/App.tsx` (both inputs wrapped in a new
+  `.field-wrap`); `src/ui/styles.css` (`.field-wrap`, `.field-clear`).
+- **Resolution:** as described; both fields share the same wrapper/button pattern.
+
+### B-034 — Thumbnail opacity: keep at full opacity, not dimmed by default
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** feed
+- **What happens:** feed-row thumbnails rendered at `opacity: 0.72` by default, rising
+  to `1` only on hover/selection (the D-023 "muted thumbnail" prototype).
+- **Expected:** thumbnails render at normal (full) opacity always — no dimmed resting
+  state.
+- **Code refs:** `src/ui/styles.css` (`.thumb`).
+- **Resolution:** dropped `opacity: 0.72` and the now-moot hover/selected override.
+  Revisits **D-023**, updated in `decisions.md` from Pending to Final (rejected — see
+  `ui.md`).
+
+### B-035 — "All caught up" message duplicated (topbar status + banner below)
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** when caught up, the same message rendered twice: once as the
+  topbar status text next to the view title, and again as a `.caught-up` block at the
+  top of the feed region.
+- **Expected:** keep only the first occurrence (topbar status); remove the second.
+- **Code refs:** `src/ui/App.tsx` (removed the `.caught-up` block); `src/ui/styles.css`
+  (removed the now-unused `.caught-up` rule).
+
+### B-030 — Enter in the channel-filter search opens the first matching channel
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** typing in the sidebar's "Find channel" box (B-024) filtered the
+  channel list; pressing Enter just blurred the field and did nothing else.
+- **Expected:** pressing Enter opens (selects) the first channel in the filtered
+  results, same intent as a normal search-and-go field.
+- **Code refs:** `src/ui/Sidebar.tsx` (`onKeyDown` on `.channel-query`).
+- **Resolution:** Enter now calls `onSelectChannel(visibleChannels[0].channelId)` when
+  there's a match, then blurs (unchanged when there's no match).
+
+### B-031 — System-wide scrollbar: minimalist style
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** scrollbars used the OS/Electron default everywhere.
+- **Expected:** a slim, minimalist scrollbar treatment applied app-wide (thin track,
+  subtle thumb, no arrow buttons), consistent with the RSS-reader aesthetic in
+  `ui.md`.
+- **Code refs:** `src/ui/styles.css` (new global `::-webkit-scrollbar` rule set plus
+  the standards-track `scrollbar-width`/`scrollbar-color` for Firefox parity).
+- **Resolution:** thin (10px) scrollbars, transparent track, a subtle
+  `var(--border)`-colored thumb that darkens on hover — theme-aware via the existing
+  custom properties, so light/dark both fall out for free.
+
+### B-029 — View counts should show by default, not be an opt-in setting
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the "Show view counts" toggle in Settings defaulted to off, so
+  feed rows hid view counts unless the user found and flipped the setting.
+- **Expected:** view counts show by default; the toggle stays, to hide them if wanted.
+- **Code refs:** `src/platform/settings-store.ts` (`DEFAULT_SETTINGS.showViewCounts`);
+  `src/ui/App.tsx` (matching initial state).
+- **Resolution:** flipped the default to `true`, kept the toggle. Revisits D-018,
+  updated in `decisions.md` from Pending to Final (view counts on by default).
+
+### B-027 — Refresh button spin animation rotates the whole button, not just the icon
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** while a sync was in progress, the `spinning` class applied
+  `animation: spin` to the `.refresh` button element itself — background, border and
+  all — instead of just the glyph inside it.
+- **Expected:** only the icon/glyph rotates; the button's background, border, and
+  hit-area stay static during refresh.
+- **Code refs:** `src/ui/App.tsx` (glyph wrapped in its own `<span className="refresh-
+  icon">`); `src/ui/styles.css` (`.refresh-icon`, `.refresh-icon.spinning` — the spin
+  animation moved off `.refresh`).
 
 ### B-026 — Minimize button is broken on niri (Wayland)
 - **Type:** bug · **Severity:** minor

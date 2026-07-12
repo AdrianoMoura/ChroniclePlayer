@@ -1,5 +1,9 @@
 import type { CatalogRepository, Clock, StateRepository } from '../core/ports'
 
+interface ShortsRepository {
+  setShortStatus(videoId: string, isShort: boolean): void
+}
+
 // M1: deterministic fake data so the feed experience can be exercised fully
 // offline (roadmap.md). Dev-only — never runs in a packaged app — and only
 // seeds an empty database. Same seed → same data on every machine.
@@ -67,7 +71,8 @@ function rng(seed: number): () => number {
 export function seedDevFixtures(
   catalog: CatalogRepository,
   states: StateRepository,
-  clock: Clock
+  clock: Clock,
+  shorts: ShortsRepository
 ): void {
   if (catalog.countVideos() > 0) return
 
@@ -91,18 +96,23 @@ export function seedDevFixtures(
     while (ageHours < 24 * 730) {
       const videoId = `fx-${String(index).padStart(2, '0')}-${String(serial).padStart(4, '0')}`
       const publishedAt = new Date(now.getTime() - ageHours * 3_600_000).toISOString()
+      // B-028: ~8% Shorts, so the badge/filter have something to exercise
+      // in dev without the D-028 exclusion pipeline running.
+      const isShort = random() < 0.08
       catalog.upsertVideo(
         {
           videoId,
           channelId,
           title: `${pick(TITLE_LEADS)} ${pick(TITLE_SUBJECTS)}${pick(TITLE_TAILS)}`,
           publishedAt,
-          durationSeconds: 200 + Math.floor(random() * 3400),
+          durationSeconds: isShort ? 15 + Math.floor(random() * 45) : 200 + Math.floor(random() * 3400),
           thumbnailUrl: null,
-          viewCount: Math.floor(random() * 400_000)
+          viewCount: Math.floor(random() * 400_000),
+          isShort
         },
         nowIso
       )
+      if (isShort) shorts.setShortStatus(videoId, true)
       videoIds.push({ videoId, ageDays: ageHours / 24 })
       ageHours += cadenceHours * (0.5 + random())
       serial += 1

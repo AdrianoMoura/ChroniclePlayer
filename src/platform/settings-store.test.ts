@@ -17,7 +17,13 @@ describe('settings store', () => {
 
   it('round-trips saved settings', () => {
     const file = tempFile()
-    const custom = { theme: 'light', density: 'compact', refreshMinutes: 15, showViewCounts: true } as const
+    const custom = {
+      theme: 'light',
+      density: 'compact',
+      refreshMinutes: 15,
+      showViewCounts: true,
+      showShorts: false
+    } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
   })
@@ -30,8 +36,20 @@ describe('settings store', () => {
 
   it('normalizes field-by-field: one bad value falls back alone', () => {
     expect(
-      normalizeSettings({ theme: 'light', density: 'huge', refreshMinutes: -5, showViewCounts: true })
-    ).toEqual({ theme: 'light', density: 'comfortable', refreshMinutes: 30, showViewCounts: true })
+      normalizeSettings({
+        theme: 'light',
+        density: 'huge',
+        refreshMinutes: -5,
+        showViewCounts: true,
+        showShorts: false
+      })
+    ).toEqual({
+      theme: 'light',
+      density: 'comfortable',
+      refreshMinutes: 30,
+      showViewCounts: true,
+      showShorts: false
+    })
   })
 
   it('accepts 0 as manual-only refresh', () => {

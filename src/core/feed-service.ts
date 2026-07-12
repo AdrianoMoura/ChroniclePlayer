@@ -31,15 +31,16 @@ export class FeedService {
     view: FeedView,
     cursor: FeedCursor | null,
     limit = FEED_PAGE_SIZE,
-    channelId?: string
+    channelId?: string,
+    showShorts = true // B-028
   ): FeedSlice {
     const now = this.clock.now()
     const items =
       view === 'watch-later'
-        ? this.repository.listWatchLaterQueue().map((entry) => ({ entry, bucket: null }))
+        ? this.repository.listWatchLaterQueue(showShorts).map((entry) => ({ entry, bucket: null }))
         : null
 
-    const page = items ? null : this.repository.listPage(view, cursor, limit, channelId)
+    const page = items ? null : this.repository.listPage(view, cursor, limit, channelId, showShorts)
 
     return {
       view,
@@ -50,8 +51,9 @@ export class FeedService {
           bucket: bucketOf(new Date(entry.video.publishedAt), now)
         })),
       nextCursor: page?.nextCursor ?? null,
-      unreadCount: this.repository.countUnread(),
-      caughtUp: this.repository.countUnreadSince(recentWindowStart(now).toISOString()) === 0
+      unreadCount: this.repository.countUnread(showShorts),
+      caughtUp:
+        this.repository.countUnreadSince(recentWindowStart(now).toISOString(), showShorts) === 0
     }
   }
 }

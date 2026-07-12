@@ -64,7 +64,11 @@ interface RefreshContext {
 export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
-  async refresh(trigger: SyncTrigger): Promise<SyncReport> {
+  // channelId scopes the whole run to one channel (B-036): the subscription
+  // re-list is skipped (nothing to gain re-listing every channel to refresh
+  // one), and both channel discovery and Shorts confirmation are filtered to
+  // it.
+  async refresh(trigger: SyncTrigger, channelId?: string): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
     const quotaBefore = quota.spent
@@ -76,15 +80,17 @@ export class SyncService {
     const firstSync = repo.getMeta(META_SUBSCRIPTIONS_SYNCED_AT) === null
 
     try {
-      try {
-        subscriptions = await this.syncSubscriptions()
-      } catch (error) {
-        if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
-        else if (isDomainError(error, 'auth-expired')) throw error
-        else channelsFailed += 1 // stale subscription list; continue with local channels
+      if (channelId === undefined) {
+        try {
+          subscriptions = await this.syncSubscriptions()
+        } catch (error) {
+          if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
+          else if (isDomainError(error, 'auth-expired')) throw error
+          else channelsFailed += 1 // stale subscription list; continue with local channels
+        }
       }
 
-      const channels = repo.listSubscribedChannels()
+      const channels = repo.listSubscribedChannels(channelId)
       channelsPolled = channels.length
       let checked = 0
       this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
@@ -125,7 +131,7 @@ export class SyncService {
         }
       }
 
-      await this.confirmShorts()
+      await this.confirmShorts(channelId)
 
       const outcome = ctx.quotaHit
         ? 'quota'
@@ -312,8 +318,8 @@ export class SyncService {
   // D-028 pipeline: candidates are confirmed via HEAD probe, cached forever.
   // Probe failures leave is_short NULL — the video stays visible (candidates
   // are hidden only after confirmation) and is retried next cycle.
-  private async confirmShorts(): Promise<void> {
-    const candidates = this.deps.repo.shortCandidates()
+  private async confirmShorts(channelId?: string): Promise<void> {
+    const candidates = this.deps.repo.shortCandidates(channelId)
     if (candidates.length === 0) return
     let checked = 0
     this.deps.onProgress?.({ phase: 'shorts', checked, total: candidates.length })

@@ -98,9 +98,8 @@ Stored as an explicit position column, not a timestamp sort (`local-data.md`).
 
 Each feed row shows (see `ui.md` for layout): thumbnail, title, channel name, duration
 badge, published time (relative within 7 days — "3 h ago" — absolute date beyond),
-unread indicator, and flag glyphs (favorite/watch-later) when set. View count display:
-**D-018 (Pending)** — it is mild engagement signaling. Recommendation: hidden by default,
-available as a setting. 
+unread indicator, and flag glyphs (favorite/watch-later) when set. View count display
+(**D-018**): shown by default, with a Settings toggle to hide it.
 
 ## Unread accounting & "caught up" (Final)
 
@@ -133,31 +132,41 @@ appear. (Predictability over liveliness.)
   between refreshes), page `playlistItems.list` until overlap with known videos, bounded
   at 200 videos/channel per cycle.
 
-## Shorts exclusion — D-028 (Final, 2026-07-10, MVP requirement)
+## Shorts — D-028 (Final, reversed 2026-07-12 by B-028)
 
-**Chronicle never displays Shorts. Not now, not ever. There is no toggle.** This is a
-product-identity decision, not a filter.
+**Shorts are shown, tagged, and user-filterable — not excluded.** The original MVP
+decision (2026-07-10) unconditionally excluded Shorts everywhere, with "no toggle" as an
+explicit product-identity stance. Dogfooding (B-028) surfaced that this worked against
+the app's own governing principle ("agency, not austerity", `vision.md`): the feed only
+ever shows content from channels the user chose to follow, so silently filtering some of
+it on their behalf is the algorithm's will in miniature, not the user's. D-028 was
+superseded the same day: Shorts now participate in the feed exactly like any other
+video, with a "Short" badge for awareness and a Settings toggle to hide them if the user
+wants to.
 
-- Excluded Shorts do not appear in any view, do not count as unread, and are not
-  exported as feed content (they may remain as tagged rows in the DB — cheaper and safer
-  than deleting, and keeps re-detection idempotent).
-- **Detection** (the API has no Shorts flag — Assumption, verify early in M2):
+- Shown in every view, count as unread like any other video, and are exported as normal
+  feed content. A feed row for a confirmed Short carries a small "Short" badge next to
+  the duration.
+- **Detection** (the API has no Shorts flag — Assumption, verify early in M2) is
+  unchanged from the original design:
   1. `duration_seconds ≤ 180` is a *candidate* signal (Shorts are ≤ 3 min), captured via
      hydration (D-007) — never sufficient alone (regular short videos exist);
   2. confirmation via HEAD request to `youtube.com/shorts/{videoId}` — Shorts return
      200, regular videos redirect to `/watch`. Zero quota; result cached permanently per
      video (`videos.is_short` column, `local-data.md`).
-  - Candidates are hidden **only after confirmation**; misclassifying a real video out of
-    existence is worse than a Short flashing briefly in the feed.
-- The detection pipeline runs inside sync (M2), so exclusion works from the first
-  release. If the heuristic ever degrades, fixing detection is a bug fix, not a design
-  change.
+  - Candidates are tagged as a Short **only after confirmation**; misclassifying a real
+    video is worse than a Short briefly showing untagged.
+- **Settings: "Show Shorts"** (default **on**). Off applies the same `is_short`
+  exclusion the feed used unconditionally before this reversal — Shorts (and their
+  unread/queue counts) disappear from every view, including Watch Later and Favorites,
+  until switched back on. This is a display preference, not a data deletion: excluded
+  rows stay in the DB either way.
 
 ## Filters (MVP scope)
 
 MVP feed filters are limited to: All / Unread / Favorites / Watch Later / Ignored
-(as views, see `ui.md`). Shorts exclusion (above) is not a filter — it is unconditional.
-Other content-based filters (hide live streams/premieres, duration rules, per-channel
-muting) are Future features specced in `features.md` — but the data to power them
-(duration, liveBroadcastContent) is captured from day one via hydration (D-007), so
-adding them later is a pure query/UI change.
+(as views, see `ui.md`), plus the Shorts visibility setting (above). Other content-based
+filters (hide live streams/premieres, duration rules, per-channel muting) are Future
+features specced in `features.md` — but the data to power them (duration,
+liveBroadcastContent) is captured from day one via hydration (D-007), so adding them
+later is a pure query/UI change.

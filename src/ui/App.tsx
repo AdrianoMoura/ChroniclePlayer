@@ -75,7 +75,8 @@ export function App() {
     theme: 'system',
     density: 'comfortable',
     refreshMinutes: 30,
-    showViewCounts: false
+    showViewCounts: true,
+    showShorts: true
   })
 
   const viewRef = useRef<FeedViewDto>('all')
@@ -142,10 +143,21 @@ export function App() {
     void window.chronicle.setWizardState(state)
   }, [])
 
-  const changeSettings = useCallback((next: SettingsDto) => {
-    setSettings(next)
-    void window.chronicle.setSettings(next)
-  }, [])
+  const changeSettings = useCallback(
+    (next: SettingsDto) => {
+      const shortsChanged = next.showShorts !== settings.showShorts
+      setSettings(next)
+      void window.chronicle.setSettings(next)
+      // B-028: showShorts is applied server-side (it affects counts, not
+      // just display), so flipping it needs a re-fetch — unlike the other
+      // settings here, which only change how the renderer draws local data.
+      if (shortsChanged) {
+        loadView()
+        loadChannels()
+      }
+    },
+    [settings.showShorts, loadView, loadChannels]
+  )
 
   // Manual theme override (ui.md); 'system' defers to prefers-color-scheme.
   useEffect(() => {
@@ -182,7 +194,8 @@ export function App() {
   }, [])
 
   const doRefresh = useCallback(() => {
-    void window.chronicle.refreshFeed().then((result) => {
+    // B-036: a channel-filtered view refreshes only that channel.
+    void window.chronicle.refreshFeed(channelFilter).then((result) => {
       if (result.ok || result.errorKind === 'busy') return
       if (result.errorKind === 'auth-expired') {
         setBanner({
@@ -195,7 +208,7 @@ export function App() {
         setBanner({ text: `Refresh failed: ${result.message}` })
       }
     })
-  }, [connect])
+  }, [connect, channelFilter])
 
   // Bulk unread → read over the current scope (B-020, D-010 semantics).
   const markAllRead = useCallback(() => {
@@ -678,12 +691,8 @@ export function App() {
         ) : (
           <>
         <header className="topbar">
-          <button
-            className={`refresh${refreshing ? ' spinning' : ''}`}
-            title="Refresh (r)"
-            onClick={doRefresh}
-          >
-            ⟳
+          <button className="refresh" title="Refresh (r)" onClick={doRefresh}>
+            <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
           </button>
           <span className="topbar-view">
             {channelFilter !== null
@@ -696,16 +705,30 @@ export function App() {
               Mark all as read
             </button>
           )}
-          <input
-            ref={filterInputRef}
-            className="filter"
-            placeholder="Filter in view  /"
-            value={filter}
-            onChange={(event) => {
-              setFilter(event.target.value)
-              setCursorIdx(0)
-            }}
-          />
+          <div className="field-wrap">
+            <input
+              ref={filterInputRef}
+              className="filter"
+              placeholder="Filter in view  /"
+              value={filter}
+              onChange={(event) => {
+                setFilter(event.target.value)
+                setCursorIdx(0)
+              }}
+            />
+            {filter !== '' && (
+              <button
+                className="field-clear"
+                title="Clear"
+                onClick={() => {
+                  setFilter('')
+                  filterInputRef.current?.focus()
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </header>
 
         {banner !== null && (
@@ -738,11 +761,6 @@ export function App() {
           />
         ) : (
           <div className="feed-region">
-            {meta.caughtUp && (view === 'all' || view === 'unread') && channelFilter === null && (
-              <div className="caught-up">
-                {statusText.startsWith('All caught up') ? statusText : 'You’re all caught up.'}
-              </div>
-            )}
             {newVideosPill !== null && (
               <button className="new-videos-pill" onClick={() => loadView()}>
                 {newVideosPill} new video{newVideosPill > 1 ? 's' : ''}

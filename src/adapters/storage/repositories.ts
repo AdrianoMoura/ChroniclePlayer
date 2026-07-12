@@ -34,6 +34,7 @@ const FEED_SELECT = `
     v.duration_seconds  AS duration_seconds,
     v.thumbnail_url     AS thumbnail_url,
     v.view_count        AS view_count,
+    v.is_short           AS is_short,
     c.title             AS channel_title,
     COALESCE(s.read_status, 'unread') AS read_status,
     COALESCE(s.favorite, 0)           AS favorite,
@@ -43,9 +44,15 @@ const FEED_SELECT = `
   LEFT JOIN video_state s ON s.video_id = v.video_id
 `
 
-// D-028: Shorts candidates are hidden only after confirmation (is_short = 1);
-// NULL (unknown) and 0 (confirmed not) both stay visible.
+// B-028: Shorts are shown by default, tagged with a badge — this filter only
+// applies when the user's "Show Shorts" setting is off. Candidates are
+// excluded only after confirmation (is_short = 1); NULL (unknown) and 0
+// (confirmed not) both stay visible either way.
 const NOT_SHORT = `(v.is_short IS NULL OR v.is_short = 0)`
+
+function shortsFilter(showShorts: boolean): string {
+  return showShorts ? '' : `AND ${NOT_SHORT}`
+}
 
 // Feed membership (feed.md): subscribed channels only. Favorites and Watch
 // Later are NOT feed views — they also reach externally opened videos
@@ -70,6 +77,7 @@ interface FeedRow {
   duration_seconds: number | bigint | null
   thumbnail_url: string | null
   view_count: number | bigint | null
+  is_short: number | bigint | null
   channel_title: string
   read_status: string
   favorite: number | bigint
@@ -91,7 +99,8 @@ function toEntry(row: FeedRow): FeedEntry {
       publishedAt: row.published_at,
       durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
       thumbnailUrl: row.thumbnail_url,
-      viewCount: row.view_count === null ? null : Number(row.view_count)
+      viewCount: row.view_count === null ? null : Number(row.view_count),
+      isShort: Number(row.is_short) === 1
     }
   }
 }
@@ -99,7 +108,13 @@ function toEntry(row: FeedRow): FeedEntry {
 export class SqliteFeedRepository implements FeedRepository {
   constructor(private readonly db: DatabaseSync) {}
 
-  listPage(view: FeedView, cursor: FeedCursor | null, limit: number, channelId?: string): FeedPage {
+  listPage(
+    view: FeedView,
+    cursor: FeedCursor | null,
+    limit: number,
+    channelId?: string,
+    showShorts = true
+  ): FeedPage {
     const afterCursor = cursor
       ? `AND (
            v.published_at < :pub
@@ -117,7 +132,7 @@ export class SqliteFeedRepository implements FeedRepository {
     const rows = this.db
       .prepare(
         `${FEED_SELECT}
-         WHERE ${VIEW_PREDICATES[view]} AND ${NOT_SHORT} ${byChannel} ${afterCursor}
+         WHERE ${VIEW_PREDICATES[view]} ${shortsFilter(showShorts)} ${byChannel} ${afterCursor}
          ${FEED_ORDER}
          LIMIT :limit`
       )
@@ -138,45 +153,49 @@ export class SqliteFeedRepository implements FeedRepository {
     }
   }
 
-  listWatchLaterQueue(): FeedEntry[] {
+  listWatchLaterQueue(showShorts = true): FeedEntry[] {
     const rows = this.db
       .prepare(
         `${FEED_SELECT}
-         WHERE COALESCE(s.watch_later, 0) = 1 AND ${NOT_SHORT}
+         WHERE COALESCE(s.watch_later, 0) = 1 ${shortsFilter(showShorts)}
          ORDER BY s.watch_later_pos ASC`
       )
       .all() as unknown as FeedRow[]
     return rows.map(toEntry)
   }
 
-  countWatchLater(): number {
+  countWatchLater(showShorts = true): number {
     const row = this.db
       .prepare(
         `SELECT COUNT(*) AS n
          FROM videos v
          LEFT JOIN video_state s ON s.video_id = v.video_id
-         WHERE COALESCE(s.watch_later, 0) = 1 AND ${NOT_SHORT}`
+         WHERE COALESCE(s.watch_later, 0) = 1 ${shortsFilter(showShorts)}`
       )
       .get() as { n: number | bigint }
     return Number(row.n)
   }
 
-  countUnread(): number {
-    return this.unreadCountWhere('')
+  countUnread(showShorts = true): number {
+    return this.unreadCountWhere('', {}, showShorts)
   }
 
-  countUnreadSince(publishedAtIso: string): number {
-    return this.unreadCountWhere(`AND v.published_at >= :since`, { since: publishedAtIso })
+  countUnreadSince(publishedAtIso: string, showShorts = true): number {
+    return this.unreadCountWhere(`AND v.published_at >= :since`, { since: publishedAtIso }, showShorts)
   }
 
-  private unreadCountWhere(extra: string, params: Record<string, string> = {}): number {
+  private unreadCountWhere(
+    extra: string,
+    params: Record<string, string> = {},
+    showShorts = true
+  ): number {
     const row = this.db
       .prepare(
         `SELECT COUNT(*) AS n
          FROM videos v
          JOIN channels c ON c.channel_id = v.channel_id
          LEFT JOIN video_state s ON s.video_id = v.video_id
-         WHERE ${VIEW_PREDICATES.unread} AND ${NOT_SHORT} ${extra}`
+         WHERE ${VIEW_PREDICATES.unread} ${shortsFilter(showShorts)} ${extra}`
       )
       .get(params) as { n: number | bigint }
     return Number(row.n)
@@ -215,9 +234,10 @@ export class SqliteFeedRepository implements FeedRepository {
     return { entry: toEntry(row), description: row.description }
   }
 
-  listFollowedChannels(): FollowedChannel[] {
+  listFollowedChannels(showShorts = true): FollowedChannel[] {
     // Freshest channel first (B-008); channels with nothing synced sink to
     // the bottom alphabetically. Counts mirror the unread view predicate.
+    const filter = shortsFilter(showShorts)
     const rows = this.db
       .prepare(
         `SELECT
@@ -225,10 +245,10 @@ export class SqliteFeedRepository implements FeedRepository {
            c.title,
            c.thumbnail_url,
            (SELECT MAX(v.published_at) FROM videos v
-             WHERE v.channel_id = c.channel_id AND ${NOT_SHORT}) AS latest_published_at,
+             WHERE v.channel_id = c.channel_id ${filter}) AS latest_published_at,
            (SELECT COUNT(*) FROM videos v
              LEFT JOIN video_state s ON s.video_id = v.video_id
-             WHERE v.channel_id = c.channel_id AND ${NOT_SHORT}
+             WHERE v.channel_id = c.channel_id ${filter}
                AND COALESCE(s.read_status, 'unread') = 'unread') AS unread_count
          FROM channels c
          WHERE c.subscribed = 1

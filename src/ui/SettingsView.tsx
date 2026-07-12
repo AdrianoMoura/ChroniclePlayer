@@ -154,6 +154,14 @@ export function SettingsView({
             onChange={(event) => set('showViewCounts', event.target.checked)}
           />
         </label>
+        <label className="settings-row">
+          <span>Show Shorts</span>
+          <input
+            type="checkbox"
+            checked={settings.showShorts}
+            onChange={(event) => set('showShorts', event.target.checked)}
+          />
+        </label>
       </section>
 
       <section>

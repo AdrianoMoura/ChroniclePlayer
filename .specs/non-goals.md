@@ -54,10 +54,13 @@ supersedes the decision in `decisions.md`. All items in "Never" are **Final** de
 
 ### YouTube surfaces Chronicle will not reproduce
 
-- **No Shorts. Ever. (D-028, Final)** Shorts never appear anywhere in Chronicle — no
-  toggle, no filter, no exception. Exclusion is an **MVP requirement**; the detection
-  pipeline is specced in `feed.md` §Shorts exclusion. Chronicle will never have a
-  Shorts-style vertical swipe player.
+- **No Shorts-style vertical swipe player.** Chronicle will never build a Shorts feed or
+  swipe UI — that surface is inherently algorithmic (infinite, autoplaying-into-the-next
+  item), which is banned above regardless of content type. Shorts *videos themselves*
+  are not banned: they come from channels the user chose to follow, so they appear in
+  the normal feed like any other video, tagged with a badge, with a user-controlled
+  Settings toggle to hide them (D-028, reversed 2026-07-12 by B-028 — see `feed.md`
+  §Shorts). The distinction is the delivery mechanism, not the content.
 - **No Shopping, Communities/Posts, Stories, Gaming, Music, Live tab, Podcasts** as
   destinations. *Why:* each is a separate engagement surface; Chronicle has exactly one
   surface — the chronological feed (plus the user's own local lists).

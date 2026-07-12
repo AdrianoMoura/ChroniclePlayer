@@ -76,24 +76,42 @@ export function Sidebar({
       {channels.length > 0 && (
         <div className="channel-list">
           <h3 className="channel-list-header">Channels</h3>
-          <input
-            ref={channelQueryRef}
-            className="channel-query"
-            placeholder="Find channel  c"
-            value={channelQuery}
-            onChange={(event) => setChannelQuery(event.target.value)}
-            onKeyDown={(event) => {
-              // Owned here, not by App's global handler (which clears the
-              // feed filter): Esc clears this query, Enter just leaves.
-              if (event.key === 'Escape') {
-                setChannelQuery('')
-                event.currentTarget.blur()
-              } else if (event.key === 'Enter') {
-                event.currentTarget.blur()
-              }
-              event.stopPropagation()
-            }}
-          />
+          <div className="field-wrap">
+            <input
+              ref={channelQueryRef}
+              className="channel-query"
+              placeholder="Find channel  c"
+              value={channelQuery}
+              onChange={(event) => setChannelQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Owned here, not by App's global handler (which clears the
+                // feed filter): Esc clears this query, Enter just leaves.
+                if (event.key === 'Escape') {
+                  setChannelQuery('')
+                  event.currentTarget.blur()
+                } else if (event.key === 'Enter') {
+                  // B-030: Enter opens the first filtered match, mirroring a
+                  // normal search-and-go field.
+                  const first = visibleChannels[0]
+                  if (first) onSelectChannel(first.channelId)
+                  event.currentTarget.blur()
+                }
+                event.stopPropagation()
+              }}
+            />
+            {channelQuery !== '' && (
+              <button
+                className="field-clear"
+                title="Clear"
+                onClick={() => {
+                  setChannelQuery('')
+                  channelQueryRef.current?.focus()
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
           {visibleChannels.map((channel) => (
             <button
               key={channel.channelId}

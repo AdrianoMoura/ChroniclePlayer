@@ -79,6 +79,7 @@ function toSliceDto(slice: FeedSlice): FeedSliceDto {
       durationSeconds: entry.video.durationSeconds,
       thumbnailUrl: entry.video.thumbnailUrl,
       viewCount: entry.video.viewCount,
+      isShort: entry.video.isShort,
       state: toStateDto(entry.state),
       bucket
     })),
@@ -167,6 +168,24 @@ function chooseSecretStore(file: string): FileSecretStore {
   return new FileSecretStore(file, ciphers[chosen], chosen)
 }
 
+const RENDERER_URL_ARG_PREFIX = '--chronicle-renderer-url='
+
+// B-022: `app.relaunch()` has no `env` option (only `args`/`execPath`), so a
+// dev renderer URL that only lives in `process.env['ELECTRON_RENDERER_URL']`
+// (set by electron-vite's dev orchestrator on the original process) is not
+// guaranteed to reach the relaunched instance the same way. Falling through
+// to `loadFile()` in dev would try to load a renderer bundle that only
+// exists in a packaged build — exactly the blank/frozen window reported
+// after "Delete all data". Reading it from argv too removes the dependency
+// on env-inheritance behavior entirely; `deleteAllData` below writes it into
+// `args` before relaunching.
+function devRendererUrl(): string | undefined {
+  const fromEnv = process.env['ELECTRON_RENDERER_URL']
+  if (fromEnv) return fromEnv
+  const fromArgv = process.argv.find((arg) => arg.startsWith(RENDERER_URL_ARG_PREFIX))
+  return fromArgv?.slice(RENDERER_URL_ARG_PREFIX.length)
+}
+
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 1200,
@@ -185,8 +204,9 @@ function createWindow(): void {
     }
   })
 
-  if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
-    void window.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  const rendererUrl = devRendererUrl()
+  if (!app.isPackaged && rendererUrl) {
+    void window.loadURL(rendererUrl)
   } else {
     void window.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -238,7 +258,7 @@ void app.whenReady().then(() => {
   })
 
   if (!app.isPackaged && process.env['CHRONICLE_FIXTURES'] === '1') {
-    seedDevFixtures(catalogRepository, stateRepository, clock)
+    seedDevFixtures(catalogRepository, stateRepository, clock, syncRepository)
   }
 
   const thumbnails = new ThumbnailCache(chronicleCacheDir(), fetch)
@@ -264,7 +284,10 @@ void app.whenReady().then(() => {
   }
 
   let refreshing = false
-  async function runRefresh(trigger: SyncTrigger): Promise<ResultDto<SyncReportDto>> {
+  async function runRefresh(
+    trigger: SyncTrigger,
+    channelId?: string
+  ): Promise<ResultDto<SyncReportDto>> {
     if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
     if (!authFlow.hasRefreshToken()) {
       return { ok: false, errorKind: 'auth-expired', message: 'not connected to Google' }
@@ -272,7 +295,7 @@ void app.whenReady().then(() => {
     refreshing = true
     broadcast({ type: 'refresh:started', trigger })
     try {
-      const report = await syncService.refresh(trigger)
+      const report = await syncService.refresh(trigger, channelId)
       // B-020: on an account's very first subscription sync, videos already
       // published before today start read — the user opens onto "what's
       // new", not an unclearable backlog. Runs before refresh:done so the
@@ -323,28 +346,36 @@ void app.whenReady().then(() => {
 
   ipcMain.handle(IpcChannel.getFeed, (_event, view: unknown, cursor: unknown, channelId: unknown) =>
     toSliceDto(
-      feedService.getSlice(parseView(view), parseCursor(cursor), undefined, parseChannelId(channelId))
+      feedService.getSlice(
+        parseView(view),
+        parseCursor(cursor),
+        undefined,
+        parseChannelId(channelId),
+        settings.showShorts
+      )
     )
   )
   ipcMain.handle(IpcChannel.getFeedMeta, () => {
-    const slice = feedService.getSlice('unread', null, 1)
+    const slice = feedService.getSlice('unread', null, 1, undefined, settings.showShorts)
     return {
       unreadCount: slice.unreadCount,
       caughtUp: slice.caughtUp,
       lastRefreshAt: syncRepository.lastSyncStartedAt(),
-      watchLaterCount: feedRepository.countWatchLater(),
+      watchLaterCount: feedRepository.countWatchLater(settings.showShorts),
       refreshing
     }
   })
   ipcMain.handle(IpcChannel.getChannels, () =>
-    feedRepository.listFollowedChannels().map((followed) => ({
+    feedRepository.listFollowedChannels(settings.showShorts).map((followed) => ({
       channelId: followed.channel.channelId,
       title: followed.channel.title,
       thumbnailUrl: followed.channel.thumbnailUrl,
       unreadCount: followed.unreadCount
     }))
   )
-  ipcMain.handle(IpcChannel.refreshFeed, () => runRefresh('manual'))
+  ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown) =>
+    runRefresh('manual', parseChannelId(channelId))
+  )
   ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
     const target = BrowserWindow.fromWebContents(event.sender)
     if (target === null) return
@@ -548,9 +579,19 @@ void app.whenReady().then(() => {
     rmSync(settingsFile, { force: true })
     rmSync(join(dataDir, 'secrets.json'), { force: true })
     rmSync(chronicleCacheDir(), { recursive: true, force: true })
-    app.relaunch()
-    // B-022: app.exit() skips window teardown and the normal quit sequence
-    // — the relaunched window can start before the old one's GPU/compositor
+    // B-022: carry the dev renderer URL through relaunch via argv, not just
+    // env-inheritance (see devRendererUrl() above) — relaunch's API has no
+    // `env` option to set it directly.
+    const rendererUrl = devRendererUrl()
+    const relaunchArgs = process.argv
+      .slice(1)
+      .filter((arg) => !arg.startsWith(RENDERER_URL_ARG_PREFIX))
+    if (!app.isPackaged && rendererUrl) {
+      relaunchArgs.push(`${RENDERER_URL_ARG_PREFIX}${rendererUrl}`)
+    }
+    app.relaunch({ args: relaunchArgs })
+    // app.exit() skips window teardown and the normal quit sequence — the
+    // relaunched window can start before the old one's GPU/compositor
     // surface is gone, which lands as a frozen/blank window on some
     // compositors (observed on niri/Wayland). Destroying windows and quitting
     // normally lets the old instance tear down cleanly before the new one

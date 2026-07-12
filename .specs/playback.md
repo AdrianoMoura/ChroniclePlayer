@@ -86,8 +86,11 @@ Entry points:
 
 Link rules inside descriptions:
 - YouTube **video** links → in-app player view (above).
-- YouTube **Shorts** links → never played in-app (D-028); a small notice offers "open in
-  browser".
+- YouTube **Shorts** links → never played in-app; a small notice offers "open in
+  browser". Unrelated to feed display (D-035 shows Shorts in the feed, tagged) — this is
+  about Chronicle never building a Shorts-style vertical player (`non-goals.md`), so a
+  clicked Shorts link still falls back to the browser rather than Chronicle's own
+  16:9-oriented player view.
 - YouTube **channel/playlist** links → default browser for MVP; in-app channel view when
   D-030 lands.
 - **All other links** → default browser, always.

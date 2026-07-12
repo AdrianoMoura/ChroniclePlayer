@@ -22,6 +22,9 @@ export interface FeedVideoDto {
   thumbnailUrl: string | null
   // Shown only when the setting enables it (D-018: hidden by default).
   viewCount: number | null
+  // Confirmed Short (B-028, supersedes D-028's unconditional exclusion):
+  // shown in the feed, tagged with a badge, hideable via SettingsDto.showShorts.
+  isShort: boolean
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so
@@ -61,7 +64,8 @@ export interface ChannelDto {
   channelId: string
   title: string
   thumbnailUrl: string | null
-  // Unread (non-Short) videos for the sidebar badge (B-008).
+  // Unread videos for the sidebar badge (B-008); Shorts count unless hidden
+  // by the showShorts setting (B-028).
   unreadCount: number
 }
 
@@ -101,6 +105,7 @@ export interface SettingsDto {
   density: 'comfortable' | 'compact'
   refreshMinutes: number // 0 = manual only (D-016)
   showViewCounts: boolean // D-018
+  showShorts: boolean // B-028, default true
 }
 
 export type AuthStateDto = 'unconfigured' | 'disconnected' | 'connected'
@@ -174,7 +179,9 @@ export interface ChronicleApi {
   ): Promise<FeedSliceDto>
   getFeedMeta(): Promise<FeedMetaDto>
   getChannels(): Promise<ChannelDto[]>
-  refreshFeed(): Promise<ResultDto<SyncReportDto>>
+  // channelId scopes the sync to one channel (B-036) — omit/null for the
+  // full subscription refresh.
+  refreshFeed(channelId?: string | null): Promise<ResultDto<SyncReportDto>>
   setReadStatus(videoId: string, status: ReadStatusDto): Promise<VideoStateDto>
   // Bulk unread → read over the feed or one channel (B-020, D-010
   // semantics). Returns how many videos changed.

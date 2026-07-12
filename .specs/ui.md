@@ -46,9 +46,8 @@ Three-region desktop layout:
   rings — not for decoration). No brand-red, nothing YouTube-like.
 - Typography: the platform's native UI font stack; two sizes + weight for hierarchy.
   Titles are the loudest element on screen.
-- Thumbnails render at muted opacity that rises on hover/focus (**D-023 Pending** — this
-  is an unusual choice; recommendation: try it in M3, it directly serves "very little
-  visual noise", but drop it if it tests as gimmicky).
+- Thumbnails render at normal (full) opacity always (**D-023**) — a muted-opacity-at-rest
+  prototype was tried in M3 and dropped after dogfooding as an unwanted default.
 - Motion: essentially none. Instant view swaps; no skeleton shimmer (local reads are
   instant, `architecture.md`); at most a 100 ms fade on the new-videos pill.
 - No badges/red dots anywhere except the mechanical unread count in the sidebar.

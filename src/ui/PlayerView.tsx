@@ -316,7 +316,22 @@ function Description({
   useEffect(() => {
     if (!clamped) return
     const el = textRef.current
-    if (el) onOverflowChange(el.scrollHeight > el.clientHeight + 1)
+    if (!el) return
+    const measure = () => onOverflowChange(el.scrollHeight > el.clientHeight + 1)
+    measure()
+    // B-032: a same-mount measurement can run before web fonts finish
+    // loading or before the container's final width settles (sidebar
+    // toggle, window resize) — both change line-wrapping and therefore
+    // whether the clamp actually cuts text off. Re-measure once layout
+    // and fonts have settled, and on any later resize of the element.
+    const raf = requestAnimationFrame(measure)
+    void document.fonts?.ready.then(measure)
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
   }, [text, clamped, onOverflowChange])
 
   const parts = text.split(URL_PATTERN)

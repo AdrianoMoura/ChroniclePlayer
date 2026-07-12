@@ -22,7 +22,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.getFeed, view, cursor, channelId ?? null),
   getFeedMeta: () => ipcRenderer.invoke(IpcChannel.getFeedMeta),
   getChannels: () => ipcRenderer.invoke(IpcChannel.getChannels),
-  refreshFeed: () => ipcRenderer.invoke(IpcChannel.refreshFeed),
+  refreshFeed: (channelId?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.refreshFeed, channelId ?? null),
   setReadStatus: (videoId: string, status: ReadStatusDto) =>
     ipcRenderer.invoke(IpcChannel.setReadStatus, videoId, status),
   markAllRead: (channelId: string | null) => ipcRenderer.invoke(IpcChannel.markAllRead, channelId),

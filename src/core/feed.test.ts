@@ -29,7 +29,8 @@ function entry(
       publishedAt: published.toISOString(),
       durationSeconds: null,
       thumbnailUrl: null,
-      viewCount: null
+      viewCount: null,
+      isShort: false
     }
   }
 }

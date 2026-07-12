@@ -32,12 +32,14 @@ class FakeRepo implements SyncRepository {
   logs: SyncLogEntry[] = []
   meta = new Map<string, string>()
   candidates: string[] = []
+  candidateChannel = new Map<string, string>() // videoId -> channelId, for scoped shortCandidates tests
   shortStatuses = new Map<string, boolean>()
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
 
-  listSubscribedChannels(): ChannelSyncInfo[] {
-    return [...this.channels.values()]
+  listSubscribedChannels(channelId?: string): ChannelSyncInfo[] {
+    const all = [...this.channels.values()]
+    return channelId === undefined ? all : all.filter((c) => c.channelId === channelId)
   }
   applySubscriptions(channels: readonly Channel[]): { added: number; removed: number } {
     this.appliedSubscriptions.push([...channels])
@@ -81,8 +83,9 @@ class FakeRepo implements SyncRepository {
   markChannelUnavailable(channelId: string): void {
     this.unavailable.push(channelId)
   }
-  shortCandidates(): string[] {
-    return this.candidates
+  shortCandidates(channelId?: string): string[] {
+    if (channelId === undefined) return this.candidates
+    return this.candidates.filter((id) => this.candidateChannel.get(id) === channelId)
   }
   setShortStatus(videoId: string, isShort: boolean): void {
     this.shortStatuses.set(videoId, isShort)
@@ -344,6 +347,32 @@ describe('SyncService.refresh', () => {
     expect(repo.shortStatuses.get('short-1')).toBe(true)
     expect(repo.shortStatuses.get('normal-1')).toBe(false)
     expect(repo.shortStatuses.has('flaky-1')).toBe(false)
+  })
+
+  it('scopes to one channel when a channelId is given (B-036): no re-list, other channels untouched', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    repo.addChannel('UCb')
+    repo.candidates = ['short-a', 'short-b']
+    repo.candidateChannel.set('short-a', 'UCa')
+    repo.candidateChannel.set('short-b', 'UCb')
+    const source = fakeVideoSource({
+      feeds: {
+        UCa: { kind: 'ok', entries: [discovered('va')], etag: null, lastModified: null },
+        UCb: { kind: 'ok', entries: [discovered('vb')], etag: null, lastModified: null }
+      }
+    })
+    const prober: ShortsProber = { isShort: () => Promise.resolve(true) }
+
+    const report = await service(repo, source, { prober }).refresh('manual', 'UCa')
+
+    expect(report.channelsPolled).toBe(1)
+    expect(repo.inserted).toEqual(['va'])
+    expect(repo.inserted).not.toContain('vb')
+    expect(repo.appliedSubscriptions).toHaveLength(0) // no subscription re-list
+    expect(report.subscriptions).toBeNull()
+    expect(repo.shortStatuses.has('short-a')).toBe(true)
+    expect(repo.shortStatuses.has('short-b')).toBe(false) // other channel's candidate untouched
   })
 
   it('rethrows auth expiry after recording a failed sync', async () => {

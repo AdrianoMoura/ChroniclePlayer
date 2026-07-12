@@ -10,15 +10,19 @@ export interface AppSettings {
   density: 'comfortable' | 'compact'
   // Background refresh interval (D-016). 0 = manual only.
   refreshMinutes: number
-  // D-018: hidden by default.
+  // B-029: shown by default (revisits D-018's "hidden by default").
   showViewCounts: boolean
+  // B-028: shown by default, tagged with a badge (supersedes D-028's
+  // unconditional exclusion).
+  showShorts: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   density: 'comfortable',
   refreshMinutes: 30,
-  showViewCounts: false
+  showViewCounts: true,
+  showShorts: true
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -28,6 +32,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const density = source['density']
   const refresh = source['refreshMinutes']
   const views = source['showViewCounts']
+  const shorts = source['showShorts']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     density: density === 'compact' || density === 'comfortable' ? density : DEFAULT_SETTINGS.density,
@@ -35,7 +40,8 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof refresh === 'number' && Number.isInteger(refresh) && refresh >= 0 && refresh <= 24 * 60
         ? refresh
         : DEFAULT_SETTINGS.refreshMinutes,
-    showViewCounts: typeof views === 'boolean' ? views : DEFAULT_SETTINGS.showViewCounts
+    showViewCounts: typeof views === 'boolean' ? views : DEFAULT_SETTINGS.showViewCounts,
+    showShorts: typeof shorts === 'boolean' ? shorts : DEFAULT_SETTINGS.showShorts
   }
 }
 

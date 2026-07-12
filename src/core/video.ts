@@ -12,4 +12,8 @@ export interface Video {
   durationSeconds: number | null // null until hydrated (D-007)
   thumbnailUrl: string | null
   viewCount: number | null // captured at hydration; displayed only by setting (D-018)
+  // Confirmed via the D-028 detection pipeline; false until confirmed true.
+  // Shown in the feed (tagged) or hidden by setting (B-028, supersedes the
+  // former unconditional exclusion).
+  isShort: boolean
 }
