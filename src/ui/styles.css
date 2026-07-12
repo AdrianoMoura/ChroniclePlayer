@@ -652,6 +652,13 @@ button.primary.active {
   max-width: 760px;
 }
 
+.description-text.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
 .description-text a {
   color: var(--accent);
   text-decoration: none;
