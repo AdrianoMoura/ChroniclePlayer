@@ -102,6 +102,12 @@ export function App() {
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
+  // B-002: last cursor actually requested (as opposed to nextCursor, which
+  // goes null once the local archive is exhausted) — needed to resume the
+  // same page after an on-demand backfill adds fresh local rows.
+  const lastCursorRef = useRef<FeedCursorDto | null>(null)
+  const backfillingRef = useRef(false)
+  const [archiveExhausted, setArchiveExhausted] = useState<ReadonlySet<string>>(new Set())
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
@@ -144,6 +150,7 @@ export function App() {
     viewRef.current = nextView
     channelRef.current = nextChannel
     loadingRef.current = true
+    lastCursorRef.current = null
     setNewVideosPill(null)
     void window.chronicle.getFeed(nextView, null, nextChannel).then((slice) => {
       if (viewRef.current !== nextView || channelRef.current !== nextChannel) return
@@ -426,17 +433,62 @@ export function App() {
   }, [loadView, loadChannels, connect, syncMeta])
 
   const loadMore = useCallback(() => {
-    if (loadingRef.current || !nextCursor) return
-    loadingRef.current = true
+    if (loadingRef.current) return
     const targetView = viewRef.current
     const targetChannel = channelRef.current
-    void window.chronicle.getFeed(targetView, nextCursor, targetChannel).then((slice) => {
-      loadingRef.current = false
-      if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
-      setVideos((current) => [...current, ...slice.videos])
-      setNextCursor(slice.nextCursor)
+
+    if (nextCursor) {
+      lastCursorRef.current = nextCursor
+      loadingRef.current = true
+      void window.chronicle.getFeed(targetView, nextCursor, targetChannel).then((slice) => {
+        loadingRef.current = false
+        if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+        setVideos((current) => [...current, ...slice.videos])
+        setNextCursor(slice.nextCursor)
+      })
+      return
+    }
+
+    // B-002: local archive exhausted in a channel-filtered view — fetch
+    // older videos from YouTube (uploads playlist paging + hydration) on
+    // demand, then resume the exact same page instead of resetting to the top.
+    if (
+      targetChannel === null ||
+      archiveExhausted.has(targetChannel) ||
+      backfillingRef.current
+    ) {
+      return
+    }
+    backfillingRef.current = true
+    const cursorToRetry = lastCursorRef.current
+    void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
+      backfillingRef.current = false
+      if (channelRef.current !== targetChannel) return
+      if (!result.ok) {
+        if (result.errorKind === 'auth-expired') {
+          setBanner({
+            text: t('app.banner.reconnectRequired'),
+            action: { label: t('app.banner.reconnectAction'), run: connect }
+          })
+        } else if (result.errorKind === 'network-unavailable') {
+          setBanner({ text: t('app.banner.offline') })
+        } else if (result.errorKind === 'quota-exceeded') {
+          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+        }
+        return
+      }
+      if (result.value.exhausted) {
+        setArchiveExhausted((set) => new Set(set).add(targetChannel))
+      }
+      if (result.value.videosNew > 0) {
+        void window.chronicle.getFeed(targetView, cursorToRetry, targetChannel).then((slice) => {
+          if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+          setVideos((current) => [...current, ...slice.videos])
+          setNextCursor(slice.nextCursor)
+        })
+      }
     })
-  }, [nextCursor])
+  }, [nextCursor, archiveExhausted, connect])
 
   // Local text filter over loaded rows (ui.md `/`) — never YouTube search.
   const filtered = useMemo(() => {

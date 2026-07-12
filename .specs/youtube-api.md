@@ -21,7 +21,7 @@ justified against this document and its quota cost stated in a code comment.**
 |---|---|---|
 | `subscriptions.list` (mine=true, 50/page) | 1 per page | Import/refresh subscription list |
 | `channels.list` (batched, 50 ids/call) | 1 per call | Uploads-playlist IDs, channel metadata |
-| `playlistItems.list` (50/page) | 1 per call | Recent uploads per channel (API path) |
+| `playlistItems.list` (50/page) | 1 per call | Gap detection during sync, and on-demand back-catalog fetch when scrolling past a channel's local archive ([[B-002]], implemented 2026-07-12 — bounded at 4 pages/call, resumable) |
 | `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live/premiere status, stats |
 | `subscriptions.delete` | 50 per call | Unsubscribe ([[B-010]], implemented 2026-07-12; incremental scope per D-032) |
 | `subscriptions.insert` | 50 per call | Post-MVP in-app subscribe (D-030; incremental scope per D-032) |

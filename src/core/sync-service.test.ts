@@ -36,6 +36,7 @@ class FakeRepo implements SyncRepository {
   shortStatuses = new Map<string, boolean>()
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
+  backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
 
   listSubscribedChannels(channelId?: string): ChannelSyncInfo[] {
     const all = [...this.channels.values()]
@@ -82,6 +83,12 @@ class FakeRepo implements SyncRepository {
   }
   markChannelUnavailable(channelId: string): void {
     this.unavailable.push(channelId)
+  }
+  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean } {
+    return this.backfillState.get(channelId) ?? { pageToken: null, exhausted: false }
+  }
+  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void {
+    this.backfillState.set(channelId, { pageToken, exhausted })
   }
   shortCandidates(channelId?: string): string[] {
     if (channelId === undefined) return this.candidates
@@ -426,5 +433,80 @@ describe('SyncService.refresh', () => {
       ['shorts', 1, 2],
       ['shorts', 2, 2]
     ])
+  })
+})
+
+describe('SyncService.backfillArchive (B-002)', () => {
+  it('pages the uploads playlist, hydrates new videos, and reports exhaustion', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
+    const source = fakeVideoSource({ uploads: { UUa: [['v1', 'v2']] } }) // single page
+
+    const result = await service(repo, source).backfillArchive('UCa')
+
+    expect(result).toEqual({ videosNew: 2, exhausted: true })
+    expect(repo.hydrated.sort()).toEqual(['v1', 'v2'])
+    expect(repo.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: true })
+  })
+
+  it('resumes from the stored page token across calls', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
+    const source = fakeVideoSource({ uploads: { UUa: [['v1'], ['v2']] } })
+
+    const first = await service(repo, source).backfillArchive('UCa')
+    expect(first).toEqual({ videosNew: 1, exhausted: false })
+    expect(repo.hydrated).toEqual(['v1'])
+
+    const second = await service(repo, source).backfillArchive('UCa')
+    expect(second).toEqual({ videosNew: 1, exhausted: true })
+    expect(repo.hydrated).toEqual(['v1', 'v2'])
+  })
+
+  it('skips fully-known pages until it finds something new, bounded by the page limit', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
+    repo.known.add('known1')
+    repo.known.add('known2')
+    const source = fakeVideoSource({
+      uploads: { UUa: [['known1'], ['known2'], ['v3']] }
+    })
+
+    // 'v3' is on the last page, so this also exhausts the playlist.
+    const result = await service(repo, source).backfillArchive('UCa')
+    expect(result).toEqual({ videosNew: 1, exhausted: true })
+    expect(repo.hydrated).toEqual(['v3'])
+  })
+
+  it('gives up after the page bound rather than walking a fully-known archive forever', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
+    for (const id of ['k1', 'k2', 'k3', 'k4', 'k5']) repo.known.add(id)
+    const source = fakeVideoSource({
+      uploads: { UUa: [['k1'], ['k2'], ['k3'], ['k4'], ['k5']] } // 5 pages, only 4 walked
+    })
+
+    const result = await service(repo, source).backfillArchive('UCa')
+    expect(result).toEqual({ videosNew: 0, exhausted: false })
+    // Continuation token points past the 4 pages walked, ready for next call.
+    expect(repo.getBackfillState('UCa').pageToken).toBe('4')
+  })
+
+  it('returns exhausted without a network call once already marked exhausted', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { uploadsPlaylist: 'UUa' })
+    repo.setBackfillState('UCa', null, true)
+    const source = fakeVideoSource({ uploads: { UUa: [['v1']] } })
+
+    const result = await service(repo, source).backfillArchive('UCa')
+    expect(result).toEqual({ videosNew: 0, exhausted: true })
+    expect(repo.hydrated).toEqual([])
+  })
+
+  it('returns exhausted when the channel has no uploads playlist yet', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    const result = await service(repo, fakeVideoSource()).backfillArchive('UCa')
+    expect(result).toEqual({ videosNew: 0, exhausted: true })
   })
 })

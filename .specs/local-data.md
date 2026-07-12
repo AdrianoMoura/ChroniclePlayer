@@ -47,8 +47,10 @@ CREATE TABLE channels (
   added_at          TEXT NOT NULL,
   subscription_id   TEXT,                    -- v3 (B-010): YouTube's subscription resource id,
                                               -- distinct from channel_id — needed for subscriptions.delete
-  favorite          INTEGER NOT NULL DEFAULT 0  -- v4 (B-042): channel-level priority marker,
+  favorite          INTEGER NOT NULL DEFAULT 0, -- v4 (B-042): channel-level priority marker,
                                               -- distinct from a video's own favorite (video_state)
+  backfill_page_token TEXT,                  -- v5 (B-002): on-demand back-catalog continuation
+  backfill_exhausted  INTEGER NOT NULL DEFAULT 0  -- 1 = whole uploads playlist already walked
 );
 
 CREATE TABLE videos (

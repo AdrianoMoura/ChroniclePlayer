@@ -46,6 +46,10 @@ const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k can
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle
 const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
+// B-002: bounds one on-demand archive-backfill call — at most this many
+// playlistItems.list pages (1 unit each) before giving up for this call,
+// so a single scroll-triggered fetch can't run away.
+const ARCHIVE_BACKFILL_PAGE_LIMIT = 4
 
 interface SyncDeps {
   subscriptions: SubscriptionSource
@@ -289,6 +293,51 @@ export class SyncService {
       available: true
     })
     return newIds
+  }
+
+  // B-002: user-initiated back-catalog fetch — paginates a channel's uploads
+  // playlist from wherever the last on-demand call left off, hydrates
+  // whatever is genuinely new, and stops once it finds something to show
+  // (or hits the page bound). Distinct from backfillGap: this is scroll-
+  // triggered, resumable across calls (backfill_page_token), and has no
+  // relation to routine sync's gap detection.
+  async backfillArchive(channelId: string): Promise<{ videosNew: number; exhausted: boolean }> {
+    const { repo, videoSource, clock } = this.deps
+    const channel = repo.listSubscribedChannels(channelId)[0]
+    if (channel === undefined || channel.uploadsPlaylist === null) {
+      return { videosNew: 0, exhausted: true }
+    }
+
+    const state = repo.getBackfillState(channelId)
+    if (state.exhausted) return { videosNew: 0, exhausted: true }
+
+    let pageToken = state.pageToken ?? undefined
+    const newIds: string[] = []
+    let exhausted = false
+    for (let page = 0; page < ARCHIVE_BACKFILL_PAGE_LIMIT; page++) {
+      const result = await videoSource.listUploads(channel.uploadsPlaylist, pageToken)
+      const known = repo.knownVideoIds(result.videoIds)
+      for (const videoId of result.videoIds) {
+        if (!known.has(videoId)) newIds.push(videoId)
+      }
+      pageToken = result.nextPageToken ?? undefined
+      if (pageToken === undefined) {
+        exhausted = true
+        break
+      }
+      if (newIds.length > 0) break
+    }
+    repo.setBackfillState(channelId, pageToken ?? null, exhausted)
+
+    if (newIds.length > 0) {
+      const now = clock.now().toISOString()
+      for (let i = 0; i < newIds.length; i += HYDRATE_BATCH) {
+        const hydrated = await videoSource.hydrate(newIds.slice(i, i + HYDRATE_BATCH))
+        repo.applyHydration(hydrated, now)
+      }
+      await this.confirmShorts(channelId)
+    }
+    return { videosNew: newIds.length, exhausted }
   }
 
   private async backfillGap(playlistId: string, alreadyNew: readonly string[]): Promise<string[]> {

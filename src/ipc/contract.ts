@@ -176,6 +176,7 @@ export const IpcChannel = {
   unsubscribeChannel: 'channel:unsubscribe',
   toggleChannelFavorite: 'channel:toggleFavorite',
   getPriorityFeed: 'feed:priority',
+  backfillChannelArchive: 'channel:backfillArchive',
   events: 'chronicle:event'
 } as const
 
@@ -243,5 +244,12 @@ export interface ChronicleApi {
   // B-042: unread videos from favorited channels, capped and bucket-less
   // (D-039) — additive to, not a filter over, the main feed.
   getPriorityFeed(): Promise<FeedVideoDto[]>
+  // B-002: on-demand back-catalog fetch (uploads playlist paging + hydration,
+  // ~2 units/call) — triggered when scrolling past the local archive in a
+  // channel-filtered view. Resumable across calls; exhausted once the
+  // channel's whole uploads playlist has been walked.
+  backfillChannelArchive(
+    channelId: string
+  ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>>
   onEvent(listener: (event: ChronicleEventDto) => void): () => void
 }

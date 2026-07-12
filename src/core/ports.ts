@@ -206,6 +206,10 @@ export interface SyncRepository {
     meta: { rssEtag: string | null; rssLastModified: string | null; lastSyncedAt: string; available: boolean }
   ): void
   markChannelUnavailable(channelId: string): void
+  // B-002: continuation state for on-demand back-catalog backfill, distinct
+  // from the routine-sync gap-backfill path (which doesn't persist a cursor).
+  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean }
+  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void
   // duration ≤ 180 s and is_short IS NULL (feed.md §Shorts detection).
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[]

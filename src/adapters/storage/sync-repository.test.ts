@@ -78,6 +78,19 @@ describe('applySubscriptions', () => {
   })
 })
 
+describe('backfill state (B-002)', () => {
+  it('defaults to no cursor, not exhausted, and persists across calls', () => {
+    sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
+    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: false })
+
+    sync.setBackfillState('UCa', 'tok123', false)
+    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: 'tok123', exhausted: false })
+
+    sync.setBackfillState('UCa', null, true)
+    expect(sync.getBackfillState('UCa')).toEqual({ pageToken: null, exhausted: true })
+  })
+})
+
 describe('markUnsubscribed (B-010)', () => {
   it('soft-deletes like applySubscriptions removal — videos and state stay', () => {
     sync.applySubscriptions([{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)

@@ -227,6 +227,26 @@ export class SqliteSyncRepository implements SyncRepository {
     this.db.prepare(`UPDATE channels SET available = 0 WHERE channel_id = ?`).run(channelId)
   }
 
+  getBackfillState(channelId: string): { pageToken: string | null; exhausted: boolean } {
+    const row = this.db
+      .prepare(`SELECT backfill_page_token, backfill_exhausted FROM channels WHERE channel_id = ?`)
+      .get(channelId) as
+      | { backfill_page_token: string | null; backfill_exhausted: number | bigint }
+      | undefined
+    return {
+      pageToken: row?.backfill_page_token ?? null,
+      exhausted: row !== undefined && Number(row.backfill_exhausted) === 1
+    }
+  }
+
+  setBackfillState(channelId: string, pageToken: string | null, exhausted: boolean): void {
+    this.db
+      .prepare(
+        `UPDATE channels SET backfill_page_token = ?, backfill_exhausted = ? WHERE channel_id = ?`
+      )
+      .run(pageToken, exhausted ? 1 : 0, channelId)
+  }
+
   // D-028 candidates: short-duration videos whose verdict is still unknown.
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[] {

@@ -87,28 +87,6 @@ Resolved entries add:
   overlay update and whatever bindings it adds), but the "every new feature states its
   keyboard path" rule stays in force afterward rather than closing with the batch.
 
-### B-002 — Channel video list is truncated and does not paginate
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-11
-- **Area:** feed
-- **What happens:** a channel's video list shows only some videos and scrolling does not
-  load more.
-- **Expected:** scroll pagination per D-027 (keyset), same behavior as the main feed.
-- **Code refs:** `src/ui/App.tsx` (`loadView` — check the cursor path when
-  `channelFilter` is set); `src/ui/FeedList.tsx` (load-more trigger);
-  `src/adapters/storage/repositories.ts` (keyset pagination); `src/ipc/contract.ts`
-  (`getFeed`).
-- **Notes (diagnosis, 2026-07-11):** keyset pagination with a channel filter is
-  **correct** — a regression test now pages a channel-filtered feed end-to-end
-  (`repositories.test.ts`). The truncation is the *archive*, not the query: sync
-  discovers via RSS (~15 entries/channel — the 2026-07-11 smoke's 3,261 videos across
-  229 subs ≈ 14/channel confirms it), so the channel view already shows everything
-  Chronicle has locally. The real fix is user-initiated back-catalog fetch (uploads
-  playlist paging + hydration, ~2 units per 50 older videos) when scrolling past the
-  local archive in a channel view. That is new API surface with quota costs to record
-  in `youtube-api.md` — moved to **batch 3** with the channel-screen work ([[B-009]],
-  [[B-010]]), out of the local-polish batch 1.
-
 ### B-003 — Multi-account model + optional authentication (Accounts in sidebar)
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-11
@@ -222,6 +200,53 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-002 — Channel video list is truncated and does not paginate
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-11
+- **Area:** feed
+- **What happens:** a channel's video list shows only some videos and scrolling does not
+  load more.
+- **Expected:** scroll pagination per D-027 (keyset), same behavior as the main feed.
+- **Code refs:** `src/core/sync-service.ts` (`backfillArchive` — the on-demand
+  back-catalog fetch); `src/adapters/storage/migrations.ts` (schema v5,
+  `channels.backfill_page_token`/`backfill_exhausted`); `src/core/ports.ts` +
+  `src/adapters/storage/sync-repository.ts` (`getBackfillState`/`setBackfillState`);
+  `src/ipc/contract.ts` (`channel:backfillArchive`); `src/ui/App.tsx` (`loadMore` —
+  now triggers backfill when `nextCursor` is null in a channel-filtered view, then
+  resumes the same page rather than resetting to the top).
+- **Notes (diagnosis, 2026-07-11):** keyset pagination with a channel filter is
+  **correct** — a regression test now pages a channel-filtered feed end-to-end
+  (`repositories.test.ts`). The truncation is the *archive*, not the query: sync
+  discovers via RSS (~15 entries/channel — the 2026-07-11 smoke's 3,261 videos across
+  229 subs ≈ 14/channel confirms it), so the channel view already shows everything
+  Chronicle has locally. The real fix is user-initiated back-catalog fetch (uploads
+  playlist paging + hydration, ~2 units per 50 older videos) when scrolling past the
+  local archive in a channel view — exactly what `feed.md`'s Backfill rules section
+  had already sketched (`playlistItems.list` deeper-history-on-demand), now built.
+- **Notes (fix, 2026-07-12):**
+  - `SyncService.backfillArchive(channelId)` pages the channel's uploads playlist
+    from a stored per-channel continuation cursor, skips already-known video ids
+    (dedup against concurrent routine syncs), hydrates whatever is genuinely new,
+    and persists both the next cursor and an `exhausted` flag once the whole
+    playlist has been walked (checked client-side before every future call — no
+    wasted request once exhausted).
+  - Bounded at 4 pages (200 videos, 4 units) per scroll-triggered call — mirrors
+    the existing `backfillGap`'s 200-video bound (`GAP_BACKFILL_MAX`) but as its
+    own constant, since this is a distinct, resumable, on-demand path rather than
+    routine sync's one-shot gap detection.
+  - **UX detail worth flagging:** naively reloading the channel view after a
+    successful backfill (`getFeed(view, null, channel)`) would have reset the
+    user's scroll position to the top. Fixed by tracking the last cursor actually
+    requested (`lastCursorRef`, distinct from `nextCursor`, which the backend sets
+    to `null` once local data runs out) and resuming that exact page afterward, so
+    backfilled results append seamlessly where the user was scrolling.
+  - No live-app check this session (needs a real account with a channel whose
+    archive exceeds the RSS window); verified via
+    `npm run typecheck && npm run lint && npm test` (151/151). The owner should
+    validate live: scrolling to the end of a deep channel's archive, that it
+    resumes without jumping, and that quota accounting matches expectations.
+- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-042 — Favorite channels; a priority section for their recent videos at the top of the main feed
 - **Type:** adjustment

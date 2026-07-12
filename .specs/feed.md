@@ -146,6 +146,17 @@ appear. (Predictability over liveliness.)
   per-channel "load more history" action, both paging `playlistItems.list`
   (1 unit/50 videos). **D-019 (Pending):** default initial backfill depth.
   Recommendation: RSS window only (~15).
+  - **Implemented (2026-07-12, B-002):** scrolling to the end of a channel-filtered
+    view with no local pages left (`nextCursor === null`) triggers
+    `SyncService.backfillArchive(channelId)` — pages the channel's uploads playlist
+    from a per-channel stored continuation cursor (`channels.backfill_page_token`,
+    schema v5), skipping already-known video ids, up to 4 pages (200 videos, 4 units)
+    per scroll-triggered call before giving up for that call (never an unbounded
+    walk). Whatever is genuinely new is hydrated (`videos.list`, 1 unit/50) —
+    ~2 units/call in the common case. Once the whole playlist has been walked,
+    `channels.backfill_exhausted` is set and further scrolling is a no-op (checked
+    client-side first, no wasted call). The UI resumes the exact page the user was
+    on afterward rather than resetting to the top.
 - **First-ever sync (onboarding step 8):** same rule per channel — RSS window only.
   200 subs ≈ 3,000 candidate videos discovered free, hydrated for ~60 units, well within
   quota (see `youtube-api.md`).

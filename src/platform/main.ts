@@ -390,6 +390,34 @@ void app.whenReady().then(() => {
   ipcMain.handle(IpcChannel.getPriorityFeed, (): FeedVideoDto[] =>
     feedService.getPriorityVideos(settings.showShorts).map(toVideoDto)
   )
+  const backfillingChannels = new Set<string>()
+  ipcMain.handle(
+    IpcChannel.backfillChannelArchive,
+    async (
+      _event,
+      channelId: unknown
+    ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>> => {
+      const id = parseChannelIdRequired(channelId)
+      if (backfillingChannels.has(id)) {
+        return { ok: false, errorKind: 'busy', message: 'already loading older videos' }
+      }
+      backfillingChannels.add(id)
+      try {
+        const result = await syncService.backfillArchive(id)
+        return { ok: true, value: result }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      } finally {
+        backfillingChannels.delete(id)
+      }
+    }
+  )
   ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown) =>
     runRefresh('manual', parseChannelId(channelId))
   )

@@ -80,7 +80,15 @@ const SCHEMA_V4 = `
 ALTER TABLE channels ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;
 `
 
-const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4]
+// v5 (B-002): continuation state for user-initiated back-catalog fetch
+// (uploads playlist paging past what routine sync ever loads). Separate
+// from rss_etag/rss_last_modified — this walks a different, on-demand path.
+const SCHEMA_V5 = `
+ALTER TABLE channels ADD COLUMN backfill_page_token TEXT;
+ALTER TABLE channels ADD COLUMN backfill_exhausted INTEGER NOT NULL DEFAULT 0;
+`
+
+const migrations: readonly string[] = [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5]
 
 export function migrate(db: DatabaseSync): void {
   let version = schemaVersion(db)
