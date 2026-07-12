@@ -232,7 +232,7 @@ Resolved entries add:
     write-scope popup on first subscribe (if not already granted via unsubscribe),
     and that a freshly subscribed channel's videos actually appear after the
     triggered sync.
-- **Resolved:** 2026-07-12 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-12 · **Commit:** 76bf78e · **Outcome:** Fixed
 
 ### B-002 — Channel video list is truncated and does not paginate
 - **Type:** bug · **Severity:** major
