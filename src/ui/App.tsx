@@ -1517,6 +1517,12 @@ export function App() {
                 onClose={closePlayer}
                 onSearch={exitPlayerToSearch}
                 onOpenVideo={(videoId) => openVideo(videoId)}
+                onOpenChannel={(channelId) => {
+                  setPlayerStack([])
+                  setScreen('feed')
+                  setView('all')
+                  setChannelFilter(channelId)
+                }}
                 onStatePatched={patch}
               />
             )}

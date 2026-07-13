@@ -36,6 +36,7 @@ interface PlayerViewProps {
   onClose: () => void
   onSearch: () => void
   onOpenVideo: (videoId: string) => void
+  onOpenChannel: (channelId: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
 }
 
@@ -50,6 +51,7 @@ export function PlayerView({
   onClose,
   onSearch,
   onOpenVideo,
+  onOpenChannel,
   onStatePatched
 }: PlayerViewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -317,7 +319,14 @@ export function PlayerView({
       <div className="player-info">
         <h1 className="player-title">{video.title}</h1>
         <div className="player-meta">
-          {video.channelTitle} · {publishedLabel(video.publishedAt)}
+          <button
+            type="button"
+            className="channel-link"
+            onClick={() => onOpenChannel(video.channelId)}
+          >
+            {video.channelTitle}
+          </button>{' '}
+          · {publishedLabel(video.publishedAt)}
           {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
         </div>
 
