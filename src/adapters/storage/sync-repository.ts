@@ -262,6 +262,15 @@ export class SqliteSyncRepository implements SyncRepository {
     }
   }
 
+  markVideosReadIfUnset(videoIds: readonly string[], now: string): void {
+    const insert = this.db.prepare(
+      `INSERT INTO video_state (video_id, read_status, status_changed_at, updated_at)
+       VALUES (:id, 'read', :now, :now)
+       ON CONFLICT(video_id) DO NOTHING`
+    )
+    for (const id of videoIds) insert.run({ id, now })
+  }
+
   // D-029: an externally opened video gets a bare channel-facts row (no
   // account_channels membership at all — that absence, not a flag, is what
   // keeps it out of every feed view, B-003) and a fully hydrated video row.

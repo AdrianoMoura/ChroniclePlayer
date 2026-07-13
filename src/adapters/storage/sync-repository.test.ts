@@ -193,6 +193,23 @@ describe('discovery and hydration', () => {
     expect(known.size).toBe(600)
     expect(known.has('absent')).toBe(false)
   })
+
+  it('markVideosReadIfUnset defaults archive-backfilled videos to read', () => {
+    sync.applyHydration([hydratedVideo('old-1', 300)], NOW)
+    sync.markVideosReadIfUnset(['old-1'], NOW)
+    const state = new SqliteStateRepository(db, clock)
+    expect(state.get('old-1').readStatus).toBe('read')
+  })
+
+  it('markVideosReadIfUnset never overwrites an existing state row', () => {
+    sync.applyHydration([hydratedVideo('old-2', 300)], NOW)
+    const state = new SqliteStateRepository(db, clock)
+    state.toggleFavorite('old-2') // creates a video_state row, still unread
+    sync.markVideosReadIfUnset(['old-2'], NOW)
+    const after = state.get('old-2')
+    expect(after.readStatus).toBe('unread')
+    expect(after.favorite).toBe(true)
+  })
 })
 
 describe('shorts pipeline storage (D-028)', () => {

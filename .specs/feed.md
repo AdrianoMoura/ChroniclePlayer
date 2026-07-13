@@ -164,6 +164,12 @@ appear. (Predictability over liveliness.)
     `channels.backfill_exhausted` is set and further scrolling is a no-op (checked
     client-side first, no wasted call). The UI resumes the exact page the user was
     on afterward rather than resetting to the top.
+  - **Read-state default (D-042, 2026-07-12, B-058):** archive-backfilled videos default
+    to **read**, not unread — they predate the user following/using Chronicle, so
+    surfacing them shouldn't inflate unread counts. Only applies when no `video_state`
+    row already exists for that video; never overwrites a real read/unread preference.
+    Routine gap-backfill (below) is unaffected — those videos are genuinely missed
+    uploads since the last sync and stay unread.
 - **First-ever sync (onboarding step 8):** same rule per channel — RSS window only.
   200 subs ≈ 3,000 candidate videos discovered free, hydrated for ~60 units, well within
   quota (see `youtube-api.md`).

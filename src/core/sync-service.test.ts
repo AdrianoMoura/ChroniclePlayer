@@ -37,6 +37,7 @@ class FakeRepo implements SyncRepository {
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
+  markedRead: string[] = []
 
   // Single implicit account — SyncService just threads accountId through to
   // the repo; real per-account isolation is a SQL-layer concern, tested in
@@ -80,6 +81,9 @@ class FakeRepo implements SyncRepository {
       this.hydrated.push(v.videoId)
       this.known.add(v.videoId)
     }
+  }
+  markVideosReadIfUnset(videoIds: readonly string[]): void {
+    this.markedRead.push(...videoIds)
   }
   updateChannelSyncMeta(channelId: string, meta: { lastSyncedAt: string }): void {
     this.syncMeta.set(channelId, { lastSyncedAt: meta.lastSyncedAt })
@@ -318,6 +322,10 @@ describe('SyncService.refresh', () => {
     expect(report.videosNew).toBe(18)
     expect(source.hydrateCalls[0]).toContain('gap-3')
     expect(source.hydrateCalls[0]).not.toContain('ancient')
+    // Gap-backfilled videos are genuinely missed uploads since the last
+    // sync, not deep-archive history — they stay unread, unlike
+    // backfillArchive's videos (see the describe block below).
+    expect(repo.markedRead).toEqual([])
   })
 
   it('never gap-backfills a channel on its first sync', async () => {
@@ -455,6 +463,9 @@ describe('SyncService.backfillArchive (B-002)', () => {
     expect(result).toEqual({ videosNew: 2, exhausted: true })
     expect(repo.hydrated.sort()).toEqual(['v1', 'v2'])
     expect(repo.getBackfillState('acc1', 'UCa')).toEqual({ pageToken: null, exhausted: true })
+    // Archive-backfilled videos predate the user following/using Chronicle —
+    // they default to read rather than inflating unread counts.
+    expect(repo.markedRead.sort()).toEqual(['v1', 'v2'])
   })
 
   it('resumes from the stored page token across calls', async () => {

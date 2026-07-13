@@ -342,6 +342,9 @@ export class SyncService {
         const hydrated = await videoSource.hydrate(newIds.slice(i, i + HYDRATE_BATCH))
         repo.applyHydration(hydrated, now)
       }
+      // These predate the user following/using Chronicle — they were never
+      // "missed" chronologically, so they shouldn't inflate unread counts.
+      repo.markVideosReadIfUnset(newIds, now)
       await this.confirmShorts(channelId)
     }
     return { videosNew: newIds.length, exhausted }

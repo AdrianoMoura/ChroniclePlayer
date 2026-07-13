@@ -232,6 +232,12 @@ export interface SyncRepository {
   knownVideoIds(videoIds: readonly string[]): Set<string>
   insertDiscoveredVideos(channelId: string, videos: readonly DiscoveredVideo[], now: string): void
   applyHydration(videos: readonly HydratedVideo[], now: string): void
+  // Deep-archive backfill surfaces videos that predate the user
+  // following/using Chronicle — they were never "missed" chronologically, so
+  // they default to read rather than inflating unread counts. Only touches
+  // videos with no existing video_state row (never overwrites a real read/
+  // unread preference the user, or an earlier hydration path, already set).
+  markVideosReadIfUnset(videoIds: readonly string[], now: string): void
   updateChannelSyncMeta(
     channelId: string,
     meta: { rssEtag: string | null; rssLastModified: string | null; lastSyncedAt: string; available: boolean }
