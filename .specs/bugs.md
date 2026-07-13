@@ -52,6 +52,80 @@ Resolved entries add:
 
 ## Open
 
+### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-13
+- **Area:** sync / auth
+- **What happens:** the owner reports that after adding the initial account or a new
+  additional account, the triggered sync appears to start but the listings never
+  populate — a click into some other view is what eventually shows the videos.
+  Likely root cause found in code: `runRefresh` (`src/platform/main.ts`) guards on a
+  single module-level `refreshing` boolean — `if (refreshing) return { ok: false,
+  errorKind: 'busy', ... }` — with **no queueing or retry**. Both `connectGoogle` and
+  `connectAccount` trigger their post-connect sync as `void runRefresh('manual', ...)`
+  (fire-and-forget, result never inspected). If *any* other refresh happens to already
+  be in flight at that moment — the launch-time `validateConnectionAndCatchUp()` call
+  (every app open, per D-011/D-012), the 30-minute timer, or another account's own
+  connect-triggered refresh — this call returns the `busy` error immediately and
+  silently: no `refresh:started`/`refresh:done` broadcast ever fires for it, so the
+  renderer's event-driven `loadView()`/`loadChannels()` (`src/ui/App.tsx`) never runs for
+  that account's new data. The account/channels *do* get their `accounts`/
+  `account_channels` rows (that part isn't gated), but no videos get synced until some
+  later, unrelated refresh happens to run to completion and finally broadcasts
+  `refresh:done`, at which point everything catches up in one shot — which is why
+  clicking into "some screen" appears to fix it.
+- **Expected:** connecting an account should reliably trigger (and the UI should
+  reliably reflect) that account's sync, regardless of what else happens to be
+  refreshing at that exact moment — dropping the request silently is the actual defect,
+  not the busy-guard's existence.
+- **Code refs:** `src/platform/main.ts` (`runRefresh`'s `if (refreshing) return ...`
+  early-return; `connectGoogle`/`connectAccount` handlers' fire-and-forget
+  `void runRefresh(...)` calls; `validateConnectionAndCatchUp`, the 30-min timer — the
+  other callers competing for the same single `refreshing` flag).
+- **Notes:** the simplest correct fix is probably a small queue — if `runRefresh` is
+  called while `refreshing` is true, remember the request (trigger/accountId) and run it
+  once the in-flight one finishes, instead of just returning `busy` and dropping it. A
+  narrower alternative scoped to just this bug: have `connectGoogle`/`connectAccount`
+  retry their own `runRefresh` call (with backoff) if it comes back `busy`, rather than
+  giving up after one fire-and-forget attempt. Not attacked this session — needs a live
+  account and real timing (launch-time refresh racing a fresh connect) to verify the
+  actual failure window, which this session has no way to reproduce.
+
+### B-069 — First sync shows backlog videos as unread for the whole sync duration, not just briefly
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-13
+- **Area:** sync / feed
+- **What happens:** B-020's rule ("on an account's very first subscription sync, videos
+  already published before today start read — the user opens onto 'what's new'") is
+  implemented as a single retroactive `feedRepository.markManyRead(...)` call in
+  `runRefresh` (`src/platform/main.ts`), which only runs *after* `stack.syncService
+  .refresh(...)` fully resolves — i.e. after every subscribed channel has been polled.
+  But `SyncService.refresh` (`src/core/sync-service.ts`) discovers and inserts videos
+  **per channel** as it goes (`mapPool(channels, RSS_CONCURRENCY, ...)` →
+  `insertDiscoveredVideos`), each new row starting unread (no `video_state` row yet) —
+  and the renderer's `loadView()` isn't gated on the sync finishing, so a feed reload
+  during a long first sync (hundreds of channels) shows those backlog videos as unread
+  for the entire remaining sync duration, only flipping to read once the whole thing
+  completes and `refresh:done` triggers the retroactive mark-read + reload. The rule is
+  eventually correct, just not "instantly" — the owner sees it as backlog staying unread
+  "until sync finishes," which for a large subscription list can be a while.
+- **Expected:** backlog videos (published before today) should never render as unread
+  during a first sync, even transiently — the per-channel discovery path needs to apply
+  the same read-default the retroactive pass applies, at insertion time, not only once
+  at the very end.
+- **Code refs:** `src/platform/main.ts` (`runRefresh`'s post-loop `markManyRead` call,
+  gated on `report.firstSync`); `src/core/sync-service.ts` (`refresh`'s per-channel
+  `mapPool`/`discoverChannel` loop — no per-channel read-default hook exists today);
+  `src/ui/App.tsx` (`loadView()` isn't gated on sync completion, so a feed reload during
+  first sync shows whatever's in the DB right now).
+- **Notes:** the cleanest fix likely moves the "backlog defaults to read" decision inside
+  `SyncService` itself, applied per-channel at discovery/hydration time when `firstSync`
+  is true (mirroring how [[B-058]]'s `markVideosReadIfUnset` works for archive backfill),
+  rather than staying a single retroactive pass in `main.ts` after the whole sync
+  finishes. Not attacked this session — needs a live account with a large-enough
+  subscription list to actually observe the window, which this session has no way to
+  exercise.
+
 ### B-068 — Selecting a channel keeps the previous view's scope (Unread/Watch Later/Favorites/Ignored), usually showing nothing
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-12
@@ -292,28 +366,6 @@ Resolved entries add:
   [[B-044]]'s resume-position storage ends up looking like — the same "read current
   playback time" primitive is needed by both.
 
-### B-044 — Resume playback position per video
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player / storage
-- **What happens:** `playback.md` already flags this as a **Future idea, not MVP**
-  ("Watch progress/resume position: IFrame API exposes `getCurrentTime()`; storing it
-  locally is cheap") — the owner is now asking for it explicitly, promoting it off the
-  future-ideas list.
-- **Expected:** reopening a partially-watched video resumes from where playback last
-  stopped, instead of always starting at 0:00.
-- **Code refs:** `src/ui/PlayerView.tsx` (postMessage protocol to the IFrame API — needs
-  `getCurrentTime()` polled/thrown on pause/unmount, and `seekTo()` issued on open,
-  mirroring the existing D-006/B-038/D-038 "reissue on start" pattern already used for
-  quality/speed); `src/adapters/storage/migrations.ts` (new column, likely on
-  `video_state` alongside the existing read/favorite/watch-later flags per
-  `local-data.md`'s "video_state is the user's data" split); `src/ipc/contract.ts` (DTO
-  field).
-- **Notes:** needs a couple of small product decisions when attacked — how close to the
-  end counts as "finished, don't resume" (e.g. last 30s / 95%?), and how often to persist
-  the timestamp (on pause/unmount only vs. periodic ticks) — worth a one-line note in
-  `playback.md` when it moves from Future idea to Final.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -373,6 +425,69 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-071 — Primary account's sidebar label stays "My account" after connecting, instead of the real channel name
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** auth / ui-shell
+- **What happens:** the owner reported that a newly added *additional* account picks up
+  its real Google account name correctly, but the *first* (primary) account's sidebar
+  entry stays labeled "My account" indefinitely. Found in code: `connectGoogle`'s
+  post-connect label lookup (`apiClient.getOwnChannel()`) already wrote the real channel
+  title to the DB via `syncRepository.addAccount(...)`, but never updated the in-memory
+  `AccountStack.label` field the sidebar actually reads (`toAccountDto(stack)`) — so it
+  kept showing the placeholder until the next app restart, at which point
+  `listAccounts()` would rebuild the stack from the (correct) stored label.
+  `connectAccount` (additional accounts) never had this bug — it already did
+  `stack.label = channel.title` in place.
+- **Expected:** the primary account's sidebar label reflects the real channel title
+  immediately after connecting, same as any additional account.
+- **Code refs:** `src/platform/main.ts` (`connectGoogle` handler — added the same
+  `stack.label = label` mutation `connectAccount` already had).
+- **Notes:** one-line fix once diagnosed, mirroring an existing, already-correct pattern
+  in the same file. No live-app check this session (needs a real OAuth connect flow per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint && npm
+  test` (177/177). Owner should validate live: connecting the primary account for the
+  first time and confirming the sidebar shows the real channel name right away, not
+  after a restart.
+- **Resolved:** 2026-07-13 · **Commit:** bd36bdc · **Outcome:** Fixed
+
+### B-044 — Resume playback position per video
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player / storage
+- **What happens:** `playback.md` flagged this as a Future idea, not MVP — the owner
+  asked for it explicitly, promoting it off the future-ideas list.
+- **Expected:** reopening a partially-watched video resumes from where playback last
+  stopped, instead of always starting at 0:00.
+- **Code refs:** `src/adapters/storage/migrations.ts` (schema v7,
+  `video_state.resume_position_seconds`); `src/core/state.ts`
+  (`VideoState.resumePositionSeconds`, `setResumePosition`); `src/adapters/storage/
+  repositories.ts` (`SqliteStateRepository.setResumePosition`, `get`/`apply` threading
+  the column); `src/ipc/contract.ts` + `src/platform/main.ts` (`setResumePosition` IPC);
+  `src/ui/PlayerView.tsx` (`resumeValueFor`, the `start=` embed param, save-on-pause/
+  ended/switch-away).
+- **Notes:**
+  - **Resolved the two product decisions this bug flagged as needed, per this batch's
+    "resolve everything, redirect if needed" instruction:** "finished, don't resume"
+    threshold = under 10s played, or within the last 30s of known duration; persistence
+    cadence = checkpoint-based (pause, ended, switching to another video, closing the
+    player) rather than a periodic tick, consistent with the app's existing
+    reissue-on-start style (D-038) rather than continuous polling.
+  - Reopening a video passes the saved position as the embed's `start=` query parameter
+    — simpler than issuing a `seekTo()` command after the fact, and avoids a visible
+    jump once playback begins.
+  - `resumePositionSeconds` was added to `VideoState`/`VideoStateDto` broadly (like
+    `favorite`/`watchLater`) rather than a parallel player-only type — the main feed
+    query doesn't need it, but sharing the type keeps the diff smaller; `playback.md`
+    updated to reflect the implementation (no longer a Future idea).
+  - No live-app check this session (real playback/seeking needs a live embed per
+    [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint && npm
+    test` (177/177, including new contract tests for `setResumePosition` and its
+    round-trip through `findVideo`, the player's read path). Owner should validate live:
+    watching partway through a video, closing/reopening it, and confirming it resumes;
+    also that a finished video does *not* resume.
+- **Resolved:** 2026-07-13 · **Commit:** bd36bdc · **Outcome:** Fixed
 
 ### B-062 — Comments: pagination unused, no comment likes (permanent API limitation), reply-to-reply doesn't prefill @mention
 - **Type:** bug (pagination) + adjustment (reply UX) · note on the likes ask below
