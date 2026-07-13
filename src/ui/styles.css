@@ -1035,9 +1035,10 @@ button.primary:disabled {
   bottom: 6px;
   right: 6px;
   background: var(--surface);
-  padding: 1px 5px;
+  padding: 5px;
   border-radius: 4px;
   width: auto;
+  line-height: 1;
 }
 
 .card-actions {
@@ -1047,6 +1048,14 @@ button.primary:disabled {
   background: var(--surface);
   border-radius: 6px;
   padding: 1px;
+}
+
+/* The shared .row-actions button padding (4px 7px) is fine for an in-flow
+   list row, but it's asymmetric — inside this corner-anchored floating bar
+   that made the bottom edge look tighter than the left edge, even though
+   the bar's own position offset (bottom/left above) is identical. */
+.card-actions button {
+  padding: 6px;
 }
 
 .card .title {
