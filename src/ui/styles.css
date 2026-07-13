@@ -533,6 +533,7 @@ input:focus-visible,
 }
 
 .channel-header.has-banner .channel-header-actions .open-channel-btn,
+.channel-header.has-banner .channel-header-actions .favorite-channel-btn,
 .channel-header.has-banner .channel-header-actions .unsubscribe-btn {
   background: rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.25);
@@ -540,6 +541,7 @@ input:focus-visible,
 }
 
 .channel-header.has-banner .channel-header-actions .open-channel-btn:hover,
+.channel-header.has-banner .channel-header-actions .favorite-channel-btn:hover,
 .channel-header.has-banner .channel-header-actions .unsubscribe-btn:hover {
   background: rgba(0, 0, 0, 0.5);
 }
@@ -620,6 +622,27 @@ input:focus-visible,
 .open-channel-btn:hover {
   color: var(--text);
   background: var(--surface);
+}
+
+/* B-042: channel-level priority marker, mirrored from the sidebar's
+   context-menu toggle so it's reachable straight from the channel screen. */
+.favorite-channel-btn {
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.favorite-channel-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.favorite-channel-btn.favorited {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* YouTube-wide search results replace the feed while active. */

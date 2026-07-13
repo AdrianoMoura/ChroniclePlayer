@@ -1275,6 +1275,7 @@ export function App() {
                 confirmingUnsubscribe={confirmingUnsubscribe}
                 onUnsubscribe={handleTopbarUnsubscribe}
                 onSubscribe={() => subscribeToChannel(channelFilter)}
+                onToggleFavorite={() => toggleChannelFavorite(channelFilter)}
                 onOpenInBrowser={() =>
                   void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
                 }

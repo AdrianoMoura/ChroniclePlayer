@@ -9,6 +9,7 @@ interface ChannelHeaderProps {
   confirmingUnsubscribe: boolean
   onUnsubscribe: () => void
   onSubscribe: () => void
+  onToggleFavorite: () => void
   onOpenInBrowser: () => void
 }
 
@@ -27,6 +28,7 @@ export function ChannelHeader({
   confirmingUnsubscribe,
   onUnsubscribe,
   onSubscribe,
+  onToggleFavorite,
   onOpenInBrowser
 }: ChannelHeaderProps) {
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
@@ -71,12 +73,25 @@ export function ChannelHeader({
             ↗
           </button>
           {subscribed ? (
-            <button
-              className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
-              onClick={onUnsubscribe}
-            >
-              {confirmingUnsubscribe ? t('app.topbar.confirmUnsubscribe') : t('app.topbar.unsubscribe')}
-            </button>
+            <>
+              <button
+                className={`favorite-channel-btn${channel.favorite ? ' favorited' : ''}`}
+                title={
+                  channel.favorite
+                    ? t('app.topbar.unfavoriteChannelTitle')
+                    : t('app.topbar.favoriteChannelTitle')
+                }
+                onClick={onToggleFavorite}
+              >
+                {channel.favorite ? '★' : '☆'}
+              </button>
+              <button
+                className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
+                onClick={onUnsubscribe}
+              >
+                {confirmingUnsubscribe ? t('app.topbar.confirmUnsubscribe') : t('app.topbar.unsubscribe')}
+              </button>
+            </>
           ) : (
             <button className="primary" onClick={onSubscribe}>
               {t('search.subscribeButton')}

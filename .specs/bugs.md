@@ -203,6 +203,25 @@ Resolved entries add:
 
 ## Resolved
 
+### B-082 — No way to favorite a channel from its own screen
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell
+- **What happens:** the channel-level priority marker ([[B-042]]) was only reachable from
+  the sidebar's right-click context menu — no way to favorite/unfavorite while actually
+  on that channel's own screen.
+- **Expected:** a favorite toggle in the channel header, next to Unsubscribe, for
+  subscribed channels.
+- **Code refs:** `src/ui/ChannelHeader.tsx` (new `onToggleFavorite` prop, a
+  `favorite-channel-btn` rendered only when `subscribed`, mirroring the sidebar's ★/☆
+  convention); `src/ui/App.tsx` (wires the existing `toggleChannelFavorite` callback);
+  `src/ui/styles.css` (`.favorite-channel-btn`, plus the banner-mode override list).
+- **Notes:** not shown for a not-yet-subscribed channel-preview screen ([[B-055]]/
+  [[B-061]]) — favoriting is meaningless before you're actually subscribed. No live-app
+  check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (179/179).
+- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+
 ### B-081 — Reading comments 403s with no explanation; unsubscribe still opens the browser with no warning dialog
 - **Type:** bug
 - **Status:** Fixed · **Reported:** 2026-07-13

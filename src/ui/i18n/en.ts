@@ -305,6 +305,8 @@ export const en = {
   'app.topbar.unsubscribe': 'Unsubscribe',
   'app.topbar.confirmUnsubscribe': 'Click again to unsubscribe',
   'app.topbar.openChannelTitle': "Open this channel's YouTube page",
+  'app.topbar.favoriteChannelTitle': 'Favorite — prioritize at the top of the main feed',
+  'app.topbar.unfavoriteChannelTitle': 'Unfavorite',
 
   // App — status text
   'app.status.filteringShorts': 'filtering Shorts — {checked} of {total} checked…',
