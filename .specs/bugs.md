@@ -146,31 +146,6 @@ Resolved entries add:
   `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
   [[B-056]] since the channel screen needs the same subscribe-state plumbing.
 
-### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** no dedicated channel-detail screen exists today — clicking a channel
-  (in the sidebar, or once [[B-055]]'s search wiring lands, from a search result) only
-  sets a channel filter and reuses the normal feed view; the topbar shows just the
-  channel title as text plus Unsubscribe — no avatar, no banner, no subscriber count.
-  `ChannelDto` has no banner field at all, confirming the data model has no
-  channel-detail concept.
-- **Expected:** a real channel screen, YouTube-inspired: circular channel avatar, channel
-  banner image, Subscribe/Unsubscribe button, and below it the channel's video list
-  (reusing the existing channel-filtered feed + [[B-002]]'s archive pagination).
-  Reachable from (a) clicking a channel in a search result and (b) clicking through from
-  the current channel-filtered feed view (e.g. the header/avatar).
-- **Code refs:** `src/ui/App.tsx` (`onSelectChannel`, channel-filtered feed rendering,
-  topbar); `src/ui/Sidebar.tsx` (`onSelectChannel` prop); `src/ipc/contract.ts`
-  (`ChannelDto` — needs a banner/subscriberCount field); `src/adapters/youtube/
-  api-client.ts` (`channels.list`'s `brandingSettings` part likely needed for the banner
-  — check quota/availability).
-- **Notes:** needs a quota check for the banner image before committing, per
-  `youtube-api.md`'s convention for any new API surface. Natural landing point for
-  [[B-055]]'s channel search results and [[B-061]]'s in-context subscribe button —
-  sequence together.
-
 ### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
 - **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
   toggle — with several polish asks)
@@ -357,6 +332,41 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** no dedicated channel-detail screen existed — clicking a channel only
+  set a filter over the normal feed view; the topbar showed just the title as text plus
+  Unsubscribe — no avatar, no banner, no subscriber count.
+- **Expected:** a channel screen with avatar, banner, subscriber count, and the video
+  list (reusing the existing channel-filtered feed + archive pagination).
+- **Code refs:** `src/ui/ChannelHeader.tsx` (new); `src/adapters/youtube/api-client.ts`
+  (`fetchChannelDetail`); `src/ipc/contract.ts` (`ChannelDetailDto`, `getChannelDetail`);
+  `src/ui/App.tsx` (renders `ChannelHeader` above the feed region when `channelFilter`
+  is set; topbar simplified since the channel title moved into the new header).
+- **Notes:**
+  - Deliberately a compact strip, not YouTube's full-height banner — `ui.md`/D-004 both
+    say content should fill the available screen; a giant banner eating vertical space
+    would be exactly the kind of imposed-aesthetic the product's "who is driving?" test
+    pushes back on.
+  - Banner/subscriber count are fetched live via a new `channels.list`
+    (`part=brandingSettings,statistics`, 1 unit) call every time the channel screen
+    opens, not persisted — cheap enough to just always be fresh, no staleness policy to
+    design. `youtube-api.md` updated with the new endpoint entry per project convention.
+  - **Not done: Subscribe button for not-yet-followed channels.** Every entry point
+    today (sidebar) is already-subscribed by definition, so only Unsubscribe was needed;
+    a real Subscribe toggle needs [[B-055]]'s search-result channel results to actually
+    reach an unfollowed channel's screen first — sequencing unchanged from this bug's
+    original notes.
+  - No live-app check this session (real channel banner/subscriber data needs a live
+    account per [[no-live-app-verification]]); verified via `npm run typecheck && npm
+    run lint && npm test` (177/177 — this is UI/IPC wiring, no new domain logic to unit
+    test). Owner should validate live: opening a channel with and without a real banner
+    image, in both light and dark themes, and confirming Unsubscribe/open-in-browser
+    still work from the new location.
+- **Resolved:** 2026-07-13 · **Commit:** 79c6199 · **Outcome:** Fixed
 
 ### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
 - **Type:** bug
