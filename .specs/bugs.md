@@ -207,35 +207,6 @@ Resolved entries add:
   related to [[B-021]] (new-subscription lag) if the empty channels are recently
   subscribed.
 
-### B-049 — Settings copy about signing into the player for Premium may be misleading
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / player
-- **What happens:** Settings → Connection says "The embedded player uses its own browser
-  session, separate from this connection — if you use YouTube Premium, sign in once
-  inside the player for ad-free playback." The player is a plain sandboxed `<iframe>`
-  (`PlayerView.tsx`) pointed at a single video URL — there's no address bar or
-  navigation surface exposed to reach a Google sign-in page from inside it, so it's
-  unclear how a user is actually supposed to "sign in once inside the player." The owner
-  (a Premium subscriber) also reports never seeing an ad in testing, and suspects — but
-  can't confirm — that the iframe might be reusing their OS default browser's session
-  rather than Electron's own isolated one.
-- **Expected:** either (a) the session really is Electron's own isolated partition
-  (matching the copy's claim) and a sign-in path needs to actually exist (e.g. a "Sign in
-  to YouTube" action that opens a small navigable window against the same
-  session/partition the iframe uses), or (b) if there's genuinely no way to authenticate
-  that session today, the copy should stop promising a sign-in flow that doesn't exist in
-  the UI. Either way this needs verifying, not assuming.
-- **Code refs:** `src/ui/SettingsView.tsx` (the copy, ~line 88-91); `src/ui/PlayerView.tsx`
-  (the `<iframe>`, no `partition`/session config visible at the renderer level — worth
-  checking `src/platform/main.ts` for whether the embedding `BrowserWindow`/webContents
-  sets a session partition at all, which would confirm or rule out the "reusing the OS
-  default browser" theory; Electron's default session is already isolated from
-  Firefox/Chrome, so if no ads truly never appear this more likely points to something
-  else, like a saved Google session in that Electron profile from a prior flow).
-- **Notes:** verify the actual session/partition setup before rewriting the copy — don't
-  guess between "sign-in flow is missing" and "copy is just unclear" without checking.
-
 ### B-046 — Thumbnail hover preview (video scrub preview)
 - **Type:** adjustment (feasibility unclear)
 - **Status:** Open · **Reported:** 2026-07-12
@@ -349,6 +320,36 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-049 — Settings copy about signing into the player for Premium may be misleading
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / player
+- **What happens:** Settings promised "sign in once inside the player for ad-free
+  playback," but the player is a plain sandboxed `<iframe>` with no address bar or
+  navigation surface to reach a Google sign-in page — unclear how a user could actually
+  do this.
+- **Expected:** verify the actual session/partition setup, then either build a real
+  sign-in path or fix the copy to stop promising one that doesn't exist.
+- **Code refs:** `src/platform/main.ts` (checked `createWindow`'s `BrowserWindow` config
+  — no `partition` set anywhere); `src/ui/i18n/en.ts`
+  (`settings.connection.playerSessionNote`); `.specs/playback.md` (§Player view spec, the
+  Login quirk note and the earlier "ad-free automatically" claim).
+- **Notes:** **verified, not assumed:** no `partition` option is set on the window or its
+  webContents, so the iframe uses Electron's own default session — genuinely isolated
+  from any OS browser (Firefox/Chrome), ruling out the owner's "reusing the OS browser"
+  theory. But there is no sign-in surface anywhere in the app that could authenticate
+  that session — OAuth explicitly uses the *system* browser via the loopback flow
+  (`adapters/oauth/auth.ts`), never this one. So option (b) from this bug's own framing:
+  the copy was promising a flow that doesn't exist, not describing one that was just
+  hard to find. Fixed the copy in both Settings and `playback.md` (which had the same
+  claim, worse — "ad-free automatically"). **Left unexplained:** why the owner reports
+  never seeing an ad despite this — likely a YouTube-side embed ad-serving quirk outside
+  Chronicle's control, not something this session could investigate further. No live-app
+  check this session; verified via `npm run typecheck && npm run lint && npm test`
+  (175/175 — this is a copy-only change, no test coverage needed). Owner should validate
+  live: the new Settings copy reads correctly, and whether ads ever actually appear.
+- **Resolved:** 2026-07-12 · **Commit:** 7c363a0 · **Outcome:** Fixed
 
 ### B-048 — Premieres/scheduled videos sort by capture time, not air time; no live/upcoming indicator
 - **Type:** bug · **Severity:** minor
