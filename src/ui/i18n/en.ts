@@ -395,6 +395,8 @@ export const en = {
   'comments.show': 'Show comments',
   'comments.hide': 'Hide comments',
   'comments.loading': 'Loading comments…',
+  'comments.loadMore': 'Load more comments',
+  'comments.loadingMore': 'Loading more comments…',
   'comments.empty': 'No comments yet.',
   'comments.addPlaceholder': 'Add a comment…',
   'comments.replyPlaceholder': 'Write a reply…',

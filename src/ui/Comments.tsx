@@ -14,7 +14,9 @@ interface CommentsSectionProps {
 export function CommentsSection({ videoId }: CommentsSectionProps) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [comments, setComments] = useState<CommentDto[] | null>(null)
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [newComment, setNewComment] = useState('')
   const [posting, setPosting] = useState(false)
@@ -29,6 +31,21 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
         return
       }
       setComments(result.value.comments)
+      setNextPageToken(result.value.nextPageToken)
+    })
+  }
+
+  function loadMore(): void {
+    if (nextPageToken === null || loadingMore) return
+    setLoadingMore(true)
+    void window.chronicle.getComments(videoId, nextPageToken).then((result) => {
+      setLoadingMore(false)
+      if (!result.ok) {
+        setError(result.message)
+        return
+      }
+      setComments((current) => [...(current ?? []), ...result.value.comments])
+      setNextPageToken(result.value.nextPageToken)
     })
   }
 
@@ -92,6 +109,11 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
               }}
             />
           ))}
+          {nextPageToken !== null && (
+            <button className="comments-load-more" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? t('comments.loadingMore') : t('comments.loadMore')}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -149,11 +171,71 @@ function CommentItem({
       {comment.replies.length > 0 && (
         <div className="comment-replies">
           {comment.replies.map((reply) => (
-            <div key={reply.commentId} className="comment reply">
-              <CommentAuthorRow comment={reply} />
-              <p className="comment-text">{reply.textDisplay}</p>
-            </div>
+            <ReplyItem
+              key={reply.commentId}
+              reply={reply}
+              topLevelId={comment.commentId}
+              onReplyPosted={onReplyPosted}
+            />
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// A reply to a reply still posts as a reply to the *top-level* comment
+// (comments.insert takes only the top-level id — YouTube's one-level-nesting
+// model). The `@name` prefix is a text convention, not a structural third
+// nesting level.
+function ReplyItem({
+  reply,
+  topLevelId,
+  onReplyPosted
+}: {
+  reply: CommentDto
+  topLevelId: string
+  onReplyPosted: (reply: CommentDto) => void
+}) {
+  const [replying, setReplying] = useState(false)
+  const [replyText, setReplyText] = useState(() => `@${reply.authorDisplayName} `)
+  const [posting, setPosting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function postReply(): void {
+    const text = replyText.trim()
+    if (text === '') return
+    setPosting(true)
+    void window.chronicle.replyToComment(topLevelId, text).then((result) => {
+      setPosting(false)
+      if (!result.ok) {
+        setError(result.message)
+        return
+      }
+      setReplyText(`@${reply.authorDisplayName} `)
+      setReplying(false)
+      onReplyPosted(result.value)
+    })
+  }
+
+  return (
+    <div className="comment reply">
+      <CommentAuthorRow comment={reply} />
+      <p className="comment-text">{reply.textDisplay}</p>
+      <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
+        {t('comments.replyButton')}
+      </button>
+      {replying && (
+        <div className="comment-composer reply">
+          <textarea
+            value={replyText}
+            onChange={(event) => setReplyText(event.target.value)}
+            placeholder={t('comments.replyPlaceholder')}
+          />
+          <button className="primary" disabled={posting || replyText.trim() === ''} onClick={postReply}>
+            {posting ? t('comments.posting') : t('comments.postButton')}
+          </button>
+          {error !== null && <p className="comments-error">{error}</p>}
         </div>
       )}
     </div>
