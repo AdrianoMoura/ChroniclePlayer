@@ -36,7 +36,7 @@ interface PlayerViewProps {
   onClose: () => void
   onSearch: () => void
   onOpenVideo: (videoId: string) => void
-  onOpenChannel: (channelId: string) => void
+  onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
 }
 
@@ -322,7 +322,7 @@ export function PlayerView({
           <button
             type="button"
             className="channel-link"
-            onClick={() => onOpenChannel(video.channelId)}
+            onClick={() => onOpenChannel(video.channelId, video.channelTitle)}
           >
             {video.channelTitle}
           </button>{' '}

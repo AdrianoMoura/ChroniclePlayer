@@ -1517,11 +1517,19 @@ export function App() {
                 onClose={closePlayer}
                 onSearch={exitPlayerToSearch}
                 onOpenVideo={(videoId) => openVideo(videoId)}
-                onOpenChannel={(channelId) => {
+                onOpenChannel={(channelId, channelTitle) => {
                   setPlayerStack([])
                   setScreen('feed')
                   setView('all')
-                  setChannelFilter(channelId)
+                  // A video's channel may not be one the user is subscribed
+                  // to (e.g. opened from search) — the local-feed pipeline
+                  // has nothing for that channelId, so it needs the same
+                  // preview path search's own channel results use.
+                  if (channels.some((c) => c.channelId === channelId)) {
+                    setChannelFilter(channelId)
+                  } else {
+                    openChannelPreview(channelId, channelTitle, null)
+                  }
                 }}
                 onStatePatched={patch}
               />
