@@ -29,6 +29,7 @@ import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
   AccountDto,
   AuthStatusDto,
+  ChannelDetailDto,
   ChronicleEventDto,
   CommentDto,
   FeedCursorDto,
@@ -627,6 +628,24 @@ void app.whenReady().then(() => {
         if (playlistId !== undefined) syncRepository.setUploadsPlaylist(id, playlistId)
         void runRefresh('manual', undefined, id)
         return { ok: true, value: undefined }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.getChannelDetail,
+    async (_event, channelId: unknown): Promise<ResultDto<ChannelDetailDto>> => {
+      const id = parseChannelIdRequired(channelId)
+      try {
+        const detail = await apiClient.fetchChannelDetail(id)
+        return { ok: true, value: detail }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
           authProvider.invalidate()

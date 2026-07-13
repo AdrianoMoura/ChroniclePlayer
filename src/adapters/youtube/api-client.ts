@@ -103,6 +103,28 @@ export class YouTubeApiClient implements SubscriptionSource {
     return result
   }
 
+  // channels.list — 1 unit. Fetched on-demand when the channel screen opens
+  // (not persisted — cheap enough, and stays fresh every visit), for the
+  // banner image and subscriber count the compact sidebar/topbar never needed.
+  async fetchChannelDetail(
+    channelId: string
+  ): Promise<{ bannerUrl: string | null; subscriberCount: number | null }> {
+    const page = await this.get(
+      'channels',
+      { part: 'brandingSettings,statistics', id: channelId },
+      1
+    )
+    const item = page.items[0]
+    const branding = item?.['brandingSettings'] as Record<string, unknown> | undefined
+    const image = branding?.['image'] as Record<string, unknown> | undefined
+    const bannerUrl = typeof image?.['bannerExternalUrl'] === 'string' ? image['bannerExternalUrl'] : null
+    const statistics = item?.['statistics'] as Record<string, unknown> | undefined
+    const hidden = statistics?.['hiddenSubscriberCount'] === true
+    const rawCount = statistics?.['subscriberCount']
+    const subscriberCount = !hidden && typeof rawCount === 'string' ? Number(rawCount) : null
+    return { bannerUrl, subscriberCount }
+  }
+
   // videos.list batched — 1 unit per call (≤ 50 ids). The hydration half of
   // the hybrid feed source (D-007).
   async hydrate(videoIds: readonly string[]): Promise<HydratedVideo[]> {

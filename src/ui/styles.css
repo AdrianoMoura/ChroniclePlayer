@@ -461,6 +461,89 @@ input:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 
+/* B-056: a compact channel-screen header, not a full YouTube-height banner
+   (D-004: content fills the screen; a big banner would eat into that). */
+.channel-header {
+  background-color: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.channel-header-scrim {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+}
+
+/* Only force a dark scrim + white text over an actual photo — with no
+   banner the header is just --surface-2 and normal theme text colors, so
+   light mode never ends up with white-on-light-gray. */
+.channel-header.has-banner .channel-header-scrim {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.5));
+}
+
+.channel-header-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.channel-header-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.channel-header-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-header-subs {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.channel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.channel-header.has-banner .channel-header-title {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.channel-header.has-banner .channel-header-subs {
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.channel-header.has-banner .channel-header-actions .open-channel-btn,
+.channel-header.has-banner .channel-header-actions .unsubscribe-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.channel-header.has-banner .channel-header-actions .open-channel-btn:hover,
+.channel-header.has-banner .channel-header-actions .unsubscribe-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .refresh {
   font-size: 16px;
   color: var(--text-dim);

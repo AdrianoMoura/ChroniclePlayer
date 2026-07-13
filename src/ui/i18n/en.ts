@@ -8,6 +8,7 @@ export const en = {
   'format.hoursAgo': '{hours} h ago',
   'format.daysAgo': '{days} d ago',
   'format.views': '{count} views',
+  'format.subscribers': '{count} subscribers',
 
   // HelpOverlay
   'help.title': 'Keyboard shortcuts',

@@ -36,6 +36,13 @@ export function formatViews(viewCount: number): string {
   })
 }
 
+// B-056: channel screen only — null when YouTube reports the count hidden.
+export function formatSubscriberCount(count: number): string {
+  return t('format.subscribers', {
+    count: new Intl.NumberFormat(undefined, { notation: 'compact' }).format(count)
+  })
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

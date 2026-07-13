@@ -82,10 +82,13 @@ unread videos ([[B-042]], D-039 in `decisions.md`).
 **Partially implemented 2026-07-12.** Of the two follow mechanisms below, **"Subscribe
 on YouTube" is shipped** (B-009's search results carry a Subscribe button;
 [[B-010]] added Unsubscribe from the sidebar/channel screen) — see D-030 in
-`decisions.md`. **"Follow locally" is not built.** The **in-app channel page** described
-in the first sentence is also still not built: clicking a channel today only opens the
-normal feed filtered to that channel, with no avatar/banner/dedicated layout — tracked as
-`bugs.md` [[B-056]].
+`decisions.md`. **"Follow locally" is not built.** The **in-app channel page**
+(`bugs.md` [[B-056]], implemented 2026-07-13): a compact header (avatar, banner image,
+subscriber count, Unsubscribe, open-in-browser) above the existing channel-filtered
+feed — deliberately a slim strip rather than YouTube's full-height banner (D-004: content
+fills the screen). Banner/subscriber count come from `channels.list`
+(`part=brandingSettings,statistics`, 1 unit), fetched live on every visit rather than
+cached in the DB.
 From any video (or channel link), an in-app channel page: channel header + its uploads in
 strict chronological order — no popularity sort, no "for you" tab. From there, two follow
 mechanisms (recommendation: offer **both** — they serve different intents):

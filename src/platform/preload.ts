@@ -68,6 +68,8 @@ const api: ChronicleApi = {
   searchYouTube: (query: string) => ipcRenderer.invoke(IpcChannel.searchYouTube, query),
   subscribeChannel: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.subscribeChannel, channelId),
+  getChannelDetail: (channelId: string) =>
+    ipcRenderer.invoke(IpcChannel.getChannelDetail, channelId),
   getComments: (videoId: string, pageToken?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getComments, videoId, pageToken ?? null),
   postComment: (videoId: string, text: string) =>

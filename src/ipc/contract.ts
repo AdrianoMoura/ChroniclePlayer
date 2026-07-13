@@ -76,6 +76,13 @@ export interface ChannelDto {
   favorite: boolean
 }
 
+// Channel-screen-only extras (B-056) — fetched live via getChannelDetail,
+// not part of the sidebar/feed's regular ChannelDto.
+export interface ChannelDetailDto {
+  bannerUrl: string | null
+  subscriberCount: number | null
+}
+
 // B-003: a connected Google account. The OAuth client (one Google Cloud
 // project) is shared across every account — only the token/scope state is
 // per-account, hence no "unconfigured" state here (that's global, see
@@ -240,6 +247,7 @@ export const IpcChannel = {
   getPriorityFeed: 'feed:priority',
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
+  getChannelDetail: 'channel:getDetail',
   searchYouTube: 'youtube:search',
   getComments: 'video:getComments',
   postComment: 'video:postComment',
@@ -343,6 +351,9 @@ export interface ChronicleApi {
   // subscriptions.insert (D-030, 50 units) — the other half of B-010's
   // unsubscribe; shares the same incremental write-scope consent (D-032).
   subscribeChannel(channelId: string): Promise<ResultDto<void>>
+  // channels.list (1 unit) — banner/subscriber count for the channel screen,
+  // fetched fresh on open rather than cached in the DB.
+  getChannelDetail(channelId: string): Promise<ResultDto<ChannelDetailDto>>
   // B-006: commentThreads.list (1 unit/page) — public, readonly scope suffices.
   getComments(
     videoId: string,

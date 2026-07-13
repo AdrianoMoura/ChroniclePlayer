@@ -17,6 +17,7 @@ import type {
   WizardStateDto
 } from '../ipc/contract'
 import { AddAccount } from './AddAccount'
+import { ChannelHeader } from './ChannelHeader'
 import { ConnectPanel } from './ConnectPanel'
 import {
   FeedList,
@@ -1064,10 +1065,7 @@ export function App() {
             <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
           </button>
           <span className="topbar-view">
-            {channelFilter !== null
-              ? (channels.find((c) => c.channelId === channelFilter)?.title ??
-                t('app.topbar.channelFallback'))
-              : VIEW_LABELS[view]}
+            {VIEW_LABELS[view]}
             {accountFilter !== null && (
               <span className="topbar-account-suffix">
                 {' · '}
@@ -1076,27 +1074,6 @@ export function App() {
               </span>
             )}
           </span>
-          {channelFilter !== null && (
-            <button
-              className="open-channel-btn"
-              title={t('app.topbar.openChannelTitle')}
-              onClick={() =>
-                void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
-              }
-            >
-              ↗
-            </button>
-          )}
-          {channelFilter !== null && (
-            <button
-              className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
-              onClick={handleTopbarUnsubscribe}
-            >
-              {confirmingUnsubscribe
-                ? t('app.topbar.confirmUnsubscribe')
-                : t('app.topbar.unsubscribe')}
-            </button>
-          )}
           <span className="status">{statusText}</span>
           {showMarkAllRead && (
             <button className="mark-all-read" onClick={markAllRead}>
@@ -1152,6 +1129,21 @@ export function App() {
             {settings.layout === 'grid' ? '☰' : '⊞'}
           </button>
         </header>
+
+        {channelFilter !== null &&
+          (() => {
+            const selectedChannel = channels.find((c) => c.channelId === channelFilter)
+            return selectedChannel !== undefined ? (
+              <ChannelHeader
+                channel={selectedChannel}
+                confirmingUnsubscribe={confirmingUnsubscribe}
+                onUnsubscribe={handleTopbarUnsubscribe}
+                onOpenInBrowser={() =>
+                  void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
+                }
+              />
+            ) : null
+          })()}
 
         {banner !== null && (
           <div className="banner">

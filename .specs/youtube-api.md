@@ -29,6 +29,7 @@ justified against this document and its quota cost stated in a code comment.**
 | `commentThreads.list` / `.insert` | 1 / 50 | Read/post comments ([[B-006]], implemented 2026-07-12; D-032; explicit user action only for posting — reading needs no write scope) |
 | `comments.insert` | 50 per call | Reply to a comment ([[B-006]], implemented 2026-07-12; D-032) |
 | `search.list` | **100 per call** | **Banned from sync/automation.** Explicit user-typed queries only ([[B-009]], implemented 2026-07-12; D-031) |
+| `channels.list` (`part=brandingSettings,statistics`) | 1 per call | Channel screen's banner image + subscriber count ([[B-056]], implemented 2026-07-13) — fetched live on every visit to the channel screen, not cached in the DB; trivial per-visit cost, avoids a staleness policy. |
 
 `search.list` is the classic quota trap: polling 200 channels via search would cost
 20,000 units — double the daily quota — for one refresh. It is banned from any automated
