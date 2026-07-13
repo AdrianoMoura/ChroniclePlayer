@@ -470,8 +470,13 @@ export function App() {
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
       syncMeta()
+      // The sidebar's per-channel unread badge is a separate data source
+      // (channels state) from the topbar's count (meta) — a read/unread
+      // toggle needs to refresh both, or the sidebar number goes stale
+      // until something unrelated happens to reload it.
+      loadChannels()
     },
-    [syncMeta]
+    [syncMeta, loadChannels]
   )
 
   // Opening the player marks the video read immediately (playback.md).
@@ -990,6 +995,11 @@ export function App() {
           onSelectChannel={(channelId) => {
             setPlayerStack([])
             setScreen('feed')
+            // A channel is a different scope entirely from the five views —
+            // carrying over Unread/Watch Later/Favorites/Ignored made the
+            // channel screen look broken (usually nothing in that
+            // intersection).
+            setView('all')
             setChannelFilter(channelId)
           }}
           onOpenSettings={() => {
