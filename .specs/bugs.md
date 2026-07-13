@@ -52,71 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-066 — Removing the only remaining account silently does nothing
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** auth
-- **What happens:** `main.ts`'s `removeAccount` handler throws when `id ===
-  primaryAccountId()` ("cannot remove the primary account here") — but this only guards
-  the *primary* account specifically, not "last account remaining" in general, and
-  `Sidebar.tsx`'s account menu renders the same generic Remove option for every account
-  with no special-casing. `App.tsx`'s `removeAccount` calls the IPC method with no
-  `.catch()` — so when a user removes every secondary account and then tries to remove
-  the last (primary) one, the main-process throw becomes an unhandled promise rejection;
-  the confirm menu already optimistically closes regardless of outcome, so the user sees
-  no error, no feedback, nothing.
-- **Expected:** either disable/hide the Remove option on the primary/last account with an
-  explanation (e.g. "sign out instead" — D-041 already documents that Sign Out covers
-  removing the primary account), or handle the failure with a visible error banner if
-  removal is attempted anyway.
-- **Code refs:** `src/platform/main.ts` (`removeAccount` handler); `src/ui/App.tsx`
-  (`removeAccount` — missing `.catch()`); `src/ui/Sidebar.tsx` (account `…` menu, the
-  optimistic close-on-click).
-- **Notes:** cheapest fix is UI-side — disable/explain the Remove option for the primary
-  account in `Sidebar.tsx` (matching D-041's existing "primary account can't be removed
-  from Accounts, Settings' Sign Out covers that case" design intent) plus adding the
-  missing `.catch()` as a defensive backstop regardless.
-
-### B-065 — Context menu (accounts/channels) renders clipped inside the scrollable sidebar
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** both the channel `…` menu and the account `…` menu (`Sidebar.tsx`)
-  are plain positioned `<div>`s, direct DOM children of rows inside
-  `.channel-list`/`.account-list` (scrollable, `overflow: auto`) — no portal (no
-  `createPortal` usage in `Sidebar.tsx`), no viewport-aware placement logic. Being an
-  in-flow/absolutely-positioned child of a clipped scroll container, the menu gets
-  visually cut off whenever it opens near the edge of the visible scroll area.
-- **Expected:** the menu renders fully visible regardless of scroll position — typically
-  via a React portal to a fixed-position layer, positioned against the trigger button's
-  viewport coordinates.
-- **Code refs:** `src/ui/Sidebar.tsx` (channel `…` menu, account `…` menu).
-- **Notes:** same fix likely serves both menus since they share the same pattern.
-
-### B-064 — Switching the active account doesn't refresh the sidebar/app state; a zero-channel account breaks the sidebar layout
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** auth / ui-shell
-- **What happens:** `selectAccount` (`App.tsx`) sets `accountFilter` and resets to the
-  feed view, which does auto-refetch feed videos + meta (the
-  `[view, channelFilter, accountFilter]` effect), but never calls `loadChannels()` — so
-  the sidebar's channel list stays stale after switching accounts until some unrelated
-  action happens to refresh it (unsubscribe, favorite-toggle, a sync event, etc.).
-  Separately, when the selected account has zero followed channels, `Sidebar.tsx` omits
-  the **entire** Channels section (header, channel-filter input, everything) rather than
-  showing an empty state — which also silently breaks the `c` keyboard shortcut (its ref
-  never attaches to a DOM node in that state).
-- **Expected:** switching accounts should feel like switching context completely —
-  sidebar channel list, feed, and any other account-scoped state refresh together,
-  immediately, with no manual refresh step. An account with zero channels should render a
-  proper empty state in the Channels section instead of omitting the section outright.
-- **Code refs:** `src/ui/App.tsx` (`selectAccount`, `loadChannels`, the account/view
-  effect); `src/ui/Sidebar.tsx` (the `channels.length > 0 &&` guard around the whole
-  Channels section).
-- **Notes:** same theme as [[product-frictionless-over-quota]]/the agency principle — an
-  account switch should read as "now using this account," not "now using this account,
-  once you remember to hit refresh."
-
 ### B-063 — Favorites Home section should follow the feed's layout/size settings; sidebar should list favorited channels first
 - **Type:** bug (layout) + adjustment (ordering)
 - **Status:** Open · **Reported:** 2026-07-12
@@ -201,26 +136,6 @@ Resolved entries add:
   `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
   [[B-056]] since the channel screen needs the same subscribe-state plumbing.
 
-### B-060 — Filter and `/` shortcut don't work while a video is playing
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player / ui-shell
-- **What happens:** the global keydown handler (`App.tsx`) starts with an early
-  `if (playerOpen || urlPromptOpen) return` before reaching the `/`-focuses-filter case —
-  so the entire global shortcut set, including `/`, is disabled while the player is open.
-  The filter input itself stays mounted in the DOM, but nothing can reach it.
-  `PlayerView.tsx`'s own keydown handler has no `/` binding either.
-- **Expected:** `/` (and the ability to actually use the filter/search) should work while
-  viewing a video, consistent with the product's frictionless principle — the user
-  shouldn't have to leave the player to start a new search. At minimum, `/` should escape
-  back to the feed and focus the filter (mirroring what Esc/Back already does); ideally
-  the filter should be reachable without fully leaving playback.
-- **Code refs:** `src/ui/App.tsx` (global `onKeyDown`, the `playerOpen` early-return);
-  `src/ui/PlayerView.tsx` (own `onKeyDown` — no `/` case).
-- **Notes:** same root shape as [[B-053]] — a broad early-return swallows a shortcut it
-  shouldn't; worth checking whether other non-player-specific shortcuts have the same gap
-  while auditing this.
-
 ### B-059 — No loading indicator while paginating/scrolling to load more
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
@@ -261,26 +176,6 @@ Resolved entries add:
   for backfilled unread state" question) — not a one-line fix, a product call about what
   "unread" should mean for archive content the user never had a chance to see
   chronologically. Possibly the real cause behind the "unread" confusion in [[B-063]].
-
-### B-057 — Unread count in top bar not scoped to the current channel view
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** the topbar's "X unread" status text is built from `syncMeta()`'s
-  `meta.unreadCount`, which comes from `getFeedMeta(accountId)` — an IPC method with no
-  `channelId` parameter — so it always reports the global/account-wide unread count even
-  inside a channel-filtered view. A separately-computed, correctly channel-scoped value
-  already exists (`currentUnreadCount`) but is only used to decide whether to show "Mark
-  all read," never fed into the status text — two inconsistent unread computations live
-  side by side in the same component.
-- **Expected:** the top-bar unread count reflects the current scope — channel-scoped
-  count while inside a channel filter, global/account count otherwise.
-- **Code refs:** `src/ui/App.tsx` (`statusText`, `syncMeta`, `currentUnreadCount`);
-  `src/ipc/contract.ts` (`getFeedMeta`); `src/platform/main.ts` (the handler — needs an
-  optional `channelId` threaded through, or just reuse the already-loaded client-side
-  value).
-- **Notes:** straightforward fix — reuse the existing `currentUnreadCount` value in
-  `statusText` instead of always reading `meta.unreadCount`.
 
 ### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
 - **Type:** adjustment
@@ -372,43 +267,6 @@ Resolved entries add:
   2026-07-12 (B-009)" (the toggle + local-filter shape) — `decisions.md`'s D-031 entry
   needs a follow-up note once this is attacked. Related: [[B-055]] (search results UX),
   [[B-060]] (filter doesn't work in the player — same filter input).
-
-### B-053 — `?` shortcut overlay doesn't open when focus is inside a text input
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** pressing `?` while focus is inside the filter/search input (`/`
-  focuses it, per `ui.md`'s shortcut table, or a simple click) does nothing except type a
-  literal "?" into the field — the shortcut-overlay handler never runs. Reported by the
-  owner as "`?` só cai no filtro" (`?` just falls into the filter).
-- **Expected:** `?` opens the shortcuts overlay (`HelpOverlay.tsx`) regardless of where
-  focus currently sits, matching `ui.md`'s table ("`?` | shortcut overlay").
-- **Code refs:** `src/ui/App.tsx` — the global keydown handler's input-focus branch (`if
-  (target instanceof HTMLInputElement) { ... return }`, around line 489) only
-  special-cases `Escape`/`Enter` and returns for everything else, so it never reaches the
-  `case '?': setHelpOpen(true)` branch further down (~line 562).
-- **Notes:** same root shape as the broader audit in [[B-043]] — the input-focus branch
-  swallows *all* global shortcuts, not just `?`; worth fixing as part of that audit
-  rather than a one-off patch, since the fix (letting a small allowlist of keys like
-  `?`/`Escape` fall through even from inputs) touches the same code path other bindings
-  will need too.
-
-### B-052 — README's "Shorts are never displayed" line is stale (contradicts D-035)
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** other (docs)
-- **What happens:** `README.md` (Principles section) still says "**Shorts are never
-  displayed.** Not now, not ever. There is no toggle." That was true under D-028, but
-  D-028 was superseded same-day by **D-035**: Shorts from subscribed channels now appear
-  in the feed tagged with a badge, with a "Show Shorts" Settings toggle (default on).
-  `feed.md`/`non-goals.md` were updated when D-035 landed; `README.md` was missed.
-- **Expected:** README's bullet updated to match D-035's actual behavior (shown, badged,
-  toggle in Settings to hide) instead of claiming an absolute, toggle-less ban.
-- **Code refs:** `README.md` (Principles list, the Shorts bullet); compare
-  `.specs/non-goals.md` §YouTube surfaces Chronicle will not reproduce and
-  `.specs/decisions.md` D-035 for the correct current wording.
-- **Notes:** pure doc correction, no code change — flagged by the owner while reading
-  Settings copy against the shipped toggle.
 
 ### B-051 — Some subscribed channels show up with zero videos
 - **Type:** bug · **Severity:** major
@@ -531,29 +389,6 @@ Resolved entries add:
   way or the other) and possibly a `decisions.md` entry if the "Premieres {date}"
   ordering/label design needs a Final decision beyond what's already sketched.
 
-### B-047 — Grid layout: per-video action buttons never appear
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** the read/ignore/favorite/watch-later/open-in-browser buttons render
-  in the DOM for grid cards too (`VideoCard` in `FeedList.tsx` includes the same
-  `.row-actions.card-actions` block as `VideoRow`), but they never become visible —
-  `styles.css`'s `.row-actions { display: none }` is only overridden by `.row:hover
-  .row-actions, .row.selected .row-actions { display: flex }` (line 689-692), and grid
-  cards use the `.card` class, not `.row` — so that selector never matches, and
-  `.card-actions` (line 820, which only sets `position`/`background`/`padding`, no
-  `display`) stays hidden regardless of hover or selection. Only list mode shows the
-  buttons.
-- **Expected:** grid cards get the same hover/selected visibility as list rows — a
-  `.card:hover .row-actions, .card.selected .row-actions { display: flex }` rule (or
-  equivalent) alongside the existing list-row selector.
-- **Code refs:** `src/ui/styles.css` lines 684-692 (the list-only visibility rule) and
-  820-827 (`.card-actions` positioning, missing the display toggle);
-  `src/ui/FeedList.tsx` `VideoCard`/`VideoRow` (identical markup already shared, confirms
-  this is CSS-only).
-- **Notes:** root cause fully diagnosed — this is a one-rule CSS fix whenever it's
-  attacked, not a design question.
-
 ### B-046 — Thumbnail hover preview (video scrub preview)
 - **Type:** adjustment (feasibility unclear)
 - **Status:** Open · **Reported:** 2026-07-12
@@ -667,6 +502,149 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-066 — Removing the only remaining account silently does nothing
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** auth
+- **What happens:** `main.ts`'s `removeAccount` handler threw when `id ===
+  primaryAccountId()`, but only guarded that specific case — `Sidebar.tsx` rendered the
+  same generic Remove option for every account, and `App.tsx`'s `removeAccount` had no
+  `.catch()`, so the throw became a silent unhandled promise rejection.
+- **Expected:** disable/explain the Remove option on the primary account, and handle
+  failure with a visible error if removal is attempted anyway.
+- **Code refs:** `src/ipc/contract.ts` (`AccountDto.isPrimary`); `src/platform/main.ts`
+  (`toAccountDto`); `src/ui/Sidebar.tsx` (Remove button `disabled`/`title` when primary);
+  `src/ui/App.tsx` (`removeAccount` — added `.catch()` → banner).
+- **Notes:** `AccountDto` gained an explicit `isPrimary` flag (`accountId ===
+  primaryAccountId()`) rather than having the UI infer it — the sidebar has no other way
+  to know which account is primary. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (171/171). Owner should validate live:
+  the disabled state/tooltip on the primary account's Remove button, and that a forced
+  failure (if reachable at all now) shows the new banner instead of nothing.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-065 — Context menu (accounts/channels) renders clipped inside the scrollable sidebar
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** both `…` menus were plain positioned `<div>`s, direct DOM children of
+  rows inside scrollable list containers — no portal, no viewport-aware placement, so the
+  menu got clipped whenever it opened near the edge of the visible scroll area.
+- **Expected:** the menu renders fully visible regardless of scroll position, via a portal
+  positioned against the trigger button's viewport coordinates.
+- **Code refs:** `src/ui/Sidebar.tsx` (new `ContextMenu` component — `createPortal` to
+  `document.body`, `useLayoutEffect` measures the rendered menu and flips above the
+  trigger / clamps horizontally when there isn't room).
+- **Notes:** one shared component now backs both the channel and account menus, as
+  expected going in. Existing close-on-outside-click/Escape (`document`-level listeners)
+  needed no changes — they were never scoped to the scroll container. No live-app check
+  this session; verified via `npm run typecheck && npm run lint && npm test` (171/171).
+  Owner should validate live: opening a menu near the bottom of a long scrolled channel
+  list, and near screen edges generally.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-064 — Switching the active account doesn't refresh the sidebar/app state; a zero-channel account breaks the sidebar layout
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** auth / ui-shell
+- **What happens:** `selectAccount` set `accountFilter` and refetched the feed, but never
+  called `loadChannels()` — the sidebar's channel list stayed stale until an unrelated
+  action refreshed it. Separately, an account with zero followed channels made
+  `Sidebar.tsx` omit the entire Channels section, silently breaking the `c` shortcut too.
+- **Expected:** switching accounts refreshes sidebar + feed together immediately; a
+  zero-channel account renders a proper empty state instead of hiding the section.
+- **Code refs:** `src/ui/App.tsx` (new effect calling `loadChannels()` on `accountFilter`
+  change); `src/ui/Sidebar.tsx` (Channels section always renders; empty state via
+  `sidebar.noChannels` when `channels.length === 0`, distinct from `noChannelMatch`).
+- **Notes:** the channel-filter input (and its `c` shortcut target) now always mounts,
+  so that gap closes as a side effect of the fix rather than needing separate handling.
+  No live-app check this session; verified via `npm run typecheck && npm run lint && npm
+  test` (171/171). Owner should validate live: switching between two real accounts with
+  different channel sets, and a fresh/empty account's Channels section.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-060 — Filter and `/` shortcut don't work while a video is playing
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player / ui-shell
+- **What happens:** the global keydown handler's `if (playerOpen || urlPromptOpen)
+  return` disabled the entire shortcut set, including `/`, while the player was open;
+  `PlayerView.tsx`'s own keydown handler had no `/` binding either.
+- **Expected:** `/` works while viewing a video — at minimum escaping back to the feed
+  and focusing the filter, mirroring what Esc/Back already does.
+- **Code refs:** `src/ui/App.tsx` (`exitPlayerToSearch` — clears the player stack fully
+  and focuses the filter, passed down as `onSearch`); `src/ui/PlayerView.tsx` (new `/`
+  case in its own keydown handler, calling `onSearch`).
+- **Notes:** deliberately exits the *whole* player stack (not just one level, like Esc
+  does for queue navigation) since starting a new search is a bigger context switch than
+  going back one queued video. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (171/171). Owner should validate live:
+  pressing `/` mid-playback lands back on the feed with the filter focused and ready to
+  type.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-057 — Unread count in top bar not scoped to the current channel view
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the topbar's status text always read `meta.unreadCount` (global/
+  account-wide), even inside a channel-filtered view, while a correctly channel-scoped
+  value (`currentUnreadCount`) already existed and was only used for the "Mark all read"
+  visibility check.
+- **Expected:** the top-bar unread count reflects the current scope.
+- **Code refs:** `src/ui/App.tsx` (`statusText` now reads `currentUnreadCount`).
+- **Notes:** exactly the one-line fix flagged going in — no new state needed. No live-app
+  check this session; verified via `npm run typecheck && npm run lint && npm test`
+  (171/171). Owner should validate live: the count shown while inside a channel filter
+  vs. the main feed.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-053 — `?` shortcut overlay doesn't open when focus is inside a text input
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the global keydown handler's input-focus branch only special-cased
+  `Escape`/`Enter` and returned for everything else, so `?` typed into the filter/search
+  input never reached the `case '?': setHelpOpen(true)` branch — it just typed a literal
+  "?" into the field.
+- **Expected:** `?` opens the shortcuts overlay regardless of where focus currently sits.
+- **Code refs:** `src/ui/App.tsx` (input-focus branch — added a `?` case that
+  `preventDefault()`s and toggles `helpOpen`).
+- **Notes:** implemented as a small, targeted allowlist addition rather than restructuring
+  the whole input-focus branch — only `?` needed to fall through per the bug's actual ask.
+  No live-app check this session; verified via `npm run typecheck && npm run lint && npm
+  test` (171/171). Owner should validate live: pressing `?` while the filter/search or
+  channel-query inputs have focus.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
+
+### B-052 — README's "Shorts are never displayed" line is stale (contradicts D-035)
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** other (docs)
+- **What happens:** `README.md` still said "Shorts are never displayed. Not now, not
+  ever. There is no toggle," contradicting D-035 (shown, badged, toggle in Settings).
+- **Expected:** README's bullet matches D-035's actual behavior.
+- **Code refs:** `README.md` (Principles list, the Shorts bullet).
+- **Notes:** already fixed by the prior dogfooding-batch commit (7531da4, "reconcile docs
+  with shipped features") before this session started — this entry just closes the loop
+  in the tracker. No further change needed.
+- **Resolved:** 2026-07-12 · **Commit:** 7531da4 · **Outcome:** Fixed
+
+### B-047 — Grid layout: per-video action buttons never appear
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the action buttons rendered in the DOM for grid cards too, but never
+  became visible — `.row-actions`'s hover/selected visibility rule only matched `.row`
+  (list mode), not `.card` (grid mode).
+- **Expected:** grid cards get the same hover/selected visibility as list rows.
+- **Code refs:** `src/ui/styles.css` (added `.card:hover .row-actions, .card.selected
+  .row-actions` alongside the existing `.row` selector).
+- **Notes:** exactly the one-rule CSS fix diagnosed going in. No live-app check this
+  session; verified via `npm run typecheck && npm run lint && npm test` (171/171). Owner
+  should validate live: hovering/selecting a grid card shows the action buttons.
+- **Resolved:** 2026-07-12 · **Commit:** fe2ed88 · **Outcome:** Fixed
 
 ### B-043 — Keyboard-first as a standing design rule; audit current shortcut coverage
 - **Type:** adjustment
