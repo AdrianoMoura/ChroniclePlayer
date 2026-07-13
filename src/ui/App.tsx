@@ -400,6 +400,19 @@ export function App() {
     })
   }, [])
 
+  // Explicit navigation (a sidebar view/channel/account/settings click)
+  // always leaves search, even when the destination happens to already
+  // match the current view/channel/account — state setters alone don't
+  // fire the "navigation changed" effect on a same-value no-op click.
+  const closeSearch = useCallback(() => {
+    setFilter('')
+    setSearchResults(null)
+    setSearchQuery('')
+    setSearchNextPageToken(null)
+    setSearching(false)
+    setChannelPreview(null)
+  }, [])
+
   const loadMoreSearchResults = useCallback(() => {
     if (searchNextPageToken === null || searchLoadingMore) return
     setSearchLoadingMore(true)
@@ -505,11 +518,15 @@ export function App() {
 
   // B-003: selecting an account is a second, independent filter dimension —
   // same mechanics as selecting a channel (clears on reselect).
-  const selectAccount = useCallback((accountId: string | null) => {
-    setPlayerStack([])
-    setScreen('feed')
-    setAccountFilter(accountId)
-  }, [])
+  const selectAccount = useCallback(
+    (accountId: string | null) => {
+      closeSearch()
+      setPlayerStack([])
+      setScreen('feed')
+      setAccountFilter(accountId)
+    },
+    [closeSearch]
+  )
 
   const removeAccount = useCallback(
     (accountId: string) => {
@@ -1083,12 +1100,14 @@ export function App() {
           channelQueryRef={channelQueryRef}
           settingsOpen={screen === 'settings'}
           onSelectView={(next) => {
+            closeSearch()
             setPlayerStack([])
             setScreen('feed')
             setChannelFilter(null)
             setView(next)
           }}
           onSelectChannel={(channelId) => {
+            closeSearch()
             setPlayerStack([])
             setScreen('feed')
             // A channel is a different scope entirely from the five views —
@@ -1099,6 +1118,7 @@ export function App() {
             setChannelFilter(channelId)
           }}
           onOpenSettings={() => {
+            closeSearch()
             setPlayerStack([])
             setScreen('settings')
             // B-015: refetch so the granted-scope line reflects any write
@@ -1187,8 +1207,7 @@ export function App() {
                 className="field-clear"
                 title={t('app.topbar.clearFilterTitle')}
                 onClick={() => {
-                  setFilter('')
-                  setSearchResults(null)
+                  closeSearch()
                   filterInputRef.current?.focus()
                 }}
               >
@@ -1196,19 +1215,21 @@ export function App() {
               </button>
             )}
           </div>
-          <input
-            className="size-slider"
-            type="range"
-            min={0}
-            max={ITEM_SIZES.length - 1}
-            step={1}
-            value={ITEM_SIZES.indexOf(settings.itemSize)}
-            title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
-            onChange={(event) =>
-              changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
-            }
-          />
-          {searchResults === null && (
+          {!playerOpen && (
+            <input
+              className="size-slider"
+              type="range"
+              min={0}
+              max={ITEM_SIZES.length - 1}
+              step={1}
+              value={ITEM_SIZES.indexOf(settings.itemSize)}
+              title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
+              onChange={(event) =>
+                changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
+              }
+            />
+          )}
+          {!playerOpen && (
             <button
               className="layout-toggle"
               title={
@@ -1225,7 +1246,7 @@ export function App() {
           )}
         </header>
 
-        {channelFilter !== null &&
+        {!playerOpen && channelFilter !== null && searchResults === null &&
           (() => {
             const selectedChannel = channels.find((c) => c.channelId === channelFilter)
             const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
@@ -1297,7 +1318,13 @@ export function App() {
               </button>
             )}
             {searchResults !== null ? (
-              <div className={`search-results size-${settings.itemSize}`}>
+              <div
+                className={`search-results size-${settings.itemSize}`}
+                onScroll={(event) => {
+                  const el = event.currentTarget
+                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) loadMoreSearchResults()
+                }}
+              >
                 {searching && <div className="empty">{t('search.searching')}</div>}
                 {!searching && searchResults.length === 0 && (
                   <div className="empty">{t('search.empty')}</div>
@@ -1357,18 +1384,16 @@ export function App() {
                     )
                   )
                 })()}
-                {searchNextPageToken !== null && (
-                  <button
-                    className="comments-load-more"
-                    disabled={searchLoadingMore}
-                    onClick={loadMoreSearchResults}
-                  >
-                    {searchLoadingMore ? t('search.loadingMore') : t('search.loadMore')}
-                  </button>
-                )}
+                {searchLoadingMore && <div className="feed-loading-more">{t('search.loadingMore')}</div>}
               </div>
             ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
-              <div className={`search-results size-${settings.itemSize}`}>
+              <div
+                className={`search-results size-${settings.itemSize}`}
+                onScroll={(event) => {
+                  const el = event.currentTarget
+                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) loadMoreChannelPreview()
+                }}
+              >
                 {channelPreview.loading && <div className="empty">{t('search.searching')}</div>}
                 {!channelPreview.loading && channelPreview.videos.length === 0 && (
                   <div className="empty">{t('search.empty')}</div>
@@ -1403,14 +1428,8 @@ export function App() {
                     />
                   ))
                 })()}
-                {channelPreview.nextPageToken !== null && (
-                  <button
-                    className="comments-load-more"
-                    disabled={channelPreview.loadingMore}
-                    onClick={loadMoreChannelPreview}
-                  >
-                    {channelPreview.loadingMore ? t('search.loadingMore') : t('search.loadMore')}
-                  </button>
+                {channelPreview.loadingMore && (
+                  <div className="feed-loading-more">{t('search.loadingMore')}</div>
                 )}
               </div>
             ) : (

@@ -297,7 +297,7 @@ export const en = {
   'app.topbar.refreshTitle': 'Refresh (r)',
   'app.topbar.channelFallback': 'Channel',
   'app.topbar.markAllRead': 'Mark all as read',
-  'app.topbar.searchYouTubePlaceholder': 'Search all of YouTube — Enter to search',
+  'app.topbar.searchYouTubePlaceholder': 'Search',
   'app.topbar.clearFilterTitle': 'Clear',
   'app.topbar.itemSizeTitle': 'Item size: {size}',
   'app.topbar.switchToListView': 'Switch to list view',
@@ -397,7 +397,6 @@ export const en = {
   'search.subscribeButton': 'Subscribe',
   'search.subscribedButton': 'Subscribed',
   'search.videoChannelPrefix': 'on',
-  'search.loadMore': 'Load more results',
   'search.loadingMore': 'Loading more results…',
 
   // Comments (B-006)

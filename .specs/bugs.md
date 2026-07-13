@@ -203,6 +203,102 @@ Resolved entries add:
 
 ## Resolved
 
+### B-080 — Channel header stays visible over search results and the player screen
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell
+- **What happens:** `ChannelHeader` rendered whenever `channelFilter !== null`, with no
+  regard for whether a search was active or the player was open — so opening search or a
+  video while on a channel screen left the old channel's header strip visible above the
+  search results / video player instead of being replaced by them.
+- **Expected:** the channel header only shows while actually viewing that channel's own
+  screen — hidden during search and while the player is open.
+- **Code refs:** `src/ui/App.tsx` (the `channelFilter !== null && (...)` header block).
+- **Notes:** gated the header's render on `!playerOpen && searchResults === null` in
+  addition to the existing `channelFilter !== null` check. No live-app check this session
+  (per [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test`.
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
+### B-079 — Search placeholder text is unnecessarily verbose
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell
+- **What happens:** the search field's placeholder read "Search all of YouTube — Enter to
+  search," longer than it needs to be for a control the user already knows how to use.
+- **Expected:** just "Search."
+- **Code refs:** `src/ui/i18n/en.ts` (`app.topbar.searchYouTubePlaceholder`).
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
+### B-078 — Search doesn't close when navigating via the sidebar to a view/channel/account already selected
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell / search
+- **What happens:** search results were cleared by a `useEffect` keyed on
+  `[view, channelFilter, accountFilter]` — but clicking a sidebar item that happened to
+  already match the current value (e.g. re-clicking the channel you were already
+  filtered to before you searched) sets the same primitive value, so the effect never
+  re-fires and the stale search results stayed on screen. The owner had to explicitly
+  clear the search field (✕) before a sidebar click would take effect.
+- **Expected:** any explicit navigation (a view, channel, account, or Settings click)
+  always leaves search, regardless of whether the destination state happens to be
+  unchanged — entering search is itself a navigation away from wherever you were.
+- **Code refs:** `src/ui/App.tsx` (new `closeSearch()`, called explicitly from
+  `onSelectView`/`onSelectChannel`/`onSelectAccount` (`selectAccount`)/`onOpenSettings`,
+  in addition to — not instead of — the existing effect).
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
+### B-077 — Search channel result's grid card looks broken: content hugs the top, Subscribe button not centered
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell / search
+- **What happens:** `.search-result-channel-card` set `align-items: center` but no
+  `justify-content`, so with `flex-direction: column` its content packed against the top
+  of the card whenever the grid row stretched it taller than its own content (e.g. next
+  to a taller video card). Separately, `button.primary`'s global `align-self: flex-start`
+  overrode the card's horizontal centering for the Subscribe/Subscribed button.
+- **Expected:** avatar/title/subscriber-count/button vertically centered in the card,
+  button horizontally centered too.
+- **Code refs:** `src/ui/styles.css` (`.search-result-channel-card`, new
+  `.search-result-channel-card .primary { align-self: center }`).
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
+### B-076 — Item-size slider and grid/list toggle don't respect what screen they're on
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell
+- **What happens:** two separate contextual mismatches: (1) the grid/list toggle was
+  deliberately hidden during search ([[B-055]]) — but that reads as "I can't change
+  layout while searching," which the owner explicitly didn't want; (2) both the toggle
+  and the item-size slider stayed visible (and functionally inert, having no grid/list
+  concept) while the player was open, since the topbar renders unconditionally regardless
+  of `playerOpen`.
+- **Expected:** the toggle stays available during search (search results already honor
+  grid/list, per [[B-055]]) and both controls hide while a video is playing, where
+  neither has anything to control.
+- **Code refs:** `src/ui/App.tsx` (topbar's `.size-slider`/`.layout-toggle`, now gated on
+  `!playerOpen` instead of `searchResults === null`).
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
+### B-075 — Search/channel-preview pagination is a "Load more" link instead of auto-pagination, and isn't centered
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell / search
+- **What happens:** [[B-055]]'s search-result pagination (and the channel-preview video
+  list it shares its markup with) used a clickable "Load more results" link/button —
+  inconsistent with the rest of the app, where every other paginated list (the main feed,
+  a channel's archive) auto-loads as you scroll near the bottom, no click required.
+- **Expected:** scrolling near the bottom of the list triggers the next page
+  automatically, the same as everywhere else; a plain centered "Loading more…" line
+  (no click target) shows while a page is in flight, matching the main feed's
+  `feed-loading-more` treatment — nothing to click, nothing left off-center.
+- **Code refs:** `src/ui/App.tsx` (the `.search-results` container's new `onScroll`
+  handler calling `loadMoreSearchResults`/`loadMoreChannelPreview` within 300px of the
+  bottom; swapped the `comments-load-more` button for a conditionally-rendered
+  `feed-loading-more` div); `src/ui/i18n/en.ts` (dropped the now-unused
+  `search.loadMore` string).
+- **Resolved:** 2026-07-13 · **Commit:** d6cf58e · **Outcome:** Fixed
+
 ### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
 - **Type:** bug · **Severity:** major
 - **Status:** Fixed · **Reported:** 2026-07-13

@@ -633,10 +633,6 @@ input:focus-visible,
   margin-top: 4px;
 }
 
-.search-result-channel {
-  cursor: default;
-}
-
 .search-result-channel .primary {
   flex-shrink: 0;
 }
@@ -663,9 +659,14 @@ input:focus-visible,
 
 .search-result-channel-card {
   align-items: center;
+  justify-content: center;
   text-align: center;
   gap: 6px;
   padding: 16px 8px;
+}
+
+.search-result-channel-card .primary {
+  align-self: center;
 }
 
 .search-result-channel-card .search-channel-avatar {
