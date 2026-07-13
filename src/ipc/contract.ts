@@ -233,6 +233,7 @@ export const IpcChannel = {
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
+  requestWriteScope: 'auth:requestWriteScope',
   windowControl: 'window:control',
   unsubscribeChannel: 'channel:unsubscribe',
   toggleChannelFavorite: 'channel:toggleFavorite',
@@ -293,6 +294,10 @@ export interface ChronicleApi {
   importClientSecret(json: string): Promise<ResultDto<AuthStatusDto>>
   connectGoogle(): Promise<ResultDto<AuthStatusDto>>
   signOut(): Promise<AuthStatusDto>
+  // Runs the incremental write-scope consent flow for the primary account
+  // (opens the system browser) — called only after the user has confirmed
+  // an in-app dialog explaining why, never silently by a write action itself.
+  requestWriteScope(): Promise<ResultDto<void>>
   // Wizard Step 7 validation: proves the token works and the API is enabled
   // (1 quota unit); failures map back to the responsible step (D-014).
   getConnectedChannel(): Promise<ResultDto<{ title: string }>>

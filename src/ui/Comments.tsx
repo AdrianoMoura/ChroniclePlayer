@@ -2,6 +2,14 @@ import { useState } from 'react'
 import type { CommentDto } from '../ipc/contract'
 import { publishedLabel } from './format'
 import { t } from './i18n'
+import { useWriteScopeGate } from './useWriteScopeGate'
+
+function commentsErrorMessage(errorKind: string, message: string): string {
+  // Not the raw API error text — auth-expired specifically means the
+  // connection itself needs renewing (Settings → Reconnect), which reads
+  // very differently from "something about this video's comments failed."
+  return errorKind === 'auth-expired' ? t('comments.reconnectRequired') : message
+}
 
 // B-006: read the comment thread, post a top-level comment, reply to a
 // comment. There is no public API to like a *comment* (only videos, via
@@ -12,6 +20,7 @@ interface CommentsSectionProps {
 }
 
 export function CommentsSection({ videoId }: CommentsSectionProps) {
+  const writeScopeGate = useWriteScopeGate()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -27,7 +36,7 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
     void window.chronicle.getComments(videoId).then((result) => {
       setLoading(false)
       if (!result.ok) {
-        setError(result.message)
+        setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setComments(result.value.comments)
@@ -41,7 +50,7 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
     void window.chronicle.getComments(videoId, nextPageToken).then((result) => {
       setLoadingMore(false)
       if (!result.ok) {
-        setError(result.message)
+        setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setComments((current) => [...(current ?? []), ...result.value.comments])
@@ -59,10 +68,10 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
     const text = newComment.trim()
     if (text === '') return
     setPosting(true)
-    void window.chronicle.postComment(videoId, text).then((result) => {
+    void writeScopeGate.run(() => window.chronicle.postComment(videoId, text)).then((result) => {
       setPosting(false)
       if (!result.ok) {
-        setError(result.message)
+        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setNewComment('')
@@ -100,6 +109,7 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
             <CommentItem
               key={comment.commentId}
               comment={comment}
+              runWithWriteScope={writeScopeGate.run}
               onReplyPosted={(reply) => {
                 setComments((current) =>
                   (current ?? []).map((c) =>
@@ -116,15 +126,20 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
           )}
         </div>
       )}
+      {writeScopeGate.dialog}
     </div>
   )
 }
 
+type RunWithWriteScope = ReturnType<typeof useWriteScopeGate>['run']
+
 function CommentItem({
   comment,
+  runWithWriteScope,
   onReplyPosted
 }: {
   comment: CommentDto
+  runWithWriteScope: RunWithWriteScope
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -136,10 +151,10 @@ function CommentItem({
     const text = replyText.trim()
     if (text === '') return
     setPosting(true)
-    void window.chronicle.replyToComment(comment.commentId, text).then((result) => {
+    void runWithWriteScope(() => window.chronicle.replyToComment(comment.commentId, text)).then((result) => {
       setPosting(false)
       if (!result.ok) {
-        setError(result.message)
+        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setReplyText('')
@@ -175,6 +190,7 @@ function CommentItem({
               key={reply.commentId}
               reply={reply}
               topLevelId={comment.commentId}
+              runWithWriteScope={runWithWriteScope}
               onReplyPosted={onReplyPosted}
             />
           ))}
@@ -191,10 +207,12 @@ function CommentItem({
 function ReplyItem({
   reply,
   topLevelId,
+  runWithWriteScope,
   onReplyPosted
 }: {
   reply: CommentDto
   topLevelId: string
+  runWithWriteScope: RunWithWriteScope
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -206,10 +224,10 @@ function ReplyItem({
     const text = replyText.trim()
     if (text === '') return
     setPosting(true)
-    void window.chronicle.replyToComment(topLevelId, text).then((result) => {
+    void runWithWriteScope(() => window.chronicle.replyToComment(topLevelId, text)).then((result) => {
       setPosting(false)
       if (!result.ok) {
-        setError(result.message)
+        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setReplyText(`@${reply.authorDisplayName} `)

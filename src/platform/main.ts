@@ -613,8 +613,11 @@ void app.whenReady().then(() => {
       const id = parseChannelIdRequired(channelId)
       try {
         if (!authFlow.hasWriteScope()) {
-          await authFlow.requestWriteScope()
-          authProvider.invalidate()
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'subscribing needs an extra permission'
+          }
         }
         const channel = await apiClient.subscribe(id)
         const now = clock.now().toISOString()
@@ -767,6 +770,16 @@ void app.whenReady().then(() => {
     await authFlow.signOut()
     authProvider.invalidate()
     return authStatus()
+  })
+  ipcMain.handle(IpcChannel.requestWriteScope, async (): Promise<ResultDto<void>> => {
+    try {
+      await authFlow.requestWriteScope()
+      authProvider.invalidate()
+      return { ok: true, value: undefined }
+    } catch (error) {
+      const kind = isDomainError(error) ? error.kind : 'internal'
+      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+    }
   })
   ipcMain.handle(
     IpcChannel.unsubscribeChannel,
@@ -938,8 +951,11 @@ void app.whenReady().then(() => {
       try {
         const body = parseCommentText(text)
         if (!authFlow.hasWriteScope()) {
-          await authFlow.requestWriteScope()
-          authProvider.invalidate()
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'posting a comment needs an extra permission'
+          }
         }
         const comment = await apiClient.postComment(id, body)
         return { ok: true, value: toCommentDto(comment) }
@@ -962,8 +978,11 @@ void app.whenReady().then(() => {
         if (id === '') throw new Error('invalid comment id')
         const body = parseCommentText(text)
         if (!authFlow.hasWriteScope()) {
-          await authFlow.requestWriteScope()
-          authProvider.invalidate()
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'replying needs an extra permission'
+          }
         }
         const comment = await apiClient.replyToComment(id, body)
         return { ok: true, value: toCommentDto(comment) }
@@ -985,8 +1004,11 @@ void app.whenReady().then(() => {
       if (rating !== 'like' && rating !== 'none') throw new Error('invalid rating')
       try {
         if (!authFlow.hasWriteScope()) {
-          await authFlow.requestWriteScope()
-          authProvider.invalidate()
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'rating a video needs an extra permission'
+          }
         }
         await apiClient.rateVideo(id, rating)
         return { ok: true, value: undefined }

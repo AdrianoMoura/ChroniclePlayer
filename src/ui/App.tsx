@@ -34,6 +34,7 @@ import { PlayerView } from './PlayerView'
 import { SettingsView } from './SettingsView'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
 import { UrlPrompt } from './UrlPrompt'
+import { useWriteScopeGate } from './useWriteScopeGate'
 import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
@@ -52,6 +53,7 @@ interface Banner {
 }
 
 export function App() {
+  const writeScopeGate = useWriteScopeGate()
   const [view, setView] = useState<FeedViewDto>('all')
   const [channelFilter, setChannelFilter] = useState<string | null>(null)
   // B-003: a second, independent filter dimension alongside channelFilter —
@@ -373,9 +375,11 @@ export function App() {
   // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
   // may open the system browser once for incremental write-scope consent.
   const subscribeToChannel = useCallback((channelId: string) => {
-    void window.chronicle.subscribeChannel(channelId).then((result) => {
+    void writeScopeGate.run(() => window.chronicle.subscribeChannel(channelId)).then((result) => {
       if (!result.ok) {
-        if (result.errorKind === 'auth-expired') {
+        if (result.errorKind === 'cancelled') {
+          // User declined the write-scope dialog — no error to show.
+        } else if (result.errorKind === 'auth-expired') {
           setBanner({
             text: t('app.banner.reconnectRequired'),
             action: { label: t('app.banner.reconnectAction'), run: connect }
@@ -394,7 +398,7 @@ export function App() {
           : current.map((r) => (r.kind === 'channel' && r.channelId === channelId ? { ...r, subscribed: true } : r))
       )
     })
-  }, [connect, loadChannels])
+  }, [connect, loadChannels, writeScopeGate])
 
   // B-042: local-only priority marker — never touches YouTube.
   const toggleChannelFavorite = useCallback(
@@ -1341,6 +1345,7 @@ export function App() {
         )}
       </main>
       {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
+      {writeScopeGate.dialog}
       {addAccountOpen && (
         <AddAccount
           onCancel={() => setAddAccountOpen(false)}

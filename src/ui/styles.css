@@ -1813,6 +1813,23 @@ button.primary.danger {
   white-space: nowrap;
 }
 
+.write-scope-dialog {
+  min-width: 320px;
+  max-width: 420px;
+}
+
+.write-scope-dialog p {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.write-scope-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* B-003: "add another account" overlay. */
 .add-account {
   max-width: 460px;

@@ -45,6 +45,7 @@ const api: ChronicleApi = {
   importClientSecret: (json: string) => ipcRenderer.invoke(IpcChannel.importClientSecret, json),
   connectGoogle: () => ipcRenderer.invoke(IpcChannel.connectGoogle),
   signOut: () => ipcRenderer.invoke(IpcChannel.signOut),
+  requestWriteScope: () => ipcRenderer.invoke(IpcChannel.requestWriteScope),
   getConnectedChannel: () => ipcRenderer.invoke(IpcChannel.getConnectedChannel),
   getWizardState: () => ipcRenderer.invoke(IpcChannel.getWizardState),
   setWizardState: (state: WizardStateDto) => ipcRenderer.invoke(IpcChannel.setWizardState, state),

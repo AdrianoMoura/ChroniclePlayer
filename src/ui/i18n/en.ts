@@ -284,6 +284,10 @@ export const en = {
   'app.banner.accountConnectFailed': "Couldn't connect the account: {message}",
   'app.banner.accountSyncFailed': "Couldn't sync this account: {message}",
   'app.banner.removeAccountFailed': "Couldn't remove this account: {message}",
+  'app.writeScopeDialog.body':
+    "Chronicle needs an extra one-time permission from Google for this action (like, subscribe, or comment). Continuing opens your browser to grant it.",
+  'app.writeScopeDialog.cancel': 'Not now',
+  'app.writeScopeDialog.continue': 'Continue to Google',
 
   // App — sidebar
   'app.sidebar.showTitle': 'Show sidebar',
@@ -398,6 +402,7 @@ export const en = {
   'comments.loadMore': 'Load more comments',
   'comments.loadingMore': 'Loading more comments…',
   'comments.empty': 'No comments yet.',
+  'comments.reconnectRequired': 'Your connection needs renewing — reconnect from Settings to see comments.',
   'comments.addPlaceholder': 'Add a comment…',
   'comments.replyPlaceholder': 'Write a reply…',
   'comments.postButton': 'Post',

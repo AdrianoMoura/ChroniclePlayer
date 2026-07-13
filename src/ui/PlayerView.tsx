@@ -4,6 +4,7 @@ import { parseYouTubeUrl } from '../ipc/youtube-url'
 import { CommentsSection } from './Comments'
 import { formatDuration, publishedLabel } from './format'
 import { t } from './i18n'
+import { useWriteScopeGate } from './useWriteScopeGate'
 
 // The clean-embed player view (playback.md, D-006): everything around the
 // video surface is Chronicle's; the IFrame is driven over its postMessage
@@ -63,6 +64,7 @@ export function PlayerView({
   // background check — failures, e.g. not connected, are not worth a banner).
   const [rating, setRating] = useState<VideoRatingDto>('none')
   const [actionError, setActionError] = useState<string | null>(null)
+  const writeScopeGate = useWriteScopeGate()
 
   useEffect(() => {
     setSurface('playing')
@@ -342,9 +344,9 @@ export function PlayerView({
             onClick={() => {
               setActionError(null)
               const next = rating === 'like' ? 'none' : 'like'
-              void window.chronicle.rateVideo(video.videoId, next).then((result) => {
+              void writeScopeGate.run(() => window.chronicle.rateVideo(video.videoId, next)).then((result) => {
                 if (result.ok) setRating(next)
-                else setActionError(result.message)
+                else if (result.errorKind !== 'cancelled') setActionError(result.message)
               })
             }}
           />
@@ -384,6 +386,7 @@ export function PlayerView({
 
         <CommentsSection key={video.videoId} videoId={video.videoId} />
       </div>
+      {writeScopeGate.dialog}
     </div>
   )
 }
