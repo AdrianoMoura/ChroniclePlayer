@@ -124,11 +124,14 @@ export function App() {
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
-  // B-002: last cursor actually requested (as opposed to nextCursor, which
-  // goes null once the local archive is exhausted) — needed to resume the
-  // same page after an on-demand backfill adds fresh local rows.
-  const lastCursorRef = useRef<FeedCursorDto | null>(null)
   const backfillingRef = useRef(false)
+  // Bumped by every loadView call; loadMore/backfill capture the value in
+  // flight and check it again on resolve — a mismatch means a newer
+  // loadView happened meanwhile, so the response is fully discarded rather
+  // than partially applied (previously a bare viewRef/channelRef check,
+  // which couldn't tell "superseded" apart from "still current" precisely
+  // enough and left loadingRef stuck true on the superseded path).
+  const requestGenerationRef = useRef(0)
   const [archiveExhausted, setArchiveExhausted] = useState<ReadonlySet<string>>(new Set())
 
   const playerOpen = playerStack.length > 0
@@ -174,17 +177,15 @@ export function App() {
       viewRef.current = nextView
       channelRef.current = nextChannel
       accountRef.current = nextAccount
+      const generation = ++requestGenerationRef.current
       loadingRef.current = true
-      lastCursorRef.current = null
       setNewVideosPill(null)
       void window.chronicle.getFeed(nextView, null, nextChannel, nextAccount).then((slice) => {
-        if (
-          viewRef.current !== nextView ||
-          channelRef.current !== nextChannel ||
-          accountRef.current !== nextAccount
-        ) {
-          return
-        }
+        // A newer loadView call started after this one — a stale response
+        // must never touch loadingRef/videos/nextCursor, or it could either
+        // clobber the newer session's data or leave loadingRef stuck true
+        // forever (blocking all future pagination for the new session).
+        if (requestGenerationRef.current !== generation) return
         loadingRef.current = false
         setVideos(slice.videos)
         setNextCursor(slice.nextCursor)
@@ -587,24 +588,28 @@ export function App() {
     const targetView = viewRef.current
     const targetChannel = channelRef.current
     const targetAccount = accountRef.current
+    // Captured, not incremented — loadMore continues the current session
+    // rather than starting a new one. If a loadView call happens before
+    // this resolves, the generation moves on and this response is discarded
+    // outright (see loadView's own comment for why that matters).
+    const generation = requestGenerationRef.current
 
     if (nextCursor) {
-      lastCursorRef.current = nextCursor
       loadingRef.current = true
       setLoadingMore(true)
       void window.chronicle.getFeed(targetView, nextCursor, targetChannel, targetAccount).then((slice) => {
+        if (requestGenerationRef.current !== generation) return
         loadingRef.current = false
         setLoadingMore(false)
-        if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
         setVideos((current) => [...current, ...slice.videos])
         setNextCursor(slice.nextCursor)
       })
       return
     }
 
-    // B-002: local archive exhausted in a channel-filtered view — fetch
-    // older videos from YouTube (uploads playlist paging + hydration) on
-    // demand, then resume the exact same page instead of resetting to the top.
+    // Local archive exhausted in a channel-filtered view — fetch older
+    // videos from YouTube (uploads playlist paging + hydration) on demand,
+    // then resume the exact same page instead of resetting to the top.
     if (
       targetChannel === null ||
       archiveExhausted.has(targetChannel) ||
@@ -614,11 +619,29 @@ export function App() {
     }
     backfillingRef.current = true
     setLoadingMore(true)
-    const cursorToRetry = lastCursorRef.current
+    // The resume cursor comes from the last video actually on screen, not a
+    // separately-tracked "last requested cursor" — the backend already
+    // reports nextCursor as null once the local page comes back short of
+    // the page limit (the common case for a channel whose whole archive is
+    // one RSS-sized page), so a cursor tracked only inside the "there's
+    // another local page" branch never gets set and silently stays at its
+    // initial null. Retrying with a null cursor after backfill re-requests
+    // page one from scratch, appending it as a duplicate "next page."
+    const lastVideo = videos.at(-1)
+    const cursorToRetry: FeedCursorDto | null = lastVideo
+      ? {
+          publishedAt: lastVideo.publishedAt,
+          channelTitle: lastVideo.channelTitle,
+          videoId: lastVideo.videoId
+        }
+      : null
     void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
+      if (requestGenerationRef.current !== generation) {
+        backfillingRef.current = false
+        return
+      }
       backfillingRef.current = false
       setLoadingMore(false)
-      if (channelRef.current !== targetChannel) return
       if (!result.ok) {
         if (result.errorKind === 'auth-expired') {
           setBanner({
@@ -639,13 +662,13 @@ export function App() {
         void window.chronicle
           .getFeed(targetView, cursorToRetry, targetChannel, targetAccount)
           .then((slice) => {
-            if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
+            if (requestGenerationRef.current !== generation) return
             setVideos((current) => [...current, ...slice.videos])
             setNextCursor(slice.nextCursor)
           })
       }
     })
-  }, [nextCursor, archiveExhausted, connect])
+  }, [nextCursor, archiveExhausted, connect, videos])
 
   // The `/` filter is a YouTube-search trigger only — it never re-filters
   // the already-loaded feed, so browsing local subscriptions and searching

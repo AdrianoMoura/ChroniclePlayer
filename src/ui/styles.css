@@ -1032,7 +1032,10 @@ button.primary:disabled {
 
 .card-duration {
   position: absolute;
-  bottom: 6px;
+  /* Equal-on-paper offsets (6px every side) still read as tighter on the
+     bottom than the sides once rendered — bumped bottom only until it
+     visually matches, per live testing. */
+  bottom: 12px;
   right: 6px;
   background: var(--surface);
   padding: 5px;
@@ -1043,7 +1046,7 @@ button.primary:disabled {
 
 .card-actions {
   position: absolute;
-  bottom: 6px;
+  bottom: 12px;
   left: 6px;
   background: var(--surface);
   border-radius: 6px;
