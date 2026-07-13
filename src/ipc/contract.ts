@@ -25,6 +25,8 @@ export interface FeedVideoDto {
   // Confirmed Short (B-028, supersedes D-028's unconditional exclusion):
   // shown in the feed, tagged with a badge, hideable via SettingsDto.showShorts.
   isShort: boolean
+  // Captured at hydration from snippet.liveBroadcastContent; 'none' otherwise.
+  liveContent: 'none' | 'live' | 'upcoming'
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so

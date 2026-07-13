@@ -20,4 +20,8 @@ export interface Video {
   // Shown in the feed (tagged) or hidden by setting (B-028, supersedes the
   // former unconditional exclusion).
   isShort: boolean
+  // Captured at hydration from snippet.liveBroadcastContent; 'none' for a
+  // normal upload. Not persisted until hydration runs, so it lags RSS
+  // discovery like duration/view count do.
+  liveContent: 'none' | 'live' | 'upcoming'
 }

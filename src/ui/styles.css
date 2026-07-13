@@ -919,6 +919,25 @@ button.primary:disabled {
   border-radius: 999px;
 }
 
+.live-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.live-badge-live {
+  color: #e0a3a3;
+  border-color: #a05252;
+}
+
+.live-badge-upcoming {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
 .undo-strip {
   justify-content: space-between;
   color: var(--text-dim);
@@ -998,6 +1017,13 @@ button.primary:disabled {
 }
 
 .card-short-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--surface);
+}
+
+.card-live-badge {
   position: absolute;
   top: 6px;
   right: 6px;

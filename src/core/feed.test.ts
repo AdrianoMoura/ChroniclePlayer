@@ -30,7 +30,8 @@ function entry(
       durationSeconds: null,
       thumbnailUrl: null,
       viewCount: null,
-      isShort: false
+      isShort: false,
+      liveContent: 'none'
     }
   }
 }

@@ -23,10 +23,16 @@ Later).
 - Videos are ordered by **`publishedAt` descending**. Nothing else ever influences order:
   no engagement data, no per-user weighting, no pinning by Chronicle.
 - `publishedAt` is YouTube's publish timestamp. For premieres/scheduled videos the
-  effective date is when the video became publicly available (**Assumption:** RSS
-  `published` reflects this; verify — if premieres appear early with future dates, they
-  sort to the top with a "Premieres {date}" label rather than being hidden, until the
-  hide-premieres Future feature exists).
+  effective date is when the video became publicly available (**Assumption, still
+  unverified:** RSS `published` reflects this; if premieres appear early with future
+  dates, they sort to the top rather than being hidden, until a hide-premieres Future
+  feature exists). **Partially addressed 2026-07-12 (`bugs.md` B-048):** `liveContent`
+  (`snippet.liveBroadcastContent`, captured at hydration but previously dropped before
+  reaching the feed) is now threaded through to a "Live"/"Upcoming" badge on the video
+  row/card — so a premiere or active livestream is at least visually distinguishable from
+  a normal upload today. The ordering assumption above and the "Premieres {date}" label
+  are still open — they need verification against real premiere/livestream data this
+  session had no way to exercise.
 - Ties (identical timestamps) break by channel title, then videoId — deterministic order
   is part of "predictable."
 

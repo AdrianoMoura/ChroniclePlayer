@@ -311,6 +311,11 @@ export function VideoRow({
         </button>
       </div>
       {video.isShort && <span className="short-badge">{t('feed.card.shortBadge')}</span>}
+      {video.liveContent !== 'none' && (
+        <span className={`live-badge live-badge-${video.liveContent}`}>
+          {video.liveContent === 'live' ? t('feed.card.liveBadge') : t('feed.card.upcomingBadge')}
+        </span>
+      )}
       {video.durationSeconds !== null && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}
@@ -372,6 +377,11 @@ export function VideoCard({
         )}
         <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
         {video.isShort && <span className="short-badge card-short-badge">{t('feed.card.shortBadge')}</span>}
+        {video.liveContent !== 'none' && (
+          <span className={`live-badge card-live-badge live-badge-${video.liveContent}`}>
+            {video.liveContent === 'live' ? t('feed.card.liveBadge') : t('feed.card.upcomingBadge')}
+          </span>
+        )}
         {video.durationSeconds !== null && (
           <span className="duration card-duration">{formatDuration(video.durationSeconds)}</span>
         )}

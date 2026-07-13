@@ -59,7 +59,8 @@ function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void
       durationSeconds: 600,
       thumbnailUrl: null,
       viewCount: null,
-      isShort: false
+      isShort: false,
+      liveContent: 'none'
     },
     fixedClock.now().toISOString()
   )
@@ -508,7 +509,8 @@ describe('SqliteCatalogRepository', () => {
         durationSeconds: 900,
         thumbnailUrl: 'thumb.jpg',
         viewCount: 1234,
-        isShort: false
+        isShort: false,
+        liveContent: 'none'
       },
       fixedClock.now().toISOString()
     )

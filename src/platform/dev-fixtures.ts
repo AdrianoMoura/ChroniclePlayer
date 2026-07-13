@@ -108,7 +108,8 @@ export function seedDevFixtures(
           durationSeconds: isShort ? 15 + Math.floor(random() * 45) : 200 + Math.floor(random() * 3400),
           thumbnailUrl: null,
           viewCount: Math.floor(random() * 400_000),
-          isShort
+          isShort,
+          liveContent: 'none'
         },
         nowIso
       )

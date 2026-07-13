@@ -186,6 +186,20 @@ describe('discovery and hydration', () => {
     expect(entries[0]?.video.durationSeconds).toBe(1200)
   })
 
+  it('carries liveBroadcastContent through to the feed query', () => {
+    sync.applyHydration(
+      [{ ...hydratedVideo('premiere-1', 600), liveContent: 'upcoming' }],
+      NOW
+    )
+    sync.insertDiscoveredVideos('UCa', [discovered('normal-1')], NOW)
+    const entries = feed.listPage('all', null, 10).entries
+    expect(entries.find((e) => e.video.videoId === 'premiere-1')?.video.liveContent).toBe(
+      'upcoming'
+    )
+    // Never hydrated — defaults to 'none' rather than a raw NULL leaking out.
+    expect(entries.find((e) => e.video.videoId === 'normal-1')?.video.liveContent).toBe('none')
+  })
+
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {
     const many = Array.from({ length: 600 }, (_, i) => discovered(`v${i}`))
     sync.insertDiscoveredVideos('UCa', many, NOW)

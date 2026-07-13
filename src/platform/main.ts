@@ -84,6 +84,7 @@ function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
     thumbnailUrl: entry.video.thumbnailUrl,
     viewCount: entry.video.viewCount,
     isShort: entry.video.isShort,
+    liveContent: entry.video.liveContent,
     state: toStateDto(entry.state),
     bucket
   }

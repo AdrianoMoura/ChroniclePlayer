@@ -324,6 +324,8 @@ export const en = {
   'feed.card.toggleWatchLaterTitle': 'Toggle watch later (w)',
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.shortBadge': 'Short',
+  'feed.card.liveBadge': 'Live',
+  'feed.card.upcomingBadge': 'Upcoming',
   'feed.loadingMore': 'Loading more…',
 
   // PlayerView
