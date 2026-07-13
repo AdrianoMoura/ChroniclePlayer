@@ -126,26 +126,6 @@ Resolved entries add:
   subscription list to actually observe the window, which this session has no way to
   exercise.
 
-### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player / ui-shell
-- **What happens:** `PlayerView.tsx`'s action bar has mark read/unread, favorite, watch
-  later, like, ignore, open-in-browser — no subscribe/unsubscribe. The IPC plumbing
-  exists (`channel:subscribe`/`channel:unsubscribe`, and `App.tsx`'s
-  `subscribeToChannel`/`unsubscribeChannel`) but `PlayerVideoDto` has no `channelId`
-  field, only `channelTitle` — the player currently has no way to identify which channel
-  to (un)subscribe from.
-- **Expected:** a subscribe/unsubscribe toggle in the player's action bar, and the same on
-  the new channel detail screen ([[B-056]]).
-- **Code refs:** `src/ui/PlayerView.tsx` (action bar); `src/ipc/contract.ts`
-  (`PlayerVideoDto` — needs `channelId` + `isSubscribed` added; `channel:subscribe`/
-  `channel:unsubscribe`); `src/ui/App.tsx` (`subscribeToChannel`/`unsubscribeChannel`,
-  existing pattern to reuse).
-- **Notes:** blocked on adding `channelId` (and ideally `isSubscribed`) to
-  `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
-  [[B-056]] since the channel screen needs the same subscribe-state plumbing.
-
 ### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
 - **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
   toggle — with several polish asks)
@@ -332,6 +312,31 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
+- **Type:** adjustment
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Area:** player / ui-shell
+- **What happens:** the player's action bar had no subscribe/unsubscribe — blocked on
+  `PlayerVideoDto` having no `channelId` field.
+- **Expected:** a subscribe/unsubscribe toggle in the player's action bar, and the same
+  on the channel screen.
+- **Code refs:** `src/ipc/contract.ts` (`PlayerVideoDto.channelId`/`.isSubscribed`);
+  `src/platform/main.ts` (`getVideo` — populates both, cross-referenced via the existing
+  `feedRepository.isSubscribed`); `src/ui/PlayerView.tsx` (new Subscribe/Unsubscribe
+  `ActionButton`).
+- **Notes:**
+  - **Player half: done.** Subscribing goes through the write-scope gate ([[B-067]]);
+    unsubscribing follows the existing (not gate-converted) behavior used elsewhere.
+  - **Channel-screen half: covered by [[B-056]]'s Unsubscribe button** — a real
+    *Subscribe* button there still has no entry point, since every way to reach the
+    channel screen today (sidebar) is already-subscribed by definition. That needs
+    [[B-055]]'s search-result channel results to land first.
+  - No live-app check this session (real subscribe/unsubscribe needs a live account per
+    [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint && npm
+    test` (177/177). Owner should validate live: the player's new toggle against a real
+    account, both directions.
+- **Resolved:** 2026-07-13 · **Commit:** 62b8e69 · **Outcome:** Fixed (partial)
 
 ### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
 - **Type:** adjustment
