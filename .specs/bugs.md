@@ -52,31 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-073 — Sidebar's per-channel unread count doesn't update immediately after toggling a video's read status
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-13
-- **Area:** ui-shell / feed
-- **What happens:** `App.tsx`'s `patch(videoId, state)` — called after every
-  `setReadStatus`/toggle-read action — updates the local `videos` array and calls
-  `syncMeta()` (refreshes the topbar's unread count via `getFeedMeta`), but never calls
-  `loadChannels()`. The sidebar's per-channel unread badge comes from the separate
-  `channels` array (`ChannelDto.unreadCount`), which only gets refreshed by
-  `loadChannels()` — so toggling a video's read status updates the topbar count
-  immediately but leaves the sidebar's per-channel number stale until something else
-  happens to trigger a channel reload (switching accounts, unsubscribing, a sync event,
-  etc.).
-- **Expected:** the sidebar's per-channel unread count reflects a read/unread toggle
-  immediately, same as the topbar count already does.
-- **Code refs:** `src/ui/App.tsx` (`patch` — calls `syncMeta()` but not `loadChannels()`).
-- **Notes:** same family of gap as [[B-064]] (channel list not refreshing on account
-  switch) — a local state update (`videos`) and a derived global count (`meta`) get
-  refreshed, but the sidebar's own per-channel data source doesn't. Cheapest fix is
-  likely calling `loadChannels()` alongside `syncMeta()` inside `patch`, though that
-  refetches the *entire* channel list on every single toggle — worth checking whether a
-  lighter, more targeted update (bump just the affected channel's count client-side) is
-  worth the complexity instead. Not attacked this session, per the owner's request to
-  just log it.
-
 ### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-13
@@ -150,28 +125,6 @@ Resolved entries add:
   finishes. Not attacked this session — needs a live account with a large-enough
   subscription list to actually observe the window, which this session has no way to
   exercise.
-
-### B-068 — Selecting a channel keeps the previous view's scope (Unread/Watch Later/Favorites/Ignored), usually showing nothing
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** `App.tsx`'s `onSelectChannel` only sets `channelFilter` — it never
-  touches `view`. So if the user is on Unread/Watch Later/Favorites/Ignored and then
-  clicks a channel in the sidebar, the channel screen ends up filtered by *both* the
-  channel *and* whatever view was active (e.g. "this channel's Watch Later videos
-  only") — most of the time that intersection is empty, so the channel screen just
-  looks broken/shows nothing. Contrast with `onSelectView`, which explicitly clears
-  `channelFilter` when switching views (the two scopes are already understood to be
-  mutually exclusive in that direction, just not the other way around).
-- **Expected:** clicking a channel should reset to a sensible base scope (`'all'`,
-  matching what every other channel entry point already implies) rather than carrying
-  over an unrelated view's filter — the five views (All/Unread/Watch Later/Favorites/
-  Ignored) and "looking at one channel" are different scopes entirely; there's no
-  product reason to preserve one inside the other.
-- **Code refs:** `src/ui/App.tsx` (`onSelectChannel` prop passed to `<Sidebar>`, compare
-  `onSelectView`'s existing `setChannelFilter(null)`).
-- **Notes:** cheap, well-diagnosed fix — add `setView('all')` (or similar) alongside
-  `setChannelFilter(channelId)` in `onSelectChannel`. Not attacked this session.
 
 ### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
 - **Type:** bug
@@ -450,6 +403,40 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-073 — Sidebar's per-channel unread count doesn't update immediately after toggling a video's read status
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell / feed
+- **What happens:** `patch()` refreshed the topbar's unread count (`syncMeta()`) after a
+  read-status toggle but never `loadChannels()` — the sidebar's per-channel badge comes
+  from a separate data source and went stale until something unrelated refreshed it.
+- **Expected:** the sidebar's per-channel unread count updates immediately, same as the
+  topbar count.
+- **Code refs:** `src/ui/App.tsx` (`patch` — added `loadChannels()`).
+- **Notes:** took the simple option flagged in this bug's own notes (call
+  `loadChannels()`, refetching the whole list) rather than a targeted client-side bump —
+  it's a local SQLite read, not an API call, so the cost is negligible; consistent with
+  how [[B-064]] was fixed. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (177/177). Owner should validate live:
+  toggling read/unread and confirming the sidebar number moves immediately.
+- **Resolved:** 2026-07-13 · **Commit:** df7c96e · **Outcome:** Fixed
+
+### B-068 — Selecting a channel keeps the previous view's scope (Unread/Watch Later/Favorites/Ignored), usually showing nothing
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** `onSelectChannel` only set `channelFilter`, never `view` — so
+  clicking a channel while on Unread/Watch Later/Favorites/Ignored combined that view
+  with the channel filter, usually showing nothing.
+- **Expected:** clicking a channel resets to `'all'` rather than carrying over an
+  unrelated view's filter.
+- **Code refs:** `src/ui/App.tsx` (`onSelectChannel` — added `setView('all')`).
+- **Notes:** exactly the one-line fix flagged going in. No live-app check this session;
+  verified via `npm run typecheck && npm run lint && npm test` (177/177). Owner should
+  validate live: clicking a channel while on Watch Later/Favorites/Ignored/Unread shows
+  the channel's full video list, not an empty screen.
+- **Resolved:** 2026-07-13 · **Commit:** df7c96e · **Outcome:** Fixed
 
 ### B-074 — Channel pagination duplicates the first page after backfill; loading can silently stop working; cross-channel visual glitches while switching mid-scroll
 - **Type:** bug · **Severity:** major
