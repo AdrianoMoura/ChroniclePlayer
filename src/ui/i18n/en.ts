@@ -397,6 +397,8 @@ export const en = {
   'search.subscribeButton': 'Subscribe',
   'search.subscribedButton': 'Subscribed',
   'search.videoChannelPrefix': 'on',
+  'search.loadMore': 'Load more results',
+  'search.loadingMore': 'Loading more results…',
 
   // Comments (B-006)
   'comments.show': 'Show comments',

@@ -116,9 +116,9 @@ export interface PlayerVideoDto {
   thumbnailUrl: string | null
   description: string | null
   state: VideoStateDto
-  // B-061: lets the player offer a Subscribe/Unsubscribe toggle without a
-  // separate lookup — cross-referenced against local subscription state the
-  // same way search results already are (B-009's isSubscribed).
+  // Lets the player offer a Subscribe/Unsubscribe toggle without a separate
+  // lookup — cross-referenced against local subscription state the same way
+  // search results already are.
   isSubscribed: boolean
 }
 
@@ -159,6 +159,10 @@ export interface SearchVideoResultDto {
   channelTitle: string
   publishedAt: string
   thumbnailUrl: string | null
+  durationSeconds: number | null
+  // Duration-heuristic (<=60s) — no HEAD-probe confirmation step for a
+  // transient result list, unlike the synced feed's D-028 pipeline.
+  isShort: boolean
 }
 
 export interface SearchChannelResultDto {
@@ -169,6 +173,7 @@ export interface SearchChannelResultDto {
   // Cross-referenced against local state so the UI shows "Subscribed", not
   // a live Subscribe button, for channels already followed.
   subscribed: boolean
+  subscriberCount: number | null
 }
 
 export type SearchResultDto = SearchVideoResultDto | SearchChannelResultDto
@@ -350,9 +355,12 @@ export interface ChronicleApi {
   backfillChannelArchive(
     channelId: string
   ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>>
-  // B-009/D-031: search.list, 100 units/call — explicit user-typed queries
-  // only, surfaced as a scope toggle next to the local filter.
-  searchYouTube(query: string): Promise<ResultDto<SearchResultDto[]>>
+  // D-031: search.list, 100 units/call — explicit user-typed queries
+  // only, fired on Enter. pageToken continues the same query.
+  searchYouTube(
+    query: string,
+    pageToken?: string | null
+  ): Promise<ResultDto<{ results: SearchResultDto[]; nextPageToken: string | null }>>
   // subscriptions.insert (D-030, 50 units) — the other half of B-010's
   // unsubscribe; shares the same incremental write-scope consent (D-032).
   subscribeChannel(channelId: string): Promise<ResultDto<void>>

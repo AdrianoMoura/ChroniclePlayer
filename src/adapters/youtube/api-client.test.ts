@@ -201,34 +201,51 @@ describe('YouTubeApiClient', () => {
     expect(quota.spent).toBe(50)
   })
 
-  it('search maps video and channel results and counts 100 units', async () => {
+  it('search maps video and channel results, batches duration/subscriber lookups, and counts 100+1+1 units', async () => {
     const quota = new QuotaCounter()
     const fetchFn: FetchFn = (url) => {
-      const params = new URL(String(url)).searchParams
-      expect(params.get('q')).toBe('cats')
-      expect(params.get('type')).toBe('video,channel')
+      const parsed = new URL(String(url))
+      const params = parsed.searchParams
+      if (parsed.pathname.endsWith('/search')) {
+        expect(params.get('q')).toBe('cats')
+        expect(params.get('type')).toBe('video,channel')
+        return Promise.resolve(
+          jsonResponse(200, {
+            nextPageToken: 'p2',
+            items: [
+              {
+                id: { kind: 'youtube#video', videoId: 'v1' },
+                snippet: {
+                  title: 'Cat video',
+                  channelId: 'UCcat',
+                  channelTitle: 'Cats Inc',
+                  publishedAt: '2026-07-10T08:00:00Z',
+                  thumbnails: {}
+                }
+              },
+              {
+                id: { kind: 'youtube#channel', channelId: 'UCcat' },
+                snippet: { title: 'Cats Inc', thumbnails: {} }
+              }
+            ]
+          })
+        )
+      }
+      if (parsed.pathname.endsWith('/videos')) {
+        expect(params.get('id')).toBe('v1')
+        return Promise.resolve(
+          jsonResponse(200, { items: [{ id: 'v1', contentDetails: { duration: 'PT30S' } }] })
+        )
+      }
+      expect(parsed.pathname.endsWith('/channels')).toBe(true)
+      expect(params.get('id')).toBe('UCcat')
       return Promise.resolve(
         jsonResponse(200, {
-          items: [
-            {
-              id: { kind: 'youtube#video', videoId: 'v1' },
-              snippet: {
-                title: 'Cat video',
-                channelId: 'UCcat',
-                channelTitle: 'Cats Inc',
-                publishedAt: '2026-07-10T08:00:00Z',
-                thumbnails: {}
-              }
-            },
-            {
-              id: { kind: 'youtube#channel', channelId: 'UCcat' },
-              snippet: { title: 'Cats Inc', thumbnails: {} }
-            }
-          ]
+          items: [{ id: 'UCcat', statistics: { subscriberCount: '4200' } }]
         })
       )
     }
-    const results = await new YouTubeApiClient(auth, fetchFn, quota).search('cats')
+    const { results, nextPageToken } = await new YouTubeApiClient(auth, fetchFn, quota).search('cats')
     expect(results).toEqual([
       {
         kind: 'video',
@@ -237,11 +254,14 @@ describe('YouTubeApiClient', () => {
         channelId: 'UCcat',
         channelTitle: 'Cats Inc',
         publishedAt: '2026-07-10T08:00:00Z',
-        thumbnailUrl: null
+        thumbnailUrl: null,
+        durationSeconds: 30,
+        isShort: true
       },
-      { kind: 'channel', channelId: 'UCcat', title: 'Cats Inc', thumbnailUrl: null }
+      { kind: 'channel', channelId: 'UCcat', title: 'Cats Inc', thumbnailUrl: null, subscriberCount: 4200 }
     ])
-    expect(quota.spent).toBe(100)
+    expect(nextPageToken).toBe('p2')
+    expect(quota.spent).toBe(102)
   })
 
   it('listComments maps threads with nested replies and counts 1 unit', async () => {

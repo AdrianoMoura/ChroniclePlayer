@@ -621,12 +621,19 @@ void app.whenReady().then(() => {
   }
   ipcMain.handle(
     IpcChannel.searchYouTube,
-    async (_event, query: unknown): Promise<ResultDto<SearchResultDto[]>> => {
+    async (
+      _event,
+      query: unknown,
+      pageToken: unknown
+    ): Promise<ResultDto<{ results: SearchResultDto[]; nextPageToken: string | null }>> => {
       const q = String(query).trim()
-      if (q === '') return { ok: true, value: [] }
+      if (q === '') return { ok: true, value: { results: [], nextPageToken: null } }
       try {
-        const results = await apiClient.search(q)
-        return { ok: true, value: results.map(toSearchResultDto) }
+        const page = await apiClient.search(q, typeof pageToken === 'string' ? pageToken : undefined)
+        return {
+          ok: true,
+          value: { results: page.results.map(toSearchResultDto), nextPageToken: page.nextPageToken }
+        }
       } catch (error) {
         const kind = isDomainError(error) ? error.kind : 'internal'
         return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }

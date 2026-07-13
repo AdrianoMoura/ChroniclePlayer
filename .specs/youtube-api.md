@@ -28,7 +28,7 @@ justified against this document and its quota cost stated in a code comment.**
 | `videos.rate` / `videos.getRating` | 50 / 1 | Like a video ([[B-006]], implemented 2026-07-12; D-032). `getRating` runs silently on every video open (readonly scope, no consent needed) — 1 unit is trivial even at high viewing volume. No public endpoint exists to like a *comment*. |
 | `commentThreads.list` / `.insert` | 1 / 50 | Read/post comments ([[B-006]], implemented 2026-07-12; D-032; explicit user action only for posting — reading needs no write scope) |
 | `comments.insert` | 50 per call | Reply to a comment ([[B-006]], implemented 2026-07-12; D-032) |
-| `search.list` | **100 per call** | **Banned from sync/automation.** Explicit user-typed queries only ([[B-009]], implemented 2026-07-12; D-031) |
+| `search.list` | **100 per call** | **Banned from sync/automation.** Explicit user-typed queries only ([[B-009]], implemented 2026-07-12; D-031). **B-055 (2026-07-13):** each search now also issues up to two small batched follow-ups — `videos.list` (`part=contentDetails`, 1 unit) for video results' duration/Short badge, and `channels.list` (`part=statistics`, 1 unit) for channel results' subscriber count — both batched across the whole result page, so at most +2 units/query regardless of how many results came back. |
 | `channels.list` (`part=brandingSettings,statistics`) | 1 per call | Channel screen's banner image + subscriber count ([[B-056]], implemented 2026-07-13) — fetched live on every visit to the channel screen, not cached in the DB; trivial per-visit cost, avoids a staleness policy. |
 
 `search.list` is the classic quota trap: polling 200 channels via search would cost

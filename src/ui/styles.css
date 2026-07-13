@@ -461,7 +461,7 @@ input:focus-visible,
   border-bottom: 1px solid var(--border);
 }
 
-/* B-056: a compact channel-screen header, not a full YouTube-height banner
+/* A compact channel-screen header, not a full YouTube-height banner
    (D-004: content fills the screen; a big banner would eat into that). */
 .channel-header {
   background-color: var(--surface-2);
@@ -639,6 +639,38 @@ input:focus-visible,
 
 .search-result-channel .primary {
   flex-shrink: 0;
+}
+
+/* Not virtualized (a transient, on-demand-paginated list) — no fixed
+   pixel height is set per row, so the shared .grid-row rule's height:100%
+   has nothing definite to resolve against (same reasoning as the priority
+   section's own override). */
+.search-results .grid-row {
+  height: auto;
+  padding-bottom: 12px;
+}
+
+/* Circular avatar distinguishes a channel result from a video result's
+   square thumbnail at a glance, in both list and grid layout. */
+.search-channel-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.search-result-channel-card {
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 16px 8px;
+}
+
+.search-result-channel-card .search-channel-avatar {
+  width: 64px;
+  height: 64px;
 }
 
 .topbar .field-wrap {
@@ -1489,64 +1521,64 @@ button.primary.active {
    grid's `.card-thumb-wrap .thumb`, which must always stay width:100% so the
    thumbnail fills its card at every size instead of collapsing to a fixed
    pixel width (B-037 grid-thumbnail-sizing bug). */
-:is(.feed-scroll, .priority-section).size-xs .row {
+:is(.feed-scroll, .priority-section, .search-results).size-xs .row {
   height: 36px;
   gap: 8px;
 }
 
-:is(.feed-scroll, .priority-section).size-xs .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results).size-xs .row .thumb {
   width: 56px;
 }
 
-:is(.feed-scroll, .priority-section).size-xs .row-text {
+:is(.feed-scroll, .priority-section, .search-results).size-xs .row-text {
   gap: 0;
 }
 
-:is(.feed-scroll, .priority-section).size-xs .title,
-:is(.feed-scroll, .priority-section).size-xs .card .title {
+:is(.feed-scroll, .priority-section, .search-results).size-xs .title,
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card .title {
   font-size: 12px;
 }
 
-:is(.feed-scroll, .priority-section).size-small .row {
+:is(.feed-scroll, .priority-section, .search-results).size-small .row {
   height: 48px;
   gap: 10px;
 }
 
-:is(.feed-scroll, .priority-section).size-small .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results).size-small .row .thumb {
   width: 72px;
 }
 
-:is(.feed-scroll, .priority-section).size-small .row-text {
+:is(.feed-scroll, .priority-section, .search-results).size-small .row-text {
   gap: 1px;
 }
 
-:is(.feed-scroll, .priority-section).size-large .row {
+:is(.feed-scroll, .priority-section, .search-results).size-large .row {
   height: 92px;
   gap: 14px;
 }
 
-:is(.feed-scroll, .priority-section).size-large .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results).size-large .row .thumb {
   width: 160px;
 }
 
-:is(.feed-scroll, .priority-section).size-large .title {
+:is(.feed-scroll, .priority-section, .search-results).size-large .title {
   font-size: 15px;
 }
 
-:is(.feed-scroll, .priority-section).size-xl .row {
+:is(.feed-scroll, .priority-section, .search-results).size-xl .row {
   height: 132px;
   gap: 18px;
 }
 
-:is(.feed-scroll, .priority-section).size-xl .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results).size-xl .row .thumb {
   width: 240px;
 }
 
-:is(.feed-scroll, .priority-section).size-xl .title {
+:is(.feed-scroll, .priority-section, .search-results).size-xl .title {
   font-size: 16px;
 }
 
-:is(.feed-scroll, .priority-section).size-small .card .title {
+:is(.feed-scroll, .priority-section, .search-results).size-small .card .title {
   font-size: 12.5px;
 }
 

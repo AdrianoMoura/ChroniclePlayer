@@ -14,8 +14,8 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-// B-056: a compact channel screen header — avatar, banner, subscriber
-// count, Unsubscribe/Open-in-browser. Deliberately a slim strip rather than
+// A compact channel screen header — avatar, banner, subscriber count,
+// Unsubscribe/Open-in-browser. Deliberately a slim strip rather than
 // YouTube's full-height banner: content should fill the available screen
 // (D-004), and a giant banner eating the feed's vertical space would be the
 // algorithm's aesthetic imposing itself, not the user's.

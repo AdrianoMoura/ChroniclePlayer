@@ -25,8 +25,19 @@ export type SearchResult =
       channelTitle: string
       publishedAt: string
       thumbnailUrl: string | null
+      durationSeconds: number | null
+      // Duration-heuristic only (<=60s) — unlike the synced feed's D-028
+      // pipeline, there's no HEAD-probe confirmation step for a transient
+      // search result list; good enough for a display badge/filter.
+      isShort: boolean
     }
-  | { kind: 'channel'; channelId: string; title: string; thumbnailUrl: string | null }
+  | {
+      kind: 'channel'
+      channelId: string
+      title: string
+      thumbnailUrl: string | null
+      subscriberCount: number | null
+    }
 
 // B-006: one level of nesting only, matching YouTube's own comment model
 // (a reply cannot itself have replies).
@@ -209,40 +220,107 @@ export class YouTubeApiClient implements SubscriptionSource {
   // search.list — 100 units/call (youtube-api.md, D-031). Explicit
   // user-typed queries only — never called from sync/automation, never
   // injected into the feed.
-  async search(query: string): Promise<SearchResult[]> {
+  async search(
+    query: string,
+    pageToken?: string
+  ): Promise<{ results: SearchResult[]; nextPageToken: string | null }> {
     const page = await this.get(
       'search',
-      { part: 'snippet', q: query, type: 'video,channel', maxResults: '25' },
+      {
+        part: 'snippet',
+        q: query,
+        type: 'video,channel',
+        maxResults: '25',
+        ...(pageToken ? { pageToken } : {})
+      },
       100
     )
-    return page.items.flatMap((item): SearchResult[] => {
+    const videoIds: string[] = []
+    const channelIds: string[] = []
+    const rough = page.items.flatMap((item): SearchResult[] => {
       const id = item['id'] as Record<string, unknown>
       const snippet = item['snippet'] as Record<string, unknown>
       if (id['kind'] === 'youtube#video') {
+        const videoId = String(id['videoId'])
+        videoIds.push(videoId)
         return [
           {
             kind: 'video',
-            videoId: String(id['videoId']),
+            videoId,
             title: String(snippet['title']),
             channelId: String(snippet['channelId']),
             channelTitle: String(snippet['channelTitle'] ?? ''),
             publishedAt: String(snippet['publishedAt']),
-            thumbnailUrl: thumbnailUrl(snippet['thumbnails'])
+            thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
+            durationSeconds: null,
+            isShort: false
           }
         ]
       }
       if (id['kind'] === 'youtube#channel') {
+        const channelId = String(id['channelId'])
+        channelIds.push(channelId)
         return [
           {
             kind: 'channel',
-            channelId: String(id['channelId']),
+            channelId,
             title: String(snippet['title']),
-            thumbnailUrl: thumbnailUrl(snippet['thumbnails'])
+            thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
+            subscriberCount: null
           }
         ]
       }
       return []
     })
+
+    // Two small batched follow-ups (1 unit each, at most) — the Short
+    // badge/filter and channel subscriber count both need data search.list's
+    // snippet doesn't return.
+    const [durations, subscriberCounts] = await Promise.all([
+      this.fetchVideoDurations(videoIds),
+      this.fetchSubscriberCounts(channelIds)
+    ])
+    const results = rough.map((result) => {
+      if (result.kind === 'video') {
+        const duration = durations.get(result.videoId) ?? null
+        return { ...result, durationSeconds: duration, isShort: duration !== null && duration <= 60 }
+      }
+      return { ...result, subscriberCount: subscriberCounts.get(result.channelId) ?? null }
+    })
+    return { results, nextPageToken: page.nextPageToken ?? null }
+  }
+
+  private async fetchVideoDurations(videoIds: readonly string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>()
+    if (videoIds.length === 0) return result
+    const page = await this.get(
+      'videos',
+      { part: 'contentDetails', id: videoIds.join(','), maxResults: '50' },
+      1
+    )
+    for (const item of page.items) {
+      const details = item['contentDetails'] as Record<string, unknown> | undefined
+      const duration = details?.['duration']
+      if (typeof duration === 'string') result.set(String(item['id']), parseIsoDuration(duration))
+    }
+    return result
+  }
+
+  private async fetchSubscriberCounts(channelIds: readonly string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>()
+    if (channelIds.length === 0) return result
+    const page = await this.get(
+      'channels',
+      { part: 'statistics', id: channelIds.join(','), maxResults: '50' },
+      1
+    )
+    for (const item of page.items) {
+      const statistics = item['statistics'] as Record<string, unknown> | undefined
+      if (statistics?.['hiddenSubscriberCount'] === true) continue
+      const raw = statistics?.['subscriberCount']
+      if (typeof raw === 'string') result.set(String(item['id']), Number(raw))
+    }
+    return result
   }
 
   // commentThreads.list — 1 unit/page. Public data; the readonly scope

@@ -52,42 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
-- **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
-  toggle — with several polish asks)
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** search / ui-shell
-- **What happens:** search results render via a bespoke results block, not through
-  `FeedList`'s `VideoCard`/`VideoRow` — so they ignore the item-size slider and grid/list
-  layout entirely; the layout-toggle button and size slider stay visible/enabled in the
-  topbar during search but have zero effect (confirmed no-op), which reads as a bug even
-  though it's really just missing wiring. No pagination: `search()` fetches one page
-  (25 results), no `pageToken`/`nextPageToken` plumbed anywhere. Video vs. channel results
-  are distinguished only by the channel row's extra Subscribe button — same square thumb
-  treatment for both, no strong visual cue (no circular avatar, no subscriber count). No
-  Short badge on video results, and the "Show Shorts" setting (already respected by the
-  main feed) isn't applied to search results at all.
-- **Expected:** (1) reuse `FeedList`'s `VideoCard`/`VideoRow` (or equivalent) so item-size
-  and grid/list settings apply to search results the same as the main feed; (2) hide the
-  grid/list toggle button specifically while a search is active — search results don't
-  need to support both layouts, and a visible-but-inert control reads as broken; the size
-  slider can stay since it still applies; (3) wire `pageToken`/`nextPageToken` through
-  `search()` → `SearchResultDto` → the UI's scroll-triggered `loadMore`, mirroring the
-  main feed's infinite-scroll pattern; (4) give channel results a distinct look — circular
-  avatar instead of the square video-thumb treatment, plus the channel's subscriber count;
-  (5) show the same Short badge used in the main feed on Short video results, and filter
-  them out entirely when Settings' "Show Shorts" is off, matching the main feed's existing
-  behavior.
-- **Code refs:** `src/ui/App.tsx` (search-results block, layout-toggle/size-slider);
-  `src/ui/FeedList.tsx` (`VideoCard`/`VideoRow`, the Short-badge pattern, the
-  Show-Shorts filtering already used by the main feed); `src/adapters/youtube/
-  api-client.ts` (`search()`); `src/ipc/contract.ts` (`SearchResultDto`).
-- **Notes:** subscriber count for channel results needs a quota-cost check before
-  committing (per `youtube-api.md`'s convention) — `search.list`'s channel snippet
-  doesn't include `subscriberCount`; a follow-up `channels.list` call (1 unit) per shown
-  channel result may be needed, or batched. Related: [[B-054]], [[B-056]] (channel detail
-  screen — the natural place a channel result now goes).
-
 ### B-051 — Some subscribed channels show up with zero videos
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-12
@@ -323,6 +287,48 @@ Resolved entries add:
     first sync in progress and confirming backlog videos never flash as unread, even
     mid-sync.
 - **Resolved:** 2026-07-13 · **Commit:** 6442513 · **Outcome:** Fixed
+
+### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
+- **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
+  toggle — with several polish asks)
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** search / ui-shell
+- **What happens:** search results rendered via a bespoke block ignoring item-size/
+  grid-list settings (with the layout toggle visibly inert during search); one page only,
+  no pagination; video/channel results looked alike (same square thumb); no Short badge
+  or Show-Shorts filtering.
+- **Expected:** (1) item-size/layout parity with the main feed; (2) hide the grid/list
+  toggle during search (size slider stays); (3) pagination; (4) circular avatar +
+  subscriber count for channel results; (5) Short badge + Show-Shorts filtering for video
+  results.
+- **Code refs:** `src/ui/SearchResults.tsx` (new — `SearchVideoRow`/`SearchVideoCard`/
+  `SearchChannelRow`/`SearchChannelCard`); `src/ui/App.tsx` (search-results container now
+  `size-`-scoped and grid/list-aware; layout toggle hidden while `searchResults !== null`;
+  `loadMoreSearchResults`); `src/adapters/youtube/api-client.ts` (`search()` — now takes
+  `pageToken`, returns `nextPageToken`, and batch-fetches video durations + channel
+  subscriber counts via two additional 1-unit calls); `src/ipc/contract.ts`
+  (`SearchVideoResultDto.durationSeconds`/`.isShort`, `SearchChannelResultDto
+  .subscriberCount`, `searchYouTube`'s new pageToken/return shape).
+- **Notes:**
+  - **Short badge is duration-heuristic only (≤60s), not HEAD-probe-confirmed** like the
+    synced feed's D-028 pipeline — a transient, non-persisted result list doesn't
+    warrant that pipeline's cost/complexity; noted as a deliberate simplification.
+  - Subscriber counts and video durations are each fetched with **one batched call for
+    the whole result page** (`channels.list`/`videos.list`, 1 unit each, comma-joined
+    ids) — not per-result — resolving this bug's own quota-cost concern before it became
+    a real cost.
+  - Pagination is a "Load more results" button (mirroring the comments/priority-section
+    pattern already used elsewhere), not scroll-triggered infinite-scroll — search
+    results aren't virtualized, so this was simpler and consistent with how comment
+    pagination was done.
+  - `youtube-api.md`/`features.md` updated with the new endpoint costs and shipped
+    results-UX description.
+  - No live-app check this session (a real `search.list` query needs a live account per
+    [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint && npm
+    test`. Owner should validate live: a real search with both video and channel
+    results, in both list and grid layout, at a few item sizes, with a query likely to
+    surface Shorts.
+- **Resolved:** 2026-07-13 · **Commit:** 1ddd506 · **Outcome:** Fixed
 
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment

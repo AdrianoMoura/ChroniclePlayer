@@ -33,6 +33,12 @@ import { HelpOverlay } from './HelpOverlay'
 import { t } from './i18n'
 import { PlayerView } from './PlayerView'
 import { SettingsView } from './SettingsView'
+import {
+  SearchChannelCard,
+  SearchChannelRow,
+  SearchVideoCard,
+  SearchVideoRow
+} from './SearchResults'
 import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
 import { UrlPrompt } from './UrlPrompt'
 import { useWriteScopeGate } from './useWriteScopeGate'
@@ -87,6 +93,9 @@ export function App() {
   // fired on keystroke (search.list costs 100 units/call).
   const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
   const [searching, setSearching] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchNextPageToken, setSearchNextPageToken] = useState<string | null>(null)
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [progress, setProgress] = useState<{
     phase: 'channels' | 'shorts'
@@ -353,8 +362,10 @@ export function App() {
     const q = query.trim()
     if (q === '') {
       setSearchResults(null)
+      setSearchNextPageToken(null)
       return
     }
+    setSearchQuery(q)
     setSearching(true)
     void window.chronicle.searchYouTube(q).then((result) => {
       setSearching(false)
@@ -367,11 +378,24 @@ export function App() {
           setBanner({ text: t('app.banner.searchFailed', { message: result.message }) })
         }
         setSearchResults([])
+        setSearchNextPageToken(null)
         return
       }
-      setSearchResults(result.value)
+      setSearchResults(result.value.results)
+      setSearchNextPageToken(result.value.nextPageToken)
     })
   }, [])
+
+  const loadMoreSearchResults = useCallback(() => {
+    if (searchNextPageToken === null || searchLoadingMore) return
+    setSearchLoadingMore(true)
+    void window.chronicle.searchYouTube(searchQuery, searchNextPageToken).then((result) => {
+      setSearchLoadingMore(false)
+      if (!result.ok) return
+      setSearchResults((current) => [...(current ?? []), ...result.value.results])
+      setSearchNextPageToken(result.value.nextPageToken)
+    })
+  }, [searchQuery, searchNextPageToken, searchLoadingMore])
 
   // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
   // may open the system browser once for incremental write-scope consent.
@@ -1117,17 +1141,21 @@ export function App() {
               changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
             }
           />
-          <button
-            className="layout-toggle"
-            title={
-              settings.layout === 'grid'
-                ? t('app.topbar.switchToListView')
-                : t('app.topbar.switchToGridView')
-            }
-            onClick={() => changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })}
-          >
-            {settings.layout === 'grid' ? '☰' : '⊞'}
-          </button>
+          {searchResults === null && (
+            <button
+              className="layout-toggle"
+              title={
+                settings.layout === 'grid'
+                  ? t('app.topbar.switchToListView')
+                  : t('app.topbar.switchToGridView')
+              }
+              onClick={() =>
+                changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
+              }
+            >
+              {settings.layout === 'grid' ? '☰' : '⊞'}
+            </button>
+          )}
         </header>
 
         {channelFilter !== null &&
@@ -1188,67 +1216,68 @@ export function App() {
               </button>
             )}
             {searchResults !== null ? (
-              <div className="search-results">
+              <div className={`search-results size-${settings.itemSize}`}>
                 {searching && <div className="empty">{t('search.searching')}</div>}
                 {!searching && searchResults.length === 0 && (
                   <div className="empty">{t('search.empty')}</div>
                 )}
-                {searchResults.map((result) =>
-                  result.kind === 'video' ? (
-                    // B-043: this list has no other keyboard path (unlike the
-                    // main FeedList, which has global j/k/Enter navigation).
-                    <div
-                      key={result.videoId}
-                      className="row search-result-row"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openVideo(result.videoId)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          openVideo(result.videoId)
-                        }
-                      }}
-                    >
-                      {result.thumbnailUrl !== null ? (
-                        <img
-                          className="thumb"
-                          loading="lazy"
-                          alt=""
-                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
-                        />
-                      ) : (
-                        <div className="thumb" />
-                      )}
-                      <div className="row-text">
-                        <span className="title">{result.title}</span>
-                        <span className="meta">{result.channelTitle}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={result.channelId} className="row search-result-row search-result-channel">
-                      {result.thumbnailUrl !== null ? (
-                        <img
-                          className="thumb"
-                          loading="lazy"
-                          alt=""
-                          src={`thumb://img/${encodeURIComponent(result.thumbnailUrl)}`}
-                        />
-                      ) : (
-                        <div className="thumb" />
-                      )}
-                      <div className="row-text">
-                        <span className="title">{result.title}</span>
-                      </div>
-                      <button
-                        className="primary"
-                        disabled={result.subscribed}
-                        onClick={() => subscribeToChannel(result.channelId)}
-                      >
-                        {result.subscribed ? t('search.subscribedButton') : t('search.subscribeButton')}
-                      </button>
-                    </div>
+                {(() => {
+                  const visible = searchResults.filter(
+                    (result) => result.kind !== 'video' || settings.showShorts || !result.isShort
                   )
+                  if (settings.layout === 'grid') {
+                    return (
+                      <div
+                        className="grid-row"
+                        style={{
+                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                        }}
+                      >
+                        {visible.map((result) =>
+                          result.kind === 'video' ? (
+                            <SearchVideoCard
+                              key={result.videoId}
+                              result={result}
+                              onOpen={() => openVideo(result.videoId)}
+                            />
+                          ) : (
+                            <SearchChannelCard
+                              key={result.channelId}
+                              result={result}
+                              onSubscribe={() => subscribeToChannel(result.channelId)}
+                            />
+                          )
+                        )}
+                      </div>
+                    )
+                  }
+                  // This list has no other keyboard path (unlike the main
+                  // FeedList, which has global j/k/Enter navigation) — each
+                  // row/card is individually focusable.
+                  return visible.map((result) =>
+                    result.kind === 'video' ? (
+                      <SearchVideoRow
+                        key={result.videoId}
+                        result={result}
+                        onOpen={() => openVideo(result.videoId)}
+                      />
+                    ) : (
+                      <SearchChannelRow
+                        key={result.channelId}
+                        result={result}
+                        onSubscribe={() => subscribeToChannel(result.channelId)}
+                      />
+                    )
+                  )
+                })()}
+                {searchNextPageToken !== null && (
+                  <button
+                    className="comments-load-more"
+                    disabled={searchLoadingMore}
+                    onClick={loadMoreSearchResults}
+                  >
+                    {searchLoadingMore ? t('search.loadingMore') : t('search.loadMore')}
+                  </button>
                 )}
               </div>
             ) : (

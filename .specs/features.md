@@ -129,9 +129,15 @@ toggle and a local-filter-while-typing behavior that turned out confusing in pra
 **dropped 2026-07-12 (`bugs.md` [[B-054]]):** the `/` filter is now a YouTube-search
 trigger only (still explicit-Enter, per the cost design below), and never re-filters the
 already-loaded feed; browsing local subscriptions stays the sidebar channel list's job.
-Results UX (pagination, layout-setting parity, a video/channel visual distinction) is
-still open — `bugs.md` [[B-055]]. The @handle/URL cheap-path vs. free-text `search.list`
-cost split described below did ship as designed.
+**Results UX shipped 2026-07-13 (`bugs.md` [[B-055]]):** results reuse the feed's
+item-size/layout settings (list rows or grid cards, same as the main feed); the
+grid/list toggle hides itself while search is active (the size slider stays — it still
+applies); `pageToken`/`nextPageToken` are wired through a "Load more results" button;
+channel results get a circular avatar and subscriber count instead of the video-thumb
+treatment; video results get the same Short badge as the main feed and respect the
+"Show Shorts" setting (duration-heuristic only — no HEAD-probe confirmation step for a
+transient result list, unlike the synced feed's D-028 pipeline). The @handle/URL
+cheap-path vs. free-text `search.list` cost split described below did ship as designed.
 
 The original sketch, for reference: real, YouTube-style search — the user types a query
 and finds **videos and channels across all of YouTube**, including channels they don't
