@@ -202,9 +202,17 @@ Exit criterion: a stranger can download, set up, and use Chronicle from the READ
 
 ## Post-MVP horizon (order per `features.md` rationale)
 
-1. **Channel view + both follow mechanisms + accountless mode + YouTube search**
-   (D-030/D-031/D-033 — the discovery bundle; completes the D-029 loop and makes the
-   wizard optional)
+1. ~~Channel view + both follow mechanisms + accountless mode + YouTube search~~ —
+   **mostly landed via the dogfooding batches, corrected 2026-07-12** (this item was
+   left stale after the batches below shipped it — the "Roadmap-relevant signals" note
+   further down already said as much but the item itself was never updated to match):
+   YouTube search (D-031, B-009) and "Subscribe on YouTube" (D-030 mechanism (a),
+   B-009/B-010) are shipped; multi-account (B-003) went further than this item
+   originally scoped. Still open: "Follow locally" (D-030 mechanism (b), RSS-only
+   following with no YouTube-side subscription) and true accountless mode (D-033, using
+   Chronicle with zero accounts at all) — a proper **channel detail screen** (avatar,
+   banner, subscribe button, video list) is also still missing and is now tracked as
+   B-056 in `bugs.md`.
 2. Hide live/premieres + duration filters (cheap once data flows)
 3. Channel categories/folders
 4. Local notes (+ FTS local search)
@@ -242,6 +250,36 @@ Roadmap-relevant signals from the list:
   infrastructure-now, strings-later.
 - The remainder are UI/UX polish and small bugs (B-001, B-002, B-004, B-005, B-007,
   B-008, B-011–B-014, B-016) — batchable independently of the above.
+
+**Second dogfooding batch, B-054–B-066 (reported 2026-07-12), added to `bugs.md`.**
+Reported after using the search (B-009) and multi-account (B-003) features shipped in
+the first batch — this batch is largely about tightening those two surfaces plus a
+handful of standalone UX gaps, not new scope:
+- **Search UX** (B-054, B-055): drop the "Mine"/"YouTube" scope toggle — search should
+  always hit YouTube directly on Enter, no local pre-filtering; search results need to
+  respect the item-size/grid-list settings (with the layout toggle hidden while
+  inert), pagination, and a visual video-vs-channel distinction (circular avatar +
+  subscriber count for channels, Short badge for videos).
+- **Channel detail screen** (B-056) — a real per-channel screen (avatar, banner,
+  subscribe button, video list) does not exist yet; promotes part of post-MVP horizon
+  item 1 above from "someday" to tracked work.
+- **Feed/unread correctness** (B-057, B-058, B-059, B-063): unread count not
+  channel-scoped in the top bar; archive backfill (B-002's pagination) always marks
+  videos unread with no regard for whether they predate the user following Chronicle;
+  no loading indicator on scroll pagination; the favorites priority section (B-042)
+  doesn't follow layout settings and the sidebar doesn't sort favorites first.
+- **Player gaps** (B-060, B-061, B-062): filter/`/` disabled while a video plays;
+  no subscribe/unsubscribe from the player; comment pagination unused, no comment
+  likes (confirmed permanent API limitation, not a bug), no reply-to-reply.
+- **Multi-account polish** (B-064, B-065, B-066): switching accounts doesn't refresh
+  the sidebar automatically; a zero-channel account breaks the sidebar layout; the
+  account/channel `…` context menus clip inside their scroll containers; removing the
+  last account fails silently.
+
+None of these are attacked yet — same rule as the first batch: worked when the product
+owner says so, in whatever order makes sense once picked up (B-054/B-055/B-056 and
+B-060/B-061 are natural sequencing pairs; B-058 needs a Pending decision before it can
+be fixed, see its entry).
 
 ## Standing release checklist (every release, starting M4)
 

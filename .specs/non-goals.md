@@ -76,21 +76,27 @@ supersedes the decision in `decisions.md`. All items in "Never" are **Final** de
 
 ## Explicitly optional / de-scoped (not "never")
 
-- **Comments & likes: not in MVP, but planned (D-032).** The user expressing themselves
-  on YouTube — liking a video, reading and writing comments — is a legitimate future
-  feature set, unlocked via incremental scope (`authentication.md`). The distinction that
-  matters: what stays banned forever is Chronicle-side engagement **mechanics** (anything
-  designed to provoke interaction — prompts, streaks, "leave a comment!" nudges);
-  user-initiated interaction is welcome. When built: comments load on explicit user
-  action (never auto-loaded), displayed flat and chronological; costs:
-  `commentThreads.list` 1 unit, `commentThreads.insert` 50 units, `videos.rate` 50 units.
-- **Search**: excluded from **MVP** (Final) but planned post-MVP as a real,
-  YouTube-style search (D-031, Final in shape): the user types a query and finds videos
-  and channels across all of YouTube — including channels they don't follow — and watches
-  them in Chronicle's player. The guardrail that survives: search is a **tool the user
-  wields, never a surface that feeds them** — it is inert until a query is typed, and
-  results are never injected into the feed or any other view. A typed query is
-  intentional navigation (D-029's logic), not algorithmic push.
+- **Comments & likes: not in MVP proper, but implemented ahead of schedule via
+  dogfooding (D-032, [[B-006]] in `bugs.md`, 2026-07-12).** The user expressing
+  themselves on YouTube — liking a video, reading and writing comments, replying — is
+  built and shipped, unlocked via incremental scope (`authentication.md`). The
+  distinction that matters: what stays banned forever is Chronicle-side engagement
+  **mechanics** (anything designed to provoke interaction — prompts, streaks, "leave a
+  comment!" nudges); user-initiated interaction is welcome and now live. Comments load
+  on explicit user action (never auto-loaded), displayed flat and chronological; costs:
+  `commentThreads.list` 1 unit, `commentThreads.insert`/`comments.insert` 50 units,
+  `videos.rate` 50 units. (There is no API to like a *comment*, only videos — a
+  permanent limitation, not a Chronicle choice.)
+- **Search**: excluded from **MVP** (Final) but implemented ahead of schedule via
+  dogfooding as real, YouTube-style search (D-031, [[B-009]] in `bugs.md`,
+  2026-07-12): the user types a query and finds videos and channels across all of
+  YouTube — including channels they don't follow — and watches them in Chronicle's
+  player. The guardrail that survives: search is a **tool the user wields, never a
+  surface that feeds them** — it is inert until a query is typed, and results are never
+  injected into the feed or any other view. A typed query is intentional navigation
+  (D-029's logic), not algorithmic push. Still being tightened per `bugs.md`
+  [[B-054]]/[[B-055]] (the shipped scope-toggle UX turned out confusing and is being
+  simplified to "the filter always searches YouTube directly").
 - **Mobile / web versions**: out of scope. Desktop-first is Final for the foreseeable
   future. The architecture keeps the core portable (see `architecture.md`), but no effort
   is spent on mobile UX.

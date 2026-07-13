@@ -46,7 +46,6 @@
 │   storage/       SQLite repository                        │
 │   secrets/       OS keychain (+ encrypted-file fallback)  │
 │   oauth/         PKCE flow, loopback server, token mgmt   │
-│   player/        Playback strategy (see playback.md)      │
 ├─────────────────────────────────────────────────────────┤
 │ platform/      Desktop shell (window mgmt, tray, deep     │
 │                links, auto-update). Framework-specific.   │
@@ -58,17 +57,26 @@
 imports `ui/`. Violations are build errors (enforced via lint rules / project references
 once the stack is chosen).
 
-### Core ports (initial set)
+### Core ports (as implemented, `src/core/ports.ts`)
 
 | Port | Responsibility | Implemented by |
 |---|---|---|
 | `SubscriptionSource` | List the user's subscriptions | `adapters/youtube` |
 | `VideoSource` | Fetch recent uploads for a channel; hydrate video details | `adapters/rss` + `adapters/youtube` (see D-007) |
-| `VideoRepository` / `ChannelRepository` / `StateRepository` | Persistence | `adapters/storage` |
+| `FeedRepository` | Feed queries (grouped/paginated reads, video-state writes, channel favorite/priority queries) | `adapters/storage` |
+| `StateRepository` | Read/watch-later/ignore/favorite state transitions | `adapters/storage` |
+| `CatalogRepository` | Channel/video catalog persistence (subscriptions, hydration writes) | `adapters/storage` |
+| `SyncRepository` | Sync bookkeeping (per-channel sync state, backfill cursors, accounts) | `adapters/storage` |
+| `ShortsProber` | Confirm a candidate video is a Short (`/shorts/{id}` HEAD check, D-028) | `adapters/youtube` |
+| `QuotaSink` | Record per-call quota units for the accounting log | `adapters/storage` |
 | `SecretStore` | Store/retrieve OAuth client secret + tokens | `adapters/secrets` |
 | `AuthProvider` | Produce a valid access token on demand | `adapters/oauth` |
-| `Player` | Open/play a video | `adapters/player` |
 | `Clock` | Now(), for testable date grouping | trivial impl |
+
+There is no `Player` port — playback converged on D-006's direct embedded IFrame player
+(`src/ui/PlayerView.tsx`), never a swappable backend needing a port; the mpv/yt-dlp
+alternative that would have justified one stayed a Future idea only (`playback.md`), so
+`adapters/player/` was never built.
 
 ## Process model
 
@@ -94,7 +102,7 @@ Two-process desktop model (Final in shape; exact runtime depends on D-005):
 ### Read path (always local)
 
 ```
-UI → ipc:getFeed → core FeedService → StateRepository/VideoRepository (SQLite) → DTOs → UI
+UI → ipc:getFeed → core FeedService → FeedRepository/StateRepository (SQLite) → DTOs → UI
 ```
 
 Cold start renders the last-known feed from SQLite immediately; no network on the critical

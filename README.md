@@ -5,30 +5,37 @@
 Chronicle recreates the pre-algorithm YouTube experience: you open it and see the
 channels *you* chose, newest first, grouped as Today / Yesterday / This Week / Earlier.
 Nothing on screen was put there by an engagement model — no algorithmic Home, no
-recommendations, no Shorts, no infinite trending feed. Videos still play through the
-official YouTube player, so creators keep their views and their monetization.
+recommendations, no infinite trending feed. Videos still play through the official
+YouTube player, so creators keep their views and their monetization.
 
 The governing principle is **agency, not austerity**: you can watch anything, open any
-YouTube link, and (post-MVP) search all of YouTube — Chronicle only removes the
-*algorithm's* will, never yours. The test for every feature is "who is driving?"
+YouTube link, and search all of YouTube — Chronicle only removes the *algorithm's* will,
+never yours. The test for every feature is "who is driving?"
 
 ## Principles (non-negotiable)
 
 - **Local-first** — all your data lives in a SQLite file on your machine. There are no
-  Chronicle servers.
+  Chronicle servers. Caching data locally is a technical detail for speed and offline
+  use, never a UX boundary you have to think about — searching or filtering always
+  behaves like you're talking to YouTube directly.
 - **Privacy-first** — no telemetry, no analytics, no phoning home. Ever.
 - **Your credentials, your quota** — you create your own free Google Cloud project;
   Chronicle ships zero embedded credentials and is frugal with your API quota (a
   typical refresh costs single-digit units of your 10,000/day).
 - **No engagement mechanics** — no autoplay into unrelated content, no badges, no
   infinite feed. When you're caught up, it says so and offers nothing more.
-- **Shorts are never displayed.** Not now, not ever. There is no toggle.
+- **Shorts are shown, not hidden by default** — they appear in the feed tagged with a
+  badge; a Settings toggle lets you hide them if you'd rather not see them at all.
+  Chronicle doesn't decide that for you.
 
 ## Status
 
-Pre-release, daily-driven by its developer. All MVP milestones through M5 are
-implemented; packaged binaries (Flatpak/AppImage, dmg, Windows installer) arrive with
-M6. Until then, Chronicle runs from source.
+Pre-release, daily-driven by its developer. M0–M5 are implemented from source (M4's
+screenshot pass and external acid-testers are still pending). An ongoing backlog of
+dogfooding fixes/adjustments (`.specs/bugs.md`) is worked in batches before packaged
+binaries (Flatpak/AppImage, dmg, Windows installer) arrive with M6 — see
+[`.specs/roadmap.md`](.specs/roadmap.md) for the full sequencing. Until M6, Chronicle
+runs from source.
 
 ## Running from source
 
@@ -43,7 +50,9 @@ npm run dev
 
 On first run Chronicle opens the onboarding wizard, which walks you through creating
 your own Google Cloud project and OAuth key (~10 minutes, one time). The same steps in
-plain text live in [`docs/setup.md`](docs/setup.md).
+plain text live in [`docs/setup.md`](docs/setup.md). You can add more than one YouTube
+account afterward from the sidebar's Accounts section — additional accounts skip the
+console walkthrough and share the same Google Cloud project.
 
 Useful commands:
 
@@ -54,9 +63,10 @@ CHRONICLE_FIXTURES=1 npm run dev                # dev feed with deterministic fa
 
 ## Keyboard-first
 
-`j`/`k` move, `Enter` plays, `m` toggles read, `i` ignores (with undo), `f` favorite,
-`w` watch later, `1…5` switch views, `r` refresh, `/` filter, `Ctrl+O` open any YouTube
-URL, `?` shows the full map.
+`j`/`k` move, `Enter`/`o` plays, `b` opens in browser, `m` toggles read, `i` ignores
+(with undo), `u` undoes it, `f` favorite, `w` watch later, `1…5` switch views, `r`
+refresh, `/` filter, `c` focuses the channel filter, `s` toggles the sidebar, `Ctrl+O`
+open any YouTube URL. Press `?` any time for the full, always-current map.
 
 ## Your data
 

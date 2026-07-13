@@ -52,6 +52,327 @@ Resolved entries add:
 
 ## Open
 
+### B-066 — Removing the only remaining account silently does nothing
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** auth
+- **What happens:** `main.ts`'s `removeAccount` handler throws when `id ===
+  primaryAccountId()` ("cannot remove the primary account here") — but this only guards
+  the *primary* account specifically, not "last account remaining" in general, and
+  `Sidebar.tsx`'s account menu renders the same generic Remove option for every account
+  with no special-casing. `App.tsx`'s `removeAccount` calls the IPC method with no
+  `.catch()` — so when a user removes every secondary account and then tries to remove
+  the last (primary) one, the main-process throw becomes an unhandled promise rejection;
+  the confirm menu already optimistically closes regardless of outcome, so the user sees
+  no error, no feedback, nothing.
+- **Expected:** either disable/hide the Remove option on the primary/last account with an
+  explanation (e.g. "sign out instead" — D-041 already documents that Sign Out covers
+  removing the primary account), or handle the failure with a visible error banner if
+  removal is attempted anyway.
+- **Code refs:** `src/platform/main.ts` (`removeAccount` handler); `src/ui/App.tsx`
+  (`removeAccount` — missing `.catch()`); `src/ui/Sidebar.tsx` (account `…` menu, the
+  optimistic close-on-click).
+- **Notes:** cheapest fix is UI-side — disable/explain the Remove option for the primary
+  account in `Sidebar.tsx` (matching D-041's existing "primary account can't be removed
+  from Accounts, Settings' Sign Out covers that case" design intent) plus adding the
+  missing `.catch()` as a defensive backstop regardless.
+
+### B-065 — Context menu (accounts/channels) renders clipped inside the scrollable sidebar
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** both the channel `…` menu and the account `…` menu (`Sidebar.tsx`)
+  are plain positioned `<div>`s, direct DOM children of rows inside
+  `.channel-list`/`.account-list` (scrollable, `overflow: auto`) — no portal (no
+  `createPortal` usage in `Sidebar.tsx`), no viewport-aware placement logic. Being an
+  in-flow/absolutely-positioned child of a clipped scroll container, the menu gets
+  visually cut off whenever it opens near the edge of the visible scroll area.
+- **Expected:** the menu renders fully visible regardless of scroll position — typically
+  via a React portal to a fixed-position layer, positioned against the trigger button's
+  viewport coordinates.
+- **Code refs:** `src/ui/Sidebar.tsx` (channel `…` menu, account `…` menu).
+- **Notes:** same fix likely serves both menus since they share the same pattern.
+
+### B-064 — Switching the active account doesn't refresh the sidebar/app state; a zero-channel account breaks the sidebar layout
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** auth / ui-shell
+- **What happens:** `selectAccount` (`App.tsx`) sets `accountFilter` and resets to the
+  feed view, which does auto-refetch feed videos + meta (the
+  `[view, channelFilter, accountFilter]` effect), but never calls `loadChannels()` — so
+  the sidebar's channel list stays stale after switching accounts until some unrelated
+  action happens to refresh it (unsubscribe, favorite-toggle, a sync event, etc.).
+  Separately, when the selected account has zero followed channels, `Sidebar.tsx` omits
+  the **entire** Channels section (header, channel-filter input, everything) rather than
+  showing an empty state — which also silently breaks the `c` keyboard shortcut (its ref
+  never attaches to a DOM node in that state).
+- **Expected:** switching accounts should feel like switching context completely —
+  sidebar channel list, feed, and any other account-scoped state refresh together,
+  immediately, with no manual refresh step. An account with zero channels should render a
+  proper empty state in the Channels section instead of omitting the section outright.
+- **Code refs:** `src/ui/App.tsx` (`selectAccount`, `loadChannels`, the account/view
+  effect); `src/ui/Sidebar.tsx` (the `channels.length > 0 &&` guard around the whole
+  Channels section).
+- **Notes:** same theme as [[product-frictionless-over-quota]]/the agency principle — an
+  account switch should read as "now using this account," not "now using this account,
+  once you remember to hit refresh."
+
+### B-063 — Favorites Home section should follow the feed's layout/size settings; sidebar should list favorited channels first
+- **Type:** bug (layout) + adjustment (ordering)
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** three related points.
+  1. The Home "priority section" (favorited channels' unread videos, [[B-042]]/D-039)
+     renders via a plain list of `VideoRow` without the `itemSize`/`layout` props the
+     main `FeedList` call passes — it's always list-mode regardless of the grid/list
+     toggle or the size slider, unlike the Today/Yesterday/Earlier sections it sits above.
+  2. The sidebar channel-list ordering is freshest-first only (per [[B-008]]), with no
+     favorite-first tiebreak — favorited channels are interleaved by recency like any
+     other channel instead of appearing first.
+  3. **Clarification, not a confirmed bug:** the owner reports favoriting a channel seems
+     to inconsistently mark all its videos as unread. Code review found no code path that
+     does this — `toggleChannelFavorite` only flips the `favorite` flag and never touches
+     `video_state` or bulk-writes `read = 0`. This needs re-triage against a specific
+     repro before assuming the favorite toggle itself is at fault — it may well be
+     [[B-058]] (archive-backfill always defaults to unread) producing a similar-looking
+     symptom around the same time a channel gets favorited/paginated.
+- **Expected:** (1) priority section respects `settings.itemSize`/`settings.layout` like
+  the rest of the feed; (2) sidebar channel list orders favorited channels first, then by
+  recency within each group (favorite DESC, then latest-published DESC); (3) confirm with
+  the owner whether the "unread" symptom reproduces via favoriting specifically or via
+  B-058's archive pagination before scoping any fix here.
+- **Code refs:** `src/ui/App.tsx` (priority-section block vs. the main `FeedList` call);
+  `src/adapters/storage/repositories.ts` (`listFollowedChannels`'s `ORDER BY`;
+  `toggleChannelFavorite`).
+- **Notes:** related to [[B-042]] (original priority-section feature) and [[B-058]] (the
+  actual unread-on-backfill bug this may be conflated with).
+
+### B-062 — Comments: pagination unused, no comment likes (permanent API limitation), reply-to-reply doesn't prefill @mention
+- **Type:** bug (pagination) + adjustment (reply UX) · note on the likes ask below
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** three separate issues reported together.
+  1. **Pagination is dead on the renderer side:** the API/IPC layer already supports it
+     (`listComments(videoId, pageToken)` returns `nextPageToken`; the IPC channel forwards
+     an optional `pageToken`) but `Comments.tsx`'s `load()` never passes one and discards
+     `nextPageToken` — there's no "load more comments" UI/state at all.
+  2. **No like button on comments** — confirmed still a real API gap, not an oversight:
+     already recorded in `decisions.md` D-032 when [[B-006]] shipped video-like +
+     read-only comment `likeCount` display — "the public YouTube Data API v3 has no
+     endpoint to like a comment, only videos." This is a **permanent limitation**, nothing
+     to fix client-side.
+  3. **Reply-to-reply not supported:** `CommentItem` only exists for top-level comments; a
+     reply's own replies render as plain text with no reply button and no recursive
+     `CommentItem`, so there's no way to reply to a reply today, let alone prefill the
+     `@username` of who's being replied to.
+- **Expected:** (1) wire `pageToken` through `Comments.tsx`'s `load()`/a "load more"
+  affordance so comment pagination actually works; (2) no action possible — leave as a
+  documented permanent limitation, don't reopen; (3) add a reply action on replies (not
+  just top-level comments) that opens the composer pre-filled with `@{authorDisplayName}`
+  of the specific reply being answered — this still posts as a reply to the *top-level*
+  comment (`comments.insert` takes the top-level id per YouTube's one-level-nesting model,
+  per D-032/[[B-006]]'s existing notes); the `@mention` is a text convention only, not a
+  structural third nesting level.
+- **Code refs:** `src/ui/Comments.tsx` (`load()`, `CommentItem`, reply rendering);
+  `src/adapters/youtube/api-client.ts` (`listComments`, `replyToComment`);
+  `src/ipc/contract.ts` (`getComments`, `CommentDto`); `src/platform/main.ts` (the
+  comments IPC handlers).
+- **Notes:** item 2 (comment likes) should be closed/flagged Won't-fix (API limitation)
+  when this is triaged, not tracked as open work — included here only because the owner
+  asked about it without D-032's finding in view.
+
+### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player / ui-shell
+- **What happens:** `PlayerView.tsx`'s action bar has mark read/unread, favorite, watch
+  later, like, ignore, open-in-browser — no subscribe/unsubscribe. The IPC plumbing
+  exists (`channel:subscribe`/`channel:unsubscribe`, and `App.tsx`'s
+  `subscribeToChannel`/`unsubscribeChannel`) but `PlayerVideoDto` has no `channelId`
+  field, only `channelTitle` — the player currently has no way to identify which channel
+  to (un)subscribe from.
+- **Expected:** a subscribe/unsubscribe toggle in the player's action bar, and the same on
+  the new channel detail screen ([[B-056]]).
+- **Code refs:** `src/ui/PlayerView.tsx` (action bar); `src/ipc/contract.ts`
+  (`PlayerVideoDto` — needs `channelId` + `isSubscribed` added; `channel:subscribe`/
+  `channel:unsubscribe`); `src/ui/App.tsx` (`subscribeToChannel`/`unsubscribeChannel`,
+  existing pattern to reuse).
+- **Notes:** blocked on adding `channelId` (and ideally `isSubscribed`) to
+  `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
+  [[B-056]] since the channel screen needs the same subscribe-state plumbing.
+
+### B-060 — Filter and `/` shortcut don't work while a video is playing
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** player / ui-shell
+- **What happens:** the global keydown handler (`App.tsx`) starts with an early
+  `if (playerOpen || urlPromptOpen) return` before reaching the `/`-focuses-filter case —
+  so the entire global shortcut set, including `/`, is disabled while the player is open.
+  The filter input itself stays mounted in the DOM, but nothing can reach it.
+  `PlayerView.tsx`'s own keydown handler has no `/` binding either.
+- **Expected:** `/` (and the ability to actually use the filter/search) should work while
+  viewing a video, consistent with the product's frictionless principle — the user
+  shouldn't have to leave the player to start a new search. At minimum, `/` should escape
+  back to the feed and focus the filter (mirroring what Esc/Back already does); ideally
+  the filter should be reachable without fully leaving playback.
+- **Code refs:** `src/ui/App.tsx` (global `onKeyDown`, the `playerOpen` early-return);
+  `src/ui/PlayerView.tsx` (own `onKeyDown` — no `/` case).
+- **Notes:** same root shape as [[B-053]] — a broad early-return swallows a shortcut it
+  shouldn't; worth checking whether other non-player-specific shortcuts have the same gap
+  while auditing this.
+
+### B-059 — No loading indicator while paginating/scrolling to load more
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the scroll-triggered `loadMore` path (`FeedList.tsx`'s `onNearEnd` →
+  `App.tsx`'s `loadMore`, including [[B-002]]'s channel-archive backfill) shows no
+  loading/spinner state while a request is in flight — the in-flight refs are used only
+  to dedupe concurrent calls, never rendered.
+- **Expected:** a spinner at the bottom of the scrolled list while a page/backfill request
+  is in flight, so the user gets feedback instead of what looks like the list simply
+  stopping.
+- **Code refs:** `src/ui/FeedList.tsx` (`onNearEnd`); `src/ui/App.tsx` (`loadMore`, the
+  in-flight refs).
+- **Notes:** contrast with the existing `searching` state already used for YouTube search
+  — same pattern, just needs to also cover the main feed's scroll pagination and channel
+  backfill paths.
+
+### B-058 — Paginating a channel's archive marks all newly-discovered videos as unread
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** sync / feed
+- **What happens:** `backfillArchive` hydrates old videos via `applyHydration`, which only
+  inserts into `videos` (metadata) and never touches `video_state`. The feed's read-state
+  query computes `read_status` as `COALESCE(s.read_status, 'unread')` via a `LEFT JOIN
+  video_state` — since hydration never creates a `video_state` row, every backfilled
+  video defaults to unread regardless of how old it is or whether the user already
+  watched it on YouTube.
+- **Expected:** needs a product decision on the right default for a channel's
+  back-catalog surfacing years-old videos — likely candidates: default backfilled videos
+  to read (since they predate the user actively following/using Chronicle and weren't
+  "missed"), or leave unread only for videos published after the channel was first
+  followed. Whatever's chosen, it shouldn't silently inflate unread counts app-wide when
+  a user pages into a deep archive.
+- **Code refs:** `src/core/sync-service.ts` (`backfillArchive`);
+  `src/adapters/storage/sync-repository.ts` (`applyHydration`);
+  `src/adapters/storage/repositories.ts` (`FEED_SELECT`, the `read_status` default).
+- **Notes:** needs a Pending decision in `decisions.md` once attacked (the "right default
+  for backfilled unread state" question) — not a one-line fix, a product call about what
+  "unread" should mean for archive content the user never had a chance to see
+  chronologically. Possibly the real cause behind the "unread" confusion in [[B-063]].
+
+### B-057 — Unread count in top bar not scoped to the current channel view
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the topbar's "X unread" status text is built from `syncMeta()`'s
+  `meta.unreadCount`, which comes from `getFeedMeta(accountId)` — an IPC method with no
+  `channelId` parameter — so it always reports the global/account-wide unread count even
+  inside a channel-filtered view. A separately-computed, correctly channel-scoped value
+  already exists (`currentUnreadCount`) but is only used to decide whether to show "Mark
+  all read," never fed into the status text — two inconsistent unread computations live
+  side by side in the same component.
+- **Expected:** the top-bar unread count reflects the current scope — channel-scoped
+  count while inside a channel filter, global/account count otherwise.
+- **Code refs:** `src/ui/App.tsx` (`statusText`, `syncMeta`, `currentUnreadCount`);
+  `src/ipc/contract.ts` (`getFeedMeta`); `src/platform/main.ts` (the handler — needs an
+  optional `channelId` threaded through, or just reuse the already-loaded client-side
+  value).
+- **Notes:** straightforward fix — reuse the existing `currentUnreadCount` value in
+  `statusText` instead of always reading `meta.unreadCount`.
+
+### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** no dedicated channel-detail screen exists today — clicking a channel
+  (in the sidebar, or once [[B-055]]'s search wiring lands, from a search result) only
+  sets a channel filter and reuses the normal feed view; the topbar shows just the
+  channel title as text plus Unsubscribe — no avatar, no banner, no subscriber count.
+  `ChannelDto` has no banner field at all, confirming the data model has no
+  channel-detail concept.
+- **Expected:** a real channel screen, YouTube-inspired: circular channel avatar, channel
+  banner image, Subscribe/Unsubscribe button, and below it the channel's video list
+  (reusing the existing channel-filtered feed + [[B-002]]'s archive pagination).
+  Reachable from (a) clicking a channel in a search result and (b) clicking through from
+  the current channel-filtered feed view (e.g. the header/avatar).
+- **Code refs:** `src/ui/App.tsx` (`onSelectChannel`, channel-filtered feed rendering,
+  topbar); `src/ui/Sidebar.tsx` (`onSelectChannel` prop); `src/ipc/contract.ts`
+  (`ChannelDto` — needs a banner/subscriberCount field); `src/adapters/youtube/
+  api-client.ts` (`channels.list`'s `brandingSettings` part likely needed for the banner
+  — check quota/availability).
+- **Notes:** needs a quota check for the banner image before committing, per
+  `youtube-api.md`'s convention for any new API surface. Natural landing point for
+  [[B-055]]'s channel search results and [[B-061]]'s in-context subscribe button —
+  sequence together.
+
+### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
+- **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
+  toggle — with several polish asks)
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** search / ui-shell
+- **What happens:** search results render via a bespoke results block, not through
+  `FeedList`'s `VideoCard`/`VideoRow` — so they ignore the item-size slider and grid/list
+  layout entirely; the layout-toggle button and size slider stay visible/enabled in the
+  topbar during search but have zero effect (confirmed no-op), which reads as a bug even
+  though it's really just missing wiring. No pagination: `search()` fetches one page
+  (25 results), no `pageToken`/`nextPageToken` plumbed anywhere. Video vs. channel results
+  are distinguished only by the channel row's extra Subscribe button — same square thumb
+  treatment for both, no strong visual cue (no circular avatar, no subscriber count). No
+  Short badge on video results, and the "Show Shorts" setting (already respected by the
+  main feed) isn't applied to search results at all.
+- **Expected:** (1) reuse `FeedList`'s `VideoCard`/`VideoRow` (or equivalent) so item-size
+  and grid/list settings apply to search results the same as the main feed; (2) hide the
+  grid/list toggle button specifically while a search is active — search results don't
+  need to support both layouts, and a visible-but-inert control reads as broken; the size
+  slider can stay since it still applies; (3) wire `pageToken`/`nextPageToken` through
+  `search()` → `SearchResultDto` → the UI's scroll-triggered `loadMore`, mirroring the
+  main feed's infinite-scroll pattern; (4) give channel results a distinct look — circular
+  avatar instead of the square video-thumb treatment, plus the channel's subscriber count;
+  (5) show the same Short badge used in the main feed on Short video results, and filter
+  them out entirely when Settings' "Show Shorts" is off, matching the main feed's existing
+  behavior.
+- **Code refs:** `src/ui/App.tsx` (search-results block, layout-toggle/size-slider);
+  `src/ui/FeedList.tsx` (`VideoCard`/`VideoRow`, the Short-badge pattern, the
+  Show-Shorts filtering already used by the main feed); `src/adapters/youtube/
+  api-client.ts` (`search()`); `src/ipc/contract.ts` (`SearchResultDto`).
+- **Notes:** subscriber count for channel results needs a quota-cost check before
+  committing (per `youtube-api.md`'s convention) — `search.list`'s channel snippet
+  doesn't include `subscriberCount`; a follow-up `channels.list` call (1 unit) per shown
+  channel result may be needed, or batched. Related: [[B-054]], [[B-056]] (channel detail
+  screen — the natural place a channel result now goes).
+
+### B-054 — Search should always search YouTube directly; drop the "Mine"/"YouTube" toggle
+- **Type:** adjustment
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** search / ui-shell
+- **What happens:** the owner reports needing to click "YouTube" before typing, and even
+  then the filter input keeps re-filtering the *locally loaded* feed on every keystroke
+  until Enter is pressed. Confirmed in code: the filter input's `onChange` always updates
+  local `filter` state (driving a local substring-match `useMemo`) regardless of which
+  scope is selected; `onKeyDown` only fires the remote `search.list` call on Enter when
+  scope is `'youtube'`. So even with "YouTube" selected, every keystroke visibly
+  re-filters stale local data until the user commits with Enter — confusing, since the
+  local cache isn't necessarily up to date with YouTube.
+- **Expected:** per the owner, remove the "Mine"/"YouTube" toggle entirely. The filter
+  field's only behavior should be searching YouTube directly (remote, still explicit-Enter
+  triggered per the existing quota discipline — no auto-loading per keystroke) — browsing
+  the locally cached subscriptions is a different, already-existing surface (the sidebar
+  channel list/filter), not something the search field should offer as an alternate mode.
+  **Product principle to carry into future decisions:** local caching is a technical
+  implementation detail, never a UX distinction the user should have to reason about —
+  an active search is an active intent to reach YouTube, and Chronicle should never stand
+  between the user and that, consistent with `non-goals.md`'s framing of Chronicle as a
+  better YouTube client, not a separate local database browser.
+- **Code refs:** `src/ui/App.tsx` (`searchScope` state, the `.search-scope` toggle, the
+  filter input's `onChange`/`onKeyDown`, the local `filtered` `useMemo`, `runSearch`);
+  `src/adapters/youtube/api-client.ts` (`search()`).
+- **Notes:** this changes the shipped design D-031 currently documents as "Implemented
+  2026-07-12 (B-009)" (the toggle + local-filter shape) — `decisions.md`'s D-031 entry
+  needs a follow-up note once this is attacked. Related: [[B-055]] (search results UX),
+  [[B-060]] (filter doesn't work in the player — same filter input).
+
 ### B-053 — `?` shortcut overlay doesn't open when focus is inside a text input
 - **Type:** bug · **Severity:** minor
 - **Status:** Open · **Reported:** 2026-07-12

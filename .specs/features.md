@@ -70,7 +70,22 @@ toggle is off.
 Ordered roughly by expected value. Each must re-pass the `non-goals.md` checklist at
 design time.
 
+**Several of these sketches shipped ahead of schedule via the dogfooding batches**
+(`bugs.md`) rather than waiting for a formal post-MVP milestone — each shipped item is
+annotated inline below with what actually landed vs. what's still sketch-only. Two
+shipped features have **no sketch here at all** because they were reported directly as
+dogfooding items, not planned in advance: **unsubscribe** (`subscriptions.delete`,
+[[B-010]] in `bugs.md`) and **favorite channels + a priority feed section** for their
+unread videos ([[B-042]], D-039 in `decisions.md`).
+
 ### Channel view + follow — the discovery feature (D-030, Final; post-MVP #1)
+**Partially implemented 2026-07-12.** Of the two follow mechanisms below, **"Subscribe
+on YouTube" is shipped** (B-009's search results carry a Subscribe button;
+[[B-010]] added Unsubscribe from the sidebar/channel screen) — see D-030 in
+`decisions.md`. **"Follow locally" is not built.** The **in-app channel page** described
+in the first sentence is also still not built: clicking a channel today only opens the
+normal feed filtered to that channel, with no avatar/banner/dedicated layout — tracked as
+`bugs.md` [[B-056]].
 From any video (or channel link), an in-app channel page: channel header + its uploads in
 strict chronological order — no popularity sort, no "for you" tab. From there, two follow
 mechanisms (recommendation: offer **both** — they serve different intents):
@@ -105,8 +120,16 @@ interactions (D-032). Graceful degradation without an account:
   account" entry in the sidebar/settings explains what connecting adds.
 
 ### YouTube search (D-031, Final in shape; ships with D-030)
-Real, YouTube-style search: the user types a query (Ctrl+K or the search affordance) and
-finds **videos and channels across all of YouTube**, including channels they don't
+**Implemented 2026-07-12 (B-009).** Shipped shape differs from the sketch below in one
+notable way the sketch didn't anticipate: it launched with a "Mine"/"YouTube" scope
+toggle and a local-filter-while-typing behavior that turned out confusing in practice —
+being revisited per `bugs.md` [[B-054]]/[[B-055]] (drop the toggle, always search
+YouTube directly on Enter; results need pagination, layout-setting parity, and a
+video/channel visual distinction). The @handle/URL cheap-path vs. free-text `search.list`
+cost split described below did ship as designed.
+
+The original sketch, for reference: real, YouTube-style search — the user types a query
+and finds **videos and channels across all of YouTube**, including channels they don't
 follow. Results render as a list (thumbnail, title, channel, date, duration), videos
 open in Chronicle's player (D-029), channels open in the channel view (D-030) with
 follow actions. Guardrails: the tool is inert until a query is typed; results are never
@@ -118,6 +141,14 @@ headroom; the UI communicates quota use honestly). Search result videos get Shor
 tagging/filtering like everything else (D-028).
 
 ### YouTube interactions: like & comment (D-032; after search/discovery)
+**Implemented 2026-07-12 ([[B-006]]).** Shipped as designed below, with one API gap
+discovered during implementation, not a product choice: the YouTube Data API v3 has no
+endpoint to like a *comment*, only videos — comment `likeCount` is shown read-only, no
+like button exists or can exist for comments (recorded permanently in `decisions.md`
+D-032). Still rough per `bugs.md` [[B-062]]: comment pagination is wired at the API/IPC
+layer but unused by the UI ("load more" doesn't exist), and replying to a reply (not
+just a top-level comment) isn't supported yet.
+
 User-initiated interactions on YouTube, from the player view: **like** a video
 (`videos.rate`, 50 units), **read comments** (explicit "load comments" action —
 `commentThreads.list`, 1 unit — flat, chronological) and **write a comment**
@@ -165,13 +196,26 @@ scheduled background refresh — a real architectural addition; do not underesti
 (SQLite FTS across titles/descriptions/notes). Never touches YouTube search
 (see `non-goals.md`).
 
-### Multiple profiles
-Separate Google identity + DB per profile (`authentication.md` §Multi-account).
-Secret-store keys are profile-scoped from day one to keep this cheap.
+### Multiple accounts
+**Implemented 2026-07-12 ([[B-003]]) — shipped design differs from this sketch's
+original "separate DB per profile" idea, corrected here.** Rather than a separate
+database per profile, several authenticated **accounts share one database**: channel
+facts (title, uploads playlist, RSS validators) are deduped in a single `channels`
+table, and each account's own subscription list is a row in an `account_channels`
+junction table (D-040 in `decisions.md` — a plain `account_id` column on `channels` was
+considered and rejected, since it would let a second account's subscribe silently
+overwrite the first account's row for a channel both follow). Secret-store keys *are*
+per-account as this sketch anticipated (`accountSecretKeys`, one shared OAuth client).
+Feeds from all accounts combine in listings by default, with an account filter in the
+sidebar. `video_state` (read/favorite/watch-later) stays account-agnostic by design —
+one shared unread/favorite state per video, not per account. Not built: fully
+accountless mode (D-033) — every account here is still a real, authenticated Google
+account.
 
 ### Import/restore of exported data
 Completes the export story (`local-data.md` §Import) — machine migration.
 
-### Read-only comments (explicitly optional — see non-goals.md)
-If ever: loaded on explicit click only, flat, chronological, no reply/like affordances.
-`commentThreads.list` = 1 unit. Decision deferred until real user demand exists.
+### ~~Read-only comments (explicitly optional — see non-goals.md)~~ — superseded by D-032
+This sketch predated the decision to build full read/write/reply comments, not just
+read-only. Superseded 2026-07-12: see "YouTube interactions: like & comment" above,
+implemented via [[B-006]].
