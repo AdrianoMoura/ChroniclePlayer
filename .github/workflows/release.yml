@@ -9,7 +9,25 @@ permissions:
   contents: write
 
 jobs:
+  # electron-builder's GitHub publish step looks up (or creates) the release
+  # for this tag independently in every matrix job. Since a draft release
+  # isn't actually attached to the tag until it's published, three parallel
+  # jobs racing to create it all "win" — each creates its own separate draft
+  # instead of finding and reusing one, scattering the assets across three
+  # releases. Creating the (empty) draft once, before the matrix starts,
+  # gives every job the same existing release to find and upload into.
+  prepare-release:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" --draft --title "${{ github.ref_name }}" --notes "" --repo "${{ github.repository }}"
+          fi
+
   build:
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
