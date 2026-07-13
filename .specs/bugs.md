@@ -52,6 +52,31 @@ Resolved entries add:
 
 ## Open
 
+### B-073 — Sidebar's per-channel unread count doesn't update immediately after toggling a video's read status
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-13
+- **Area:** ui-shell / feed
+- **What happens:** `App.tsx`'s `patch(videoId, state)` — called after every
+  `setReadStatus`/toggle-read action — updates the local `videos` array and calls
+  `syncMeta()` (refreshes the topbar's unread count via `getFeedMeta`), but never calls
+  `loadChannels()`. The sidebar's per-channel unread badge comes from the separate
+  `channels` array (`ChannelDto.unreadCount`), which only gets refreshed by
+  `loadChannels()` — so toggling a video's read status updates the topbar count
+  immediately but leaves the sidebar's per-channel number stale until something else
+  happens to trigger a channel reload (switching accounts, unsubscribing, a sync event,
+  etc.).
+- **Expected:** the sidebar's per-channel unread count reflects a read/unread toggle
+  immediately, same as the topbar count already does.
+- **Code refs:** `src/ui/App.tsx` (`patch` — calls `syncMeta()` but not `loadChannels()`).
+- **Notes:** same family of gap as [[B-064]] (channel list not refreshing on account
+  switch) — a local state update (`videos`) and a derived global count (`meta`) get
+  refreshed, but the sidebar's own per-channel data source doesn't. Cheapest fix is
+  likely calling `loadChannels()` alongside `syncMeta()` inside `patch`, though that
+  refetches the *entire* channel list on every single toggle — worth checking whether a
+  lighter, more targeted update (bump just the affected channel's count client-side) is
+  worth the complexity instead. Not attacked this session, per the owner's request to
+  just log it.
+
 ### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-13
@@ -425,6 +450,32 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-072 — Grid card's floating action bar and duration badge look closer to the bottom edge than to the left/right edges
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** ui-shell / feed
+- **What happens:** the owner reported the action-button bar overlaid on a grid card's
+  thumbnail reads as glued to the bottom of the thumb, inconsistent with its left-edge
+  spacing; same for the duration counter's bottom/right spacing. The absolute-position
+  offsets themselves were already identical on every side (`bottom`/`left`/`right: 6px`
+  on both `.card-actions` and `.card-duration`) — the actual cause was each element's own
+  *internal* padding being asymmetric (`.row-actions button`'s shared `padding: 4px 7px`;
+  `.card-duration`'s `padding: 1px 5px`), so the visible content sat noticeably closer to
+  the bottom edge than to the left/right edges even though the outer position offset was
+  equal.
+- **Expected:** the visible gap from the thumb's edge to the bar/badge's content reads as
+  the same amount in every direction.
+- **Code refs:** `src/ui/styles.css` (`.card-duration` padding now uniform `5px`; new
+  `.card-actions button` override at uniform `6px`, scoped to the grid card so the
+  shared list-row button padding is untouched).
+- **Notes:** scoped the button padding fix to `.card-actions button` specifically rather
+  than changing the shared `.row-actions button` rule, since list mode's inline row of
+  actions has no edge-spacing concern to fix and wasn't part of the report. No live-app
+  check this session (visual-only CSS change, no test coverage applicable); verified via
+  `npm run lint`. Owner should validate live: hovering/selecting a grid card and
+  confirming the action bar and duration badge now look evenly inset on every side.
+- **Resolved:** 2026-07-13 · **Commit:** 69e07e7 · **Outcome:** Fixed
 
 ### B-071 — Primary account's sidebar label stays "My account" after connecting, instead of the real channel name
 - **Type:** bug · **Severity:** minor
