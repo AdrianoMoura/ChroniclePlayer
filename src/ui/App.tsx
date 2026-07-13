@@ -196,6 +196,13 @@ export function App() {
     loadView(view, channelFilter, accountFilter)
   }, [view, channelFilter, accountFilter, loadView])
 
+  // Switching accounts should read as a full context switch — the sidebar's
+  // channel list is account-scoped too, so it needs its own refresh here
+  // rather than waiting for an unrelated action to happen to trigger one.
+  useEffect(() => {
+    loadChannels()
+  }, [accountFilter, loadChannels])
+
   // B-009: search results are a transient overlay over the current
   // view/channel — navigating away always drops them.
   useEffect(() => {
@@ -402,10 +409,19 @@ export function App() {
   const removeAccount = useCallback(
     (accountId: string) => {
       if (accountFilter === accountId) setAccountFilter(null)
-      void window.chronicle.removeAccount(accountId).then(() => {
-        loadChannels()
-        loadView()
-      })
+      void window.chronicle
+        .removeAccount(accountId)
+        .then(() => {
+          loadChannels()
+          loadView()
+        })
+        .catch((error: unknown) => {
+          setBanner({
+            text: t('app.banner.removeAccountFailed', {
+              message: error instanceof Error ? error.message : String(error)
+            })
+          })
+        })
     },
     [accountFilter, loadChannels, loadView]
   )
@@ -483,6 +499,14 @@ export function App() {
 
   const closePlayer = useCallback(() => {
     setPlayerStack((stack) => stack.slice(0, -1))
+  }, [])
+
+  // `/` while playing exits fully back to the feed (not just one level of
+  // the queue stack, like Esc does) and focuses the filter, so a new search
+  // never requires leaving playback through a separate step.
+  const exitPlayerToSearch = useCallback(() => {
+    setPlayerStack([])
+    requestAnimationFrame(() => filterInputRef.current?.focus())
   }, [])
 
   const nextInQueue = useCallback(() => {
@@ -741,6 +765,12 @@ export function App() {
           target.blur()
         } else if (event.key === 'Enter') {
           target.blur()
+        } else if (event.key === '?') {
+          // `?` must always reach the shortcuts overlay, even while typing
+          // in a text input — the one global binding that can't be allowed
+          // to just fall into the field as a literal character.
+          event.preventDefault()
+          setHelpOpen((open) => !open)
         }
         return
       }
@@ -905,7 +935,7 @@ export function App() {
       : t('app.status.refreshing')
     : meta.caughtUp
       ? `${t('app.status.caughtUp')}${meta.lastRefreshAt ? t('app.status.lastRefreshSuffix', { time: formatClockTime(meta.lastRefreshAt) }) : ''}`
-      : t('app.status.unreadCount', { count: meta.unreadCount })
+      : t('app.status.unreadCount', { count: currentUnreadCount })
 
   return (
     <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
@@ -1253,6 +1283,7 @@ export function App() {
                 defaultPlaybackRate={settings.defaultPlaybackRate}
                 onNextInQueue={nextInQueue}
                 onClose={closePlayer}
+                onSearch={exitPlayerToSearch}
                 onOpenVideo={(videoId) => openVideo(videoId)}
                 onStatePatched={patch}
               />

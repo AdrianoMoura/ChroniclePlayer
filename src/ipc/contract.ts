@@ -84,6 +84,7 @@ export interface AccountDto {
   label: string
   connected: boolean
   writeScopeGranted: boolean
+  isPrimary: boolean
 }
 
 // Expected failures cross the boundary as values, not thrown strings

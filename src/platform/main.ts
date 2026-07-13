@@ -325,7 +325,8 @@ void app.whenReady().then(() => {
       accountId: stack.accountId,
       label: stack.label,
       connected: stack.authFlow.hasRefreshToken(),
-      writeScopeGranted: stack.authFlow.hasWriteScope()
+      writeScopeGranted: stack.authFlow.hasWriteScope(),
+      isPrimary: stack.accountId === primaryAccountId()
     }
   }
 

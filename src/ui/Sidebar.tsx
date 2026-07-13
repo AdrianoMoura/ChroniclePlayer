@@ -1,6 +1,61 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type RefObject
+} from 'react'
+import { createPortal } from 'react-dom'
 import type { AccountDto, ChannelDto, FeedViewDto } from '../ipc/contract'
 import { t } from './i18n'
+
+// The channel/account "…" menus live inside a scrollable list (overflow:
+// auto) — an in-flow absolutely positioned menu gets clipped whenever it
+// opens near the edge of the visible scroll area. Portaling to <body> with
+// a viewport-anchored fixed position avoids that regardless of scroll
+// position, and flips above the trigger when there isn't room below.
+function ContextMenu({
+  anchorRect,
+  onMenuClick,
+  children
+}: {
+  anchorRect: DOMRect
+  onMenuClick: (event: ReactMouseEvent) => void
+  children: ReactNode
+}) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [style, setStyle] = useState<CSSProperties>({
+    position: 'fixed',
+    top: anchorRect.bottom + 4,
+    right: Math.max(8, window.innerWidth - anchorRect.right)
+  })
+
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const top =
+      anchorRect.bottom + 4 + rect.height > window.innerHeight - 8
+        ? Math.max(8, anchorRect.top - rect.height - 4)
+        : anchorRect.bottom + 4
+    const right =
+      anchorRect.right - rect.width < 8
+        ? Math.max(8, window.innerWidth - anchorRect.left - rect.width)
+        : window.innerWidth - anchorRect.right
+    setStyle({ position: 'fixed', top, right })
+  }, [anchorRect.top, anchorRect.right, anchorRect.bottom, anchorRect.left])
+
+  return createPortal(
+    <div ref={menuRef} className="channel-menu" style={style} onClick={onMenuClick}>
+      {children}
+    </div>,
+    document.body
+  )
+}
 
 export const VIEW_ORDER: readonly FeedViewDto[] = [
   'all',
@@ -68,9 +123,11 @@ export function Sidebar({
   // Per-row "…" context menu (B-010): armed twice before it actually acts,
   // same pattern as Settings' delete-all confirmation.
   const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
+  const [channelMenuAnchor, setChannelMenuAnchor] = useState<DOMRect | null>(null)
   const [confirmingUnsub, setConfirmingUnsub] = useState<string | null>(null)
   // B-003: same double-arm pattern, for the Accounts "…" menu.
   const [menuAccountId, setMenuAccountId] = useState<string | null>(null)
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<DOMRect | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
 
   const visibleChannels = useMemo(() => {
@@ -143,9 +200,8 @@ export function Sidebar({
         ))}
       </nav>
 
-      {channels.length > 0 && (
-        <div className="channel-list">
-          <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
+      <div className="channel-list">
+        <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
           <div className="field-wrap">
             <input
               ref={channelQueryRef}
@@ -207,13 +263,17 @@ export function Sidebar({
                 onClick={(event) => {
                   event.stopPropagation()
                   setConfirmingUnsub(null)
+                  setChannelMenuAnchor(event.currentTarget.getBoundingClientRect())
                   setMenuChannelId((current) => (current === channel.channelId ? null : channel.channelId))
                 }}
               >
                 ⋯
               </button>
-              {menuChannelId === channel.channelId && (
-                <div className="channel-menu" onClick={(event) => event.stopPropagation()}>
+              {menuChannelId === channel.channelId && channelMenuAnchor && (
+                <ContextMenu
+                  anchorRect={channelMenuAnchor}
+                  onMenuClick={(event) => event.stopPropagation()}
+                >
                   <button
                     onClick={() => {
                       onToggleFavorite(channel.channelId)
@@ -240,15 +300,16 @@ export function Sidebar({
                       ? t('sidebar.channelMenu.confirmUnsubscribe')
                       : t('sidebar.channelMenu.unsubscribe')}
                   </button>
-                </div>
+                </ContextMenu>
               )}
             </div>
           ))}
-          {visibleChannels.length === 0 && (
-            <p className="channel-query-empty">{t('sidebar.noChannelMatch')}</p>
-          )}
-        </div>
-      )}
+        {visibleChannels.length === 0 && (
+          <p className="channel-query-empty">
+            {channels.length === 0 ? t('sidebar.noChannels') : t('sidebar.noChannelMatch')}
+          </p>
+        )}
+      </div>
 
       <div className="account-list">
         <h3 className="channel-list-header">{t('sidebar.accountsHeader')}</h3>
@@ -272,13 +333,17 @@ export function Sidebar({
               onClick={(event) => {
                 event.stopPropagation()
                 setConfirmingRemove(null)
+                setAccountMenuAnchor(event.currentTarget.getBoundingClientRect())
                 setMenuAccountId((current) => (current === account.accountId ? null : account.accountId))
               }}
             >
               ⋯
             </button>
-            {menuAccountId === account.accountId && (
-              <div className="channel-menu" onClick={(event) => event.stopPropagation()}>
+            {menuAccountId === account.accountId && accountMenuAnchor && (
+              <ContextMenu
+                anchorRect={accountMenuAnchor}
+                onMenuClick={(event) => event.stopPropagation()}
+              >
                 <button
                   onClick={() => {
                     onSyncAccountNow(account.accountId)
@@ -289,7 +354,10 @@ export function Sidebar({
                 </button>
                 <button
                   className={confirmingRemove === account.accountId ? 'danger' : ''}
+                  disabled={account.isPrimary}
+                  title={account.isPrimary ? t('sidebar.accountMenu.removeDisabledTitle') : undefined}
                   onClick={() => {
+                    if (account.isPrimary) return
                     if (confirmingRemove === account.accountId) {
                       onRemoveAccount(account.accountId)
                       setMenuAccountId(null)
@@ -303,7 +371,7 @@ export function Sidebar({
                     ? t('sidebar.accountMenu.confirmRemove')
                     : t('sidebar.accountMenu.remove')}
                 </button>
-              </div>
+              </ContextMenu>
             )}
           </div>
         ))}

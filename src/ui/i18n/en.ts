@@ -283,6 +283,7 @@ export const en = {
   'app.banner.subscribeFailed': "Couldn't subscribe: {message}",
   'app.banner.accountConnectFailed': "Couldn't connect the account: {message}",
   'app.banner.accountSyncFailed': "Couldn't sync this account: {message}",
+  'app.banner.removeAccountFailed': "Couldn't remove this account: {message}",
 
   // App — sidebar
   'app.sidebar.showTitle': 'Show sidebar',
@@ -363,6 +364,7 @@ export const en = {
   'sidebar.findChannelPlaceholder': 'Find channel  c',
   'sidebar.clearTitle': 'Clear',
   'sidebar.noChannelMatch': 'No channel matches.',
+  'sidebar.noChannels': 'This account isn’t following any channels yet.',
   'sidebar.settingsLabel': 'Settings',
 
   // Sidebar — Accounts (B-003)
@@ -373,6 +375,8 @@ export const en = {
   'sidebar.accountMenu.syncNow': 'Sync now',
   'sidebar.accountMenu.remove': 'Remove account',
   'sidebar.accountMenu.confirmRemove': 'Click again to remove',
+  'sidebar.accountMenu.removeDisabledTitle':
+    'The primary account can’t be removed here — use Sign Out in Settings instead',
   'sidebar.channelMenu.title': 'More',
   'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
   'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',

@@ -19,6 +19,7 @@ interface PlayerViewProps {
   defaultPlaybackRate: number
   onNextInQueue: () => void
   onClose: () => void
+  onSearch: () => void
   onOpenVideo: (videoId: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
 }
@@ -32,6 +33,7 @@ export function PlayerView({
   defaultPlaybackRate,
   onNextInQueue,
   onClose,
+  onSearch,
   onOpenVideo,
   onStatePatched
 }: PlayerViewProps) {
@@ -146,6 +148,12 @@ export function PlayerView({
         case 'b':
           openInBrowser()
           break
+        case '/':
+          // Search shouldn't require leaving playback through a separate
+          // step first — exits fully back to the feed (not just one level
+          // of the queue stack, like Esc/Back) with the filter focused.
+          onSearch()
+          break
         default:
           return
       }
@@ -154,7 +162,7 @@ export function PlayerView({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [command, onClose, video.videoId])
+  }, [command, onClose, onSearch, video.videoId])
 
   // B-039: the mouse "back" side button (XButton1, event.button === 3) exits
   // the player, same as Esc/the visible Back button — mirrors what browsers

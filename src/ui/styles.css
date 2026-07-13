@@ -877,7 +877,9 @@ button.primary:disabled {
 }
 
 .row:hover .row-actions,
-.row.selected .row-actions {
+.row.selected .row-actions,
+.card:hover .row-actions,
+.card.selected .row-actions {
   display: flex;
 }
 
