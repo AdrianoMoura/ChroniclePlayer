@@ -52,36 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-063 — Favorites Home section should follow the feed's layout/size settings; sidebar should list favorited channels first
-- **Type:** bug (layout) + adjustment (ordering)
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** feed / ui-shell
-- **What happens:** three related points.
-  1. The Home "priority section" (favorited channels' unread videos, [[B-042]]/D-039)
-     renders via a plain list of `VideoRow` without the `itemSize`/`layout` props the
-     main `FeedList` call passes — it's always list-mode regardless of the grid/list
-     toggle or the size slider, unlike the Today/Yesterday/Earlier sections it sits above.
-  2. The sidebar channel-list ordering is freshest-first only (per [[B-008]]), with no
-     favorite-first tiebreak — favorited channels are interleaved by recency like any
-     other channel instead of appearing first.
-  3. **Clarification, not a confirmed bug:** the owner reports favoriting a channel seems
-     to inconsistently mark all its videos as unread. Code review found no code path that
-     does this — `toggleChannelFavorite` only flips the `favorite` flag and never touches
-     `video_state` or bulk-writes `read = 0`. This needs re-triage against a specific
-     repro before assuming the favorite toggle itself is at fault — it may well be
-     [[B-058]] (archive-backfill always defaults to unread) producing a similar-looking
-     symptom around the same time a channel gets favorited/paginated.
-- **Expected:** (1) priority section respects `settings.itemSize`/`settings.layout` like
-  the rest of the feed; (2) sidebar channel list orders favorited channels first, then by
-  recency within each group (favorite DESC, then latest-published DESC); (3) confirm with
-  the owner whether the "unread" symptom reproduces via favoriting specifically or via
-  B-058's archive pagination before scoping any fix here.
-- **Code refs:** `src/ui/App.tsx` (priority-section block vs. the main `FeedList` call);
-  `src/adapters/storage/repositories.ts` (`listFollowedChannels`'s `ORDER BY`;
-  `toggleChannelFavorite`).
-- **Notes:** related to [[B-042]] (original priority-section feature) and [[B-058]] (the
-  actual unread-on-backfill bug this may be conflated with).
-
 ### B-062 — Comments: pagination unused, no comment likes (permanent API limitation), reply-to-reply doesn't prefill @mention
 - **Type:** bug (pagination) + adjustment (reply UX) · note on the likes ask below
 - **Status:** Open · **Reported:** 2026-07-12
@@ -414,6 +384,38 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-063 — Favorites Home section should follow the feed's layout/size settings; sidebar should list favorited channels first
+- **Type:** bug (layout) + adjustment (ordering)
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Area:** feed / ui-shell
+- **What happens:** three related points reported together. (1) The Home priority section
+  rendered via a plain `VideoRow` list, ignoring the feed's `itemSize`/`layout` settings.
+  (2) The sidebar channel list was freshest-first only, no favorite-first tiebreak. (3) a
+  clarification-not-a-confirmed-bug about favoriting seeming to mark videos unread.
+- **Expected:** (1)/(2) fixed; (3) needs a concrete repro before it can be scoped.
+- **Code refs:** `src/ui/App.tsx` (priority section now branches on `settings.layout`,
+  rendering `VideoCard`/`VideoRow` sized via `GRID_CARD_SIZES`/`settings.itemSize`);
+  `src/ui/FeedList.tsx` (`VideoCard` exported, gained the same `focusable` prop `VideoRow`
+  already had); `src/adapters/storage/repositories.ts` (`listFollowedChannels`'s
+  `ORDER BY favorite DESC, ...`).
+- **Notes:**
+  - Part (3) is **not addressed** — code review (repeated from the original report)
+    still finds no path where `toggleChannelFavorite` touches `video_state`; it only
+    flips the `favorite` column. Left open pending a concrete repro; may well be
+    [[B-058]] (now also fixed this batch) producing a similar-looking symptom.
+  - The priority section isn't virtualized (capped at 20 rows) — grid mode uses a plain
+    CSS `repeat(auto-fill, minmax(...))` track list sized from `GRID_CARD_SIZES` rather
+    than `FeedList`'s `ResizeObserver`-computed column count, since there's no
+    virtualizer row-height math to feed here.
+  - `feed.md`'s "favoriting does not change sidebar sort order" line (written for D-039)
+    is superseded — the owner reported this defeated the point of favoriting a channel
+    in a long list; `decisions.md`/`feed.md` updated in the same change.
+  - No live-app check this session; verified via `npm run typecheck && npm run lint &&
+  npm test` (174/174, including a new sidebar-ordering contract test). Owner should
+  validate live: the priority section in grid mode at a few item sizes, and that a
+  favorited channel jumps to the top of a long sidebar list.
+- **Resolved:** 2026-07-12 · **Commit:** 2a9c31c · **Outcome:** Fixed
 
 ### B-058 — Paginating a channel's archive marks all newly-discovered videos as unread
 - **Type:** bug · **Severity:** major
