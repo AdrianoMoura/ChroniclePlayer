@@ -358,10 +358,15 @@ export function PlayerView({
             onClick={() => {
               setActionError(null)
               if (subscribed) {
-                void window.chronicle.unsubscribeChannel(video.channelId).then((result) => {
-                  if (result.ok) setSubscribed(false)
-                  else setActionError(result.message)
-                })
+                void writeScopeGate
+                  .run(
+                    () => window.chronicle.unsubscribeChannel(video.channelId),
+                    () => window.chronicle.requestWriteScopeForChannel(video.channelId)
+                  )
+                  .then((result) => {
+                    if (result.ok) setSubscribed(false)
+                    else if (result.errorKind !== 'cancelled') setActionError(result.message)
+                  })
               } else {
                 void writeScopeGate
                   .run(() => window.chronicle.subscribeChannel(video.channelId))

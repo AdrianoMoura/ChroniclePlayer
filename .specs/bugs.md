@@ -246,6 +246,13 @@ Resolved entries add:
     dialog and load successfully after granting; unsubscribe shows the dialog instead of
     jumping straight to the browser.
 - **Resolved:** 2026-07-13 · **Commit:** 7bfedf2 · **Outcome:** Fixed
+- **Amended 2026-07-13 (commit 7132f2b):** missed a second unsubscribe call site —
+  `PlayerView.tsx`'s own subscribe/unsubscribe toggle ([[B-061]]'s player half) called
+  `unsubscribeChannel` directly, unwrapped, so once the IPC started returning
+  `write-scope-required` proactively instead of silently opening the browser, this call
+  site just showed the raw error with no dialog and no way to actually grant the scope
+  and complete the unsubscribe. Wrapped it in `writeScopeGate.run(...,
+  requestWriteScopeForChannel)`, same as `App.tsx`'s call site.
 
 ### B-080 — Channel header stays visible over search results and the player screen
 - **Type:** bug · **Severity:** minor
