@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CommentDto } from '../ipc/contract'
 import { publishedLabel } from './format'
 import { t } from './i18n'
@@ -44,7 +44,7 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
     })
   }
 
-  function loadMore(): void {
+  const loadMore = useCallback(() => {
     if (nextPageToken === null || loadingMore) return
     setLoadingMore(true)
     void writeScopeGate.run(() => window.chronicle.getComments(videoId, nextPageToken)).then((result) => {
@@ -56,13 +56,30 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
       setComments((current) => [...(current ?? []), ...result.value.comments])
       setNextPageToken(result.value.nextPageToken)
     })
-  }
+  }, [videoId, nextPageToken, loadingMore, writeScopeGate])
 
   function toggle(): void {
     const next = !open
     setOpen(next)
     if (next && comments === null) load()
   }
+
+  // Auto-paginate on scroll, same as the main feed and search results —
+  // no "Load more" click anywhere else in the app. The comments list isn't
+  // its own scroll container (it flows inside the player's page-level
+  // scroll), so a sentinel + IntersectionObserver is simpler than tracking
+  // scroll position on some ancestor.
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!open || nextPageToken === null) return
+    const el = sentinelRef.current
+    if (el === null) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [open, nextPageToken, loadMore])
 
   function postTopLevel(): void {
     const text = newComment.trim()
@@ -119,11 +136,8 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
               }}
             />
           ))}
-          {nextPageToken !== null && (
-            <button className="comments-load-more" disabled={loadingMore} onClick={loadMore}>
-              {loadingMore ? t('comments.loadingMore') : t('comments.loadMore')}
-            </button>
-          )}
+          {nextPageToken !== null && <div ref={sentinelRef} />}
+          {loadingMore && <p className="comments-loading">{t('comments.loadingMore')}</p>}
         </div>
       )}
       {writeScopeGate.dialog}

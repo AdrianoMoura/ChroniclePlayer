@@ -1397,16 +1397,6 @@ button.primary.active {
   font-size: 13px;
 }
 
-.comments-load-more {
-  color: var(--text-dim);
-  font-size: 13px;
-  padding: 8px 0;
-}
-
-.comments-load-more:hover {
-  color: var(--text);
-}
-
 .comment {
   padding: 10px 0;
   border-top: 1px solid var(--border);

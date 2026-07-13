@@ -203,6 +203,26 @@ Resolved entries add:
 
 ## Resolved
 
+### B-083 — Comments pagination was a "Load more" click instead of auto-pagination
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** player
+- **What happens:** same inconsistency as [[B-075]] — the comments list's pagination
+  used a clickable "Load more comments" link instead of loading automatically on scroll
+  like the main feed and (now) search results.
+- **Expected:** scrolling near the end of the loaded comments triggers the next page
+  automatically; a plain non-interactive "Loading more comments…" line while a page is
+  in flight.
+- **Code refs:** `src/ui/Comments.tsx` (new sentinel `div` + `IntersectionObserver`
+  effect calling `loadMore`, which is now a `useCallback` so the effect can depend on
+  it cleanly; dropped the `comments-load-more` button/CSS class and the now-unused
+  `comments.loadMore` string). Different mechanism from [[B-075]]'s `onScroll` handler
+  because the comments list isn't its own scroll container — it flows inside the
+  player's page-level scroll (`.player-view`), so there's no single element's
+  `scrollTop` to check; a sentinel element crossing into view works regardless of which
+  ancestor actually scrolls.
+- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+
 ### B-082 — No way to favorite a channel from its own screen
 - **Type:** adjustment
 - **Status:** Fixed · **Reported:** 2026-07-13
