@@ -881,6 +881,29 @@ void app.whenReady().then(() => {
     }
   })
   ipcMain.handle(
+    IpcChannel.requestWriteScopeForChannel,
+    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
+      const id = parseChannelIdRequired(channelId)
+      const owningAccountId = resolveOwningAccountId(id)
+      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
+      if (stack === undefined) {
+        return {
+          ok: false,
+          errorKind: 'not-found',
+          message: 'channel is not subscribed by any connected account'
+        }
+      }
+      try {
+        await stack.authFlow.requestWriteScope()
+        stack.authProvider.invalidate()
+        return { ok: true, value: undefined }
+      } catch (error) {
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
     IpcChannel.unsubscribeChannel,
     async (_event, channelId: unknown): Promise<ResultDto<void>> => {
       const id = parseChannelIdRequired(channelId)
@@ -894,11 +917,15 @@ void app.whenReady().then(() => {
         }
       }
       try {
-        // D-032 incremental consent: the write scope is requested the first
-        // time it's needed, not upfront — this may open the system browser.
+        // D-032 incremental consent: surfaced as an in-app dialog (the
+        // writeScopeGate pattern) before any browser opens, never requested
+        // silently by the action itself.
         if (!stack.authFlow.hasWriteScope()) {
-          await stack.authFlow.requestWriteScope()
-          stack.authProvider.invalidate()
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'unsubscribing needs an extra permission'
+          }
         }
         let subscriptionId = syncRepository.getSubscriptionId(stack.accountId, id)
         if (subscriptionId === null) {
@@ -1029,6 +1056,19 @@ void app.whenReady().then(() => {
     ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>> => {
       const id = parseVideoId(videoId)
       try {
+        // Empirically requires the write scope too, not just readonly (the
+        // opposite of what Google's own docs say) — confirmed by the owner:
+        // commentThreads.list 403s until the force-ssl grant from a Like
+        // action, after which reading comments starts working. Gated the
+        // same way as every other write-scope action so the dialog shows up
+        // instead of a bare 403.
+        if (!authFlow.hasWriteScope()) {
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'reading comments needs an extra permission'
+          }
+        }
         const result = await apiClient.listComments(
           id,
           typeof pageToken === 'string' ? pageToken : undefined

@@ -203,6 +203,50 @@ Resolved entries add:
 
 ## Resolved
 
+### B-081 — Reading comments 403s with no explanation; unsubscribe still opens the browser with no warning dialog
+- **Type:** bug
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** auth / player
+- **What happens:** two related reports from live use. (1) Clicking "Show comments"
+  reliably 403'd — the owner confirmed by direct testing that granting the write scope
+  via Like (which does show the explanatory dialog) is what makes comment-reading start
+  working afterward: the same scope is actually required for both, contradicting the
+  assumption recorded in [[B-006]]/D-032 that `commentThreads.list` needs only the
+  readonly scope granted at initial connect. (2) Unsubscribe still opens the system
+  browser straight to Google's consent screen with no in-app warning first — the exact
+  gap [[B-067]] left open (its notes: converting unsubscribe needed the dialog flow to
+  know *which* account's consent was pending, which the shared `write-scope-required`
+  error shape has no room for).
+- **Expected:** any action needing a not-yet-granted permission shows the explanatory
+  in-app dialog first, with zero exceptions — this is a core interaction pattern, not a
+  per-feature choice.
+- **Code refs:** `src/platform/main.ts` (`getComments` now returns `write-scope-required`
+  proactively, same as `rateVideo`; new `requestWriteScopeForChannel` IPC resolving the
+  owning account via the existing `resolveOwningAccountId`; `unsubscribeChannel` now
+  returns `write-scope-required` instead of calling `stack.authFlow.requestWriteScope()`
+  inline); `src/ui/useWriteScopeGate.tsx` (`run()` gained an optional second
+  `requestScope` argument, defaulting to the primary-account `requestWriteScope`);
+  `src/ui/App.tsx` (`unsubscribeChannel` now wraps the call in `writeScopeGate.run(...,
+  () => window.chronicle.requestWriteScopeForChannel(channelId))`); `src/ui/Comments.tsx`
+  (`load`/`loadMore` wrapped in `writeScopeGate.run`).
+- **Notes:**
+  - Closes [[B-067]]'s "known gap, not addressed" note on unsubscribe — see that entry's
+    amendment.
+  - The comment-reading scope requirement contradicts Google's own published docs (which
+    say `commentThreads.list` is readonly-safe) — trusting the owner's direct empirical
+    test over the docs here, since the observed behavior (403 until a write-scope grant,
+    then it works) is unambiguous from actual use. `youtube-api.md`/D-032 updated to
+    record this as the actual observed requirement, flagged as contradicting the
+    documented API behavior in case it's project-specific (e.g. OAuth consent screen
+    configuration) rather than universal.
+  - No live-app check this session (the actual consent/browser flow and the real
+    comments 403 both need a live account per [[no-live-app-verification]]); verified via
+    `npm run typecheck && npm run lint && npm test` (179/179 — this is UI/IPC wiring, no
+    new domain logic to unit test). Owner should validate live: comments now show the
+    dialog and load successfully after granting; unsubscribe shows the dialog instead of
+    jumping straight to the browser.
+- **Resolved:** 2026-07-13 · **Commit:** 7bfedf2 · **Outcome:** Fixed
+
 ### B-080 — Channel header stays visible over search results and the player screen
 - **Type:** bug · **Severity:** minor
 - **Status:** Fixed · **Reported:** 2026-07-13
@@ -509,7 +553,7 @@ Resolved entries add:
 
 ### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
 - **Type:** bug
-- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** auth / player
 - **What happens:** two related gaps found live by the owner. (1) Comments' errors
   showed raw API text with no `errorKind` check or recovery path. (2) every write
@@ -540,6 +584,16 @@ Resolved entries add:
     write scope granted shows the dialog first, Continue actually opens the browser and
     retries the action after consent, and Cancel is a clean no-op.
 - **Resolved:** 2026-07-13 · **Commit:** cdc509c · **Outcome:** Fixed (partial)
+- **Amended 2026-07-13 (commit 7bfedf2):** the "known gap" is closed — unsubscribe now
+  goes through the same dialog. Solved the account-ambiguity this note called out by
+  adding a channel-scoped `requestWriteScopeForChannel(channelId)` IPC (resolves the
+  owning account the same way `unsubscribeChannel` itself already did) instead of trying
+  to thread an account id through the generic `write-scope-required` error shape;
+  `useWriteScopeGate.run()` now takes an optional second `requestScope` argument so a
+  caller can supply this narrower request instead of the default primary-account one.
+  `unsubscribeChannel`'s handler (`src/platform/main.ts`) returns `write-scope-required`
+  proactively instead of calling `stack.authFlow.requestWriteScope()` inline. Status
+  promoted from partial to full Fixed.
 
 ### B-073 — Sidebar's per-channel unread count doesn't update immediately after toggling a video's read status
 - **Type:** bug · **Severity:** minor

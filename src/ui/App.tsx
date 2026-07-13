@@ -349,26 +349,33 @@ export function App() {
   // the system browser once for incremental write-scope consent (D-032).
   const unsubscribeChannel = useCallback(
     (channelId: string) => {
-      void window.chronicle.unsubscribeChannel(channelId).then((result) => {
-        if (!result.ok) {
-          if (result.errorKind === 'auth-expired') {
-            setBanner({
-              text: t('app.banner.reconnectRequired'),
-              action: { label: t('app.banner.reconnectAction'), run: connect }
-            })
-          } else if (result.errorKind === 'network-unavailable') {
-            setBanner({ text: t('app.banner.offline') })
-          } else {
-            setBanner({ text: t('app.banner.unsubscribeFailed', { message: result.message }) })
+      void writeScopeGate
+        .run(
+          () => window.chronicle.unsubscribeChannel(channelId),
+          () => window.chronicle.requestWriteScopeForChannel(channelId)
+        )
+        .then((result) => {
+          if (!result.ok) {
+            if (result.errorKind === 'cancelled') {
+              // User declined the write-scope dialog — no error to show.
+            } else if (result.errorKind === 'auth-expired') {
+              setBanner({
+                text: t('app.banner.reconnectRequired'),
+                action: { label: t('app.banner.reconnectAction'), run: connect }
+              })
+            } else if (result.errorKind === 'network-unavailable') {
+              setBanner({ text: t('app.banner.offline') })
+            } else {
+              setBanner({ text: t('app.banner.unsubscribeFailed', { message: result.message }) })
+            }
+            return
           }
-          return
-        }
-        loadChannels()
-        if (channelFilter === channelId) setChannelFilter(null)
-        else loadView()
-      })
+          loadChannels()
+          if (channelFilter === channelId) setChannelFilter(null)
+          else loadView()
+        })
     },
-    [channelFilter, connect, loadChannels, loadView]
+    [channelFilter, connect, loadChannels, loadView, writeScopeGate]
   )
 
   // B-009/D-031: explicit user action only — never fired on keystroke.

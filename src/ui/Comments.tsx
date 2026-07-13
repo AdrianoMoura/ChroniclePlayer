@@ -33,10 +33,10 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
   function load(): void {
     setLoading(true)
     setError(null)
-    void window.chronicle.getComments(videoId).then((result) => {
+    void writeScopeGate.run(() => window.chronicle.getComments(videoId)).then((result) => {
       setLoading(false)
       if (!result.ok) {
-        setError(commentsErrorMessage(result.errorKind, result.message))
+        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setComments(result.value.comments)
@@ -47,10 +47,10 @@ export function CommentsSection({ videoId }: CommentsSectionProps) {
   function loadMore(): void {
     if (nextPageToken === null || loadingMore) return
     setLoadingMore(true)
-    void window.chronicle.getComments(videoId, nextPageToken).then((result) => {
+    void writeScopeGate.run(() => window.chronicle.getComments(videoId, nextPageToken)).then((result) => {
       setLoadingMore(false)
       if (!result.ok) {
-        setError(commentsErrorMessage(result.errorKind, result.message))
+        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
         return
       }
       setComments((current) => [...(current ?? []), ...result.value.comments])

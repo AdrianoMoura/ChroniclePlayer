@@ -11,7 +11,13 @@ import { t } from './i18n'
 export function useWriteScopeGate() {
   const [pending, setPending] = useState<{ onDecide: (proceed: boolean) => void } | null>(null)
 
-  const run = useCallback(<T,>(action: () => Promise<ResultDto<T>>): Promise<ResultDto<T>> => {
+  const run = useCallback(<T,>(
+    action: () => Promise<ResultDto<T>>,
+    // Unsubscribe (B-003 multi-account) needs the owning account's grant,
+    // not necessarily the primary account's — callers pass a narrower
+    // request when the default (primary-account) consent wouldn't apply.
+    requestScope: () => Promise<ResultDto<void>> = () => window.chronicle.requestWriteScope()
+  ): Promise<ResultDto<T>> => {
     return action().then((result) => {
       if (result.ok || result.errorKind !== 'write-scope-required') return result
       return new Promise<ResultDto<T>>((resolve) => {
@@ -22,7 +28,7 @@ export function useWriteScopeGate() {
               resolve({ ok: false, errorKind: 'cancelled', message: 'cancelled by user' })
               return
             }
-            void window.chronicle.requestWriteScope().then((consent) => {
+            void requestScope().then((consent) => {
               if (!consent.ok) {
                 resolve({ ok: false, errorKind: consent.errorKind, message: consent.message })
                 return

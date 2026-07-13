@@ -251,6 +251,7 @@ export const IpcChannel = {
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
   requestWriteScope: 'auth:requestWriteScope',
+  requestWriteScopeForChannel: 'auth:requestWriteScopeForChannel',
   windowControl: 'window:control',
   unsubscribeChannel: 'channel:unsubscribe',
   toggleChannelFavorite: 'channel:toggleFavorite',
@@ -317,6 +318,10 @@ export interface ChronicleApi {
   // (opens the system browser) — called only after the user has confirmed
   // an in-app dialog explaining why, never silently by a write action itself.
   requestWriteScope(): Promise<ResultDto<void>>
+  // Same consent flow, but for whichever account actually owns channelId —
+  // unsubscribe (B-003 multi-account) needs the owning account's grant, not
+  // necessarily the primary account's.
+  requestWriteScopeForChannel(channelId: string): Promise<ResultDto<void>>
   // Wizard Step 7 validation: proves the token works and the API is enabled
   // (1 quota unit); failures map back to the responsible step (D-014).
   getConnectedChannel(): Promise<ResultDto<{ title: string }>>
