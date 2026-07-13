@@ -314,10 +314,29 @@ Resolved entries add:
   `process.argv` for a `--chronicle-renderer-url=` flag as a fallback to the env var,
   and `deleteAllData` now passes `app.relaunch({ args: [...relaunchArgs,
   '--chronicle-renderer-url=...'] })`), removing the dependency on env-inheritance
-  entirely regardless of whether that was the true root cause. **Still needs live
-  validation** on the product owner's system in `npm run dev` — this session has no
-  display to exercise Electron relaunch/compositor behavior. Keep in "In progress"
-  (not Resolved) until confirmed live, per this bug's own established rule.
+  entirely regardless of whether that was the true root cause. **Confirmed still
+  reproducing 2026-07-12** by the product owner, live, after this second attempt too
+  (commit 9be2d72) — "deletei tudo, o app reabriu mas fica numa tela em branco." Two
+  attempts down, both aimed at the renderer-URL-not-reaching-the-relaunched-process
+  theory; that theory itself may be wrong, or only part of the picture.
+  **New working hypothesis, not yet verified — worth checking first on the next
+  attempt:** `npm run dev` runs via `electron-vite dev`, which supervises the Electron
+  process as its own child and owns the Vite dev server backing
+  `ELECTRON_RENDERER_URL`. `deleteAllData` calls `app.relaunch()` (spawns a *new*,
+  untracked grandchild Electron process) then `app.quit()`s the original — from
+  electron-vite's supervisor's point of view, its child just exited, which may cause it
+  to tear down the Vite dev server (thinking the user closed the app) before or shortly
+  after the relaunched instance tries to `loadURL()` against it — a dead dev server
+  would look exactly like a blank/frozen window, and would explain why fixing the
+  renderer-URL *value* twice hasn't helped: the URL was probably always correct, the
+  server behind it wasn't necessarily still alive. This would be dev-mode-only — a
+  packaged build's `loadFile()` has no such dependency. If confirmed, the fix is likely
+  to stop using OS-level `app.relaunch()`/`app.quit()` for this flow entirely and instead
+  do an in-process reset (destroy windows, wipe data, reinitialize the backend and open a
+  fresh window in the same process) — a larger change than the previous two attempts,
+  since today's `app.whenReady()` setup is one large one-shot closure, not something
+  currently callable a second time. Keep in "In progress" (not Resolved) until confirmed
+  live, per this bug's own established rule.
 
 ## Resolved
 
