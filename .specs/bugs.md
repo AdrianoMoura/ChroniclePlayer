@@ -126,52 +126,6 @@ Resolved entries add:
   subscription list to actually observe the window, which this session has no way to
   exercise.
 
-### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
-- **Type:** bug
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** auth / player
-- **What happens:** two related gaps found live by the owner while testing comments/likes.
-  1. **Expanding comments showed "no permission" with no recovery path:** `Comments.tsx`'s
-     `load()` displays `result.message` raw (`<p className="comments-error">{error}</p>`)
-     for any failure, with no `errorKind` check at all — unlike other actions in the app
-     (e.g. `App.tsx`'s banners), it never distinguishes `auth-expired` from any other
-     error and never offers a Reconnect action. `getComments`'s IPC handler
-     (`src/platform/main.ts`) never calls `requestWriteScope()` either (correct — reading
-     comments only needs the readonly scope per D-032), so the failure the owner hit was
-     most likely an expired/invalid token unrelated to comments specifically — but there
-     was no way to tell or fix it from the comments UI itself. Clicking Like (which
-     *does* have a consent/refresh path) happened to fix the underlying token, which is
-     why comments started working only after that.
-  2. **Incremental write-scope consent has no explanation before it happens:** every
-     write action (Like via `rateVideo`, Subscribe/Unsubscribe, post/reply to a comment)
-     checks `authFlow.hasWriteScope()` and, if false, calls `authFlow.requestWriteScope()`
-     directly inside the main-process IPC handler (`src/platform/main.ts`, e.g. line ~972
-     in the `rateVideo` handler) — which opens the *system browser* to Google's consent
-     screen (`AuthFlow.runFlow`/`openInSystemBrowser`, `src/adapters/oauth/auth.ts`) with
-     zero warning shown in-app first. The owner clicked Like and was surprised to
-     suddenly land on a browser tab with no idea why.
-- **Expected:** (1) `Comments.tsx` (and any other place that swallows raw error text)
-  should check `errorKind` and offer a real recovery path for `auth-expired` (a Reconnect
-  banner/action), matching the pattern already used elsewhere in the app. (2) before any
-  write action triggers `requestWriteScope()`, show an in-app dialog explaining what's
-  about to happen and why (e.g. "Chronicle needs an extra permission to like videos —
-  continue to Google?"); only proceed to open the browser once the user confirms.
-- **Code refs:** `src/ui/Comments.tsx` (`load()`/`loadMore()` error handling); `src/ui/App.tsx`
-  (existing `errorKind === 'auth-expired'` → Reconnect-banner pattern to mirror);
-  `src/platform/main.ts` (`rateVideo`, `subscribeChannel`/`unsubscribeChannel`,
-  `postComment`/`replyToComment` handlers — all call `requestWriteScope()` inline, no
-  chance for the renderer to intercept first); `src/adapters/oauth/auth.ts`
-  (`AuthFlow.requestWriteScope`/`runFlow`, `openInSystemBrowser`).
-- **Notes:** part (2) is a real design change, not a one-line fix — today the "does this
-  need write scope?" check and the actual browser-opening flow are fused together inside
-  each IPC handler, with no seam for the renderer to show a dialog in between. The
-  cleanest shape is likely: the IPC handler returns a distinct `errorKind` (e.g.
-  `'write-scope-required'`) instead of calling `requestWriteScope()` itself when the
-  scope is missing; the renderer catches that, shows the explanatory dialog, and on
-  confirm calls a new dedicated IPC method that runs the consent flow, then retries the
-  original action. Touches every incremental-write-scope call site (D-032), so worth
-  doing once, consistently, rather than one action at a time.
-
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
@@ -403,6 +357,40 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
+- **Type:** bug
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Area:** auth / player
+- **What happens:** two related gaps found live by the owner. (1) Comments' errors
+  showed raw API text with no `errorKind` check or recovery path. (2) every write
+  action (Like, Subscribe, post/reply comment) opened the system browser for Google's
+  consent screen the instant it was needed, with zero in-app warning first.
+- **Expected:** (1) a clearer message + path for `auth-expired`; (2) an in-app dialog
+  explaining what's about to happen before the browser opens, proceeding only on confirm.
+- **Code refs:** `src/ui/useWriteScopeGate.tsx` (new hook — the dialog + retry logic,
+  shared by `App.tsx`/`PlayerView.tsx`/`Comments.tsx`); `src/ipc/contract.ts` +
+  `src/platform/main.ts` (new `requestWriteScope` IPC method; `rateVideo`,
+  `subscribeChannel`, `postComment`, `replyToComment` now return `write-scope-required`
+  instead of triggering consent inline); `src/ui/Comments.tsx`
+  (`commentsErrorMessage` — `auth-expired` gets its own copy, not the raw API text).
+- **Notes:**
+  - **Known gap, not addressed:** `unsubscribeChannel`'s write-scope check uses a
+    per-owning-account `stack.authFlow`, not the shared primary-account `authFlow` the
+    other four call sites use — converting it needs the dialog flow to know *which*
+    account's consent is pending, which the current `write-scope-required` shape (no
+    account id in the error) doesn't carry. Left as its original inline behavior;
+    unsubscribe can still surprise-open the browser with no warning.
+  - Declining the dialog resolves the action's promise with `errorKind: 'cancelled'`
+    rather than leaving callers hanging or showing a spurious error banner.
+  - `decisions.md` D-032 updated to record this revision to the incremental-consent flow.
+  - No live-app check this session (the actual consent/browser flow needs a real OAuth
+    setup per [[no-live-app-verification]]); verified via `npm run typecheck && npm run
+    lint && npm test` (177/177 — this is UI/IPC wiring, no new domain logic to unit
+    test). Owner should validate live: clicking Like/Subscribe/post-comment without
+    write scope granted shows the dialog first, Continue actually opens the browser and
+    retries the action after consent, and Cancel is a clean no-op.
+- **Resolved:** 2026-07-13 · **Commit:** cdc509c · **Outcome:** Fixed (partial)
 
 ### B-073 — Sidebar's per-channel unread count doesn't update immediately after toggling a video's read status
 - **Type:** bug · **Severity:** minor
