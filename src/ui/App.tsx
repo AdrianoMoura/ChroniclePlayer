@@ -18,7 +18,15 @@ import type {
 } from '../ipc/contract'
 import { AddAccount } from './AddAccount'
 import { ConnectPanel } from './ConnectPanel'
-import { FeedList, ITEM_SIZES, VideoRow, type FeedRow, type VideoActions } from './FeedList'
+import {
+  FeedList,
+  GRID_CARD_SIZES,
+  ITEM_SIZES,
+  VideoCard,
+  VideoRow,
+  type FeedRow,
+  type VideoActions
+} from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { t } from './i18n'
@@ -1217,20 +1225,42 @@ export function App() {
             ) : (
               <>
                 {priorityVideos.length > 0 && (
-                  <div className="priority-section">
+                  <div className={`priority-section size-${settings.itemSize}`}>
                     <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
-                    {priorityVideos.map((video) => (
-                      <VideoRow
-                        key={video.videoId}
-                        video={video}
-                        selected={false}
-                        undoable={undoable.has(video.videoId)}
-                        actions={actions}
-                        onOpen={() => openVideo(video.videoId)}
-                        showViewCounts={settings.showViewCounts}
-                        focusable
-                      />
-                    ))}
+                    {settings.layout === 'grid' ? (
+                      <div
+                        className="grid-row"
+                        style={{
+                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                        }}
+                      >
+                        {priorityVideos.map((video) => (
+                          <VideoCard
+                            key={video.videoId}
+                            video={video}
+                            selected={false}
+                            undoable={undoable.has(video.videoId)}
+                            actions={actions}
+                            onOpen={() => openVideo(video.videoId)}
+                            showViewCounts={settings.showViewCounts}
+                            focusable
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      priorityVideos.map((video) => (
+                        <VideoRow
+                          key={video.videoId}
+                          video={video}
+                          selected={false}
+                          undoable={undoable.has(video.videoId)}
+                          actions={actions}
+                          onOpen={() => openVideo(video.videoId)}
+                          showViewCounts={settings.showViewCounts}
+                          focusable
+                        />
+                      ))
+                    )}
                   </div>
                 )}
                 {filtered.length === 0 ? (

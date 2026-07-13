@@ -26,7 +26,7 @@ const ROW_HEIGHTS: Record<ItemSize, number> = { xs: 40, small: 56, medium: 76, l
 const HEADER_HEIGHT = 38
 // Card target width; actual column count is derived from container width so
 // the grid reflows instead of overflowing (D-037). Both grow with itemSize.
-const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
+export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
   xs: { minWidth: 110, height: 108 },
   small: { minWidth: 160, height: 150 },
   medium: { minWidth: 220, height: 210 },
@@ -327,7 +327,15 @@ type VideoCardProps = VideoRowProps
 
 // Grid variant of VideoRow (B-007): same data and actions, thumbnail-first
 // card layout instead of a text-first row.
-function VideoCard({ video, selected, undoable, actions, onOpen, showViewCounts }: VideoCardProps) {
+export function VideoCard({
+  video,
+  selected,
+  undoable,
+  actions,
+  onOpen,
+  showViewCounts,
+  focusable = false
+}: VideoCardProps) {
   if (undoable) {
     return (
       <div className={`card undo-strip${selected ? ' selected' : ''}`}>
@@ -340,7 +348,22 @@ function VideoCard({ video, selected, undoable, actions, onOpen, showViewCounts 
   const { state } = video
   const dimmed = state.readStatus !== 'unread'
   return (
-    <div className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`} onClick={onOpen}>
+    <div
+      className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
+      onClick={onOpen}
+      {...(focusable
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onOpen()
+              }
+            }
+          }
+        : {})}
+    >
       <div className="card-thumb-wrap">
         {video.thumbnailUrl !== null ? (
           <img className="thumb" loading="lazy" alt="" src={thumbSrc(video.thumbnailUrl)} />

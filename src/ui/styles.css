@@ -756,6 +756,14 @@ button.primary:disabled {
   margin-bottom: 8px;
 }
 
+/* Grid mode isn't virtualized here (unlike the main feed) — no fixed pixel
+   height is set per row, so the shared .grid-row rule's height:100% has
+   nothing definite to resolve against. */
+.priority-section .grid-row {
+  height: auto;
+  padding-bottom: 12px;
+}
+
 /* ── Virtualized list ────────────────────────────────── */
 
 .feed-scroll {
@@ -1350,64 +1358,64 @@ button.primary.active {
    grid's `.card-thumb-wrap .thumb`, which must always stay width:100% so the
    thumbnail fills its card at every size instead of collapsing to a fixed
    pixel width (B-037 grid-thumbnail-sizing bug). */
-.feed-scroll.size-xs .row {
+:is(.feed-scroll, .priority-section).size-xs .row {
   height: 36px;
   gap: 8px;
 }
 
-.feed-scroll.size-xs .row .thumb {
+:is(.feed-scroll, .priority-section).size-xs .row .thumb {
   width: 56px;
 }
 
-.feed-scroll.size-xs .row-text {
+:is(.feed-scroll, .priority-section).size-xs .row-text {
   gap: 0;
 }
 
-.feed-scroll.size-xs .title,
-.feed-scroll.size-xs .card .title {
+:is(.feed-scroll, .priority-section).size-xs .title,
+:is(.feed-scroll, .priority-section).size-xs .card .title {
   font-size: 12px;
 }
 
-.feed-scroll.size-small .row {
+:is(.feed-scroll, .priority-section).size-small .row {
   height: 48px;
   gap: 10px;
 }
 
-.feed-scroll.size-small .row .thumb {
+:is(.feed-scroll, .priority-section).size-small .row .thumb {
   width: 72px;
 }
 
-.feed-scroll.size-small .row-text {
+:is(.feed-scroll, .priority-section).size-small .row-text {
   gap: 1px;
 }
 
-.feed-scroll.size-large .row {
+:is(.feed-scroll, .priority-section).size-large .row {
   height: 92px;
   gap: 14px;
 }
 
-.feed-scroll.size-large .row .thumb {
+:is(.feed-scroll, .priority-section).size-large .row .thumb {
   width: 160px;
 }
 
-.feed-scroll.size-large .title {
+:is(.feed-scroll, .priority-section).size-large .title {
   font-size: 15px;
 }
 
-.feed-scroll.size-xl .row {
+:is(.feed-scroll, .priority-section).size-xl .row {
   height: 132px;
   gap: 18px;
 }
 
-.feed-scroll.size-xl .row .thumb {
+:is(.feed-scroll, .priority-section).size-xl .row .thumb {
   width: 240px;
 }
 
-.feed-scroll.size-xl .title {
+:is(.feed-scroll, .priority-section).size-xl .title {
   font-size: 16px;
 }
 
-.feed-scroll.size-small .card .title {
+:is(.feed-scroll, .priority-section).size-small .card .title {
   font-size: 12.5px;
 }
 

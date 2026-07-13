@@ -283,8 +283,9 @@ export class SqliteFeedRepository implements FeedRepository {
   // followed by any connected account, deduped (favorite = true if any
   // account favorites it — same OR-across-accounts semantics as membership).
   listFollowedChannels(showShorts = true, accountId?: string): FollowedChannel[] {
-    // Freshest channel first (B-008); channels with nothing synced sink to
-    // the bottom alphabetically. Counts mirror the unread view predicate.
+    // Favorited channels first, then freshest channel first (B-008); channels
+    // with nothing synced sink to the bottom alphabetically. Counts mirror
+    // the unread view predicate.
     const filter = shortsFilter(showShorts)
     const rows = this.db
       .prepare(
@@ -303,7 +304,7 @@ export class SqliteFeedRepository implements FeedRepository {
          JOIN account_channels ac ON ac.channel_id = c.channel_id AND ac.subscribed = 1
            ${accountId !== undefined ? 'AND ac.account_id = :accountId' : ''}
          GROUP BY c.channel_id, c.title, c.thumbnail_url
-         ORDER BY latest_published_at IS NULL, latest_published_at DESC,
+         ORDER BY favorite DESC, latest_published_at IS NULL, latest_published_at DESC,
                   c.title COLLATE NOCASE ASC`
       )
       .all(accountId !== undefined ? { accountId } : {}) as unknown as {

@@ -198,8 +198,21 @@ describe('SqliteFeedRepository', () => {
     expect(followed.map((c) => c.unreadCount)).toEqual([1, 1, 0])
     expect(followed[0].latestPublishedAt).toBe('2026-07-08T10:00:00Z')
     expect(followed[2].latestPublishedAt).toBeNull()
-    // B-042: unfavorited by default; favoriting doesn't reorder this list (B-008 unaffected).
     expect(followed.every((c) => c.favorite === false)).toBe(true)
+  })
+
+  it('favorited channels sort first, then by recency within each group', () => {
+    catalog.upsertChannel({ channelId: 'UCc', title: 'Zed', thumbnailUrl: null })
+    subscribe('UCc')
+    addVideo('a-old', '2026-07-01T10:00:00Z', 'UCa')
+    addVideo('b-mid', '2026-07-05T10:00:00Z', 'UCb')
+    // Zed (freshest) stays unfavorited; Alpha (oldest) becomes favorited —
+    // it should still jump ahead of both Beta and Zed.
+    feed.toggleChannelFavorite(ACCOUNT, 'UCa')
+
+    const followed = feed.listFollowedChannels()
+    expect(followed.map((c) => c.channel.title)).toEqual(['Alpha', 'Beta', 'Zed'])
+    expect(followed[0].favorite).toBe(true)
   })
 
   it('isSubscribed cross-references a channel id against local state (B-009)', () => {

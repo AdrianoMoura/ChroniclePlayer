@@ -78,8 +78,15 @@ pass (`vision.md`).
     once read, a video drops out of it (but stays in its normal bucket, per D-010).
   - Not shown in Favorites/Watch Later/Ignored views, or when channel-filtered to a
     single channel — it is specifically a main-feed ("all"/"unread") affordance.
-  - Favoriting a channel does not change its sidebar sort order (still B-008's
-    freshest-first); it only affects the priority section.
+  - The priority section respects the feed's `itemSize`/`layout` settings (D-037) — list
+    or grid, sized like the rest of the feed (fixed 2026-07-12, `bugs.md` B-063; it
+    previously always rendered as a plain list regardless of the toggle/slider).
+  - **Sidebar channel order (revised 2026-07-12, `bugs.md` B-063):** favorited channels
+    now sort first, then by B-008's existing freshest-first rule within each group
+    (favorite DESC, then latest-published DESC, then title). Superseded the original
+    "favoriting doesn't reorder the sidebar" note above — the owner reported favorited
+    channels getting lost in a long freshest-first list, defeating the point of marking
+    them as a priority in the first place.
 
 ## Video state model — D-010 (Final, 2026-07-10)
 
