@@ -81,7 +81,7 @@ export const en = {
   'settings.connection.keychainFallback':
     'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it (D-013 fallback).',
   'settings.connection.playerSessionNote':
-    "The embedded player uses its own browser session, separate from this connection — if you use YouTube Premium, sign in once inside the player for ad-free playback.",
+    "The embedded player uses Electron's own persistent browser session, separate from the Google connection above — but there's currently no way to sign into that session from inside Chronicle, so YouTube Premium's ad-free playback won't apply here even if you're signed into Premium elsewhere.",
   'settings.connection.reconnectButton': 'Reconnect Google account',
   'settings.connection.replaceKeyButton': 'Replace API key',
   'settings.connection.fixWeeklyLogoutButton': 'Fix weekly logout',

@@ -31,8 +31,11 @@ and **rejected** for the default experience:
   creators; defunding them is against the product's spirit.
 
 The embedded player is the only option that is simultaneously reliable, compliant, and
-fair to creators. Users with YouTube Premium get an ad-free embed automatically (via
-their Google session in the webview).
+fair to creators. **Correction, 2026-07-12 (`bugs.md` B-049):** this section previously
+claimed Premium users get an ad-free embed "automatically via their Google session in
+the webview" — untrue as shipped, since there's no sign-in path into that session at
+all (see the Login quirk note below); ads run for every user today regardless of a real
+Premium subscription elsewhere.
 
 An **opt-in external player (mpv)** for power users — Chronicle detects it, never
 installs it, clearly labels the trade-offs — is preserved as a **Future idea** only. Not
@@ -61,10 +64,15 @@ The embed must not feel like a YouTube page inside the app. Concretely:
   around the video is ours; only the video surface itself is YouTube.
 - **Embed-restricted videos** (owner disabled embedding — IFrame errors 101/150):
   detected and routed automatically to "open in browser" with a one-line explanation.
-- **Login quirk**: the embed uses the webview's cookie session, not the OAuth token. The
-  user may be logged-out inside the embed (playback still works; Premium users can sign
-  in once in that context for ad-free). Documented in-app in settings, not surfaced
-  during normal use.
+- **Login quirk**: the embed is a plain `<iframe>` using Electron's own default session
+  (cookies), not the OAuth token — playback works logged-out either way. **Verified
+  2026-07-12 (`bugs.md` B-049):** no `partition` is set anywhere, so it's genuinely
+  Electron's own persistent, isolated session (not reusing an OS browser's) — but there
+  is no sign-in surface anywhere in the app that could authenticate it (OAuth uses the
+  *system* browser via the loopback flow, never this session). The Settings copy
+  previously promised "sign in once inside the player for ad-free playback," which
+  described a flow that doesn't exist — corrected to state plainly that there's currently
+  no way to sign into that session from inside Chronicle.
 
 ## Universal video opening — D-029 (Final, 2026-07-10)
 
