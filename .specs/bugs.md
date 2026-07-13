@@ -52,6 +52,28 @@ Resolved entries add:
 
 ## Open
 
+### B-068 — Selecting a channel keeps the previous view's scope (Unread/Watch Later/Favorites/Ignored), usually showing nothing
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** `App.tsx`'s `onSelectChannel` only sets `channelFilter` — it never
+  touches `view`. So if the user is on Unread/Watch Later/Favorites/Ignored and then
+  clicks a channel in the sidebar, the channel screen ends up filtered by *both* the
+  channel *and* whatever view was active (e.g. "this channel's Watch Later videos
+  only") — most of the time that intersection is empty, so the channel screen just
+  looks broken/shows nothing. Contrast with `onSelectView`, which explicitly clears
+  `channelFilter` when switching views (the two scopes are already understood to be
+  mutually exclusive in that direction, just not the other way around).
+- **Expected:** clicking a channel should reset to a sensible base scope (`'all'`,
+  matching what every other channel entry point already implies) rather than carrying
+  over an unrelated view's filter — the five views (All/Unread/Watch Later/Favorites/
+  Ignored) and "looking at one channel" are different scopes entirely; there's no
+  product reason to preserve one inside the other.
+- **Code refs:** `src/ui/App.tsx` (`onSelectChannel` prop passed to `<Sidebar>`, compare
+  `onSelectView`'s existing `setChannelFilter(null)`).
+- **Notes:** cheap, well-diagnosed fix — add `setView('all')` (or similar) alongside
+  `setChannelFilter(channelId)` in `onSelectChannel`. Not attacked this session.
+
 ### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
 - **Type:** bug
 - **Status:** Open · **Reported:** 2026-07-12
