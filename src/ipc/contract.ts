@@ -108,6 +108,7 @@ export type ResultDto<T> =
 // locally stored videos (local-data.md stores ~500 chars).
 export interface PlayerVideoDto {
   videoId: string
+  channelId: string
   title: string
   channelTitle: string
   publishedAt: string
@@ -115,6 +116,10 @@ export interface PlayerVideoDto {
   thumbnailUrl: string | null
   description: string | null
   state: VideoStateDto
+  // B-061: lets the player offer a Subscribe/Unsubscribe toggle without a
+  // separate lookup — cross-referenced against local subscription state the
+  // same way search results already are (B-009's isSubscribed).
+  isSubscribed: boolean
 }
 
 // Wizard progress (onboarding.md §Design goals: interruptible/resumable).

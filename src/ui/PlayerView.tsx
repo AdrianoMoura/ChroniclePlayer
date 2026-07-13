@@ -63,6 +63,7 @@ export function PlayerView({
   // B-006: the user's own rating, fetched silently on open (a passive
   // background check — failures, e.g. not connected, are not worth a banner).
   const [rating, setRating] = useState<VideoRatingDto>('none')
+  const [subscribed, setSubscribed] = useState(video.isSubscribed)
   const [actionError, setActionError] = useState<string | null>(null)
   const writeScopeGate = useWriteScopeGate()
 
@@ -72,11 +73,12 @@ export function PlayerView({
     setDescriptionOpen(false)
     setDescriptionOverflows(false)
     setRating('none')
+    setSubscribed(video.isSubscribed)
     setActionError(null)
     void window.chronicle.getVideoRating(video.videoId).then((result) => {
       if (result.ok) setRating(result.value)
     })
-  }, [video.videoId, video.state])
+  }, [video.videoId, video.state, video.isSubscribed])
 
   const command = useCallback((func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -348,6 +350,26 @@ export function PlayerView({
                 if (result.ok) setRating(next)
                 else if (result.errorKind !== 'cancelled') setActionError(result.message)
               })
+            }}
+          />
+          <ActionButton
+            label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
+            active={subscribed}
+            onClick={() => {
+              setActionError(null)
+              if (subscribed) {
+                void window.chronicle.unsubscribeChannel(video.channelId).then((result) => {
+                  if (result.ok) setSubscribed(false)
+                  else setActionError(result.message)
+                })
+              } else {
+                void writeScopeGate
+                  .run(() => window.chronicle.subscribeChannel(video.channelId))
+                  .then((result) => {
+                    if (result.ok) setSubscribed(true)
+                    else if (result.errorKind !== 'cancelled') setActionError(result.message)
+                  })
+              }
             }}
           />
           <ActionButton

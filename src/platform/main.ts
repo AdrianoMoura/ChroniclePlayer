@@ -710,13 +710,15 @@ void app.whenReady().then(() => {
           ok: true,
           value: {
             videoId: entry.video.videoId,
+            channelId: entry.video.channelId,
             title: entry.video.title,
             channelTitle: entry.channelTitle,
             publishedAt: entry.video.publishedAt,
             durationSeconds: entry.video.durationSeconds,
             thumbnailUrl: entry.video.thumbnailUrl,
             description,
-            state: toStateDto(entry.state)
+            state: toStateDto(entry.state),
+            isSubscribed: feedRepository.isSubscribed(entry.video.channelId)
           }
         }
       }
@@ -731,13 +733,15 @@ void app.whenReady().then(() => {
           ok: true,
           value: {
             videoId: video.videoId,
+            channelId: video.channelId,
             title: video.title,
             channelTitle: video.channelTitle,
             publishedAt: video.publishedAt,
             durationSeconds: video.durationSeconds,
             thumbnailUrl: video.thumbnailUrl,
             description: video.description, // full text — storage keeps the truncated copy
-            state: toStateDto(stateRepository.get(video.videoId))
+            state: toStateDto(stateRepository.get(video.videoId)),
+            isSubscribed: feedRepository.isSubscribed(video.channelId)
           }
         }
       } catch (error) {

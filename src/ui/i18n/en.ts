@@ -350,6 +350,8 @@ export const en = {
   'player.action.favorited': '★ Favorited',
   'player.action.watchLater': 'Watch later',
   'player.action.inWatchLater': 'In Watch Later',
+  'player.action.subscribe': 'Subscribe',
+  'player.action.subscribed': 'Subscribed',
   'player.action.ignore': 'Ignore',
   'player.action.openInBrowser': 'Open in browser (b)',
   'player.action.like': '👍 Like',
