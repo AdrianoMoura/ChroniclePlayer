@@ -50,6 +50,7 @@ import type {
 import { IpcChannel } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
+import { startRendererServer } from './renderer-server'
 import { loadSettings, normalizeSettings, saveSettings, type AppSettings } from './settings-store'
 import { ThumbnailCache, chronicleCacheDir } from './thumbnail-cache'
 
@@ -239,7 +240,13 @@ function createWindow(): void {
   const rendererUrl = devRendererUrl()
   if (!app.isPackaged && rendererUrl) {
     void window.loadURL(rendererUrl)
+  } else if (packagedRendererUrl !== null) {
+    void window.loadURL(packagedRendererUrl)
   } else {
+    // Should be unreachable (the server is started and awaited before the
+    // first createWindow() call) — file:// as a last resort still shows a
+    // window instead of a crash, even though the embedded player would
+    // fail with Error 153 on it.
     void window.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
@@ -251,8 +258,16 @@ function broadcast(event: ChronicleEventDto): void {
 }
 
 let db: DatabaseSync | undefined
+let packagedRendererUrl: string | null = null
+let closeRendererServer: (() => void) | null = null
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    const server = await startRendererServer(join(__dirname, '../renderer'))
+    packagedRendererUrl = `${server.url}/index.html`
+    closeRendererServer = server.close
+  }
+
   const dataDir = chronicleDataDir()
   mkdirSync(dataDir, { recursive: true })
   // Migrations run before anything reads the DB (local-data.md §Migrations).
@@ -1320,6 +1335,7 @@ void app.whenReady().then(() => {
   app.on('will-quit', () => {
     if (timer !== null) clearInterval(timer)
     if (updateTimer !== null) clearInterval(updateTimer)
+    closeRendererServer?.()
   })
 })
 

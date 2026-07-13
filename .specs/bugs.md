@@ -203,6 +203,31 @@ Resolved entries add:
 
 ## Resolved
 
+### B-084 — Player shows YouTube Error 153 in the packaged AppImage (works fine under `npm run dev`)
+- **Type:** bug · **Severity:** blocker
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** player
+- **What happens:** every video fails to load in the packaged build with YouTube's own
+  "Error 153 — Video player configuration error" overlay, while the identical code
+  works under `npm run dev`.
+- **Expected:** the embedded player works the same in a packaged build as it does from
+  source.
+- **Code refs:** `src/platform/main.ts` (`createWindow` picked `loadFile()` for any
+  packaged build, `loadURL()` only in dev); `src/ui/PlayerView.tsx` (`enablejsapi=1`
+  embed — playback.md, D-006).
+- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** root cause: the embedded YouTube player's postMessage widget
+  protocol (`enablejsapi=1`) needs the top frame to have a real, stable origin to
+  validate — `file://` (what `loadFile()` gives a packaged build) has no such origin,
+  which YouTube surfaces as Error 153. Dev mode never hit this because electron-vite
+  serves the renderer from its own `http://localhost` dev server. New
+  `src/platform/renderer-server.ts`: a minimal loopback-only (`127.0.0.1`, OS-assigned
+  port) static file server, hand-rolled on `node:http`/`node:fs` (no new dependency,
+  consistent with the project's dependency-frugal stance) that serves the built
+  `out/renderer` directory. Packaged builds now `loadURL('http://127.0.0.1:<port>/index.html')`
+  instead of `loadFile()` — same kind of origin dev mode already had. Started once at
+  app boot, awaited before the first window is created; closed on `will-quit`.
+
 ### B-083 — Comments pagination was a "Load more" click instead of auto-pagination
 - **Type:** adjustment
 - **Status:** Fixed · **Reported:** 2026-07-13
