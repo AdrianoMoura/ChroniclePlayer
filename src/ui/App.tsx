@@ -136,8 +136,10 @@ export function App() {
     refreshMinutes: 30,
     showViewCounts: true,
     showShorts: true,
-    defaultPlaybackRate: 1
+    defaultPlaybackRate: 1,
+    checkForUpdates: true
   })
+  const [appVersion, setAppVersion] = useState('')
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
@@ -261,6 +263,7 @@ export function App() {
       setSettings(loaded)
       if (warning !== null) setBanner({ text: warning })
     })
+    void window.chronicle.getAppVersion().then(setAppVersion)
     loadChannels()
   }, [loadChannels])
 
@@ -702,6 +705,15 @@ export function App() {
         case 'quota:exceeded':
           setBanner({
             text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() })
+          })
+          break
+        case 'update:available':
+          setBanner({
+            text: t('app.banner.updateAvailable', { version: event.version }),
+            action: {
+              label: t('app.banner.updateAction'),
+              run: () => void window.chronicle.openExternalUrl(event.url)
+            }
           })
           break
       }
@@ -1163,6 +1175,7 @@ export function App() {
             <SettingsView
               auth={auth}
               settings={settings}
+              appVersion={appVersion}
               onSettingsChange={changeSettings}
               onReconnect={connect}
               onReplaceKey={() => openWizardAt('import')}

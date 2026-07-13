@@ -95,6 +95,9 @@ export const en = {
   'settings.sync.manualOnly': 'Manual only',
   'settings.sync.note':
     'Every refresh also re-checks your subscription list, so a new subscription shows up on the very next sync — nothing to do here.',
+  'settings.sync.checkForUpdates': 'Check for updates',
+  'settings.sync.checkForUpdatesNote':
+    'Chronicle {version} — checks GitHub for a newer release, at most once a day. Never downloads or installs anything on its own; you decide from the release page.',
   'settings.playback.heading': 'Playback',
   'settings.playback.defaultSpeed': 'Default speed',
   'settings.playback.speedNormal': 'Normal',
@@ -277,6 +280,8 @@ export const en = {
   'app.banner.quotaExceeded':
     'Daily API limit reached — it resets at {time} your time. Chronicle keeps working from local data; discovery via RSS continues free.',
   'app.banner.signedOut': 'Signed out. Local data was kept — reconnect anytime.',
+  'app.banner.updateAvailable': 'Chronicle {version} is available.',
+  'app.banner.updateAction': 'View release',
   'app.banner.dismissTitle': 'Dismiss',
   'app.banner.newVideos': '{count} new video{plural}',
   'app.banner.unsubscribeFailed': "Couldn't unsubscribe: {message}",

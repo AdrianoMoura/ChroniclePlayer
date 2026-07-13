@@ -53,6 +53,7 @@ const api: ChronicleApi = {
   setWizardState: (state: WizardStateDto) => ipcRenderer.invoke(IpcChannel.setWizardState, state),
   getSettings: () => ipcRenderer.invoke(IpcChannel.getSettings),
   setSettings: (settings: SettingsDto) => ipcRenderer.invoke(IpcChannel.setSettings, settings),
+  getAppVersion: () => ipcRenderer.invoke(IpcChannel.getAppVersion),
   exportData: () => ipcRenderer.invoke(IpcChannel.exportData),
   windowControl: (action: WindowControlDto) =>
     ipcRenderer.invoke(IpcChannel.windowControl, action),

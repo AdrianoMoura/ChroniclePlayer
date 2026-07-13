@@ -11,6 +11,7 @@ import { t } from './i18n'
 interface SettingsViewProps {
   auth: AuthStatusDto | null
   settings: SettingsDto
+  appVersion: string
   onSettingsChange: (settings: SettingsDto) => void
   onReconnect: () => void
   onReplaceKey: () => void
@@ -22,6 +23,7 @@ interface SettingsViewProps {
 export function SettingsView({
   auth,
   settings,
+  appVersion,
   onSettingsChange,
   onReconnect,
   onReplaceKey,
@@ -132,6 +134,15 @@ export function SettingsView({
           </select>
         </label>
         <p className="settings-line dim">{t('settings.sync.note')}</p>
+        <label className="settings-row">
+          <span>{t('settings.sync.checkForUpdates')}</span>
+          <input
+            type="checkbox"
+            checked={settings.checkForUpdates}
+            onChange={(event) => set('checkForUpdates', event.target.checked)}
+          />
+        </label>
+        <p className="settings-line dim">{t('settings.sync.checkForUpdatesNote', { version: appVersion })}</p>
       </section>
 
       <section>

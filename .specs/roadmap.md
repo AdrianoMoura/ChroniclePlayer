@@ -187,18 +187,31 @@ dogfooding batches below — release prep only starts once the application is fu
 and the owner is happy with it. The MVP-from-source milestone (M5) already holds; the
 bugs.md batches are the path to "happy with it".)*
 
-- Packaging/signing for Linux (AppImage/Flatpak — **D-024 Pending**, recommend both,
-  Flatpak primary), macOS (notarized dmg), Windows (signed installer if cert budget
-  exists — **D-025 Pending**).
+- Packaging/signing for Linux (AppImage — D-024, resolved 2026-07-13: AppImage only for
+  the first release, Flatpak deferred), macOS (dmg, D-043: unsigned for the first
+  release — no Apple Developer budget yet), Windows (nsis installer, D-025: unsigned for
+  the first release — no code-signing budget yet).
 - CI/CD pipeline (deferred from M0, 2026-07-11): checks (typecheck + lint + tests) +
   tagged releases + automatic binary builds for the three OSes, designed as one piece.
   No API calls in CI, ever.
-- App update mechanism honoring privacy rules (static update feed, no identifiers) —
-  **D-026 Pending**, recommend simple signed static-manifest check, default on, off
-  switch in settings.
+- App update mechanism honoring privacy rules (no identifiers, no telemetry) — D-026,
+  resolved 2026-07-13: background check against GitHub's public Releases API (not a
+  custom signed manifest — see D-026's rationale), default on, off switch in settings,
+  notice-only (never auto-downloads/installs).
 - Wizard screenshots captured/refreshed as part of the first release walk.
 
 Exit criterion: a stranger can download, set up, and use Chronicle from the README alone.
+
+**Status (2026-07-13): in progress.** Landed: `electron-builder` config (Linux AppImage,
+macOS dmg unsigned, Windows nsis unsigned), placeholder app icon (no branding assets
+existed yet — swap when the owner has real ones), `ci.yml` (typecheck+lint+test on
+push/PR — this is also the "standalone CI" item deferred from M0), `release.yml`
+(tag-triggered `v*.*.*` matrix build across the three OSes, publishes a **draft**
+GitHub Release for the owner to review/annotate/publish manually), and the
+GitHub-Releases-API update check (D-026). Still open: wizard screenshots (pending since
+M4), and the owner has not yet cut a real tag to exercise the release workflow
+end-to-end on GitHub Actions — the local `npm run package:linux` build is
+verified, the CI-hosted matrix build is not.
 
 ## Post-MVP horizon (order per `features.md` rationale)
 

@@ -30,12 +30,30 @@ never yours. The test for every feature is "who is driving?"
 
 ## Status
 
-Pre-release, daily-driven by its developer. M0–M5 are implemented from source (M4's
-screenshot pass and external acid-testers are still pending). An ongoing backlog of
-dogfooding fixes/adjustments (`.specs/bugs.md`) is worked in batches before packaged
-binaries (Flatpak/AppImage, dmg, Windows installer) arrive with M6 — see
-[`.specs/roadmap.md`](.specs/roadmap.md) for the full sequencing. Until M6, Chronicle
-runs from source.
+Pre-release, daily-driven by its developer. M0–M5 are implemented from source; M6
+(packaging & release) is in progress — see [`.specs/roadmap.md`](.specs/roadmap.md) for
+the full sequencing. You can run Chronicle from source today (below), or grab a packaged
+build from [Releases](../../releases) once the first one ships.
+
+## Installing a packaged build
+
+Packaged builds are unsigned for now — no Apple Developer or code-signing budget exists
+yet (D-025/D-043 in [`.specs/decisions.md`](.specs/decisions.md)); this only affects the
+one-time first-run warning below, nothing else.
+
+- **Linux** — download the `.AppImage`, `chmod +x` it, run it directly. No installation,
+  no root.
+- **macOS** — download the `.dmg`, drag Chronicle into Applications. Gatekeeper will
+  refuse to open it the normal way ("Chronicle is damaged" or "cannot be opened" — it
+  isn't damaged, it's just unsigned): right-click the app → **Open** → **Open** again in
+  the dialog, or go to **System Settings → Privacy & Security** and click **Open Anyway**
+  next to the Chronicle warning. Only needed once.
+- **Windows** — download the installer and run it. Windows SmartScreen will show
+  "Windows protected your PC": click **More info**, then **Run anyway**. Only needed
+  once.
+
+Chronicle checks GitHub for newer releases once a day (off-switch in Settings → Sync) and
+shows a dismissible notice — it never downloads or installs anything on its own.
 
 ## Running from source
 

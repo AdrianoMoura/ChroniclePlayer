@@ -23,6 +23,9 @@ export interface AppSettings {
   showShorts: boolean
   // D-038: the player loads already set to this speed instead of always 1x.
   defaultPlaybackRate: number
+  // D-026: background check against GitHub's public Releases API. Notice
+  // only — never auto-downloads/installs.
+  checkForUpdates: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,7 +35,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   refreshMinutes: 30,
   showViewCounts: true,
   showShorts: true,
-  defaultPlaybackRate: 1
+  defaultPlaybackRate: 1,
+  checkForUpdates: true
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -45,6 +49,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const views = source['showViewCounts']
   const shorts = source['showShorts']
   const rate = source['defaultPlaybackRate']
+  const checkForUpdates = source['checkForUpdates']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -65,7 +70,9 @@ export function normalizeSettings(raw: unknown): AppSettings {
     defaultPlaybackRate:
       typeof rate === 'number' && (PLAYBACK_RATES as readonly number[]).includes(rate)
         ? rate
-        : DEFAULT_SETTINGS.defaultPlaybackRate
+        : DEFAULT_SETTINGS.defaultPlaybackRate,
+    checkForUpdates:
+      typeof checkForUpdates === 'boolean' ? checkForUpdates : DEFAULT_SETTINGS.checkForUpdates
   }
 }
 

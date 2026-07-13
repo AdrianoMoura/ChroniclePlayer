@@ -25,7 +25,8 @@ describe('settings store', () => {
       refreshMinutes: 15,
       showViewCounts: true,
       showShorts: false,
-      defaultPlaybackRate: 1.5
+      defaultPlaybackRate: 1.5,
+      checkForUpdates: false
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -46,7 +47,8 @@ describe('settings store', () => {
         refreshMinutes: -5,
         showViewCounts: true,
         showShorts: false,
-        defaultPlaybackRate: 3
+        defaultPlaybackRate: 3,
+        checkForUpdates: 'yes'
       })
     ).toEqual({
       theme: 'light',
@@ -55,8 +57,13 @@ describe('settings store', () => {
       refreshMinutes: 30,
       showViewCounts: true,
       showShorts: false,
-      defaultPlaybackRate: 1
+      defaultPlaybackRate: 1,
+      checkForUpdates: true
     })
+  })
+
+  it('accepts checkForUpdates=false (D-026)', () => {
+    expect(normalizeSettings({ checkForUpdates: false }).checkForUpdates).toBe(false)
   })
 
   it('accepts 0 as manual-only refresh', () => {

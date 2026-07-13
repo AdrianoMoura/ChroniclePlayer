@@ -19,10 +19,12 @@ import { YouTubeApiClient, type Comment, type SearchResult } from '../adapters/y
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
+import { GithubReleaseSource } from '../adapters/updates/github-release-source'
 import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { QuotaCounter, type Clock } from '../core/ports'
+import { isNewerVersion } from '../core/version'
 import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
@@ -272,6 +274,7 @@ void app.whenReady().then(() => {
   // console walkthrough and just add themselves as a Test user on the same
   // project); only tokens/scopes are per-account.
   const quota = new QuotaCounter()
+  const updateSource = new GithubReleaseSource(fetch)
 
   interface AccountStack {
     accountId: string
@@ -1209,12 +1212,35 @@ void app.whenReady().then(() => {
   }
   applyRefreshTimer()
 
+  // D-026: notice-only background check against GitHub's public Releases
+  // API — a startup check plus a slow (24h) interval, since unlike sync
+  // there's no reason to poll a release feed often.
+  const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000
+  let updateTimer: ReturnType<typeof setInterval> | null = null
+  async function checkForUpdates(): Promise<void> {
+    const release = await updateSource.latestRelease()
+    if (release !== null && isNewerVersion(app.getVersion(), release.version)) {
+      broadcast({ type: 'update:available', version: release.version, url: release.url })
+    }
+  }
+  function applyUpdateCheckTimer(): void {
+    if (updateTimer !== null) clearInterval(updateTimer)
+    updateTimer = null
+    if (settings.checkForUpdates) {
+      void checkForUpdates()
+      updateTimer = setInterval(() => void checkForUpdates(), UPDATE_CHECK_INTERVAL_MS)
+    }
+  }
+  applyUpdateCheckTimer()
+
   ipcMain.handle(IpcChannel.getSettings, () => ({ settings, warning: settingsWarning }))
   ipcMain.handle(IpcChannel.setSettings, (_event, raw: unknown) => {
     settings = normalizeSettings(raw)
     saveSettings(settingsFile, settings)
     applyRefreshTimer()
+    applyUpdateCheckTimer()
   })
+  ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
 
   ipcMain.handle(IpcChannel.exportData, async (): Promise<
     ResultDto<{ path: string; videos: number; states: number }>
@@ -1293,6 +1319,7 @@ void app.whenReady().then(() => {
 
   app.on('will-quit', () => {
     if (timer !== null) clearInterval(timer)
+    if (updateTimer !== null) clearInterval(updateTimer)
   })
 })
 

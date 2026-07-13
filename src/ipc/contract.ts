@@ -146,6 +146,7 @@ export interface SettingsDto {
   showViewCounts: boolean // D-018
   showShorts: boolean // B-028, default true
   defaultPlaybackRate: number // D-038, default 1 — player loads already at this speed
+  checkForUpdates: boolean // D-026, default true — GitHub Releases API check, notice only
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -225,6 +226,9 @@ export type ChronicleEventDto =
   | { type: 'refresh:failed'; errorKind: string; message: string }
   | { type: 'auth:required' }
   | { type: 'quota:exceeded' }
+  // D-026: a newer version was found on GitHub Releases — notice only,
+  // never auto-downloads or installs.
+  | { type: 'update:available'; version: string; url: string }
 
 export const IpcChannel = {
   getFeed: 'feed:get',
@@ -271,6 +275,7 @@ export const IpcChannel = {
   connectAccount: 'accounts:connect',
   removeAccount: 'accounts:remove',
   syncAccountNow: 'accounts:syncNow',
+  getAppVersion: 'app:getVersion',
   events: 'chronicle:event'
 } as const
 
@@ -329,6 +334,8 @@ export interface ChronicleApi {
   setWizardState(state: WizardStateDto): Promise<void>
   getSettings(): Promise<{ settings: SettingsDto; warning: string | null }>
   setSettings(settings: SettingsDto): Promise<void>
+  // Settings' About line + the D-026 update check's "current version" baseline.
+  getAppVersion(): Promise<string>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

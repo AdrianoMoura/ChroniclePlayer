@@ -1,0 +1,42 @@
+appId: dev.chronicleplayer.desktop
+productName: Chronicle
+copyright: Copyright © Chronicle Player contributors
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+icon: build/icon.png
+
+linux:
+  target:
+    - AppImage
+  category: AudioVideo
+  icon: build/icon.png
+
+mac:
+  target:
+    - dmg
+  icon: build/icon.png
+  identity: null
+  hardenedRuntime: false
+
+win:
+  target:
+    - nsis
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+
+publish:
+  provider: github
+  owner: AdrianoMoura
+  repo: ChroniclePlayer
+  releaseType: draft

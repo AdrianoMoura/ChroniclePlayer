@@ -173,6 +173,17 @@ export interface ShortsProber {
   isShort(videoId: string): Promise<boolean>
 }
 
+// D-026: an unauthenticated check against a public release feed — no
+// identifiers sent, nothing but "what's the latest version".
+export interface UpdateRelease {
+  version: string
+  url: string
+}
+
+export interface UpdateSource {
+  latestRelease(): Promise<UpdateRelease | null>
+}
+
 export interface SecretStore {
   get(key: string): string | null
   set(key: string, value: string): void
