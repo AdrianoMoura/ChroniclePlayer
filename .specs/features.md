@@ -120,12 +120,14 @@ interactions (D-032). Graceful degradation without an account:
   account" entry in the sidebar/settings explains what connecting adds.
 
 ### YouTube search (D-031, Final in shape; ships with D-030)
-**Implemented 2026-07-12 (B-009).** Shipped shape differs from the sketch below in one
-notable way the sketch didn't anticipate: it launched with a "Mine"/"YouTube" scope
+**Implemented 2026-07-12 (B-009).** Shipped shape initially differed from the sketch
+below in one way the sketch didn't anticipate: it launched with a "Mine"/"YouTube" scope
 toggle and a local-filter-while-typing behavior that turned out confusing in practice —
-being revisited per `bugs.md` [[B-054]]/[[B-055]] (drop the toggle, always search
-YouTube directly on Enter; results need pagination, layout-setting parity, and a
-video/channel visual distinction). The @handle/URL cheap-path vs. free-text `search.list`
+**dropped 2026-07-12 (`bugs.md` [[B-054]]):** the `/` filter is now a YouTube-search
+trigger only (still explicit-Enter, per the cost design below), and never re-filters the
+already-loaded feed; browsing local subscriptions stays the sidebar channel list's job.
+Results UX (pagination, layout-setting parity, a video/channel visual distinction) is
+still open — `bugs.md` [[B-055]]. The @handle/URL cheap-path vs. free-text `search.list`
 cost split described below did ship as designed.
 
 The original sketch, for reference: real, YouTube-style search — the user types a query

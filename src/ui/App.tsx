@@ -53,6 +53,7 @@ export function App() {
   const [addAccountOpen, setAddAccountOpen] = useState(false)
   const [videos, setVideos] = useState<FeedVideoDto[]>([])
   const [nextCursor, setNextCursor] = useState<FeedCursorDto | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [meta, setMeta] = useState<FeedMetaDto>({
     unreadCount: 0,
     caughtUp: false,
@@ -73,7 +74,6 @@ export function App() {
   const [priorityVideos, setPriorityVideos] = useState<FeedVideoDto[]>([])
   // B-009/D-031: search is inert until the user presses Enter — never
   // fired on keystroke (search.list costs 100 units/call).
-  const [searchScope, setSearchScope] = useState<'mine' | 'youtube'>('mine')
   const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -583,8 +583,10 @@ export function App() {
     if (nextCursor) {
       lastCursorRef.current = nextCursor
       loadingRef.current = true
+      setLoadingMore(true)
       void window.chronicle.getFeed(targetView, nextCursor, targetChannel, targetAccount).then((slice) => {
         loadingRef.current = false
+        setLoadingMore(false)
         if (viewRef.current !== targetView || channelRef.current !== targetChannel) return
         setVideos((current) => [...current, ...slice.videos])
         setNextCursor(slice.nextCursor)
@@ -603,9 +605,11 @@ export function App() {
       return
     }
     backfillingRef.current = true
+    setLoadingMore(true)
     const cursorToRetry = lastCursorRef.current
     void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
       backfillingRef.current = false
+      setLoadingMore(false)
       if (channelRef.current !== targetChannel) return
       if (!result.ok) {
         if (result.errorKind === 'auth-expired') {
@@ -635,16 +639,10 @@ export function App() {
     })
   }, [nextCursor, archiveExhausted, connect])
 
-  // Local text filter over loaded rows (ui.md `/`) — never YouTube search.
-  const filtered = useMemo(() => {
-    const query = filter.trim().toLowerCase()
-    if (!query) return videos
-    return videos.filter(
-      (video) =>
-        video.title.toLowerCase().includes(query) ||
-        video.channelTitle.toLowerCase().includes(query)
-    )
-  }, [videos, filter])
+  // The `/` filter is a YouTube-search trigger only — it never re-filters
+  // the already-loaded feed, so browsing local subscriptions and searching
+  // YouTube can't be confused for two modes of the same field.
+  const filtered = videos
 
   const rows = useMemo<FeedRow[]>(() => {
     const out: FeedRow[] = []
@@ -1035,6 +1033,17 @@ export function App() {
           </span>
           {channelFilter !== null && (
             <button
+              className="open-channel-btn"
+              title={t('app.topbar.openChannelTitle')}
+              onClick={() =>
+                void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
+              }
+            >
+              ↗
+            </button>
+          )}
+          {channelFilter !== null && (
+            <button
               className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
               onClick={handleTopbarUnsubscribe}
             >
@@ -1049,41 +1058,15 @@ export function App() {
               {t('app.topbar.markAllRead')}
             </button>
           )}
-          {channelFilter === null && (
-            <div className="search-scope" title={t('app.topbar.searchScopeTitle')}>
-              <button
-                className={`scope-option${searchScope === 'mine' ? ' active' : ''}`}
-                onClick={() => {
-                  setSearchScope('mine')
-                  setSearchResults(null)
-                }}
-              >
-                {t('app.topbar.searchScopeMine')}
-              </button>
-              <button
-                className={`scope-option${searchScope === 'youtube' ? ' active' : ''}`}
-                onClick={() => setSearchScope('youtube')}
-              >
-                {t('app.topbar.searchScopeYoutube')}
-              </button>
-            </div>
-          )}
           <div className="field-wrap">
             <input
               ref={filterInputRef}
               className="filter"
-              placeholder={
-                searchScope === 'youtube'
-                  ? t('app.topbar.searchYouTubePlaceholder')
-                  : t('app.topbar.filterPlaceholder')
-              }
+              placeholder={t('app.topbar.searchYouTubePlaceholder')}
               value={filter}
-              onChange={(event) => {
-                setFilter(event.target.value)
-                setCursorIdx(0)
-              }}
+              onChange={(event) => setFilter(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter' && searchScope === 'youtube') runSearch(filter)
+                if (event.key === 'Enter') runSearch(filter)
               }}
             />
             {filter !== '' && (
@@ -1271,6 +1254,7 @@ export function App() {
                     itemSize={settings.itemSize}
                     layout={settings.layout}
                     showViewCounts={settings.showViewCounts}
+                    loadingMore={loadingMore}
                   />
                 )}
               </>

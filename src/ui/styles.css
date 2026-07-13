@@ -525,31 +525,21 @@ input:focus-visible,
   color: #e0a3a3;
 }
 
-/* B-009: "Mine" / "YouTube" search-scope toggle, next to the filter field. */
-.search-scope {
-  display: flex;
+.open-channel-btn {
+  color: var(--text-dim);
+  padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  overflow: hidden;
+  font-size: 13px;
   flex-shrink: 0;
 }
 
-.scope-option {
-  padding: 4px 10px;
-  font-size: 12.5px;
-  color: var(--text-dim);
-}
-
-.scope-option:hover {
+.open-channel-btn:hover {
+  color: var(--text);
   background: var(--surface);
 }
 
-.scope-option.active {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-/* B-009: YouTube-wide search results replace the feed while active. */
+/* YouTube-wide search results replace the feed while active. */
 .search-results {
   flex: 1;
   overflow-y: auto;
@@ -777,6 +767,13 @@ button.primary:disabled {
 /* B-004: content fills the available width — no artificial column cap. */
 .feed-inner {
   position: relative;
+}
+
+.feed-loading-more {
+  padding: 16px 0 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
 }
 
 .feed-item {

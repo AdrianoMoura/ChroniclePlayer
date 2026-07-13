@@ -79,6 +79,7 @@ interface FeedListProps {
   itemSize: ItemSize
   layout: 'list' | 'grid'
   showViewCounts: boolean
+  loadingMore: boolean
 }
 
 export function FeedList({
@@ -91,7 +92,8 @@ export function FeedList({
   onAtTopChange,
   itemSize,
   layout,
-  showViewCounts
+  showViewCounts,
+  loadingMore
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
@@ -197,6 +199,7 @@ export function FeedList({
           )
         })}
       </div>
+      {loadingMore && <div className="feed-loading-more">{t('feed.loadingMore')}</div>}
     </div>
   )
 }

@@ -292,17 +292,14 @@ export const en = {
   'app.topbar.refreshTitle': 'Refresh (r)',
   'app.topbar.channelFallback': 'Channel',
   'app.topbar.markAllRead': 'Mark all as read',
-  'app.topbar.filterPlaceholder': 'Filter in view  /',
   'app.topbar.searchYouTubePlaceholder': 'Search all of YouTube — Enter to search',
   'app.topbar.clearFilterTitle': 'Clear',
-  'app.topbar.searchScopeMine': 'Mine',
-  'app.topbar.searchScopeYoutube': 'YouTube',
-  'app.topbar.searchScopeTitle': 'Search scope: your channels, or all of YouTube',
   'app.topbar.itemSizeTitle': 'Item size: {size}',
   'app.topbar.switchToListView': 'Switch to list view',
   'app.topbar.switchToGridView': 'Switch to grid view',
   'app.topbar.unsubscribe': 'Unsubscribe',
   'app.topbar.confirmUnsubscribe': 'Click again to unsubscribe',
+  'app.topbar.openChannelTitle': "Open this channel's YouTube page",
 
   // App — status text
   'app.status.filteringShorts': 'filtering Shorts — {checked} of {total} checked…',
@@ -327,6 +324,7 @@ export const en = {
   'feed.card.toggleWatchLaterTitle': 'Toggle watch later (w)',
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.shortBadge': 'Short',
+  'feed.loadingMore': 'Loading more…',
 
   // PlayerView
   'player.topbar.back': '← Back',

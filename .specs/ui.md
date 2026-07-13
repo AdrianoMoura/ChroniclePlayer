@@ -80,7 +80,7 @@ with a visible cursor row.
 | `1…5` | switch view (All, Unread, WL, Fav, Ignored) |
 | `r` | refresh |
 | `Ctrl+O` | open a YouTube video by URL (D-029) |
-| `/` | filter-in-view (local text filter; not YouTube search) |
+| `/` | focus the search field — Enter searches YouTube directly (D-031); also works while a video is playing, exiting fully back to the feed first |
 | `c` | focus the sidebar's channel-filter field (B-024) |
 | `s` | show/hide the sidebar (B-037) — added in the B-043 audit, had no keyboard path at all |
 | `?` | shortcut overlay |
