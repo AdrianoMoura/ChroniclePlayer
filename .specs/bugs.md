@@ -52,39 +52,51 @@ Resolved entries add:
 
 ## Open
 
-### B-062 — Comments: pagination unused, no comment likes (permanent API limitation), reply-to-reply doesn't prefill @mention
-- **Type:** bug (pagination) + adjustment (reply UX) · note on the likes ask below
+### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
+- **Type:** bug
 - **Status:** Open · **Reported:** 2026-07-12
-- **Area:** player
-- **What happens:** three separate issues reported together.
-  1. **Pagination is dead on the renderer side:** the API/IPC layer already supports it
-     (`listComments(videoId, pageToken)` returns `nextPageToken`; the IPC channel forwards
-     an optional `pageToken`) but `Comments.tsx`'s `load()` never passes one and discards
-     `nextPageToken` — there's no "load more comments" UI/state at all.
-  2. **No like button on comments** — confirmed still a real API gap, not an oversight:
-     already recorded in `decisions.md` D-032 when [[B-006]] shipped video-like +
-     read-only comment `likeCount` display — "the public YouTube Data API v3 has no
-     endpoint to like a comment, only videos." This is a **permanent limitation**, nothing
-     to fix client-side.
-  3. **Reply-to-reply not supported:** `CommentItem` only exists for top-level comments; a
-     reply's own replies render as plain text with no reply button and no recursive
-     `CommentItem`, so there's no way to reply to a reply today, let alone prefill the
-     `@username` of who's being replied to.
-- **Expected:** (1) wire `pageToken` through `Comments.tsx`'s `load()`/a "load more"
-  affordance so comment pagination actually works; (2) no action possible — leave as a
-  documented permanent limitation, don't reopen; (3) add a reply action on replies (not
-  just top-level comments) that opens the composer pre-filled with `@{authorDisplayName}`
-  of the specific reply being answered — this still posts as a reply to the *top-level*
-  comment (`comments.insert` takes the top-level id per YouTube's one-level-nesting model,
-  per D-032/[[B-006]]'s existing notes); the `@mention` is a text convention only, not a
-  structural third nesting level.
-- **Code refs:** `src/ui/Comments.tsx` (`load()`, `CommentItem`, reply rendering);
-  `src/adapters/youtube/api-client.ts` (`listComments`, `replyToComment`);
-  `src/ipc/contract.ts` (`getComments`, `CommentDto`); `src/platform/main.ts` (the
-  comments IPC handlers).
-- **Notes:** item 2 (comment likes) should be closed/flagged Won't-fix (API limitation)
-  when this is triaged, not tracked as open work — included here only because the owner
-  asked about it without D-032's finding in view.
+- **Area:** auth / player
+- **What happens:** two related gaps found live by the owner while testing comments/likes.
+  1. **Expanding comments showed "no permission" with no recovery path:** `Comments.tsx`'s
+     `load()` displays `result.message` raw (`<p className="comments-error">{error}</p>`)
+     for any failure, with no `errorKind` check at all — unlike other actions in the app
+     (e.g. `App.tsx`'s banners), it never distinguishes `auth-expired` from any other
+     error and never offers a Reconnect action. `getComments`'s IPC handler
+     (`src/platform/main.ts`) never calls `requestWriteScope()` either (correct — reading
+     comments only needs the readonly scope per D-032), so the failure the owner hit was
+     most likely an expired/invalid token unrelated to comments specifically — but there
+     was no way to tell or fix it from the comments UI itself. Clicking Like (which
+     *does* have a consent/refresh path) happened to fix the underlying token, which is
+     why comments started working only after that.
+  2. **Incremental write-scope consent has no explanation before it happens:** every
+     write action (Like via `rateVideo`, Subscribe/Unsubscribe, post/reply to a comment)
+     checks `authFlow.hasWriteScope()` and, if false, calls `authFlow.requestWriteScope()`
+     directly inside the main-process IPC handler (`src/platform/main.ts`, e.g. line ~972
+     in the `rateVideo` handler) — which opens the *system browser* to Google's consent
+     screen (`AuthFlow.runFlow`/`openInSystemBrowser`, `src/adapters/oauth/auth.ts`) with
+     zero warning shown in-app first. The owner clicked Like and was surprised to
+     suddenly land on a browser tab with no idea why.
+- **Expected:** (1) `Comments.tsx` (and any other place that swallows raw error text)
+  should check `errorKind` and offer a real recovery path for `auth-expired` (a Reconnect
+  banner/action), matching the pattern already used elsewhere in the app. (2) before any
+  write action triggers `requestWriteScope()`, show an in-app dialog explaining what's
+  about to happen and why (e.g. "Chronicle needs an extra permission to like videos —
+  continue to Google?"); only proceed to open the browser once the user confirms.
+- **Code refs:** `src/ui/Comments.tsx` (`load()`/`loadMore()` error handling); `src/ui/App.tsx`
+  (existing `errorKind === 'auth-expired'` → Reconnect-banner pattern to mirror);
+  `src/platform/main.ts` (`rateVideo`, `subscribeChannel`/`unsubscribeChannel`,
+  `postComment`/`replyToComment` handlers — all call `requestWriteScope()` inline, no
+  chance for the renderer to intercept first); `src/adapters/oauth/auth.ts`
+  (`AuthFlow.requestWriteScope`/`runFlow`, `openInSystemBrowser`).
+- **Notes:** part (2) is a real design change, not a one-line fix — today the "does this
+  need write scope?" check and the actual browser-opening flow are fused together inside
+  each IPC handler, with no seam for the renderer to show a dialog in between. The
+  cleanest shape is likely: the IPC handler returns a distinct `errorKind` (e.g.
+  `'write-scope-required'`) instead of calling `requestWriteScope()` itself when the
+  scope is missing; the renderer catches that, shows the explanatory dialog, and on
+  confirm calls a new dedicated IPC method that runs the consent flow, then retries the
+  original action. Touches every incremental-write-scope call site (D-032), so worth
+  doing once, consistently, rather than one action at a time.
 
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment
@@ -339,6 +351,34 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-062 — Comments: pagination unused, no comment likes (permanent API limitation), reply-to-reply doesn't prefill @mention
+- **Type:** bug (pagination) + adjustment (reply UX) · note on the likes ask below
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** player
+- **What happens:** three separate issues reported together. (1) pagination dead on the
+  renderer side despite IPC already supporting `pageToken`. (2) no like button on
+  comments — confirmed permanent API limitation (D-032), nothing to fix. (3) no way to
+  reply to a reply, let alone prefill `@username`.
+- **Expected:** (1)/(3) fixed; (2) closed as Won't-fix (API limitation).
+- **Code refs:** `src/ui/Comments.tsx` (`loadMore`/`nextPageToken` state; new `ReplyItem`
+  component for replies-to-replies).
+- **Notes:**
+  - (1) `load()`/`loadMore()` now thread `nextPageToken` through, with a "Load more
+    comments" button at the bottom of the thread once one exists.
+  - (3) replies now get their own reply action (`ReplyItem`, parallel to `CommentItem`),
+    opening a composer pre-filled with `@{authorDisplayName}` of the specific reply being
+    answered. Still posts via `replyToComment(topLevelId, text)` — the top-level
+    comment's id, not the reply's — since `comments.insert` only supports one level of
+    nesting; the `@mention` is a text convention, not a structural third level.
+  - (2) **closed as Won't-fix**, per this bug's own framing — the public YouTube Data
+    API v3 has no endpoint to like a comment, only videos (D-032, unchanged since B-006).
+  - No live-app check this session (posting real comments/replies needs the owner's real
+    account per [[no-live-app-verification]]); verified via `npm run typecheck && npm run
+    lint && npm test` (175/175 — this is a UI-only change, no new domain logic to unit
+    test). Owner should validate live: loading a second page of comments on a
+    heavily-commented video, and replying to a reply end-to-end.
+- **Resolved:** 2026-07-12 · **Commit:** 25b04ea · **Outcome:** Fixed
 
 ### B-049 — Settings copy about signing into the player for Premium may be misleading
 - **Type:** adjustment
