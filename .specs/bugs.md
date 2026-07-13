@@ -279,7 +279,7 @@ Resolved entries add:
     always been verified). Owner should validate live: adding an account while a launch
     refresh or another account's connect-sync is still running, and confirming the new
     account's videos populate without needing to click into an unrelated screen first.
-- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-13 · **Commit:** 6442513 · **Outcome:** Fixed
 
 ### B-069 — First sync shows backlog videos as unread for the whole sync duration, not just briefly
 - **Type:** bug · **Severity:** minor
@@ -322,7 +322,7 @@ Resolved entries add:
     not-first-sync-so-untouched paths). Owner should validate live: watching a large
     first sync in progress and confirming backlog videos never flash as unread, even
     mid-sync.
-- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-13 · **Commit:** 6442513 · **Outcome:** Fixed
 
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment
