@@ -393,16 +393,41 @@ void app.whenReady().then(() => {
   }
 
   let refreshing = false
+  // B-070: a refresh call that arrives while another is already running must
+  // never be silently dropped — connectGoogle/connectAccount fire their
+  // post-connect sync as fire-and-forget (`void runRefresh(...)`), and if
+  // that lost the race against the launch-time refresh, the 30-min timer, or
+  // another account's own connect, the new account's videos never synced
+  // until some unrelated later refresh happened to run to completion. Every
+  // call now chains onto this queue instead of racing a single boolean guard,
+  // so it always eventually runs (and its own refresh:started/refresh:done
+  // pair always fires) rather than returning `busy` and vanishing.
+  let refreshQueue: Promise<unknown> = Promise.resolve()
   // accountId (B-003) targets one account explicitly (e.g. sidebar "Sync
   // now"); channelId resolves to whichever account(s) actually subscribe to
   // it (usually one); neither means "every connected account" — the
   // combined-feed default, and what launch/timer refreshes always mean.
-  async function runRefresh(
+  function runRefresh(
     trigger: SyncTrigger,
     accountId?: string,
     channelId?: string
   ): Promise<ResultDto<SyncReportDto>> {
-    if (refreshing) return { ok: false, errorKind: 'busy', message: 'a refresh is already running' }
+    const run = refreshQueue.then(
+      () => runRefreshNow(trigger, accountId, channelId),
+      () => runRefreshNow(trigger, accountId, channelId)
+    )
+    // Swallow the result here so one queued failure never poisons the chain
+    // for requests queued behind it — each caller still sees its own outcome
+    // via the returned `run` promise.
+    refreshQueue = run.catch(() => undefined)
+    return run
+  }
+
+  async function runRefreshNow(
+    trigger: SyncTrigger,
+    accountId?: string,
+    channelId?: string
+  ): Promise<ResultDto<SyncReportDto>> {
     const targetIds =
       channelId !== undefined
         ? syncRepository.listAccountIdsForChannel(channelId)
@@ -427,8 +452,11 @@ void app.whenReady().then(() => {
         reports.push(report)
         // B-020: on an account's very first subscription sync, videos already
         // published before today start read — the user opens onto "what's
-        // new", not an unclearable backlog. Runs before refresh:done so the
-        // event's unread count already reflects it.
+        // new", not an unclearable backlog. SyncService.refresh (B-069) now
+        // applies this per hydrated batch as the sync runs, so this blanket
+        // pass is a safety net for anything quota-interrupted hydration left
+        // behind, not the primary mechanism — but still runs before
+        // refresh:done so the event's unread count is guaranteed correct.
         if (report.firstSync) {
           const now = clock.now()
           feedRepository.markManyRead(

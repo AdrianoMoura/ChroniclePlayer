@@ -147,6 +147,7 @@ interface SourceBehavior {
   uploads?: Record<string, string[][]> // playlistId -> pages of videoIds
   hydrateError?: () => never
   quota?: QuotaCounter
+  publishedAt?: Record<string, string> // videoId -> hydrate()'s publishedAt, default '2026-07-11T10:00:00Z'
 }
 
 function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrateCalls: string[][] } {
@@ -168,7 +169,7 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           channelId: 'UCa',
           channelTitle: 'Alpha',
           title: `t-${videoId}`,
-          publishedAt: '2026-07-11T10:00:00Z',
+          publishedAt: behavior.publishedAt?.[videoId] ?? '2026-07-11T10:00:00Z',
           durationSeconds: 600,
           liveContent: 'none' as const,
           thumbnailUrl: null,
@@ -325,6 +326,39 @@ describe('SyncService.refresh', () => {
     // Gap-backfilled videos are genuinely missed uploads since the last
     // sync, not deep-archive history — they stay unread, unlike
     // backfillArchive's videos (see the describe block below).
+    expect(repo.markedRead).toEqual([])
+  })
+
+  it('marks backlog videos read as soon as they hydrate on a first sync, not only once the whole sync finishes (B-069)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    const source = fakeVideoSource({
+      feeds: {
+        UCa: { kind: 'ok', entries: [discovered('old-1'), discovered('new-1')], etag: null, lastModified: null }
+      },
+      // clock is fixed at 2026-07-11T12:00:00Z — old-1 is yesterday (backlog),
+      // new-1 is later today (genuinely new, must stay unread).
+      publishedAt: { 'old-1': '2026-07-10T09:00:00Z', 'new-1': '2026-07-11T11:00:00Z' }
+    })
+
+    const report = await service(repo, source).refresh('launch', 'acc1')
+
+    expect(report.firstSync).toBe(true)
+    expect(repo.markedRead).toEqual(['old-1'])
+  })
+
+  it('does not mark backlog videos read once an account is past its first sync', async () => {
+    const repo = new FakeRepo()
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-01T00:00:00Z')
+    repo.addChannel('UCa')
+    const source = fakeVideoSource({
+      feeds: { UCa: { kind: 'ok', entries: [discovered('old-1')], etag: null, lastModified: null } },
+      publishedAt: { 'old-1': '2026-07-10T09:00:00Z' }
+    })
+
+    const report = await service(repo, source).refresh('timer', 'acc1')
+
+    expect(report.firstSync).toBe(false)
     expect(repo.markedRead).toEqual([])
   })
 

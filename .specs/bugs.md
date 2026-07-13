@@ -52,80 +52,6 @@ Resolved entries add:
 
 ## Open
 
-### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-13
-- **Area:** sync / auth
-- **What happens:** the owner reports that after adding the initial account or a new
-  additional account, the triggered sync appears to start but the listings never
-  populate — a click into some other view is what eventually shows the videos.
-  Likely root cause found in code: `runRefresh` (`src/platform/main.ts`) guards on a
-  single module-level `refreshing` boolean — `if (refreshing) return { ok: false,
-  errorKind: 'busy', ... }` — with **no queueing or retry**. Both `connectGoogle` and
-  `connectAccount` trigger their post-connect sync as `void runRefresh('manual', ...)`
-  (fire-and-forget, result never inspected). If *any* other refresh happens to already
-  be in flight at that moment — the launch-time `validateConnectionAndCatchUp()` call
-  (every app open, per D-011/D-012), the 30-minute timer, or another account's own
-  connect-triggered refresh — this call returns the `busy` error immediately and
-  silently: no `refresh:started`/`refresh:done` broadcast ever fires for it, so the
-  renderer's event-driven `loadView()`/`loadChannels()` (`src/ui/App.tsx`) never runs for
-  that account's new data. The account/channels *do* get their `accounts`/
-  `account_channels` rows (that part isn't gated), but no videos get synced until some
-  later, unrelated refresh happens to run to completion and finally broadcasts
-  `refresh:done`, at which point everything catches up in one shot — which is why
-  clicking into "some screen" appears to fix it.
-- **Expected:** connecting an account should reliably trigger (and the UI should
-  reliably reflect) that account's sync, regardless of what else happens to be
-  refreshing at that exact moment — dropping the request silently is the actual defect,
-  not the busy-guard's existence.
-- **Code refs:** `src/platform/main.ts` (`runRefresh`'s `if (refreshing) return ...`
-  early-return; `connectGoogle`/`connectAccount` handlers' fire-and-forget
-  `void runRefresh(...)` calls; `validateConnectionAndCatchUp`, the 30-min timer — the
-  other callers competing for the same single `refreshing` flag).
-- **Notes:** the simplest correct fix is probably a small queue — if `runRefresh` is
-  called while `refreshing` is true, remember the request (trigger/accountId) and run it
-  once the in-flight one finishes, instead of just returning `busy` and dropping it. A
-  narrower alternative scoped to just this bug: have `connectGoogle`/`connectAccount`
-  retry their own `runRefresh` call (with backoff) if it comes back `busy`, rather than
-  giving up after one fire-and-forget attempt. Not attacked this session — needs a live
-  account and real timing (launch-time refresh racing a fresh connect) to verify the
-  actual failure window, which this session has no way to reproduce.
-
-### B-069 — First sync shows backlog videos as unread for the whole sync duration, not just briefly
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-13
-- **Area:** sync / feed
-- **What happens:** B-020's rule ("on an account's very first subscription sync, videos
-  already published before today start read — the user opens onto 'what's new'") is
-  implemented as a single retroactive `feedRepository.markManyRead(...)` call in
-  `runRefresh` (`src/platform/main.ts`), which only runs *after* `stack.syncService
-  .refresh(...)` fully resolves — i.e. after every subscribed channel has been polled.
-  But `SyncService.refresh` (`src/core/sync-service.ts`) discovers and inserts videos
-  **per channel** as it goes (`mapPool(channels, RSS_CONCURRENCY, ...)` →
-  `insertDiscoveredVideos`), each new row starting unread (no `video_state` row yet) —
-  and the renderer's `loadView()` isn't gated on the sync finishing, so a feed reload
-  during a long first sync (hundreds of channels) shows those backlog videos as unread
-  for the entire remaining sync duration, only flipping to read once the whole thing
-  completes and `refresh:done` triggers the retroactive mark-read + reload. The rule is
-  eventually correct, just not "instantly" — the owner sees it as backlog staying unread
-  "until sync finishes," which for a large subscription list can be a while.
-- **Expected:** backlog videos (published before today) should never render as unread
-  during a first sync, even transiently — the per-channel discovery path needs to apply
-  the same read-default the retroactive pass applies, at insertion time, not only once
-  at the very end.
-- **Code refs:** `src/platform/main.ts` (`runRefresh`'s post-loop `markManyRead` call,
-  gated on `report.firstSync`); `src/core/sync-service.ts` (`refresh`'s per-channel
-  `mapPool`/`discoverChannel` loop — no per-channel read-default hook exists today);
-  `src/ui/App.tsx` (`loadView()` isn't gated on sync completion, so a feed reload during
-  first sync shows whatever's in the DB right now).
-- **Notes:** the cleanest fix likely moves the "backlog defaults to read" decision inside
-  `SyncService` itself, applied per-channel at discovery/hydration time when `firstSync`
-  is true (mirroring how [[B-058]]'s `markVideosReadIfUnset` works for archive backfill),
-  rather than staying a single retroactive pass in `main.ts` after the whole sync
-  finishes. Not attacked this session — needs a live account with a large-enough
-  subscription list to actually observe the window, which this session has no way to
-  exercise.
-
 ### B-055 — Search results UX: item size, hide the grid/list toggle, pagination, video/channel distinction, Short badge/filter
 - **Type:** adjustment (bundles one UX gap that reads as a bug — the inert grid/list
   toggle — with several polish asks)
@@ -312,6 +238,91 @@ Resolved entries add:
   live, per this bug's own established rule.
 
 ## Resolved
+
+### B-070 — Sync after adding an account can silently no-op, leaving the UI stale until an unrelated refresh happens to succeed
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** sync / auth
+- **What happens:** the owner reported that after adding the initial account or a new
+  additional account, the triggered sync appears to start but the listings never
+  populate — a click into some other view is what eventually shows the videos. Root
+  cause: `runRefresh` (`src/platform/main.ts`) guarded on a single module-level
+  `refreshing` boolean — `if (refreshing) return { ok: false, errorKind: 'busy', ... }`
+  — with no queueing or retry. Both `connectGoogle` and `connectAccount` trigger their
+  post-connect sync as `void runRefresh('manual', ...)` (fire-and-forget, result never
+  inspected). If any other refresh happened to already be in flight at that moment —
+  launch-time `validateConnectionAndCatchUp()`, the 30-minute timer, or another
+  account's own connect-triggered refresh — the call returned `busy` and vanished
+  silently: no `refresh:started`/`refresh:done` ever fired for it, so the renderer's
+  event-driven `loadView()`/`loadChannels()` never ran for that account's new data.
+- **Expected:** connecting an account reliably triggers (and the UI reliably reflects)
+  that account's sync, regardless of what else happens to be refreshing at that exact
+  moment.
+- **Code refs:** `src/platform/main.ts` (`runRefresh` renamed to `runRefreshNow`; a new
+  `runRefresh` wraps it, chaining every call onto a module-level `refreshQueue` promise
+  instead of racing the `refreshing` boolean).
+- **Notes:**
+  - Took this bug's own recommended fix: every `runRefresh` call now chains onto
+    `refreshQueue` (`run = refreshQueue.then(() => runRefreshNow(...), () =>
+    runRefreshNow(...))`, queue advanced past failures via `.catch(() => undefined)` so
+    one queued failure can't poison requests queued behind it) — a call arriving while
+    another is in flight now always eventually runs, with its own
+    `refresh:started`/`refresh:done` pair, instead of returning `busy` and being
+    dropped. The `refreshing` boolean is untouched (still drives `getFeedMeta`'s
+    spinner state); the `'busy'` `errorKind` is now unreachable from `runRefresh` — the
+    UI already treated it as a silent no-op (`src/ui/App.tsx`), so this is strictly a
+    behavior improvement, not a contract change callers depended on.
+  - No live-app check this session (needs a live account and real timing — launch-time
+    refresh racing a fresh connect — per [[no-live-app-verification]]); verified via
+    `npm run typecheck && npm run lint && npm test` (179/179 — no existing unit-test
+    harness covers `main.ts`'s composition root, consistent with how this file has
+    always been verified). Owner should validate live: adding an account while a launch
+    refresh or another account's connect-sync is still running, and confirming the new
+    account's videos populate without needing to click into an unrelated screen first.
+- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-069 — First sync shows backlog videos as unread for the whole sync duration, not just briefly
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-13
+- **Area:** sync / feed
+- **What happens:** B-020's rule ("on an account's very first subscription sync, videos
+  already published before today start read") was implemented as a single retroactive
+  `feedRepository.markManyRead(...)` call in `runRefresh` (`src/platform/main.ts`),
+  which only ran after `stack.syncService.refresh(...)` fully resolved — i.e. after
+  every subscribed channel had been polled. `SyncService.refresh`
+  (`src/core/sync-service.ts`) discovers and hydrates videos as it goes, each new row
+  starting unread — so a feed reload during a long first sync (hundreds of channels)
+  showed backlog videos as unread for the entire remaining sync duration, only flipping
+  to read once the whole thing completed.
+- **Expected:** backlog videos (published before today) never render as unread during a
+  first sync, even transiently.
+- **Code refs:** `src/core/sync-service.ts` (`refresh`'s hydration loop — now computes
+  a `backlogCutoff` from `startOfToday(clock.now())` when `firstSync` is true, and
+  calls `repo.markVideosReadIfUnset(...)` on each hydrated batch's backlog videos right
+  after `applyHydration`, instead of waiting for the whole sync to finish);
+  `src/platform/main.ts` (`runRefresh`'s post-loop `markManyRead` call kept as a safety
+  net, comment updated to say so).
+- **Notes:**
+  - Took the fix this bug's own notes recommended: moved the "backlog defaults to read"
+    decision inside `SyncService` itself, applied per hydrated batch (mirroring how
+    [[B-058]]'s `markVideosReadIfUnset` works for archive backfill) rather than staying
+    a single retroactive pass in `main.ts`. Gap-backfilled videos (genuinely missed
+    uploads since the last sync, not deep-archive history) are unaffected — they're
+    filtered by `publishedAt`, same as any other newly-hydrated video, so only videos
+    that actually predate today get marked read; a gap-backfilled video published
+    earlier today still stays unread, matching the existing gap-backfill test's
+    expectation.
+  - `main.ts`'s original retroactive `markManyRead` call is kept, not removed — it's now
+    a safety net for any video whose hydration got interrupted by a quota hit this
+    cycle (mid-sync `ctx.quotaHit`), rather than the primary mechanism.
+  - No live-app check this session (needs a live account with a large-enough
+    subscription list to observe the window, per [[no-live-app-verification]]);
+    verified via `npm run typecheck && npm run lint && npm test` (179/179 — two new
+    `sync-service.test.ts` cases cover the backlog-marked-read and
+    not-first-sync-so-untouched paths). Owner should validate live: watching a large
+    first sync in progress and confirming backlog videos never flash as unread, even
+    mid-sync.
+- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment

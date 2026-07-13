@@ -1,5 +1,6 @@
 import { mapPool } from './concurrency'
 import { isDomainError } from './errors'
+import { startOfToday } from './feed'
 import type {
   ChannelSyncInfo,
   Clock,
@@ -122,11 +123,24 @@ export class SyncService {
 
       const newIds = [...new Set(toHydrate)]
       videosNew = newIds.length
+      // B-020/B-069: on an account's very first sync, backlog videos (already
+      // published before today) must never render as unread even transiently —
+      // applied here, per hydrated batch, rather than only once in a
+      // retroactive pass after every channel finishes (which left a long
+      // window where a feed reload mid-sync showed them as unread).
+      const backlogCutoff = firstSync ? startOfToday(clock.now()).toISOString() : null
       if (!ctx.quotaHit && newIds.length > 0) {
         try {
           for (let i = 0; i < newIds.length; i += HYDRATE_BATCH) {
             const hydrated = await this.deps.videoSource.hydrate(newIds.slice(i, i + HYDRATE_BATCH))
-            repo.applyHydration(hydrated, clock.now().toISOString())
+            const hydratedAt = clock.now().toISOString()
+            repo.applyHydration(hydrated, hydratedAt)
+            if (backlogCutoff !== null) {
+              const backlogIds = hydrated
+                .filter((video) => video.publishedAt < backlogCutoff)
+                .map((video) => video.videoId)
+              if (backlogIds.length > 0) repo.markVideosReadIfUnset(backlogIds, hydratedAt)
+            }
           }
         } catch (error) {
           // Discovery is already persisted; hydration retries next cycle
