@@ -24,9 +24,10 @@ never yours. The test for every feature is "who is driving?"
   typical refresh costs single-digit units of your 10,000/day).
 - **No engagement mechanics** — no autoplay into unrelated content, no badges, no
   infinite feed. When you're caught up, it says so and offers nothing more.
-- **Shorts are shown, not hidden by default** — they appear in the feed tagged with a
-  badge; a Settings toggle lets you hide them if you'd rather not see them at all.
-  Chronicle doesn't decide that for you.
+- **Shorts are shown, not hidden by default** — they appear in the feed with a badge;
+  a Settings toggle lets you hide them if you'd rather not see them at all. Chronicle
+  doesn't make that decision for you, but it also doesn't rely on the addictive
+  doom-scrolling mechanics they encourage.
 
 ## Status
 
