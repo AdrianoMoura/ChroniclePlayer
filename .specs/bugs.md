@@ -136,23 +136,6 @@ Resolved entries add:
   `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
   [[B-056]] since the channel screen needs the same subscribe-state plumbing.
 
-### B-059 — No loading indicator while paginating/scrolling to load more
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell / feed
-- **What happens:** the scroll-triggered `loadMore` path (`FeedList.tsx`'s `onNearEnd` →
-  `App.tsx`'s `loadMore`, including [[B-002]]'s channel-archive backfill) shows no
-  loading/spinner state while a request is in flight — the in-flight refs are used only
-  to dedupe concurrent calls, never rendered.
-- **Expected:** a spinner at the bottom of the scrolled list while a page/backfill request
-  is in flight, so the user gets feedback instead of what looks like the list simply
-  stopping.
-- **Code refs:** `src/ui/FeedList.tsx` (`onNearEnd`); `src/ui/App.tsx` (`loadMore`, the
-  in-flight refs).
-- **Notes:** contrast with the existing `searching` state already used for YouTube search
-  — same pattern, just needs to also cover the main feed's scroll pagination and channel
-  backfill paths.
-
 ### B-058 — Paginating a channel's archive marks all newly-discovered videos as unread
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-12
@@ -238,36 +221,6 @@ Resolved entries add:
   channel result may be needed, or batched. Related: [[B-054]], [[B-056]] (channel detail
   screen — the natural place a channel result now goes).
 
-### B-054 — Search should always search YouTube directly; drop the "Mine"/"YouTube" toggle
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** search / ui-shell
-- **What happens:** the owner reports needing to click "YouTube" before typing, and even
-  then the filter input keeps re-filtering the *locally loaded* feed on every keystroke
-  until Enter is pressed. Confirmed in code: the filter input's `onChange` always updates
-  local `filter` state (driving a local substring-match `useMemo`) regardless of which
-  scope is selected; `onKeyDown` only fires the remote `search.list` call on Enter when
-  scope is `'youtube'`. So even with "YouTube" selected, every keystroke visibly
-  re-filters stale local data until the user commits with Enter — confusing, since the
-  local cache isn't necessarily up to date with YouTube.
-- **Expected:** per the owner, remove the "Mine"/"YouTube" toggle entirely. The filter
-  field's only behavior should be searching YouTube directly (remote, still explicit-Enter
-  triggered per the existing quota discipline — no auto-loading per keystroke) — browsing
-  the locally cached subscriptions is a different, already-existing surface (the sidebar
-  channel list/filter), not something the search field should offer as an alternate mode.
-  **Product principle to carry into future decisions:** local caching is a technical
-  implementation detail, never a UX distinction the user should have to reason about —
-  an active search is an active intent to reach YouTube, and Chronicle should never stand
-  between the user and that, consistent with `non-goals.md`'s framing of Chronicle as a
-  better YouTube client, not a separate local database browser.
-- **Code refs:** `src/ui/App.tsx` (`searchScope` state, the `.search-scope` toggle, the
-  filter input's `onChange`/`onKeyDown`, the local `filtered` `useMemo`, `runSearch`);
-  `src/adapters/youtube/api-client.ts` (`search()`).
-- **Notes:** this changes the shipped design D-031 currently documents as "Implemented
-  2026-07-12 (B-009)" (the toggle + local-filter shape) — `decisions.md`'s D-031 entry
-  needs a follow-up note once this is attacked. Related: [[B-055]] (search results UX),
-  [[B-060]] (filter doesn't work in the player — same filter input).
-
 ### B-051 — Some subscribed channels show up with zero videos
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-12
@@ -307,23 +260,6 @@ Resolved entries add:
   the specific channels reported) before this can move to "in progress." Possibly
   related to [[B-021]] (new-subscription lag) if the empty channels are recently
   subscribed.
-
-### B-050 — Button to open a channel's YouTube page in the browser
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** ui-shell
-- **What happens:** the per-video action bar has "Open in browser" (opens the *video* on
-  youtube.com), but the channel screen has no equivalent for the *channel* itself — no
-  way to jump to `youtube.com/channel/{id}` from inside Chronicle.
-- **Expected:** a button on the channel view (near the channel title/header) that opens
-  the channel's YouTube page via `window.chronicle.openExternalUrl`, mirroring the
-  existing per-video pattern.
-- **Code refs:** `src/ui/App.tsx` / channel-view header rendering (wherever the channel
-  screen's title is rendered); `actions.openInBrowser` in `FeedList.tsx` for the existing
-  per-video pattern to mirror; `window.chronicle.openExternalUrl` (already used in
-  `SettingsView.tsx` for the permissions link) is the IPC call to reuse.
-- **Notes:** small, self-contained addition — no new IPC surface needed, just a new call
-  site for an existing bridge method.
 
 ### B-049 — Settings copy about signing into the player for Premium may be misleading
 - **Type:** adjustment
@@ -502,6 +438,67 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-059 — No loading indicator while paginating/scrolling to load more
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell / feed
+- **What happens:** the scroll-triggered `loadMore` path showed no loading/spinner state
+  while a request was in flight — the in-flight refs were used only to dedupe concurrent
+  calls, never rendered.
+- **Expected:** a spinner at the bottom of the scrolled list while a page/backfill request
+  is in flight.
+- **Code refs:** `src/ui/App.tsx` (new `loadingMore` state, set around both the
+  cursor-page fetch and the channel-archive backfill in `loadMore`); `src/ui/FeedList.tsx`
+  (new `loadingMore` prop, rendered as a `.feed-loading-more` footer after the virtualized
+  list).
+- **Notes:** kept as a plain text footer (mirrors the existing `searching` state's
+  `.empty` text used for YouTube search) rather than a CSS spinner animation — consistent
+  with the rest of the app's minimal, text-first loading states. No live-app check this
+  session; verified via `npm run typecheck && npm run lint && npm test` (171/171). Owner
+  should validate live: scrolling to the end of a long feed and to the end of a deep
+  channel archive.
+- **Resolved:** 2026-07-12 · **Commit:** 0b2cb06 · **Outcome:** Fixed
+
+### B-054 — Search should always search YouTube directly; drop the "Mine"/"YouTube" toggle
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** search / ui-shell
+- **What happens:** the filter input kept re-filtering the *locally loaded* feed on every
+  keystroke regardless of scope, and only fired the remote `search.list` call on Enter
+  when "YouTube" scope was selected — confusing, since the local cache isn't necessarily
+  up to date with YouTube.
+- **Expected:** remove the "Mine"/"YouTube" toggle entirely; the filter field's only
+  behavior is searching YouTube directly on Enter — browsing locally cached subscriptions
+  stays the sidebar's job.
+- **Code refs:** `src/ui/App.tsx` (removed `searchScope` state and the `.search-scope`
+  toggle; `filtered` is now just `videos`, no local substring match; the filter input
+  always shows the YouTube-search placeholder and always searches on Enter);
+  `.specs/decisions.md` (D-031), `.specs/features.md`, `.specs/ui.md` (`/` shortcut
+  description) updated to match.
+- **Notes:** the local substring-match `useMemo` is gone entirely, not just the toggle
+  button — the bug's root cause was the live re-filtering behavior itself, not merely the
+  two-button UI for choosing a scope. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (171/171). Owner should validate live:
+  typing in the filter no longer changes the visible feed, and Enter always hits YouTube.
+- **Resolved:** 2026-07-12 · **Commit:** 0b2cb06 · **Outcome:** Fixed
+
+### B-050 — Button to open a channel's YouTube page in the browser
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** ui-shell
+- **What happens:** the per-video action bar has "Open in browser," but nothing
+  equivalent existed for the channel itself.
+- **Expected:** a button on the channel-filtered topbar that opens the channel's YouTube
+  page.
+- **Code refs:** `src/ui/App.tsx` (new `.open-channel-btn` next to the channel title,
+  calling `window.chronicle.openExternalUrl` with `https://www.youtube.com/channel/{id}`).
+- **Notes:** lands on the current channel-filtered topbar rather than a dedicated channel
+  screen, since [[B-056]] (the real channel-detail screen) doesn't exist yet — this is the
+  channel view as it exists today. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (171/171). Owner should validate live:
+  the link opens the correct channel page in the system browser.
+- **Resolved:** 2026-07-12 · **Commit:** 0b2cb06 · **Outcome:** Fixed
 
 ### B-066 — Removing the only remaining account silently does nothing
 - **Type:** bug · **Severity:** major
