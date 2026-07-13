@@ -451,9 +451,66 @@ Resolved entries add:
 
 ## Resolved
 
+### B-074 — Channel pagination duplicates the first page after backfill; loading can silently stop working; cross-channel visual glitches while switching mid-scroll
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed (2 of 3 symptoms — see notes) · **Reported:** 2026-07-13
+- **Area:** ui-shell / feed
+- **What happens:** three related reports, all traced to the same area
+  (`App.tsx`'s `loadView`/`loadMore`).
+  1. **Pagination repeats the first page:** `loadMore`'s backfill-retry branch used
+     `lastCursorRef.current` as the resume cursor — but that ref was only ever set inside
+     the "there's another local page" branch of `loadMore` itself. For a channel whose
+     entire local archive fits in one page (the common case: RSS only ever gives ~15
+     items), `nextCursor` comes back `null` immediately after the very first load, that
+     branch never runs, and `lastCursorRef.current` stays at its initial `null` forever.
+     Retrying `getFeed` with a `null` cursor after backfill re-requests page one from
+     scratch, appending it as a duplicate "next page."
+  2. **Pagination silently stops working, sometimes fixed by leaving and re-entering the
+     channel:** `loadView`'s success handler only reset the shared `loadingRef` guard on
+     the path where its response was still current — the early-return ("this response is
+     stale, a newer view/channel load already started") skipped resetting it. Once a
+     `loadView` call got superseded before its fetch resolved, `loadingRef` stayed `true`
+     permanently, and `loadMore`'s very first line (`if (loadingRef.current) return`)
+     then silently no-ops on every subsequent scroll-to-bottom for that channel — until
+     the *next* `loadView` call (e.g. leaving and re-entering) happened to resolve
+     without being superseded, resetting the flag.
+  3. **Cross-channel visual glitch while switching channels mid-scroll** (old channel's
+     thumbnails/titles rendering stacked under the new channel's, accumulating): not
+     independently reproduced this session, but both bugs above are exactly the kind of
+     state corruption (duplicated rows, a stuck loading flag masking further corruption)
+     that would produce exactly this symptom once a channel switch lands in the middle of
+     it — plausible the same fix resolves it, not confirmed live.
+- **Expected:** pagination and backfill retries always resume from the actual end of
+  what's currently displayed, and a superseded request never partially or permanently
+  affects the loading state of whatever load replaced it.
+- **Code refs:** `src/ui/App.tsx` (`loadView`, `loadMore` — both rewritten; removed
+  `lastCursorRef` entirely).
+- **Notes:**
+  - Replaced the ad-hoc `viewRef.current !== X || channelRef.current !== Y` staleness
+    checks (present in three separate places, one of which — `loadView`'s — didn't reset
+    `loadingRef` on the stale path) with a single incrementing `requestGenerationRef`:
+    `loadView` bumps it and captures the new value; `loadMore`/the backfill retry capture
+    the *current* value without bumping (they're continuing the current session, not
+    starting a new one) and compare on resolve. A mismatch means a newer `loadView`
+    happened meanwhile, and the response is discarded outright — before touching
+    `loadingRef`, `videos`, or `nextCursor` — rather than partially handled.
+  - The resume cursor after a channel-archive backfill is now derived from
+    `videos.at(-1)` (the last video actually on screen) instead of a separately-tracked
+    ref that could never be set for a single-page channel — always correct regardless of
+    how the local archive got exhausted.
+  - No live-app check this session (needs a live account with multiple channels of
+    varying archive depth, and rapid channel-switching under load, to fully exercise);
+    verified via `npm run typecheck && npm run lint && npm test` (177/177 — this is
+    renderer-state logic with no existing unit-test harness for `App.tsx`). Owner should
+    validate live: paginating a channel whose archive is exactly one RSS page deep (the
+    duplicate-first-page case), scrolling to the end of several different channels in a
+    row without leaving between them (the stuck-loadingRef case), and switching channels
+    rapidly mid-scroll (the visual glitch, to confirm or rule out).
+- **Resolved:** 2026-07-13 · **Commit:** 32b3ed5 · **Outcome:** Fixed (partial)
+
 ### B-072 — Grid card's floating action bar and duration badge look closer to the bottom edge than to the left/right edges
 - **Type:** adjustment
-- **Status:** Fixed · **Reported:** 2026-07-13
+- **Status:** Fixed (second attempt — see notes) · **Reported:** 2026-07-13
 - **Area:** ui-shell / feed
 - **What happens:** the owner reported the action-button bar overlaid on a grid card's
   thumbnail reads as glued to the bottom of the thumb, inconsistent with its left-edge
@@ -468,14 +525,25 @@ Resolved entries add:
   the same amount in every direction.
 - **Code refs:** `src/ui/styles.css` (`.card-duration` padding now uniform `5px`; new
   `.card-actions button` override at uniform `6px`, scoped to the grid card so the
-  shared list-row button padding is untouched).
-- **Notes:** scoped the button padding fix to `.card-actions button` specifically rather
-  than changing the shared `.row-actions button` rule, since list mode's inline row of
-  actions has no edge-spacing concern to fix and wasn't part of the report. No live-app
-  check this session (visual-only CSS change, no test coverage applicable); verified via
-  `npm run lint`. Owner should validate live: hovering/selecting a grid card and
-  confirming the action bar and duration badge now look evenly inset on every side.
-- **Resolved:** 2026-07-13 · **Commit:** 69e07e7 · **Outcome:** Fixed
+  shared list-row button padding is untouched; `bottom` offset on both `.card-actions`
+  and `.card-duration` bumped from `6px` to `12px`).
+- **Notes:**
+  - **First attempt (commit 69e07e7):** made the *internal padding* symmetric on the
+    theory that equal position offsets (6px) plus asymmetric inner padding explained the
+    look. The owner's live re-test showed it still reads as tighter on the bottom —
+    disproving (or at least showing incomplete) that theory: equal-on-paper offsets
+    apparently still don't render as equal, for reasons this session can't observe
+    directly (no live app access).
+  - **Second attempt (this commit):** per the owner's own live observation, bumped the
+    `bottom` offset specifically (not `left`/`right`/`top`, which the owner didn't flag)
+    to `12px` — double the sides — while keeping the padding-symmetry fix from the first
+    attempt. This is a pragmatic, observation-driven adjustment rather than a fully
+    explained one; if it still doesn't look right, the next step should probably be a
+    screenshot/measurement rather than another guess.
+  - No live-app check this session (visual-only CSS change, no test coverage
+    applicable); verified via `npm run lint`. Owner should validate live again: does
+    `bottom: 12px` finally read as visually even with the sides now?
+- **Resolved:** 2026-07-13 · **Commit:** 32b3ed5 · **Outcome:** Fixed
 
 ### B-071 — Primary account's sidebar label stays "My account" after connecting, instead of the real channel name
 - **Type:** bug · **Severity:** minor
