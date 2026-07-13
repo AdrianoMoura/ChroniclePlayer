@@ -236,41 +236,6 @@ Resolved entries add:
 - **Notes:** verify the actual session/partition setup before rewriting the copy — don't
   guess between "sign-in flow is missing" and "copy is just unclear" without checking.
 
-### B-048 — Premieres/scheduled videos sort by capture time, not air time; no live/upcoming indicator
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** feed / sync
-- **What happens:** the owner observed premiere videos appearing in feed order by
-  whenever Chronicle first captured them, not the order they're actually scheduled to
-  premiere/air — confirmed in code: `feed.md` (§Ordering) already flags this as an
-  **unverified assumption** ("RSS `published` reflects effective public-availability
-  date... if premieres appear early with future dates, they sort to the top with a
-  'Premieres {date}' label... until the hide-premieres Future feature exists"), and that
-  label was never built. The API client does parse `snippet.liveBroadcastContent` into
-  `live`/`upcoming`/`none` and persists it (`api-client.ts`, `migrations.ts`
-  `live_content` column, `sync-repository.ts`), but the value is dropped before reaching
-  the feed: absent from `FEED_SELECT` (`repositories.ts`), absent from the domain
-  `Video` type (`src/core/video.ts`), absent from `src/ipc/contract.ts` — captured and
-  stored, never read back or rendered. The same root cause likely also affects scheduled
-  (not-yet-live) livestreams, per the owner's suspicion.
-- **Expected:** (1) verify what `publishedAt` actually holds for a premiere/upcoming
-  video in practice (the assumption in `feed.md` needs confirming or correcting); (2)
-  wire the already-captured `live_content` through to the feed query, domain type, and
-  IPC contract; (3) render a badge/label for `upcoming`/`live` videos (mirroring the
-  existing `isShort` badge pattern in `FeedList.tsx`) so premieres and scheduled/active
-  livestreams are visually distinguishable from normal uploads, independent of whatever
-  the ordering fix turns out to be.
-- **Code refs:** `.specs/feed.md` (§Ordering, the existing assumption);
-  `src/adapters/youtube/api-client.ts` (`liveContent` parsing);
-  `src/adapters/storage/migrations.ts` (`live_content` column),
-  `src/adapters/storage/sync-repository.ts` (write path);
-  `src/adapters/storage/repositories.ts` (`FEED_SELECT` — read path, currently missing
-  the column); `src/core/video.ts` (domain type); `src/ipc/contract.ts` (DTO);
-  `src/ui/FeedList.tsx` (`isShort` badge to mirror for the new indicator).
-- **Notes:** needs a `feed.md` update once attacked (resolving the "Assumption" flag one
-  way or the other) and possibly a `decisions.md` entry if the "Premieres {date}"
-  ordering/label design needs a Final decision beyond what's already sketched.
-
 ### B-046 — Thumbnail hover preview (video scrub preview)
 - **Type:** adjustment (feasibility unclear)
 - **Status:** Open · **Reported:** 2026-07-12
@@ -384,6 +349,30 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-048 — Premieres/scheduled videos sort by capture time, not air time; no live/upcoming indicator
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Area:** feed / sync
+- **What happens:** `snippet.liveBroadcastContent` was captured and persisted
+  (`live_content` column) but dropped before reaching the feed — absent from
+  `FEED_SELECT`, the domain `Video` type, and the IPC DTO, so no badge could ever render.
+- **Expected:** (1) verify the `publishedAt`-reflects-air-time assumption; (2) wire
+  `live_content` through to the feed query/domain type/IPC; (3) render a badge.
+- **Code refs:** `src/adapters/storage/repositories.ts` (`FEED_SELECT`, `toEntry`);
+  `src/core/video.ts` (`Video.liveContent`); `src/ipc/contract.ts` (`FeedVideoDto`);
+  `src/platform/main.ts` (`toVideoDto`); `src/ui/FeedList.tsx` (new `.live-badge`,
+  mirroring `.short-badge`).
+- **Notes:** (2) and (3) done; (1) — the ordering assumption itself — is **not
+  addressed**, and can't be without real premiere/livestream data to observe, which this
+  session has no way to exercise. `feed.md`'s §Ordering section still carries it as an
+  open Assumption; only the visibility half of this bug is closed. No live-app check this
+  session; verified via `npm run typecheck && npm run lint && npm test` (175/175,
+  including a new hydration→feed contract test for `liveContent`). Owner should validate
+  live: a real premiere or livestream shows the "Upcoming"/"Live" badge, and whether feed
+  order for one actually looks wrong in practice (which would confirm the ordering half
+  still needs work).
+- **Resolved:** 2026-07-12 · **Commit:** 2127c4b · **Outcome:** Fixed
 
 ### B-063 — Favorites Home section should follow the feed's layout/size settings; sidebar should list favorited channels first
 - **Type:** bug (layout) + adjustment (ordering)
