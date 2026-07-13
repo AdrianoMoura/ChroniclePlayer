@@ -71,6 +71,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.subscribeChannel, channelId),
   getChannelDetail: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.getChannelDetail, channelId),
+  getChannelVideos: (channelId: string, pageToken?: string | null) =>
+    ipcRenderer.invoke(IpcChannel.getChannelVideos, channelId, pageToken ?? null),
   getComments: (videoId: string, pageToken?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getComments, videoId, pageToken ?? null),
   postComment: (videoId: string, text: string) =>

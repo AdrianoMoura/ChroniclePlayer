@@ -12,6 +12,7 @@ import type {
   PlayerVideoDto,
   ReadStatusDto,
   SearchResultDto,
+  SearchVideoResultDto,
   SettingsDto,
   VideoStateDto,
   WizardStateDto
@@ -96,6 +97,19 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchNextPageToken, setSearchNextPageToken] = useState<string | null>(null)
   const [searchLoadingMore, setSearchLoadingMore] = useState(false)
+  // Browsing a not-yet-subscribed channel's uploads, opened from a search
+  // channel result — a transient, never-persisted sibling of channelFilter's
+  // usual (subscribed) feed pipeline; only rendered while its channelId
+  // still matches channelFilter.
+  const [channelPreview, setChannelPreview] = useState<{
+    channelId: string
+    title: string
+    thumbnailUrl: string | null
+    videos: SearchVideoResultDto[]
+    nextPageToken: string | null
+    loading: boolean
+    loadingMore: boolean
+  } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [progress, setProgress] = useState<{
     phase: 'channels' | 'shorts'
@@ -424,6 +438,59 @@ export function App() {
       )
     })
   }, [connect, loadChannels, writeScopeGate])
+
+  // Opens a search channel result's screen even though it isn't subscribed
+  // yet — ChannelHeader/getChannelDetail already work for any channelId;
+  // only the video list needs this channel-preview path instead of the
+  // usual local-feed pipeline (which has nothing for an unsynced channel).
+  const openChannelPreview = useCallback(
+    (channelId: string, title: string, thumbnailUrl: string | null) => {
+      setSearchResults(null)
+      setChannelFilter(channelId)
+      setChannelPreview({
+        channelId,
+        title,
+        thumbnailUrl,
+        videos: [],
+        nextPageToken: null,
+        loading: true,
+        loadingMore: false
+      })
+      void window.chronicle.getChannelVideos(channelId).then((result) => {
+        setChannelPreview((current) => {
+          if (current === null || current.channelId !== channelId) return current
+          if (!result.ok) return { ...current, loading: false }
+          return {
+            ...current,
+            loading: false,
+            videos: result.value.videos,
+            nextPageToken: result.value.nextPageToken
+          }
+        })
+      })
+    },
+    []
+  )
+
+  const loadMoreChannelPreview = useCallback(() => {
+    setChannelPreview((current) => {
+      if (current === null || current.nextPageToken === null || current.loadingMore) return current
+      const { channelId, nextPageToken } = current
+      void window.chronicle.getChannelVideos(channelId, nextPageToken).then((result) => {
+        setChannelPreview((c) => {
+          if (c === null || c.channelId !== channelId) return c
+          if (!result.ok) return { ...c, loadingMore: false }
+          return {
+            ...c,
+            loadingMore: false,
+            videos: [...c.videos, ...result.value.videos],
+            nextPageToken: result.value.nextPageToken
+          }
+        })
+      })
+      return { ...current, loadingMore: true }
+    })
+  }, [])
 
   // B-042: local-only priority marker — never touches YouTube.
   const toggleChannelFavorite = useCallback(
@@ -1161,11 +1228,25 @@ export function App() {
         {channelFilter !== null &&
           (() => {
             const selectedChannel = channels.find((c) => c.channelId === channelFilter)
-            return selectedChannel !== undefined ? (
+            const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
+            const headerChannel =
+              selectedChannel ??
+              (preview !== null
+                ? {
+                    channelId: preview.channelId,
+                    title: preview.title,
+                    thumbnailUrl: preview.thumbnailUrl,
+                    unreadCount: 0,
+                    favorite: false
+                  }
+                : undefined)
+            return headerChannel !== undefined ? (
               <ChannelHeader
-                channel={selectedChannel}
+                channel={headerChannel}
+                subscribed={selectedChannel !== undefined}
                 confirmingUnsubscribe={confirmingUnsubscribe}
                 onUnsubscribe={handleTopbarUnsubscribe}
+                onSubscribe={() => subscribeToChannel(channelFilter)}
                 onOpenInBrowser={() =>
                   void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
                 }
@@ -1244,6 +1325,9 @@ export function App() {
                             <SearchChannelCard
                               key={result.channelId}
                               result={result}
+                              onOpen={() =>
+                                openChannelPreview(result.channelId, result.title, result.thumbnailUrl)
+                              }
                               onSubscribe={() => subscribeToChannel(result.channelId)}
                             />
                           )
@@ -1265,6 +1349,9 @@ export function App() {
                       <SearchChannelRow
                         key={result.channelId}
                         result={result}
+                        onOpen={() =>
+                          openChannelPreview(result.channelId, result.title, result.thumbnailUrl)
+                        }
                         onSubscribe={() => subscribeToChannel(result.channelId)}
                       />
                     )
@@ -1277,6 +1364,52 @@ export function App() {
                     onClick={loadMoreSearchResults}
                   >
                     {searchLoadingMore ? t('search.loadingMore') : t('search.loadMore')}
+                  </button>
+                )}
+              </div>
+            ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
+              <div className={`search-results size-${settings.itemSize}`}>
+                {channelPreview.loading && <div className="empty">{t('search.searching')}</div>}
+                {!channelPreview.loading && channelPreview.videos.length === 0 && (
+                  <div className="empty">{t('search.empty')}</div>
+                )}
+                {(() => {
+                  const visible = channelPreview.videos.filter(
+                    (video) => settings.showShorts || !video.isShort
+                  )
+                  if (settings.layout === 'grid') {
+                    return (
+                      <div
+                        className="grid-row"
+                        style={{
+                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                        }}
+                      >
+                        {visible.map((video) => (
+                          <SearchVideoCard
+                            key={video.videoId}
+                            result={video}
+                            onOpen={() => openVideo(video.videoId)}
+                          />
+                        ))}
+                      </div>
+                    )
+                  }
+                  return visible.map((video) => (
+                    <SearchVideoRow
+                      key={video.videoId}
+                      result={video}
+                      onOpen={() => openVideo(video.videoId)}
+                    />
+                  ))
+                })()}
+                {channelPreview.nextPageToken !== null && (
+                  <button
+                    className="comments-load-more"
+                    disabled={channelPreview.loadingMore}
+                    onClick={loadMoreChannelPreview}
+                  >
+                    {channelPreview.loadingMore ? t('search.loadingMore') : t('search.loadMore')}
                   </button>
                 )}
               </div>

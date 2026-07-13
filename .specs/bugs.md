@@ -332,7 +332,7 @@ Resolved entries add:
 
 ### B-061 — Subscribe/unsubscribe from inside the player and the channel detail screen
 - **Type:** adjustment
-- **Status:** Fixed (partial — see notes) · **Reported:** 2026-07-12
+- **Status:** Fixed · **Reported:** 2026-07-12
 - **Area:** player / ui-shell
 - **What happens:** the player's action bar had no subscribe/unsubscribe — blocked on
   `PlayerVideoDto` having no `channelId` field.
@@ -354,6 +354,11 @@ Resolved entries add:
     test` (177/177). Owner should validate live: the player's new toggle against a real
     account, both directions.
 - **Resolved:** 2026-07-13 · **Commit:** 62b8e69 · **Outcome:** Fixed (partial)
+- **Amended 2026-07-13 (commit dbe8df3):** the remaining channel-screen gap is closed —
+  clicking a search channel result now opens that channel's screen even when unsubscribed
+  (`ChannelHeader` gained a `subscribed`/`onSubscribe` pair, showing a real Subscribe
+  button instead of assuming every visited channel is already followed); see [[B-056]]'s
+  amendment for the video-list half of this. Status promoted from partial to full Fixed.
 
 ### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
 - **Type:** adjustment
@@ -389,6 +394,22 @@ Resolved entries add:
     image, in both light and dark themes, and confirming Unsubscribe/open-in-browser
     still work from the new location.
 - **Resolved:** 2026-07-13 · **Commit:** 79c6199 · **Outcome:** Fixed
+- **Amended 2026-07-13 (commit dbe8df3):** the "not done" Subscribe gap is closed — a new
+  `getChannelVideos` IPC (`channels.list` + `playlistItems.list` + `videos.list`, 1 unit
+  each, batched, never persisted to the local DB) lets the channel screen show a
+  not-yet-subscribed channel's uploads via the existing `SearchVideoRow`/`SearchVideoCard`
+  components (`src/ui/App.tsx`'s `channelPreview` state, `openChannelPreview`/
+  `loadMoreChannelPreview`), reached by clicking a search channel result
+  (`SearchChannelRow`/`SearchChannelCard` gained an `onOpen` alongside `onSubscribe`).
+  `ChannelHeader` now takes `subscribed`/`onSubscribe` and shows a real Subscribe button
+  instead of assuming every visited channel is already followed. See [[B-061]]'s matching
+  amendment. `youtube-api.md` updated with the new endpoint costs. No live-app check this
+  session (needs a live account with an unsubscribed channel to browse, per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint && npm
+  test` (179/179). Owner should validate live: opening a search channel result not yet
+  followed, browsing/paginating its videos, subscribing from that screen, and confirming
+  it flips to the normal subscribed channel screen (Unsubscribe button, synced feed)
+  once the post-subscribe sync catches up.
 
 ### B-067 — Auth/consent errors give no explanation or path to fix; write-scope consent jumps straight to the browser with no warning
 - **Type:** bug

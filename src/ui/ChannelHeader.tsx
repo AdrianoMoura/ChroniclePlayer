@@ -5,8 +5,10 @@ import { t } from './i18n'
 
 interface ChannelHeaderProps {
   channel: ChannelDto
+  subscribed: boolean
   confirmingUnsubscribe: boolean
   onUnsubscribe: () => void
+  onSubscribe: () => void
   onOpenInBrowser: () => void
 }
 
@@ -21,8 +23,10 @@ function thumbSrc(url: string): string {
 // algorithm's aesthetic imposing itself, not the user's.
 export function ChannelHeader({
   channel,
+  subscribed,
   confirmingUnsubscribe,
   onUnsubscribe,
+  onSubscribe,
   onOpenInBrowser
 }: ChannelHeaderProps) {
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
@@ -66,12 +70,18 @@ export function ChannelHeader({
           >
             ↗
           </button>
-          <button
-            className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
-            onClick={onUnsubscribe}
-          >
-            {confirmingUnsubscribe ? t('app.topbar.confirmUnsubscribe') : t('app.topbar.unsubscribe')}
-          </button>
+          {subscribed ? (
+            <button
+              className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
+              onClick={onUnsubscribe}
+            >
+              {confirmingUnsubscribe ? t('app.topbar.confirmUnsubscribe') : t('app.topbar.unsubscribe')}
+            </button>
+          ) : (
+            <button className="primary" onClick={onSubscribe}>
+              {t('search.subscribeButton')}
+            </button>
+          )}
         </div>
       </div>
     </div>

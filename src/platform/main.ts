@@ -39,6 +39,7 @@ import type {
   ReadStatusDto,
   ResultDto,
   SearchResultDto,
+  SearchVideoResultDto,
   SyncReportDto,
   VideoRatingDto,
   VideoStateDto,
@@ -681,6 +682,46 @@ void app.whenReady().then(() => {
       try {
         const detail = await apiClient.fetchChannelDetail(id)
         return { ok: true, value: detail }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.getChannelVideos,
+    async (
+      _event,
+      channelId: unknown,
+      pageToken: unknown
+    ): Promise<ResultDto<{ videos: SearchVideoResultDto[]; nextPageToken: string | null }>> => {
+      const id = parseChannelIdRequired(channelId)
+      try {
+        const playlists = await apiClient.fetchUploadsPlaylists([id])
+        const uploadsPlaylistId = playlists.get(id)
+        if (uploadsPlaylistId === undefined) return { ok: true, value: { videos: [], nextPageToken: null } }
+        const page = await apiClient.listUploads(
+          uploadsPlaylistId,
+          typeof pageToken === 'string' ? pageToken : undefined
+        )
+        const hydrated = await apiClient.hydrate(page.videoIds)
+        const videos: SearchVideoResultDto[] = hydrated.map((video) => ({
+          kind: 'video',
+          videoId: video.videoId,
+          title: video.title,
+          channelId: video.channelId,
+          channelTitle: video.channelTitle,
+          publishedAt: video.publishedAt,
+          thumbnailUrl: video.thumbnailUrl,
+          durationSeconds: video.durationSeconds,
+          isShort: video.durationSeconds !== null && video.durationSeconds <= 60
+        }))
+        return { ok: true, value: { videos, nextPageToken: page.nextPageToken } }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
           authProvider.invalidate()

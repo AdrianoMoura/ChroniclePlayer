@@ -258,6 +258,7 @@ export const IpcChannel = {
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
   getChannelDetail: 'channel:getDetail',
+  getChannelVideos: 'channel:getVideos',
   searchYouTube: 'youtube:search',
   getComments: 'video:getComments',
   postComment: 'video:postComment',
@@ -367,6 +368,14 @@ export interface ChronicleApi {
   // channels.list (1 unit) — banner/subscriber count for the channel screen,
   // fetched fresh on open rather than cached in the DB.
   getChannelDetail(channelId: string): Promise<ResultDto<ChannelDetailDto>>
+  // Browsing a not-yet-subscribed channel's uploads from its screen (entry
+  // point: a search channel result). Never persisted to the local DB —
+  // channels.list (1) + playlistItems.list (1) + videos.list (1), all
+  // batched, per page; see youtube-api.md.
+  getChannelVideos(
+    channelId: string,
+    pageToken?: string | null
+  ): Promise<ResultDto<{ videos: SearchVideoResultDto[]; nextPageToken: string | null }>>
   // B-006: commentThreads.list (1 unit/page) — public, readonly scope suffices.
   getComments(
     videoId: string,

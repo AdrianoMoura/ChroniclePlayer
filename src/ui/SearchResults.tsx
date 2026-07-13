@@ -73,13 +73,15 @@ export function SearchVideoCard({ result, onOpen }: { result: VideoResult; onOpe
 
 export function SearchChannelRow({
   result,
+  onOpen,
   onSubscribe
 }: {
   result: ChannelResult
+  onOpen: () => void
   onSubscribe: () => void
 }) {
   return (
-    <div className="row search-result-row search-result-channel">
+    <div className="row search-result-row search-result-channel" {...useActivate(onOpen)}>
       {result.thumbnailUrl !== null ? (
         <img className="search-channel-avatar" loading="lazy" alt="" src={thumbSrc(result.thumbnailUrl)} />
       ) : (
@@ -91,7 +93,14 @@ export function SearchChannelRow({
           <span className="meta">{formatSubscriberCount(result.subscriberCount)}</span>
         )}
       </div>
-      <button className="primary" disabled={result.subscribed} onClick={onSubscribe}>
+      <button
+        className="primary"
+        disabled={result.subscribed}
+        onClick={(event) => {
+          event.stopPropagation()
+          onSubscribe()
+        }}
+      >
         {result.subscribed ? t('search.subscribedButton') : t('search.subscribeButton')}
       </button>
     </div>
@@ -100,13 +109,15 @@ export function SearchChannelRow({
 
 export function SearchChannelCard({
   result,
+  onOpen,
   onSubscribe
 }: {
   result: ChannelResult
+  onOpen: () => void
   onSubscribe: () => void
 }) {
   return (
-    <div className="card search-result-channel-card">
+    <div className="card search-result-channel-card" {...useActivate(onOpen)}>
       {result.thumbnailUrl !== null ? (
         <img className="search-channel-avatar" loading="lazy" alt="" src={thumbSrc(result.thumbnailUrl)} />
       ) : (
@@ -116,7 +127,14 @@ export function SearchChannelCard({
       {result.subscriberCount !== null && (
         <span className="meta">{formatSubscriberCount(result.subscriberCount)}</span>
       )}
-      <button className="primary" disabled={result.subscribed} onClick={onSubscribe}>
+      <button
+        className="primary"
+        disabled={result.subscribed}
+        onClick={(event) => {
+          event.stopPropagation()
+          onSubscribe()
+        }}
+      >
         {result.subscribed ? t('search.subscribedButton') : t('search.subscribeButton')}
       </button>
     </div>
