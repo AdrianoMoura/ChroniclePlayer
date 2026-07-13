@@ -136,30 +136,6 @@ Resolved entries add:
   `PlayerVideoDto`/`getVideo` — a small IPC contract change, not a big lift. Bundle with
   [[B-056]] since the channel screen needs the same subscribe-state plumbing.
 
-### B-058 — Paginating a channel's archive marks all newly-discovered videos as unread
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12
-- **Area:** sync / feed
-- **What happens:** `backfillArchive` hydrates old videos via `applyHydration`, which only
-  inserts into `videos` (metadata) and never touches `video_state`. The feed's read-state
-  query computes `read_status` as `COALESCE(s.read_status, 'unread')` via a `LEFT JOIN
-  video_state` — since hydration never creates a `video_state` row, every backfilled
-  video defaults to unread regardless of how old it is or whether the user already
-  watched it on YouTube.
-- **Expected:** needs a product decision on the right default for a channel's
-  back-catalog surfacing years-old videos — likely candidates: default backfilled videos
-  to read (since they predate the user actively following/using Chronicle and weren't
-  "missed"), or leave unread only for videos published after the channel was first
-  followed. Whatever's chosen, it shouldn't silently inflate unread counts app-wide when
-  a user pages into a deep archive.
-- **Code refs:** `src/core/sync-service.ts` (`backfillArchive`);
-  `src/adapters/storage/sync-repository.ts` (`applyHydration`);
-  `src/adapters/storage/repositories.ts` (`FEED_SELECT`, the `read_status` default).
-- **Notes:** needs a Pending decision in `decisions.md` once attacked (the "right default
-  for backfilled unread state" question) — not a one-line fix, a product call about what
-  "unread" should mean for archive content the user never had a chance to see
-  chronologically. Possibly the real cause behind the "unread" confusion in [[B-063]].
-
 ### B-056 — Channel detail screen (avatar, banner, subscribe button, video list)
 - **Type:** adjustment
 - **Status:** Open · **Reported:** 2026-07-12
@@ -438,6 +414,32 @@ Resolved entries add:
   (not Resolved) until confirmed live, per this bug's own established rule.
 
 ## Resolved
+
+### B-058 — Paginating a channel's archive marks all newly-discovered videos as unread
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12
+- **Area:** sync / feed
+- **What happens:** `backfillArchive` hydrated old videos via `applyHydration`, which only
+  touches `videos` (metadata), never `video_state` — every backfilled video defaulted to
+  unread regardless of age or whether the user already watched it on YouTube.
+- **Expected:** needed a product decision on the right default for a channel's
+  back-catalog; the recommended option (default to read, since these predate the user
+  following/using Chronicle) was implemented per this batch's "resolve everything"
+  instruction, flagged here as a Pending decision exercised.
+- **Code refs:** `src/core/ports.ts`/`src/adapters/storage/sync-repository.ts`
+  (`markVideosReadIfUnset` — new); `src/core/sync-service.ts` (`backfillArchive` calls it
+  after hydration).
+- **Notes:** exercises **D-042** (new, Final) — documented in `feed.md`/`decisions.md`.
+  Only inserts a `video_state` row when none exists yet (`ON CONFLICT DO NOTHING`), so it
+  never overwrites a real read/unread preference from another path (e.g. hydrate-on-open).
+  Deliberately does **not** touch routine gap-backfill (`backfillGap`) — those videos are
+  genuinely missed uploads since the last sync, not archive history, and stay unread.
+  Doesn't resolve [[B-063]]'s separate "favoriting seems to mark videos unread" report —
+  that still needs its own repro. No live-app check this session; verified via
+  `npm run typecheck && npm run lint && npm test` (173/173, two new contract tests against
+  a real in-memory SQLite db). Owner should validate live: paginating a deep channel
+  archive no longer bumps the unread count for those old videos.
+- **Resolved:** 2026-07-12 · **Commit:** 8eee0b7 · **Outcome:** Fixed
 
 ### B-059 — No loading indicator while paginating/scrolling to load more
 - **Type:** adjustment
