@@ -110,7 +110,12 @@ describe('groupFeed', () => {
   })
 })
 
-const READ: VideoState = { readStatus: 'read', favorite: false, watchLater: false }
+const READ: VideoState = {
+  readStatus: 'read',
+  favorite: false,
+  watchLater: false,
+  resumePositionSeconds: null
+}
 
 describe('recentWindowStart', () => {
   it('is the start of the ISO week on a mid-week day', () => {
@@ -143,9 +148,19 @@ describe('unreadCount', () => {
     expect(
       unreadCount([
         entry('a', at),
-        entry('b', at, 'C', { readStatus: 'unread', favorite: true, watchLater: true }),
+        entry('b', at, 'C', {
+          readStatus: 'unread',
+          favorite: true,
+          watchLater: true,
+          resumePositionSeconds: null
+        }),
         entry('c', at, 'C', READ),
-        entry('d', at, 'C', { readStatus: 'ignored', favorite: false, watchLater: false })
+        entry('d', at, 'C', {
+          readStatus: 'ignored',
+          favorite: false,
+          watchLater: false,
+          resumePositionSeconds: null
+        })
       ])
     ).toBe(2)
   })

@@ -71,7 +71,12 @@ protocol.registerSchemesAsPrivileged([
 // default 30 min, user-configurable down to 15 min or manual-only.
 
 function toStateDto(state: VideoState): VideoStateDto {
-  return { readStatus: state.readStatus, favorite: state.favorite, watchLater: state.watchLater }
+  return {
+    readStatus: state.readStatus,
+    favorite: state.favorite,
+    watchLater: state.watchLater,
+    resumePositionSeconds: state.resumePositionSeconds
+  }
 }
 
 function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
@@ -661,6 +666,10 @@ void app.whenReady().then(() => {
   ipcMain.handle(IpcChannel.toggleWatchLater, (_event, videoId: unknown) =>
     toStateDto(stateRepository.toggleWatchLater(parseVideoId(videoId)))
   )
+  ipcMain.handle(IpcChannel.setResumePosition, (_event, videoId: unknown, seconds: unknown) => {
+    const value = typeof seconds === 'number' ? seconds : null
+    return toStateDto(stateRepository.setResumePosition(parseVideoId(videoId), value))
+  })
   ipcMain.handle(IpcChannel.openInBrowser, (_event, videoId: unknown) =>
     shell.openExternal(`https://www.youtube.com/watch?v=${parseVideoId(videoId)}`)
   )
@@ -741,6 +750,12 @@ void app.whenReady().then(() => {
         // keep the placeholder — not worth failing the connection over
       }
       syncRepository.addAccount(primaryAccountId(), label, clock.now().toISOString())
+      // The in-memory stack was built with the placeholder label before this
+      // connection happened (or on a prior run) — without this, the sidebar
+      // keeps showing "My account" until the next app restart even though
+      // the real channel title is already persisted.
+      const primaryStack = accountStacks.get(primaryAccountId())
+      if (primaryStack) primaryStack.label = label
       void runRefresh('manual')
       return { ok: true, value: authStatus() }
     } catch (error) {

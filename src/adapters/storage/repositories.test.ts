@@ -70,7 +70,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(6)
+    expect(Number(row.user_version)).toBe(7)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -101,7 +101,8 @@ describe('SqliteStateRepository', () => {
     expect(states.get('missing')).toEqual({
       readStatus: 'unread',
       favorite: false,
-      watchLater: false
+      watchLater: false,
+      resumePositionSeconds: null
     })
   })
 
@@ -127,7 +128,12 @@ describe('SqliteStateRepository', () => {
     states.toggleFavorite('v1')
     states.toggleWatchLater('v1')
     states.setReadStatus('v1', 'read')
-    expect(states.get('v1')).toEqual({ readStatus: 'read', favorite: true, watchLater: true })
+    expect(states.get('v1')).toEqual({
+      readStatus: 'read',
+      favorite: true,
+      watchLater: true,
+      resumePositionSeconds: null
+    })
   })
 
   it('assigns watch-later queue positions in insertion order and clears on exit', () => {
@@ -144,6 +150,27 @@ describe('SqliteStateRepository', () => {
 
     states.toggleWatchLater('b') // re-enters at the end
     expect(feed.listWatchLaterQueue().map((e) => e.video.videoId)).toEqual(['a', 'c', 'b'])
+  })
+
+  it('setResumePosition persists and clears independently of other flags', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    states.toggleFavorite('v1')
+    states.setResumePosition('v1', 245)
+    expect(states.get('v1')).toEqual({
+      readStatus: 'unread',
+      favorite: true,
+      watchLater: false,
+      resumePositionSeconds: 245
+    })
+    states.setResumePosition('v1', null)
+    expect(states.get('v1').resumePositionSeconds).toBeNull()
+    expect(states.get('v1').favorite).toBe(true) // untouched
+  })
+
+  it('resume position round-trips through findVideo (the player\'s read path)', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    states.setResumePosition('v1', 90)
+    expect(feed.findVideo('v1')?.entry.state.resumePositionSeconds).toBe(90)
   })
 })
 
@@ -429,7 +456,12 @@ describe('SqliteFeedRepository', () => {
 
       feed.markManyRead(null, null, fixedClock.now().toISOString())
 
-      expect(states.get('a')).toEqual({ readStatus: 'read', favorite: true, watchLater: true })
+      expect(states.get('a')).toEqual({
+        readStatus: 'read',
+        favorite: true,
+        watchLater: true,
+        resumePositionSeconds: null
+      })
     })
   })
 })

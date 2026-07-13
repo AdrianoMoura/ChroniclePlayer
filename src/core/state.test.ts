@@ -18,7 +18,12 @@ const state = (partial: Partial<VideoState> = {}): VideoState => ({
 
 describe('D-010 state model', () => {
   it('defaults to unread with no flags (lazy rows: absence = this)', () => {
-    expect(DEFAULT_VIDEO_STATE).toEqual({ readStatus: 'unread', favorite: false, watchLater: false })
+    expect(DEFAULT_VIDEO_STATE).toEqual({
+      readStatus: 'unread',
+      favorite: false,
+      watchLater: false,
+      resumePositionSeconds: null
+    })
   })
 
   it('read status and flags are orthogonal: marking read never touches flags', () => {

@@ -94,6 +94,7 @@ CREATE TABLE video_state (               -- D-010 model: status + orthogonal fla
   favorite          INTEGER NOT NULL DEFAULT 0,
   watch_later       INTEGER NOT NULL DEFAULT 0,
   watch_later_pos   INTEGER,                 -- queue order; NULL when not in queue
+  resume_position_seconds INTEGER,           -- last playback position; NULL = none/finished (v7, B-044)
   status_changed_at TEXT NOT NULL,
   updated_at        TEXT NOT NULL
 );

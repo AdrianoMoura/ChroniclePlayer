@@ -11,6 +11,8 @@ export interface VideoStateDto {
   readStatus: ReadStatusDto
   favorite: boolean
   watchLater: boolean
+  // Player-only; null once finished or never played.
+  resumePositionSeconds: number | null
 }
 
 export interface FeedVideoDto {
@@ -216,6 +218,7 @@ export const IpcChannel = {
   markAllRead: 'state:markAllRead',
   toggleFavorite: 'state:toggleFavorite',
   toggleWatchLater: 'state:toggleWatchLater',
+  setResumePosition: 'state:setResumePosition',
   openInBrowser: 'system:openInBrowser',
   openExternalUrl: 'system:openExternalUrl',
   getVideo: 'video:get',
@@ -276,6 +279,9 @@ export interface ChronicleApi {
   markAllRead(channelId: string | null, accountId?: string | null): Promise<number>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
+  // Persisted on pause/unmount, read back to resume playback. null clears
+  // it (finished, or never played).
+  setResumePosition(videoId: string, seconds: number | null): Promise<VideoStateDto>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
   openInBrowser(videoId: string): Promise<void>
   // Non-video links from descriptions (D-029: browser, always).

@@ -36,6 +36,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.markAllRead, channelId, accountId ?? null),
   toggleFavorite: (videoId: string) => ipcRenderer.invoke(IpcChannel.toggleFavorite, videoId),
   toggleWatchLater: (videoId: string) => ipcRenderer.invoke(IpcChannel.toggleWatchLater, videoId),
+  setResumePosition: (videoId: string, seconds: number | null) =>
+    ipcRenderer.invoke(IpcChannel.setResumePosition, videoId, seconds),
   openInBrowser: (videoId: string) => ipcRenderer.invoke(IpcChannel.openInBrowser, videoId),
   openExternalUrl: (url: string) => ipcRenderer.invoke(IpcChannel.openExternalUrl, url),
   getVideo: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideo, videoId),

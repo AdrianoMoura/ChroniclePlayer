@@ -8,6 +8,9 @@ export interface VideoState {
   readStatus: ReadStatus
   favorite: boolean
   watchLater: boolean
+  // Last known playback position, in seconds; null once finished or never
+  // played. Player-only — the feed never reads this.
+  resumePositionSeconds: number | null
 }
 
 // Absence of a state row means this (video_state rows are created lazily,
@@ -15,7 +18,8 @@ export interface VideoState {
 export const DEFAULT_VIDEO_STATE: VideoState = {
   readStatus: 'unread',
   favorite: false,
-  watchLater: false
+  watchLater: false,
+  resumePositionSeconds: null
 }
 
 export function markRead(state: VideoState): VideoState {
@@ -50,4 +54,8 @@ export function toggleFavorite(state: VideoState): VideoState {
 
 export function toggleWatchLater(state: VideoState): VideoState {
   return { ...state, watchLater: !state.watchLater }
+}
+
+export function setResumePosition(state: VideoState, seconds: number | null): VideoState {
+  return { ...state, resumePositionSeconds: seconds }
 }

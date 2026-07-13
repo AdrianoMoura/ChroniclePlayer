@@ -124,8 +124,18 @@ Data handling for externally opened videos (Final):
   `ui.md`). Note: keyboard control of the IFrame player requires proxying keys through
   the IFrame API (`player.playVideo()` etc.) since the iframe swallows focus — an
   implementation detail worth planning for.
-- Watch progress/resume position: **Future idea** (IFrame API exposes `getCurrentTime()`;
-  storing it locally is cheap) — not MVP.
+- **Resume playback position — implemented 2026-07-13 (`bugs.md` B-044), promoted off
+  this future-ideas list per product-owner request.** `video_state.resume_position_seconds`
+  (schema v7) persists the last known position, read via the IFrame API's `infoDelivery`
+  events (already polled for the seek-±5s shortcuts) and written on pause, on the video
+  actually ending (cleared to null), and right as the player switches away from a video
+  (queue navigation or closing). Reopening a video passes it as the embed's `start=`
+  query parameter rather than issuing a `seekTo()` after the fact — simpler, and avoids a
+  visible jump once playback begins. "Finished, don't resume" threshold: under 10s
+  played, or within the last 30s of the video's known duration (both treated as null/no
+  resume). Persistence cadence is checkpoint-based (pause/ended/switch-away), not a
+  periodic tick, consistent with the app's "predictable, not continuously polling" style
+  elsewhere (e.g. D-038's reissue-on-start pattern).
 
 ## Default playback speed — D-038 (Final, 2026-07-12)
 

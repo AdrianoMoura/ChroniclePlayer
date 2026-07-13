@@ -135,13 +135,22 @@ ALTER TABLE channels DROP COLUMN backfill_page_token;
 ALTER TABLE channels DROP COLUMN backfill_exhausted;
 `
 
+// v7: last known playback position, so reopening a partially-watched
+// video can resume instead of always starting at 0:00. Lives on video_state
+// alongside the other user-facts flags (local-data.md) — Chronicle-only,
+// never synced to YouTube (D-003), same as read/favorite/watch-later.
+const SCHEMA_V7 = `
+ALTER TABLE video_state ADD COLUMN resume_position_seconds INTEGER;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
   SCHEMA_V3,
   SCHEMA_V4,
   SCHEMA_V5,
-  SCHEMA_V6
+  SCHEMA_V6,
+  SCHEMA_V7
 ]
 
 export function migrate(db: DatabaseSync): void {

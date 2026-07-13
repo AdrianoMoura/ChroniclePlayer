@@ -12,6 +12,20 @@ import { t } from './i18n'
 
 const PLAYER_ORIGIN = 'https://www.youtube.com'
 
+// A video within this many seconds (or this close to the end) of finishing
+// counts as "done," not "in progress" — resuming from 0:03 or from the last
+// few seconds of the credits would be more annoying than starting over.
+const RESUME_MIN_SECONDS = 10
+const RESUME_END_MARGIN_SECONDS = 30
+
+function resumeValueFor(currentTime: number, durationSeconds: number | null): number | null {
+  if (currentTime < RESUME_MIN_SECONDS) return null
+  if (durationSeconds !== null && currentTime >= durationSeconds - RESUME_END_MARGIN_SECONDS) {
+    return null
+  }
+  return Math.floor(currentTime)
+}
+
 interface PlayerViewProps {
   video: PlayerVideoDto
   stackDepth: number
@@ -81,7 +95,10 @@ export function PlayerView({
       }
       if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
         playerStateRef.current = payload.info
-        if (payload.info === 0) setSurface('ended') // our overlay, never YouTube's
+        if (payload.info === 0) {
+          setSurface('ended') // our overlay, never YouTube's
+          void window.chronicle.setResumePosition(video.videoId, null)
+        }
         // B-038: quality only takes effect once playback actually starts —
         // requesting it on ready alone isn't enough, YouTube can still pick
         // a bandwidth-heuristic default the moment the stream begins.
@@ -89,6 +106,14 @@ export function PlayerView({
           command('setPlaybackQuality', ['highres'])
           // D-038: same reissue-on-start safety net as quality above.
           if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
+        }
+        // Paused: a natural checkpoint to persist how far the user got,
+        // without polling continuously while playing.
+        if (payload.info === 2) {
+          void window.chronicle.setResumePosition(
+            video.videoId,
+            resumeValueFor(currentTimeRef.current, video.durationSeconds)
+          )
         }
       }
       if (payload.event === 'onError' && typeof payload.info === 'number') {
@@ -102,7 +127,7 @@ export function PlayerView({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [command, defaultPlaybackRate])
+  }, [command, defaultPlaybackRate, video.videoId, video.durationSeconds])
 
   const announce = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -178,6 +203,22 @@ export function PlayerView({
     return () => window.removeEventListener('mouseup', onMouseUp)
   }, [onClose])
 
+  // Persists the playback position for *this* video right as it's about to
+  // stop being the one on screen — switching to another video (queue,
+  // search) or closing the player entirely. Captures videoId/durationSeconds
+  // in the closure at effect-creation time on purpose: the cleanup must save
+  // the outgoing video's position, not whatever's incoming.
+  useEffect(() => {
+    const videoId = video.videoId
+    const durationSeconds = video.durationSeconds
+    return () => {
+      void window.chronicle.setResumePosition(
+        videoId,
+        resumeValueFor(currentTimeRef.current, durationSeconds)
+      )
+    }
+  }, [video.videoId, video.durationSeconds])
+
   function patch(next: VideoStateDto): void {
     setState(next)
     onStatePatched(video.videoId, next)
@@ -199,8 +240,11 @@ export function PlayerView({
       controls: '1',
       enablejsapi: '1'
     })
+    if (video.state.resumePositionSeconds !== null) {
+      params.set('start', String(video.state.resumePositionSeconds))
+    }
     return `${PLAYER_ORIGIN}/embed/${video.videoId}?${params.toString()}`
-  }, [video.videoId])
+  }, [video.videoId, video.state.resumePositionSeconds])
 
   return (
     <div className="player-view">

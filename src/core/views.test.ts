@@ -3,7 +3,7 @@ import { belongsToView, FEED_VIEWS } from './views'
 import type { VideoState } from './state'
 
 function s(readStatus: VideoState['readStatus'], favorite = false, watchLater = false): VideoState {
-  return { readStatus, favorite, watchLater }
+  return { readStatus, favorite, watchLater, resumePositionSeconds: null }
 }
 
 describe('belongsToView', () => {
@@ -45,7 +45,12 @@ describe('belongsToView', () => {
       for (const favorite of [false, true]) {
         for (const watchLater of [false, true]) {
           for (const view of FEED_VIEWS) {
-            expect(typeof belongsToView({ readStatus, favorite, watchLater }, view)).toBe('boolean')
+            expect(
+              typeof belongsToView(
+                { readStatus, favorite, watchLater, resumePositionSeconds: null },
+                view
+              )
+            ).toBe('boolean')
           }
         }
       }

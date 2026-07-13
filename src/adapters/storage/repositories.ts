@@ -15,6 +15,7 @@ import {
   ignore,
   markRead,
   markUnread,
+  setResumePosition,
   toggleFavorite,
   toggleWatchLater,
   unignore,
@@ -39,7 +40,8 @@ const FEED_SELECT = `
     c.title             AS channel_title,
     COALESCE(s.read_status, 'unread') AS read_status,
     COALESCE(s.favorite, 0)           AS favorite,
-    COALESCE(s.watch_later, 0)        AS watch_later
+    COALESCE(s.watch_later, 0)        AS watch_later,
+    s.resume_position_seconds         AS resume_position_seconds
   FROM videos v
   JOIN channels c ON c.channel_id = v.channel_id
   LEFT JOIN video_state s ON s.video_id = v.video_id
@@ -116,6 +118,7 @@ interface FeedRow {
   read_status: string
   favorite: number | bigint
   watch_later: number | bigint
+  resume_position_seconds: number | bigint | null
 }
 
 function toEntry(row: FeedRow): FeedEntry {
@@ -124,7 +127,9 @@ function toEntry(row: FeedRow): FeedEntry {
     state: {
       readStatus: row.read_status as ReadStatus,
       favorite: Number(row.favorite) === 1,
-      watchLater: Number(row.watch_later) === 1
+      watchLater: Number(row.watch_later) === 1,
+      resumePositionSeconds:
+        row.resume_position_seconds === null ? null : Number(row.resume_position_seconds)
     },
     video: {
       videoId: row.video_id,
@@ -380,15 +385,25 @@ export class SqliteStateRepository implements StateRepository {
 
   get(videoId: string): VideoState {
     const row = this.db
-      .prepare(`SELECT read_status, favorite, watch_later FROM video_state WHERE video_id = ?`)
+      .prepare(
+        `SELECT read_status, favorite, watch_later, resume_position_seconds
+         FROM video_state WHERE video_id = ?`
+      )
       .get(videoId) as
-      | { read_status: string; favorite: number | bigint; watch_later: number | bigint }
+      | {
+          read_status: string
+          favorite: number | bigint
+          watch_later: number | bigint
+          resume_position_seconds: number | bigint | null
+        }
       | undefined
     if (!row) return DEFAULT_VIDEO_STATE
     return {
       readStatus: row.read_status as ReadStatus,
       favorite: Number(row.favorite) === 1,
-      watchLater: Number(row.watch_later) === 1
+      watchLater: Number(row.watch_later) === 1,
+      resumePositionSeconds:
+        row.resume_position_seconds === null ? null : Number(row.resume_position_seconds)
     }
   }
 
@@ -413,6 +428,10 @@ export class SqliteStateRepository implements StateRepository {
     return this.apply(videoId, toggleWatchLater)
   }
 
+  setResumePosition(videoId: string, seconds: number | null): VideoState {
+    return this.apply(videoId, (state) => setResumePosition(state, seconds))
+  }
+
   // Reads current state, applies a core transition, persists the result.
   // State rows are precious user data — only these transitions touch them.
   private apply(videoId: string, transition: (state: VideoState) => VideoState): VideoState {
@@ -430,13 +449,15 @@ export class SqliteStateRepository implements StateRepository {
     this.db
       .prepare(
         `INSERT INTO video_state
-           (video_id, read_status, favorite, watch_later, watch_later_pos, status_changed_at, updated_at)
-         VALUES (:id, :status, :fav, :wl, :pos, :now, :now)
+           (video_id, read_status, favorite, watch_later, watch_later_pos,
+            resume_position_seconds, status_changed_at, updated_at)
+         VALUES (:id, :status, :fav, :wl, :pos, :resume, :now, :now)
          ON CONFLICT(video_id) DO UPDATE SET
            read_status = :status,
            favorite = :fav,
            watch_later = :wl,
            watch_later_pos = :pos,
+           resume_position_seconds = :resume,
            status_changed_at = CASE
              WHEN read_status <> :status THEN :now ELSE status_changed_at END,
            updated_at = :now`
@@ -447,6 +468,7 @@ export class SqliteStateRepository implements StateRepository {
         fav: next.favorite ? 1 : 0,
         wl: next.watchLater ? 1 : 0,
         pos: position,
+        resume: next.resumePositionSeconds,
         now
       })
     return next

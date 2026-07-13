@@ -89,6 +89,7 @@ export interface StateRepository {
   setReadStatus(videoId: string, status: ReadStatus): VideoState
   toggleFavorite(videoId: string): VideoState
   toggleWatchLater(videoId: string): VideoState
+  setResumePosition(videoId: string, seconds: number | null): VideoState
 }
 
 // Catalog writes; M1 uses them for fixtures, M2 for real sync.
