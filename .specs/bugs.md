@@ -536,16 +536,34 @@ Resolved entries add:
   guaranteed to land before the next keypress — a rapid second press read the still-
   stale pre-command state and reissued the same command as a no-op. Now updates the
   ref optimistically the instant the command is sent; the real `onStateChange` event
-  still arrives and reconciles it either way. The fullscreen half is **not** a
-  Chronicle bug: pressing a key while focus is genuinely inside the cross-origin
-  YouTube iframe never reaches the parent frame's keydown listener at all (a browser
-  same-origin security boundary), so that keypress is handled entirely by YouTube's
-  own embedded player — which can behave differently — with no way for Chronicle's JS
-  to intercept or override it short of disabling the iframe's own legitimate
-  focus/interaction (its native controls, seek bar, volume), which would be a worse
-  regression. Documented as an accepted platform limitation in `playback.md`. No
+  still arrives and reconciles it either way. The fullscreen half was originally
+  written up as **not** a Chronicle bug (a same-origin focus limitation, accepted as
+  permanent) — the keydown-reaching-the-parent-frame part of that reasoning still
+  holds, but the owner's follow-up report on 2026-07-15 (after this entry had already
+  moved to Resolved) supplied the detail that disproved the fullscreen half
+  specifically: the owner noticed fullscreening via the app then disabled the embed's
+  *own* fullscreen button too, and that pressing Esc (not F) was the only reliable way
+  out once focus moved into the iframe — both point at two different elements each
+  being fullscreened rather than "YouTube handling F differently."
+- **Reopened and fixed, second round (2026-07-15):** confirmed the hypothesis —
+  Chronicle's own `f` handler called `requestFullscreen()` on the wrapping div around
+  the `<iframe>`, not the iframe itself, while the embed's own fullscreen button
+  fullscreens the iframe. A fullscreen request on an `<iframe>` propagates into that
+  iframe's own nested browsing context, letting the embed's internal UI correctly
+  detect "I am fullscreen" and keep its controls visible; fullscreening an ancestor div
+  instead never propagates that signal in, so the embed didn't know it was fullscreen
+  and dropped its controls — and the two triggers ended up fullscreening different
+  elements, which is also why toggling back off via either mechanism was unreliable
+  and only the browser-native Esc always worked. Fixed by targeting `iframeRef` instead
+  of the wrapper div (`src/ui/PlayerSurface.tsx`) — both triggers now fullscreen the
+  same element. `playback.md` corrected to drop the "accepted platform limitation"
+  framing for this specific symptom (the underlying same-origin-keydown limitation
+  itself is real and stays documented, it just isn't what was causing this). No
   live-app check this session (per [[no-live-app-verification]]); verified via
-  `npm run typecheck && npm run lint && npm test` (199/199).
+  `npm run typecheck && npm run lint && npm test` (200/200) — needs the owner's own
+  live confirmation (fullscreen via `f` with focus on the video, fullscreen via the
+  embed's own button, toggling back off both ways) before this can be trusted as
+  actually fixed, given the first resolution of this exact bug was wrong.
 - **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-051 — Some subscribed channels show up with zero videos

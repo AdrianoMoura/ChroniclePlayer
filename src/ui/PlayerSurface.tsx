@@ -290,8 +290,16 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           command('seekTo', [currentTimeRef.current + 5, true])
           break
         case 'f':
+          // Fullscreens the <iframe> itself, not the wrapping div — YouTube's
+          // own fullscreen button does the same (browsers propagate a
+          // fullscreen request on an <iframe> down into its nested browsing
+          // context, so the embed's own UI correctly detects "I'm
+          // fullscreen"). Targeting an ancestor instead left the embed
+          // unaware it was fullscreen (dropping its controls) and made the
+          // two triggers — this shortcut vs. the embed's own button/keyboard
+          // — fight over unrelated fullscreen elements.
           if (document.fullscreenElement) void document.exitFullscreen()
-          else void wrapperRef.current?.requestFullscreen()
+          else void iframeRef.current?.requestFullscreen()
           break
         case 'Escape':
           if (document.fullscreenElement) {

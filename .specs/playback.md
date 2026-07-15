@@ -142,13 +142,24 @@ Data handling for externally opened videos (Final):
   is genuinely inside the cross-origin YouTube iframe when a key is pressed, that keydown
   never reaches the parent frame's listener at all — a browser same-origin security
   boundary, not something any amount of Chronicle JS can intercept or override. In that
-  case the key press is handled entirely by YouTube's own embedded player instead, which
-  can behave differently (observed: its own fullscreen toggle drops its player controls,
-  where Chronicle's own `f` handling — `requestFullscreen()` on the wrapping element —
-  keeps them). Not fixable from Chronicle's side without disabling the iframe's own
-  legitimate focus/interaction entirely (its native controls, seek bar, volume), which
-  would be a worse regression than the inconsistency itself — accepted as a platform
-  limitation rather than pursued further.
+  case the key press is handled entirely by YouTube's own embedded player instead. This
+  part of the original write-up stands.
+- **Fullscreen specifically was not this limitation — fixed 2026-07-15, second round.**
+  What looked like an inherent inconsistency between "`f` via the embed" and "`f` via
+  Chronicle" was actually Chronicle fullscreening the wrong element: `requestFullscreen()`
+  was called on the wrapping div around the `<iframe>`, not the `<iframe>` itself, while
+  YouTube's own fullscreen button (inside the embed) fullscreens the iframe. A browser
+  propagates a fullscreen request made on an `<iframe>` element down into that iframe's
+  own nested browsing context, so the embed's internal UI can correctly tell "I am
+  fullscreen" and render its controls normally — fullscreening an ancestor div instead
+  never propagates that signal in, so the embed's own logic didn't know it was
+  fullscreen and dropped its controls; it also meant Chronicle's `f` and the embed's own
+  `f`/fullscreen-button were fullscreening two different elements, so exiting one via the
+  other's mechanism didn't reliably work (only the browser-native Esc did, since Esc
+  exits fullscreen at the browser level regardless of which element triggered it).
+  Fixed by targeting `iframeRef` instead of the wrapper (`src/ui/PlayerSurface.tsx`) —
+  both triggers now fullscreen the same element, so the embed's controls stay visible
+  either way and `f` correctly toggles regardless of which one turned fullscreen on.
 - **Resume playback position — implemented 2026-07-13 (`bugs.md` B-044), promoted off
   this future-ideas list per product-owner request.** `video_state.resume_position_seconds`
   (schema v7) persists the last known position, read via the IFrame API's `infoDelivery`
