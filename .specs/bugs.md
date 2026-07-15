@@ -200,6 +200,58 @@ Resolved entries add:
   confirms live is this bug's own established rule, and matters more here than usual
   given that history.
 
+### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
+- **Type:** bug · **Severity:** minor (root cause unconfirmed — may be a YouTube embed
+  quirk)
+- **Status:** In progress · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player
+- **What happens:** pressing `F` while focus is inside the iframe goes fullscreen but
+  the player's own controls disappear; pressing `F` while focus is on the app
+  (Chronicle's own keydown handler) goes fullscreen correctly, controls intact.
+  Similarly, Space while focus is in the iframe toggles play/pause reliably every
+  press; Space while focus is on the app works once, then stops responding to further
+  presses.
+- **Expected:** consistent behavior regardless of where focus happens to be.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (`case 'f'`, iframe `allow`/`allowFullScreen`
+  attributes); `src/ui/ExtractedPlayerWindow.tsx` (same attributes, extract window).
+- **Notes:** the Space half was a real bug, confirmed and fixed early on:
+  `playerStateRef` only updates once the iframe posts back its own `onStateChange`, a
+  round trip not guaranteed to land before the next keypress — a rapid second press
+  read the still-stale pre-command state and reissued the same command as a no-op. Now
+  updates the ref optimistically the instant the command is sent. **This part has
+  stayed fixed through every round below** — only the fullscreen half keeps bouncing.
+  **First take:** written up as not a Chronicle bug at all (an inherent same-origin
+  focus limitation, accepted as permanent). **Reopened, second round:** the owner's
+  follow-up detail (the embed's own fullscreen button also stopped working once the app
+  had fullscreened first, and only Esc — not F — could get back out) pointed at two
+  different elements each being fullscreened, not "YouTube just handles F differently."
+  Hypothesis: Chronicle's own `f` handler fullscreened the wrapping div around the
+  `<iframe>`, while the embed's own button fullscreens the iframe itself; fixed by
+  switching Chronicle's own handler to target `iframeRef` instead, on the theory that a
+  fullscreen request on an `<iframe>` propagates into its nested browsing context so the
+  embed can tell it's fullscreen. **Live-tested by the owner (2026-07-15): no change —
+  same broken behavior.** That disproves the second round's specific mechanism (or at
+  least shows it's insufficient), and the owner separately pushed back on the whole
+  approach: the embed's own native fullscreen button was confirmed working correctly
+  (controls stay) when clicked directly — so the fix belongs wherever Chronicle's own
+  `f` handling diverges from that already-working native path, not in guessing which
+  element to fullscreen. **Third round, same day:** reverted the iframe-targeting
+  change back to the wrapping div (the one thing already confirmed working for the
+  app-focused case, before any of this was touched) rather than continue guessing at
+  more element targets. Separately, noticed the `<iframe>` was missing the classic
+  `allowfullscreen` attribute — YouTube's own official embed snippet always includes
+  it, and Chronicle only had the newer Permissions-Policy `allow="fullscreen"` string,
+  never the boolean attribute alongside it. Added `allowFullScreen` to both the main
+  player's iframe and the extract window's (`ExtractedPlayerWindow.tsx`, same gap) —
+  a legitimate, standards-compliant gap regardless of whether it's the actual root
+  cause of the embed-focused symptom, since it's what Google's own embed code expects
+  to be present. Checked via `npm run typecheck && npm run lint && npm test`
+  (200/200); **not run live** — needs the owner's own live check (press `f` with focus
+  on the video specifically, not just the app-focused case or the native button) before
+  this can be trusted either way, given the last two rounds were each wrong. Staying
+  "In progress," not Resolved, matching how [[B-022]] is tracked after its own repeated
+  wrong fixes.
+
 ## Resolved
 
 ### B-099 — Extract-to-window button only reachable from the miniplayer, not the full-view player screen
@@ -517,54 +569,6 @@ Resolved entries add:
   by the "who is driving?" test (a user-initiated hover, not algorithmic) — only the data
   source was ever in question, and it's now settled as unavailable.
 - **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Won't fix
-
-### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
-- **Type:** bug · **Severity:** minor (root cause unconfirmed — may be a YouTube embed
-  quirk)
-- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** player
-- **What happens:** pressing `F` while focus is inside the iframe goes fullscreen but
-  the player's own controls disappear; pressing `F` while focus is on the app
-  (Chronicle's own keydown handler) goes fullscreen correctly, controls intact.
-  Similarly, Space while focus is in the iframe toggles play/pause reliably every
-  press; Space while focus is on the app works once, then stops responding to further
-  presses.
-- **Expected:** consistent behavior regardless of where focus happens to be.
-- **Code refs:** `src/ui/PlayerView.tsx` (app-focused keydown map).
-- **Resolution:** the Space half was a real bug, confirmed and fixed: `playerStateRef`
-  only updates once the iframe posts back its own `onStateChange`, a round trip not
-  guaranteed to land before the next keypress — a rapid second press read the still-
-  stale pre-command state and reissued the same command as a no-op. Now updates the
-  ref optimistically the instant the command is sent; the real `onStateChange` event
-  still arrives and reconciles it either way. The fullscreen half was originally
-  written up as **not** a Chronicle bug (a same-origin focus limitation, accepted as
-  permanent) — the keydown-reaching-the-parent-frame part of that reasoning still
-  holds, but the owner's follow-up report on 2026-07-15 (after this entry had already
-  moved to Resolved) supplied the detail that disproved the fullscreen half
-  specifically: the owner noticed fullscreening via the app then disabled the embed's
-  *own* fullscreen button too, and that pressing Esc (not F) was the only reliable way
-  out once focus moved into the iframe — both point at two different elements each
-  being fullscreened rather than "YouTube handling F differently."
-- **Reopened and fixed, second round (2026-07-15):** confirmed the hypothesis —
-  Chronicle's own `f` handler called `requestFullscreen()` on the wrapping div around
-  the `<iframe>`, not the iframe itself, while the embed's own fullscreen button
-  fullscreens the iframe. A fullscreen request on an `<iframe>` propagates into that
-  iframe's own nested browsing context, letting the embed's internal UI correctly
-  detect "I am fullscreen" and keep its controls visible; fullscreening an ancestor div
-  instead never propagates that signal in, so the embed didn't know it was fullscreen
-  and dropped its controls — and the two triggers ended up fullscreening different
-  elements, which is also why toggling back off via either mechanism was unreliable
-  and only the browser-native Esc always worked. Fixed by targeting `iframeRef` instead
-  of the wrapper div (`src/ui/PlayerSurface.tsx`) — both triggers now fullscreen the
-  same element. `playback.md` corrected to drop the "accepted platform limitation"
-  framing for this specific symptom (the underlying same-origin-keydown limitation
-  itself is real and stays documented, it just isn't what was causing this). No
-  live-app check this session (per [[no-live-app-verification]]); verified via
-  `npm run typecheck && npm run lint && npm test` (200/200) — needs the owner's own
-  live confirmation (fullscreen via `f` with focus on the video, fullscreen via the
-  embed's own button, toggling back off both ways) before this can be trusted as
-  actually fixed, given the first resolution of this exact bug was wrong.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-051 — Some subscribed channels show up with zero videos
 - **Type:** bug · **Severity:** major

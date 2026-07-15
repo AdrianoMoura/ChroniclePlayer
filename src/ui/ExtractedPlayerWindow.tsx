@@ -129,6 +129,7 @@ export function ExtractedPlayerWindow({
       src={`https://www.youtube.com/embed/${videoId}?${params.toString()}`}
       title="Chronicle"
       allow="autoplay; encrypted-media; fullscreen"
+      allowFullScreen
       onLoad={announce}
     />
   )

@@ -144,22 +144,19 @@ Data handling for externally opened videos (Final):
   boundary, not something any amount of Chronicle JS can intercept or override. In that
   case the key press is handled entirely by YouTube's own embedded player instead. This
   part of the original write-up stands.
-- **Fullscreen specifically was not this limitation — fixed 2026-07-15, second round.**
-  What looked like an inherent inconsistency between "`f` via the embed" and "`f` via
-  Chronicle" was actually Chronicle fullscreening the wrong element: `requestFullscreen()`
-  was called on the wrapping div around the `<iframe>`, not the `<iframe>` itself, while
-  YouTube's own fullscreen button (inside the embed) fullscreens the iframe. A browser
-  propagates a fullscreen request made on an `<iframe>` element down into that iframe's
-  own nested browsing context, so the embed's internal UI can correctly tell "I am
-  fullscreen" and render its controls normally — fullscreening an ancestor div instead
-  never propagates that signal in, so the embed's own logic didn't know it was
-  fullscreen and dropped its controls; it also meant Chronicle's `f` and the embed's own
-  `f`/fullscreen-button were fullscreening two different elements, so exiting one via the
-  other's mechanism didn't reliably work (only the browser-native Esc did, since Esc
-  exits fullscreen at the browser level regardless of which element triggered it).
-  Fixed by targeting `iframeRef` instead of the wrapper (`src/ui/PlayerSurface.tsx`) —
-  both triggers now fullscreen the same element, so the embed's controls stay visible
-  either way and `f` correctly toggles regardless of which one turned fullscreen on.
+- **Fullscreen specifically: still being chased, not settled — see [[B-089]] for the
+  live history.** A second round tried fullscreening the `<iframe>` itself instead of
+  the wrapping div (theory: matching what the embed's own fullscreen button does
+  internally, since a fullscreen request on an `<iframe>` can propagate into its nested
+  browsing context). The owner's live test showed no change, disproving that specific
+  mechanism — reverted back to fullscreening the wrapper, the one thing already
+  confirmed working for the app-focused case. Separately found and fixed a real gap
+  regardless of root cause: the `<iframe>` was missing the classic `allowfullscreen`
+  attribute that YouTube's own official embed snippet always includes (only the newer
+  Permissions-Policy `allow="fullscreen"` string was present) — added
+  `allowFullScreen` to both the main player and the extract window's iframe. Not yet
+  confirmed live whether this addresses the embed-focused symptom; `bugs.md` [[B-089]]
+  stays "In progress" until it is.
 - **Resume playback position — implemented 2026-07-13 (`bugs.md` B-044), promoted off
   this future-ideas list per product-owner request.** `video_state.resume_position_seconds`
   (schema v7) persists the last known position, read via the IFrame API's `infoDelivery`
