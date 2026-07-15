@@ -1733,6 +1733,7 @@ export function App() {
                   hidden={miniplayer}
                   slotRef={setFullSlot}
                   onClose={() => playerSurfaceRef.current?.requestClose()}
+                  onExtract={extractToWindow}
                   onOpenVideo={(videoId) => openVideo(videoId)}
                   onOpenChannel={navigateToChannel}
                   onStatePatched={patch}

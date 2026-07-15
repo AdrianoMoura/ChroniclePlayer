@@ -1278,6 +1278,9 @@ button.primary:disabled {
 }
 
 .player-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
 }
 
@@ -1298,6 +1301,19 @@ button.primary:disabled {
   border-radius: 4px;
   padding: 0 4px;
   margin-left: 2px;
+}
+
+.player-topbar-extract {
+  color: var(--text-dim);
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.player-topbar-extract:hover {
+  color: var(--text);
+  background: var(--surface-2);
 }
 
 /* B-045: PlayerSurface renders exactly one `.player-stage`, always

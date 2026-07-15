@@ -30,6 +30,7 @@ interface PlayerDetailsProps {
   hidden: boolean
   slotRef: (element: HTMLDivElement | null) => void
   onClose: () => void
+  onExtract: () => void
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
@@ -42,6 +43,7 @@ export function PlayerDetails({
   hidden,
   slotRef,
   onClose,
+  onExtract,
   onOpenVideo,
   onOpenChannel,
   onStatePatched
@@ -79,6 +81,9 @@ export function PlayerDetails({
       <div className="player-topbar">
         <button className="player-back" onClick={onClose}>
           {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')} <kbd>Esc</kbd>
+        </button>
+        <button className="player-topbar-extract" title={t('player.extractTitle')} onClick={onExtract}>
+          ⧉
         </button>
       </div>
       <div ref={slotRef} className="player-stage-slot" />

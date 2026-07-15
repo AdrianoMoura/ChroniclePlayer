@@ -113,6 +113,31 @@ Resolved entries add:
 
 ## In progress
 
+### B-099 — Extract-to-window button only reachable from the miniplayer, not the full-view player screen
+- **Type:** adjustment
+- **Status:** In progress · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player / ui-shell
+- **What happens:** [[B-045]] added an "extract to always-on-top window" action, but it
+  only ever existed in `MiniPlayerBar`'s docked chrome — the full-view player screen
+  (`PlayerDetails`) had no such button, so extracting required first docking to the
+  miniplayer.
+- **Expected:** the extract action is also reachable directly from the full-view player
+  screen, not only after docking.
+- **Code refs:** `src/ui/PlayerDetails.tsx` (topbar); `src/ui/MiniPlayerBar.tsx`
+  (existing `onExtract` button this mirrors); `src/ui/App.tsx` (`extractToWindow`,
+  already defined and already wired to `MiniPlayerBar`, now also passed to
+  `PlayerDetails`).
+- **Notes:** `PlayerDetails` gained an `onExtract` prop and a topbar button (`⧉`,
+  right-aligned via `.player-topbar` becoming a flex row) that calls the same
+  `extractToWindow` callback `MiniPlayerBar` already used — no new extraction logic,
+  just a second entry point to the existing one. The shared copy string moved from
+  `player.miniplayer.extractTitle` to a non-miniplayer-scoped `player.extractTitle`
+  since it's no longer miniplayer-only. Checked via `npm run typecheck && npm run lint
+  && npm test` and `npm run build`; **not run live** (per [[no-live-app-verification]])
+  — needs the owner's own hands-on validation (extract directly from the full-view
+  screen, confirm it behaves the same as extracting from the miniplayer) before this
+  can move to Resolved.
+
 ### B-045 — Miniplayer: detach to a corner mini-view, extract to an always-on-top window
 - **Type:** adjustment
 - **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0

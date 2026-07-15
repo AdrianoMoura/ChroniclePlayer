@@ -105,7 +105,7 @@ export function MiniPlayerBar({
             {video.title}
           </span>
           <div className="miniplayer-actions">
-            <button title={t('player.miniplayer.extractTitle')} onClick={onExtract}>
+            <button title={t('player.extractTitle')} onClick={onExtract}>
               ⧉
             </button>
             <button title={t('player.miniplayer.maximizeTitle')} onClick={onMaximize}>
