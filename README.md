@@ -1,102 +1,326 @@
 # Chronicle
 
-**A chronological, subscriptions-only YouTube client for the desktop.**
+> **YouTube, before the algorithm.**
 
-Chronicle recreates the pre-algorithm YouTube experience: you open it and see the
-channels *you* chose, newest first, grouped as Today / Yesterday / This Week / Earlier.
-Nothing on screen was put there by an engagement model — no algorithmic Home, no
-recommendations, no infinite trending feed. Videos still play through the official
-YouTube player, so creators keep their views and their monetization.
+*A desktop YouTube client that brings back the experience of opening YouTube and simply seeing the channels you chose to follow.*
 
-The governing principle is **agency, not austerity**: you can watch anything, open any
-YouTube link, and search all of YouTube — Chronicle only removes the *algorithm's* will,
-never yours. The test for every feature is "who is driving?"
+<p align="center">
+  <em>(Screenshots coming soon)</em>
+</p>
 
-## Principles (non-negotiable)
+---
 
-- **Local-first** — all your data lives in a SQLite file on your machine. There are no
-  Chronicle servers. Caching data locally is a technical detail for speed and offline
-  use, never a UX boundary you have to think about — searching or filtering always
-  behaves like you're talking to YouTube directly.
-- **Privacy-first** — no telemetry, no analytics, no phoning home. Ever.
-- **Your credentials, your quota** — you create your own free Google Cloud project;
-  Chronicle ships zero embedded credentials and is frugal with your API quota (a
-  typical refresh costs single-digit units of your 10,000/day).
-- **No engagement mechanics** — no autoplay into unrelated content, no badges, no
-  infinite feed. When you're caught up, it says so and offers nothing more.
-- **Shorts are shown, not hidden by default** — they appear in the feed with a badge;
-  a Settings toggle lets you hide them if you'd rather not see them at all. Chronicle
-  doesn't make that decision for you, but it also doesn't rely on the addictive
-  doom-scrolling mechanics they encourage.
+## Why Chronicle exists
 
-## Status
+I built Chronicle because I realized I no longer enjoyed opening YouTube.
 
-Pre-release, daily-driven by its developer. M0–M5 are implemented from source; M6
-(packaging & release) is in progress — see [`.specs/roadmap.md`](.specs/roadmap.md) for
-the full sequencing. You can run Chronicle from source today (below), or grab a packaged
-build from [Releases](../../releases) once the first one ships.
+Instead of seeing the creators I intentionally subscribed to, I was immediately confronted with an endless stream of recommendations competing for my attention. Even when I knew exactly what I wanted to watch, I had to fight through a homepage designed to convince me otherwise.
 
-## Installing a packaged build
+I wanted something simpler.
 
-Packaged builds are unsigned (D-025/D-043 in [`.specs/decisions.md`](.specs/decisions.md));
-this only affects the one-time first-run warning below, nothing else.
+Open the application.
 
-- **Linux** — download the `.AppImage`, `chmod +x` it, run it directly. No installation,
-  no root.
-- **macOS** — download the `.dmg`, drag Chronicle into Applications. Gatekeeper will
-  refuse to open it the normal way ("Chronicle is damaged" or "cannot be opened" — it
-  isn't damaged, it's just unsigned): right-click the app → **Open** → **Open** again in
-  the dialog, or go to **System Settings → Privacy & Security** and click **Open Anyway**
-  next to the Chronicle warning. Only needed once.
-- **Windows** — download the installer and run it. Windows SmartScreen will show
-  "Windows protected your PC": click **More info**, then **Run anyway**. Only needed
-  once.
+See every new upload from my subscriptions.
 
-Chronicle checks GitHub for newer releases once a day (off-switch in Settings → Sync) and
-shows a dismissible notice — it never downloads or installs anything on its own.
+Watch what interests me.
+
+Close it.
+
+Nothing more.
+
+Chronicle is the application I wanted to use every day, so I built it.
+
+I've been daily-driving it throughout development, continuously adjusting small interactions, removing friction, and experimenting with features until the experience feels right to me. Every improvement comes from actually living with the product instead of designing it in theory.
+
+My hope is that what works well for me will also be useful for people who miss the YouTube experience before recommendation algorithms became the center of the platform.
+
+---
+
+## What Chronicle is
+
+Chronicle is **not** a YouTube replacement.
+
+It is a different client for consuming YouTube.
+
+Your subscriptions are presented in strict chronological order, grouped into **Today**, **Yesterday**, **This Week**, and **Earlier**.
+
+There is:
+
+* no algorithmic Home feed
+* no recommendation engine
+* no endless content after you're caught up
+* no autoplay leading into unrelated videos
+
+When there are no new videos, Chronicle simply tells you that you're caught up.
+
+That's the end.
+
+Whenever you want something specific, you can still:
+
+* search the entirety of YouTube
+* open any YouTube URL
+* watch videos using the official YouTube player
+* support creators exactly as you normally would
+
+Chronicle removes the algorithm's choices.
+
+It never removes yours.
+
+---
+
+## Philosophy
+
+The governing principle of Chronicle is:
+
+> **Agency, not austerity.**
+
+The goal isn't to make YouTube smaller.
+
+The goal is to return control to the user.
+
+Every feature is evaluated with a simple question:
+
+> **Who is driving?**
+
+If the answer is "the user", it belongs.
+
+If the answer is "the algorithm", it probably doesn't.
+
+---
+
+## Features
+
+Current functionality includes:
+
+* Chronological subscriptions feed
+* Multiple YouTube accounts
+* Read / unread tracking
+* Ignore videos (with undo)
+* Favorites
+* Watch Later
+* Full YouTube search
+* Open any YouTube URL
+* Keyboard navigation
+* Local SQLite database
+* JSON export
+* Optional Shorts filtering
+* Local caching for offline browsing and instant startup
+
+---
+
+## Core principles
+
+### Local first
+
+Everything lives on your machine.
+
+Chronicle stores its data in a local SQLite database. There are no Chronicle servers.
+
+Caching exists only to make the application faster—it should never change how the application behaves.
+
+Searching and filtering should always feel like you're talking directly to YouTube.
+
+---
+
+### Privacy first
+
+Chronicle collects:
+
+* no telemetry
+* no analytics
+* no usage statistics
+* no crash reports
+* no tracking
+
+Nothing is sent anywhere.
+
+Ever.
+
+---
+
+### Your credentials, your quota
+
+Chronicle ships with **no embedded Google credentials**.
+
+Instead, you create your own free Google Cloud project during onboarding.
+
+This means:
+
+* you own your API quota
+* you control your credentials
+* there is no shared API key that can be revoked for everyone
+
+The application is designed to be extremely conservative with quota usage. A normal refresh costs only a few units out of Google's daily free allowance.
+
+---
+
+### No engagement mechanics
+
+Chronicle intentionally avoids mechanics designed to maximize watch time.
+
+There are no recommendation loops.
+
+No infinite feeds.
+
+No "you might also like."
+
+When you're caught up, the application simply says so.
+
+---
+
+### Shorts are your decision
+
+Shorts are **visible by default** because they're part of many creators' output.
+
+However, if you don't want them in your subscriptions feed, there's a single setting that hides them completely.
+
+Chronicle doesn't make that decision for you.
+
+Shorts appear in the feed just like any other upload.
+
+There is no separate endless Shorts feed or swipe-based interface.
+
+---
+
+## Built with AI
+
+Chronicle was developed using modern AI coding tools. 
+
+I prefer to be transparent about it. Whether you see that as a positive or a negative is up to you. If AI-assisted development isn't your thing, that's perfectly okay—the source code is right here.
+
+This project is, in many ways, an experiment in **vibe coding** for me.
+
+That doesn't mean AI wrote the application on its own.
+
+Development follows a specification-driven workflow. Features are first designed and documented as specifications that describe the desired behavior, constraints, and rationale. Those specifications are then implemented by AI coding agents, reviewed, tested, and refined before becoming part of the application.
+
+Every architectural decision, product decision, trade-off, and final implementation decision is ultimately mine.
+
+I use AI the same way I use a compiler, debugger, documentation, or IDE: as a tool that helps me build software faster—not as a substitute for software engineering.
+
+The product itself—its philosophy, behavior, UX decisions, and countless refinements—comes from using Chronicle every day, noticing friction, and continuously iterating on the experience.
+
+Rather than replacing software engineering, AI allows me to spend more time designing the product and less time writing repetitive code. More importantly, it made this project possible. Without these tools, Chronicle would likely have remained just another idea in my ever-growing personal backlog.
+
+---
+
+## Project status
+
+Chronicle is currently pre-release, but it's already my primary way of using YouTube.
+
+Development is guided by the documents in `.specs/`, where the architecture, roadmap, design decisions, and long-term vision are maintained alongside the code.
+
+Whenever implementation and specification diverge, the specification is updated as part of the same change.
+
+---
+
+## Installation
+
+Packaged releases are currently unsigned.
+
+This only affects the first launch.
+
+### Linux
+
+Download the AppImage.
+
+```bash
+chmod +x Chronicle.AppImage
+./Chronicle.AppImage
+```
+
+No installation.
+
+No root access required.
+
+### macOS
+
+Download the DMG.
+
+Drag Chronicle into Applications.
+
+On first launch, Gatekeeper may warn that the application is unsigned. Right-click → **Open**, or allow it through **System Settings → Privacy & Security**.
+
+Only required once.
+
+### Windows
+
+Run the installer.
+
+SmartScreen may display **"Windows protected your PC."**
+
+Click **More info**, then **Run anyway**.
+
+Only required once.
+
+Chronicle periodically checks GitHub for new releases (this can be disabled in Settings). It does not download or installs updates automatically, at least not yet.
+
+---
 
 ## Running from source
 
-Requirements: Node.js 22+, npm, Linux/macOS/Windows.
+Requirements:
 
-```sh
-git clone <this repo>
+* Node.js 22+
+* npm
+
+```bash
+git clone <repository>
 cd ChroniclePlayer
 npm install
 npm run dev
 ```
 
-On first run Chronicle opens the onboarding wizard, which walks you through creating
-your own Google Cloud project and OAuth key (~10 minutes, one time). The same steps in
-plain text live in [`docs/setup.md`](docs/setup.md). You can add more than one YouTube
-account afterward from the sidebar's Accounts section — additional accounts skip the
-console walkthrough and share the same Google Cloud project.
+On first launch, Chronicle walks you through creating your own Google Cloud project and OAuth credentials.
 
-Useful commands:
+The process usually takes around five minutes and only needs to be completed once.
 
-```sh
-npm run typecheck && npm run lint && npm test   # the full offline check suite
-CHRONICLE_FIXTURES=1 npm run dev                # dev feed with deterministic fake data
+Detailed instructions are also available in `docs/setup.md`.
+
+Useful development commands:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+
+CHRONICLE_FIXTURES=1 npm run dev
 ```
 
-## Keyboard-first
-
-`j`/`k` move, `Enter`/`o` plays, `b` opens in browser, `m` toggles read, `i` ignores
-(with undo), `u` undoes it, `f` favorite, `w` watch later, `1…5` switch views, `r`
-refresh, `/` filter, `c` focuses the channel filter, `s` toggles the sidebar, `Ctrl+O`
-open any YouTube URL. Press `?` any time for the full, always-current map.
+---
 
 ## Your data
 
-- Database: `~/.local/share/chronicle/chronicle.db` (platform equivalents on
-  macOS/Windows) — open it with any SQLite browser; it's yours.
-- One-click JSON export of everything, documented in [`FORMAT.md`](FORMAT.md).
-- Secrets live in your OS keychain (with an honest, clearly-flagged fallback when none
-  exists). Sign-out revokes the token; "Delete all local data" removes every trace.
+Your data belongs to you.
 
-## Design docs
+* Local SQLite database
+* Secrets stored in your operating system's credential manager whenever available
+* One-click JSON export
+* Complete local data deletion
+* OAuth tokens revoked on sign-out
 
-The product is specified before it is built: see [`.specs/`](.specs/) — vision,
-non-goals, architecture, the decision log (`decisions.md`), and the roadmap. When code
-and spec disagree, the spec is updated in the same change; decisions carry IDs and
-rationale so nothing is re-litigated by accident.
+You can inspect your database with any SQLite browser.
+
+Nothing is hidden behind proprietary formats.
+
+---
+
+## Design documents
+
+Chronicle is specified before it's implemented.
+
+The `.specs/` directory contains:
+
+* Product vision
+* Non-goals
+* Architecture
+* Design decisions
+* Roadmap
+
+These documents evolve together with the code so that implementation and intent remain aligned.
+
+---
+
+## License
+
+TBD
