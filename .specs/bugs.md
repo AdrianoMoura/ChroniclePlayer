@@ -297,6 +297,28 @@ Resolved entries add:
   validation (scroll the full-view player and confirm the video now scrolls smoothly with
   the rest of the page, in both directions and at different scroll speeds) before this
   can move to Resolved.
+  **Eighth round, same day** (plus a product-owner-requested adjustment, not a bug: the
+  miniplayer's max resizable width was raised from 640px to 1024px, `MINIPLAYER_MAX_WIDTH`
+  in `src/ipc/contract.ts`, with the settings-store test's out-of-range case moved from
+  1000 to 2000 and a new in-range boundary check added at exactly 1024): the sixth round's
+  extract-window default-speed fix still wasn't working live — the extracted window kept
+  opening at 1x regardless of the configured setting. The wiring from Settings through to
+  `ExtractedPlayerWindow` was correct (confirmed by re-reading every layer), but the
+  reissue mechanism protecting against YouTube resetting the rate on playback start relied
+  on the same event this whole feature already found unreliable once before: the fifth
+  round's fix reissued `setPlaybackRate` on the iframe's `onStateChange(playing)` message —
+  but the third round of this same bug already established that the *autoplay-initiated*
+  `onStateChange` isn't reliably observed at all (it's exactly why `isStillGoing()` had to
+  stop trusting a strict state check, and exactly why the fifth round's extract-autoplay
+  fix had the same root cause). The rate reissue had never been given the same treatment.
+  Fixed by reissuing on every `infoDelivery` message instead — a steady heartbeat that
+  fires once the widget is genuinely up, independent of which `onStateChange` events
+  happened to land — for the first 3 seconds after the iframe loads (wall-clock time, not
+  video position, since most extractions hand off mid-video rather than starting near
+  0:00). Checked via `npm run typecheck && npm run lint && npm test` (200/200) and `npm
+  run build`; **not run live** — needs the owner's own hands-on validation (extract a
+  video with a non-1x default rate configured, confirm it's actually applied within the
+  first couple of seconds) before this can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)

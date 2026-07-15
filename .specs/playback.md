@@ -344,11 +344,29 @@ listener there catches `.player-view` scrolling without needing a direct referen
 Re-measuring is throttled to one `requestAnimationFrame` per scroll tick rather than
 running synchronously on every event.
 
+**Eighth round, same day** (also: the miniplayer's max resizable width was raised from
+640px to 1024px, `MINIPLAYER_MAX_WIDTH` in `src/ipc/contract.ts`, per the product owner's
+own request): the sixth round's extract-window default-speed fix still didn't work
+live — the window kept opening at 1x. The wiring itself (Settings → IPC → the `?extract=`
+query string → `ExtractedPlayerWindow`) was correct; the bug was specifically in the
+reissue mechanism, which mirrored D-038's normal pattern of reissuing `setPlaybackRate` on
+the iframe's `onStateChange(playing)` message. But the third round of this same fix
+already established that the *autoplay-initiated* `onStateChange` isn't reliably observed
+at all — the same reason `isStillGoing()` and the fifth round's extract-autoplay fix both
+had to stop trusting a strict state check. The rate reissue had simply never gotten the
+same treatment. Fixed by reissuing on every `infoDelivery` message instead of waiting for
+`onStateChange` — `infoDelivery` is a steady heartbeat once the widget is genuinely up,
+independent of which state-change events happened to land — for the first 3 seconds after
+the iframe loads. Measured in wall-clock time since load, not video position: most
+extractions hand off mid-video rather than starting near 0:00, so gating the retry window
+on the video's own `currentTime` would never fire at all for the common case.
+
 Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
 maximize, resize (grabbing the left-edge strip) + persistence across restarts, extract,
-extract autoplay, extract at the configured default speed, close-extract-to-restore-docked,
-no menu bar on the extract window, full-view page scroll with the video scrolling smoothly
-alongside the description/comments, and the modal-stacking behavior above) before
+extract autoplay, extract at the configured default speed within the first couple of
+seconds, close-extract-to-restore-docked, no menu bar on the extract window, full-view page
+scroll with the video scrolling smoothly alongside the description/comments, and the
+modal-stacking behavior above) before
 considering this closed — not something verifiable without actually driving the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)

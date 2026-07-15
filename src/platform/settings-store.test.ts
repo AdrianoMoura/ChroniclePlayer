@@ -87,8 +87,9 @@ describe('settings store', () => {
 
   it('accepts a miniplayer width within range and falls back outside it (B-045)', () => {
     expect(normalizeSettings({ miniplayerWidth: 500 }).miniplayerWidth).toBe(500)
+    expect(normalizeSettings({ miniplayerWidth: 1024 }).miniplayerWidth).toBe(1024)
     expect(normalizeSettings({ miniplayerWidth: 100 }).miniplayerWidth).toBe(360)
-    expect(normalizeSettings({ miniplayerWidth: 1000 }).miniplayerWidth).toBe(360)
+    expect(normalizeSettings({ miniplayerWidth: 2000 }).miniplayerWidth).toBe(360)
     expect(normalizeSettings({ miniplayerWidth: 'wide' }).miniplayerWidth).toBe(360)
   })
 })

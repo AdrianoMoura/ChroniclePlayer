@@ -15,14 +15,27 @@ import { useCallback, useEffect, useRef } from 'react'
 // needs to be kept current so that closing this window and having the
 // main window's miniplayer pick the video back up doesn't lose the
 // user's place; (3) D-038's default playback rate has to be applied the
-// same way PlayerSurface applies it (`setPlaybackRate` on announce, then
-// reissued once playback actually starts) — there's no URL param for
-// playback rate, and the main window's rate isn't otherwise handed off to
-// this fresh instance at all.
+// same way PlayerSurface applies it — there's no URL param for playback
+// rate, and the main window's rate isn't otherwise handed off to this fresh
+// instance at all. Reissuing it once on `onStateChange(playing)` (as
+// PlayerSurface does) wasn't enough here: that event isn't reliably observed
+// for the *autoplay-initiated* transition (see `RATE_RETRY_WINDOW_MS`), so
+// this reissues on every `infoDelivery` tick for a few seconds instead.
 
 const VIDEO_ID_PATTERN = /^[\w-]{1,64}$/
 const PLAYER_ORIGIN = 'https://www.youtube.com'
 const RESUME_MIN_SECONDS = 10
+// D-038's rate reissue normally fires on the first onStateChange(playing)
+// event — but B-045's own round 5 already found that the *autoplay-initiated*
+// onStateChange isn't reliably observed at all (the same reason
+// isStillGoing() had to stop trusting a strict state check). Reissuing on
+// every infoDelivery tick instead — a steady heartbeat once the widget is
+// genuinely up, unrelated to which state-change events happened to land —
+// for this short window after load is a more reliable way to land the
+// command at least once after YouTube's own reset-to-1x-on-start. Measured
+// in wall-clock time since load, not video position, since most extractions
+// hand off mid-video rather than starting near 0:00.
+const RATE_RETRY_WINDOW_MS = 3000
 
 export function ExtractedPlayerWindow({
   videoId,
@@ -37,6 +50,10 @@ export function ExtractedPlayerWindow({
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const currentTimeRef = useRef(startSeconds)
+  // Wall-clock, not video position: most extractions hand off mid-video (not
+  // near 0:00), so gating the retry window on currentTime would never fire
+  // for anything but a video extracted in its first few seconds.
+  const loadedAtRef = useRef(Date.now())
 
   const command = useCallback((func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -68,16 +85,12 @@ export function ExtractedPlayerWindow({
       } catch {
         return
       }
-      if (
-        payload.event === 'onStateChange' &&
-        payload.info === 1 &&
-        defaultPlaybackRate !== 1
-      ) {
-        command('setPlaybackRate', [defaultPlaybackRate])
-      }
       if (payload.event === 'infoDelivery') {
         const info = payload.info as { currentTime?: number } | undefined
         if (typeof info?.currentTime === 'number') currentTimeRef.current = info.currentTime
+        if (defaultPlaybackRate !== 1 && Date.now() - loadedAtRef.current < RATE_RETRY_WINDOW_MS) {
+          command('setPlaybackRate', [defaultPlaybackRate])
+        }
       }
     }
     window.addEventListener('message', onMessage)

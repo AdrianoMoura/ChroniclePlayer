@@ -141,7 +141,7 @@ export const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
 // B-045: shared by the platform settings store (normalizeSettings' clamping)
 // and the miniplayer's own drag-resize handle (MiniPlayerBar.tsx).
 export const MINIPLAYER_MIN_WIDTH = 220
-export const MINIPLAYER_MAX_WIDTH = 640
+export const MINIPLAYER_MAX_WIDTH = 1024
 
 // Mirrors platform settings.json (human-editable; local-data.md).
 export interface SettingsDto {
