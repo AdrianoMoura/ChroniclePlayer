@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { PLAYBACK_RATES } from '../ipc/contract'
+import { MINIPLAYER_MAX_WIDTH, MINIPLAYER_MIN_WIDTH, PLAYBACK_RATES } from '../ipc/contract'
 
 // settings.json — non-sensitive preferences, human-readable/editable on
 // purpose (local-data.md §Locations). Read at startup; a malformed file
@@ -26,6 +26,9 @@ export interface AppSettings {
   // D-026: background check against GitHub's public Releases API. Notice
   // only — never auto-downloads/installs.
   checkForUpdates: boolean
+  // B-045: the docked miniplayer's width, drag-resized from its own corner
+  // handle (MiniPlayerBar) and persisted rather than reset every launch.
+  miniplayerWidth: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -36,7 +39,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showViewCounts: true,
   showShorts: true,
   defaultPlaybackRate: 1,
-  checkForUpdates: true
+  checkForUpdates: true,
+  miniplayerWidth: 360
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -50,6 +54,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const shorts = source['showShorts']
   const rate = source['defaultPlaybackRate']
   const checkForUpdates = source['checkForUpdates']
+  const miniplayerWidth = source['miniplayerWidth']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -73,7 +78,14 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? rate
         : DEFAULT_SETTINGS.defaultPlaybackRate,
     checkForUpdates:
-      typeof checkForUpdates === 'boolean' ? checkForUpdates : DEFAULT_SETTINGS.checkForUpdates
+      typeof checkForUpdates === 'boolean' ? checkForUpdates : DEFAULT_SETTINGS.checkForUpdates,
+    miniplayerWidth:
+      typeof miniplayerWidth === 'number' &&
+      Number.isFinite(miniplayerWidth) &&
+      miniplayerWidth >= MINIPLAYER_MIN_WIDTH &&
+      miniplayerWidth <= MINIPLAYER_MAX_WIDTH
+        ? miniplayerWidth
+        : DEFAULT_SETTINGS.miniplayerWidth
   }
 }
 

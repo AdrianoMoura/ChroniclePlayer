@@ -26,7 +26,8 @@ describe('settings store', () => {
       showViewCounts: true,
       showShorts: false,
       defaultPlaybackRate: 1.5,
-      checkForUpdates: false
+      checkForUpdates: false,
+      miniplayerWidth: 420
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -48,7 +49,8 @@ describe('settings store', () => {
         showViewCounts: true,
         showShorts: false,
         defaultPlaybackRate: 3,
-        checkForUpdates: 'yes'
+        checkForUpdates: 'yes',
+        miniplayerWidth: 10000
       })
     ).toEqual({
       theme: 'light',
@@ -58,7 +60,8 @@ describe('settings store', () => {
       showViewCounts: true,
       showShorts: false,
       defaultPlaybackRate: 1,
-      checkForUpdates: true
+      checkForUpdates: true,
+      miniplayerWidth: 360
     })
   })
 
@@ -80,5 +83,12 @@ describe('settings store', () => {
     for (const rate of PLAYBACK_RATES) {
       expect(normalizeSettings({ defaultPlaybackRate: rate }).defaultPlaybackRate).toBe(rate)
     }
+  })
+
+  it('accepts a miniplayer width within range and falls back outside it (B-045)', () => {
+    expect(normalizeSettings({ miniplayerWidth: 500 }).miniplayerWidth).toBe(500)
+    expect(normalizeSettings({ miniplayerWidth: 100 }).miniplayerWidth).toBe(360)
+    expect(normalizeSettings({ miniplayerWidth: 1000 }).miniplayerWidth).toBe(360)
+    expect(normalizeSettings({ miniplayerWidth: 'wide' }).miniplayerWidth).toBe(360)
   })
 })

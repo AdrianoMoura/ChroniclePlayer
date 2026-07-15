@@ -1342,20 +1342,30 @@ button.primary:disabled {
   position: fixed;
   bottom: 16px;
   right: 16px;
-  width: 360px;
-  min-width: 220px;
-  max-width: 640px;
   z-index: 20;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  /* Native browser resize handle (bottom-right corner) — width-only so the
-     video's own aspect-ratio (below) drives height, rather than letting a
-     drag distort it. overflow: hidden both clips to the rounded corners and
-     satisfies `resize`'s requirement of a non-visible overflow value. */
-  resize: horizontal;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* B-045: a custom top-left drag handle, not the browser's native `resize`
+   (which always anchors its own handle to the resized box's bottom-right
+   corner — exactly where this box already sits, against the screen's own
+   bottom-right corner, making it fiddly to grab). Growing the box happens
+   toward the top-left since bottom/right are the fixed anchors, so a
+   handle there matches the direction dragging it actually moves things. */
+.miniplayer-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  /* A small corner wedge, quietly visible against the player's background. */
+  background: linear-gradient(135deg, transparent 50%, var(--border) 50%);
+  border-top-left-radius: 10px;
 }
 
 .miniplayer-stage-slot {

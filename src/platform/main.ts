@@ -279,15 +279,30 @@ function createExtractWindow(videoId: string, startSeconds: number, playing: boo
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Chromium's autoplay policy can otherwise treat a fresh top-level
+      // navigation more strictly than the main window's *nested* iframe —
+      // ExtractedPlayerWindow also issues an explicit playVideo() command
+      // as a second line of defense, but this removes the platform-level
+      // block outright.
+      autoplayPolicy: 'no-user-gesture-required'
     }
   })
+  // A small floating video window has no use for Electron's default
+  // File/Edit/View/Window/Help application menu.
+  window.removeMenu()
   window.setAspectRatio(16 / 9)
   loadRenderer(window, {
     extract: videoId,
     t: String(Math.max(0, Math.floor(startSeconds))),
     autoplay: playing ? '1' : '0'
   })
+  // The main window's miniplayer picks the video back up once this window
+  // closes, resuming from wherever ExtractedPlayerWindow's own
+  // beforeunload last saved (best-effort — if that write raced the window
+  // actually tearing down, this falls back to the extraction-time position
+  // already persisted when extraction started).
+  window.on('closed', () => broadcast({ type: 'player:restoreFromExtract', videoId }))
 }
 
 function broadcast(event: ChronicleEventDto): void {
@@ -1326,6 +1341,7 @@ async function boot(): Promise<void> {
   // replaces with a discoverable action.
   ipcMain.handle(IpcChannel.openYouTubeSignIn, () => {
     const signInWindow = new BrowserWindow({ width: 480, height: 720 })
+    signInWindow.removeMenu()
     void signInWindow.loadURL('https://www.youtube.com')
   })
 

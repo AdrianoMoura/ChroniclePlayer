@@ -186,6 +186,46 @@ Resolved entries add:
   [[no-live-app-verification]]) — needs the owner's own hands-on validation again
   (dock via Back/Esc, dock via sidebar navigation, maximize, resize, extract, close,
   modal-over-miniplayer stacking) before this can move to Resolved.
+  **Fourth round, same day:** the owner's next live test found six more issues, all now
+  fixed. (1) Closing the extracted always-on-top window didn't restore the miniplayer in
+  the main window — extraction had no notion of "coming back." Fixed with a
+  `window.on('closed', ...)` handler in `createExtractWindow` (`src/platform/main.ts`)
+  that broadcasts a new `player:restoreFromExtract` event (`src/ipc/contract.ts`); the
+  main window's event handler re-opens that video in mini mode (`openVideo(videoId,
+  'replace', true)`). (2) The extracted window's video needed a manual play click —
+  `ExtractedPlayerWindow.tsx` now speaks the same postMessage widget protocol as the
+  main player (`enablejsapi=1`, `command()`/`announce()`) and issues an explicit
+  `command('playVideo')` once the handshake completes, rather than relying solely on the
+  embed's own `autoplay=1` param under Electron's stricter top-level-navigation autoplay
+  policy; `createExtractWindow` also sets `webPreferences.autoplayPolicy:
+  'no-user-gesture-required'`. This is also what makes issue 1's restore resume close to
+  where playback actually was: the same widget protocol now tracks `currentTime` via
+  `infoDelivery` messages and persists it (`setResumePosition`) on `beforeunload`. (3) The
+  extract window showed Electron's native menu bar, which nothing else in the app does —
+  added `window.removeMenu()` to `createExtractWindow` (and, noticing the same gap, to
+  the B-093 sign-in window too). (4)–(5) The resize handle used the browser's native CSS
+  `resize: horizontal`, which anchors its own grab handle to the box's bottom-right
+  corner — exactly where the whole miniplayer already sits against the screen's corner,
+  making the handle nearly impossible to grab predictably. Replaced with a custom
+  top-left drag handle in `MiniPlayerBar.tsx` (raw `mousedown`/`mousemove`/`mouseup`,
+  growing the box when dragged away from its anchored right edge) and made the resulting
+  width a persisted setting: `miniplayerWidth` on `SettingsDto`/`AppSettings`, clamped
+  between new shared `MINIPLAYER_MIN_WIDTH`/`MINIPLAYER_MAX_WIDTH` constants
+  (`src/ipc/contract.ts`, mirroring the existing `PLAYBACK_RATES` pattern so the
+  ui-layer component isn't reaching into `platform/`), committed to `settings.json` once
+  per drag (on mouseup) rather than on every mousemove. (6) Docking a video to the
+  miniplayer and then opening a *different* video pushed the new video onto the
+  navigation stack instead of replacing the docked one — Back would then return to the
+  previous *video* instead of the previous *screen*, because every "fresh browsing
+  action" call site (`openFromFeed`, search results, priority/channel-preview sections,
+  the URL prompt) was calling `openVideo(videoId)` with its default push mode, the same
+  mode correctly used for in-description video links (a genuine "dive deeper" case per
+  D-029). `openVideo` gained an explicit `mode: 'push' | 'replace'` parameter; every
+  fresh-browsing call site now passes `'replace'` (collapsing the stack to just the
+  newly opened video), while the in-description-link call site is untouched. Checked via
+  `npm run typecheck && npm run lint && npm test` (200/200) and `npm run build`; **not
+  run live this round either** (per [[no-live-app-verification]]) — needs the owner's own
+  hands-on validation again before this can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)

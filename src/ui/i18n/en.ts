@@ -347,6 +347,7 @@ export const en = {
   'player.miniplayer.maximizeTitle': 'Back to full player',
   'player.miniplayer.extractTitle': 'Pop out into its own always-on-top window',
   'player.miniplayer.closeTitle': 'Close',
+  'player.miniplayer.resizeTitle': 'Drag to resize',
   'player.overlay.ended.title': 'That’s the end.',
   'player.overlay.back': 'Back (Esc)',
   'player.overlay.backToFeed': 'Back to feed (Esc)',

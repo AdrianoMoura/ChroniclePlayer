@@ -92,6 +92,18 @@ Entry points:
 - **Future idea:** registering Chronicle as an OS-level handler for YouTube links
   (opt-in), and an in-app channel view as an entry point (D-030).
 
+**Push vs. replace (bug fix, 2026-07-15, `bugs.md` [[B-045]] fourth round):** only the
+in-description-link entry point above should *push* onto the navigation stack — every
+other entry point (a feed row, a search result, the priority/channel-preview sections, the
+"open by URL" prompt) is a **fresh browsing action** and must *replace* the stack outright.
+Before this fix all of them defaulted to push, which was invisible normally (the stack was
+usually empty anyway) but surfaced as a real bug once docking could leave a video sitting
+in the stack: docking one video, then opening an unrelated one from the feed, buried the
+first video one level down instead of discarding it, so Back/Esc later resurfaced the
+*previous video* instead of the *previous screen*. `openVideo` (`App.tsx`) now takes an
+explicit `mode: 'push' | 'replace'` parameter; every fresh-browsing call site passes
+`'replace'`, and the in-description-link call site is the sole remaining `'push'`.
+
 Link rules inside descriptions:
 - YouTube **video** links → in-app player view (above).
 - YouTube **Shorts** links → never played in-app; a small notice offers "open in
@@ -169,10 +181,15 @@ all `bugs.md` [[B-045]]:
 - **Maximizing**: clicking the corner box (or its own maximize button) returns to the
   full view, same video, same position, still playing.
 - **Extracting**: the corner box's extract action pops the video into its own
-  always-on-top OS window, independent of the main Chronicle window.
-- **Resizable**: the corner box has a native browser resize handle
-  (`resize: horizontal`) — the default 360px width was reported as too small with no
-  way to adjust, on the first pass that shipped without this.
+  always-on-top OS window, independent of the main Chronicle window, with no native menu
+  bar and reliable autoplay at the handed-off position. Closing that window docks the
+  video back into the main window's corner box rather than losing it — extraction and
+  docking are round-trippable, not a one-way trip.
+- **Resizable**: the corner box has a custom top-left drag handle (not the browser's
+  native `resize: horizontal`, whose handle sits in the box's bottom-right corner —
+  exactly where the box itself is anchored against the screen edge, making it awkward to
+  grab). The resulting width is persisted (`settings.json`, `miniplayerWidth`), not reset
+  every launch.
 
 **Continuity is the whole design constraint, and it splits into two different answers**
 depending on whether the destination is still inside the main window's renderer process:
@@ -244,9 +261,33 @@ all dock too — erring toward keeping playback going over silently never dockin
 Exposed as `PlayerSurfaceHandle.isStillGoing()`, shared by both the automatic Esc/Back
 path and `leavePlayerForNavigation()`.
 
+**Fourth round, same day:** the next live test found six more issues in the extract leg
+and the resize control specifically. `ExtractedPlayerWindow` was a bare `<iframe
+src="…embed/…autoplay=1">` with no widget protocol at all — reliable only for the initial
+load, and with no way to know current playback position when the window closed. It now
+speaks the same postMessage widget protocol as the main player: `enablejsapi=1` on the
+embed, `command()`/`announce()` helpers, an explicit `command('playVideo')` once the
+handshake completes (autoplay via the embed's own `autoplay=1` param alone wasn't reliable
+under Electron's top-level-navigation autoplay policy — `createExtractWindow` also sets
+`webPreferences.autoplayPolicy: 'no-user-gesture-required'`), and an `infoDelivery`
+listener tracking `currentTime` so a `beforeunload` handler can persist the resume
+position. `createExtractWindow` (`src/platform/main.ts`) gained a `window.on('closed',
+...)` handler that broadcasts `player:restoreFromExtract`; the main window handles that
+event by re-opening the same video docked (`openVideo(videoId, 'replace', true)`) —
+closing the extracted window is now a return trip, not a dead end. Both the extract
+window and the B-093 sign-in window gained `removeMenu()` — neither should show
+Electron's native menu bar. The resize handle changed from native CSS `resize:
+horizontal` to a custom top-left drag handle (`MiniPlayerBar.tsx`, raw
+`mousedown`/`mousemove`/`mouseup`, growing the box when dragged away from its anchored
+right edge), and the resulting width now persists as `miniplayerWidth` in `settings.json`
+(clamped between `MINIPLAYER_MIN_WIDTH`/`MINIPLAYER_MAX_WIDTH`, `src/ipc/contract.ts`),
+written once per drag on mouseup rather than on every mousemove.
+
 Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
-maximize, resize, extract, close, and the modal-stacking behavior above) before
-considering this closed — not something verifiable without actually driving the app.
+maximize, resize + persistence across restarts, extract, extract autoplay, close-extract-
+to-restore-docked, no menu bar on the extract window, and the modal-stacking behavior
+above) before considering this closed — not something verifiable without actually driving
+the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)
 

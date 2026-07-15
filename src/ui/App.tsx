@@ -230,7 +230,8 @@ export function App() {
     showViewCounts: true,
     showShorts: true,
     defaultPlaybackRate: 1,
-    checkForUpdates: true
+    checkForUpdates: true,
+    miniplayerWidth: 360
   })
   const [appVersion, setAppVersion] = useState('')
 
@@ -724,7 +725,7 @@ export function App() {
 
   // Opening the player marks the video read immediately (playback.md).
   const openVideo = useCallback(
-    (videoId: string, mode: 'push' | 'replace' = 'push') => {
+    (videoId: string, mode: 'push' | 'replace' = 'push', startMini = false) => {
       void window.chronicle.getVideo(videoId).then(async (result) => {
         if (!result.ok) {
           setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
@@ -734,8 +735,10 @@ export function App() {
         patch(videoId, state)
         const entry = { ...result.value, state }
         setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
-        // Always starts in full view, even if a previous video was docked.
-        setMiniplayer(false)
+        // Normally starts in full view, even if a previous video was docked
+        // — startMini is only for the B-045 extract-window-closed path,
+        // which hands a video back to the miniplayer, not the full view.
+        setMiniplayer(startMini)
       })
     },
     [patch]
@@ -751,7 +754,15 @@ export function App() {
         viewRef.current === 'watch-later'
           ? { ids: filteredList.map((v) => v.videoId), index: videoIndexInFiltered }
           : null
-      openVideo(video.videoId)
+      // B-045: 'replace', not the default 'push' — opening a video from the
+      // feed is a fresh browsing action, not "diving deeper" from within a
+      // video's own description (which is what 'push' — the queue-stack
+      // model — is for). Mattered only once mini mode existed: with a video
+      // docked and playing, opening an unrelated one from the feed used to
+      // push it on top of the docked one, leaving the docked video reachable
+      // via Back as if it were a "previous screen" rather than a separate,
+      // already-left-behind session.
+      openVideo(video.videoId, 'replace')
     },
     [openVideo]
   )
@@ -891,9 +902,13 @@ export function App() {
             }
           })
           break
+        case 'player:restoreFromExtract':
+          queueRef.current = null
+          openVideo(event.videoId, 'replace', true)
+          break
       }
     })
-  }, [loadView, loadChannels, connect, syncMeta])
+  }, [loadView, loadChannels, connect, syncMeta, openVideo])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current) return
@@ -1533,7 +1548,7 @@ export function App() {
                             <SearchVideoCard
                               key={result.videoId}
                               result={result}
-                              onOpen={() => openVideo(result.videoId)}
+                              onOpen={() => openVideo(result.videoId, 'replace')}
                             />
                           ) : (
                             <SearchChannelCard
@@ -1557,7 +1572,7 @@ export function App() {
                       <SearchVideoRow
                         key={result.videoId}
                         result={result}
-                        onOpen={() => openVideo(result.videoId)}
+                        onOpen={() => openVideo(result.videoId, 'replace')}
                       />
                     ) : (
                       <SearchChannelRow
@@ -1601,7 +1616,7 @@ export function App() {
                           <SearchVideoCard
                             key={video.videoId}
                             result={video}
-                            onOpen={() => openVideo(video.videoId)}
+                            onOpen={() => openVideo(video.videoId, 'replace')}
                           />
                         ))}
                       </div>
@@ -1611,7 +1626,7 @@ export function App() {
                     <SearchVideoRow
                       key={video.videoId}
                       result={video}
-                      onOpen={() => openVideo(video.videoId)}
+                      onOpen={() => openVideo(video.videoId, 'replace')}
                     />
                   ))
                 })()}
@@ -1638,7 +1653,7 @@ export function App() {
                             selected={false}
                             undoable={undoable.has(video.videoId)}
                             actions={actions}
-                            onOpen={() => openVideo(video.videoId)}
+                            onOpen={() => openVideo(video.videoId, 'replace')}
                             onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
                             showViewCounts={settings.showViewCounts}
                             focusable
@@ -1653,7 +1668,7 @@ export function App() {
                           selected={false}
                           undoable={undoable.has(video.videoId)}
                           actions={actions}
-                          onOpen={() => openVideo(video.videoId)}
+                          onOpen={() => openVideo(video.videoId, 'replace')}
                           onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
                           showViewCounts={settings.showViewCounts}
                           focusable
@@ -1724,10 +1739,12 @@ export function App() {
                 <MiniPlayerBar
                   video={currentPlayerVideo}
                   hidden={!miniplayer}
+                  width={settings.miniplayerWidth}
                   slotRef={setMiniSlot}
                   onMaximize={() => setMiniplayer(false)}
                   onClose={closePlayer}
                   onExtract={extractToWindow}
+                  onResizeEnd={(width) => changeSettings({ ...settings, miniplayerWidth: width })}
                 />
               </>
             )}
@@ -1751,7 +1768,7 @@ export function App() {
         <UrlPrompt
           onOpenVideo={(videoId) => {
             queueRef.current = null
-            openVideo(videoId)
+            openVideo(videoId, 'replace')
           }}
           onClose={() => setUrlPromptOpen(false)}
         />
