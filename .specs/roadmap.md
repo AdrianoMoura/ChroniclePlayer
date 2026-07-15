@@ -15,11 +15,19 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-097
+- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-098
   (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
   fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
-  §Dogfooding backlog below for the batch breakdown. Not attacked yet — same rule as
-  every prior batch: worked when the product owner says so.
+  §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15:** B-098 (Fixed
+  same day it was reported), then B-085, B-087, B-088, B-089, B-090, B-091, B-092, B-094,
+  B-095, B-096, B-097, and B-051 (carried over from before 0.1.0) — all Fixed. Still open:
+  B-093 and B-045 (each need a Pending decision in `decisions.md` before implementing —
+  session, partition, and miniplayer architecture questions respectively, not scoped
+  yet), B-086 (needs research into an authenticated discovery path), B-046 (research
+  spike, feasibility genuinely unclear), and B-022 (a third fix attempt landed but stays
+  "In progress" pending the owner's live confirmation — two earlier attempts on this
+  specific bug were each marked Fixed without a live check and both were disproven on
+  the next live test).
 
 ## M0 — Walking skeleton
 
@@ -242,7 +250,7 @@ exercise the release workflow end-to-end on GitHub Actions — the local
    (D-030 mechanism (b), RSS-only following with no YouTube-side subscription) and true
    accountless mode (D-033, using Chronicle with zero accounts at all).
 2. Hide live/premieres + duration filters (cheap once data flows) — partially
-   overlaps with the live-status accuracy work now needed for B-085.
+   overlaps with the live-status accuracy work landed for B-085.
 3. Channel categories/folders
 4. Local notes (+ FTS local search)
 5. Import/restore of exports
@@ -254,9 +262,8 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 
 **Status: the first two batches below are complete** — every item in B-001–B-017 and
 B-054–B-066 is Resolved in `bugs.md` (shipped as part of 0.1.0), except B-022 which is
-still In progress and B-045/B-046/B-051 which are still Open; all three carry over into
-the 0.2.0 batch (see "Release status" above and the third batch below). Kept here for
-history.
+still In progress and B-045/B-046 which are still Open (B-051 also carried over, but was
+Fixed in the third batch below, 2026-07-15). Kept here for history.
 
 **First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
@@ -343,9 +350,13 @@ mostly correctness gaps and interaction polish surfaced by living with the app:
   YouTube's bot-check sign-in wall, with no working in-app sign-in path — the fix
   likely needs an Electron session/partition decision, not a UI patch.
 
-Not attacked yet — same rule as every prior batch: worked when the product owner says
-so. B-087/B-088 are a natural pair; B-093 needs a Pending decision in `decisions.md`
-before implementation starts, same as B-058 did last batch.
+**Attacked 2026-07-15** (same day as reported), per the owner's go-ahead: B-085, B-087,
+B-088, B-089, B-090, B-091, B-092, B-094, B-095, B-096, B-097 all Fixed (B-087/B-088
+fixed together, as the natural pair they were flagged as). B-086 stays Open — the
+authenticated-discovery-path research it needs wasn't scoped this round. B-093 stays
+Open too, exactly as flagged: it needs a Pending decision in `decisions.md` (Electron
+session/partition architecture) before implementation starts, same as B-058 needed
+last batch — not something to resolve unilaterally mid-batch.
 
 ## Standing release checklist (every release, starting M4)
 

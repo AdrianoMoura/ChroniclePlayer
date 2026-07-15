@@ -69,82 +69,6 @@ Resolved entries add:
 
 ## Open
 
-### B-097 — Sync failure banner gives no way to see what actually went wrong
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** sync / ui-shell
-- **What happens:** when a refresh reports failed channels, the banner just shows a
-  count (`app.banner.refreshPartial`, "{count} channels failed") with no way to find
-  out which channels, or why.
-- **Expected:** an info affordance on the banner (icon/link) opens a tooltip or panel
-  with the raw per-channel error detail, so the owner has something to act on.
-- **Code refs:** `src/ui/App.tsx` (`refresh:done`/`refresh:partial` banner text,
-  `event.report.channelsFailed`); `src/core/sync-service.ts` (`refresh` —
-  `channelsFailed` is only ever incremented, never paired with the channel id or the
-  caught error); `src/ipc/contract.ts` (`SyncReportDto` has no field to carry it).
-- **Notes:** same underlying gap identified in [[B-051]] note 5 — there is no
-  per-channel error state anywhere in the pipeline today, only an aggregate count.
-  Fixing this banner requires `SyncReport`/`SyncReportDto` to start carrying
-  `{ channelId, message }[]` for failures, not just a UI change. **2026-07-15:** the
-  owner also reported that a sync with failures, followed by a clean-looking resync
-  the next day, still left some of those channels' videos permanently missing — only a
-  full data wipe + reconnect recovered them. That's a correctness bug, not just a
-  missing-detail one; tracked as [[B-051]] hypothesis 6 (gap-backfill's all-or-nothing
-  RSS-window check), which is now that bug's leading suspect.
-
-### B-096 — Clicking a channel name in the feed should open the channel, not the video
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** feed
-- **What happens:** today every part of a feed row/card — including the channel name
-  text — opens the video (`onOpen` covers the whole row).
-- **Expected:** clicking the channel name specifically navigates to that channel's
-  screen; clicking anywhere else on the row still opens the video, unchanged.
-- **Code refs:** `src/ui/FeedList.tsx` (`VideoRow`/`VideoCard`, `onClick={onOpen}` on
-  the row wrapper; channel name rendered inline as `{video.channelTitle} ·
-  {publishedLabel(...)}` with no separate click target; the existing `stop()` helper
-  already used for the row's action buttons is the pattern to reuse for the channel
-  name too).
-- **Notes:** needs the channel-navigation callback (already used from the sidebar/
-  channel header) threaded down into `FeedList`.
-
-### B-095 — Grid view: smallest item sizes overlap; add a size larger than xl
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** ui-shell
-- **What happens:** at grid + `xs` item size, cards overlap each other and the
-  badges/action-bar (unread dot, Shorts/live badge, duration, action bar) collide on
-  top of the tiny thumbnail; `small` is mostly OK but rows still visually overlap.
-  `list` mode is fine at every size. Also requested: one more step above `xl`.
-- **Expected:** no overlap at any grid size; badges/actions scale or reflow instead of
-  colliding; a size ceiling above today's `xl`.
-- **Code refs:** `src/ui/styles.css` (`.card-thumb-wrap .unread-dot`/`.card-short-badge`/
-  `.card-live-badge`/`.card-duration`/`.card-actions` are all absolutely positioned with
-  fixed pixel offsets/padding, none of it scaled per item size — only `.row` height/gap
-  and `.title` font-size have `size-xs`/`size-small`/etc. overrides today, and those are
-  list-row rules, not grid-card rules); `src/ui/FeedList.tsx` (`ITEM_SIZES`,
-  `GRID_CARD_SIZES`, `ROW_HEIGHTS` — where a new larger step would be added).
-- **Notes:** related to D-037's item-size system and the CSS-specificity bug it already
-  fixed once for grid thumbnails (B-037) — this looks like the same class of gap
-  (list-first CSS not fully accounted for in the grid variant), not a new mechanism.
-
-### B-094 — "Reconnect Google Account" in Settings doesn't say which account
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** auth / ui-shell
-- **What happens:** Settings → Connection has a single "Reconnect Google Account"
-  action with no indication of which account it reconnects, now that multiple accounts
-  exist (D-041).
-- **Expected:** the button/label should make it unambiguous which account is being
-  reconnected (e.g. show its email/handle), consistent with D-041(a)'s "Settings
-  manages the primary account only" rule.
-- **Code refs:** `src/ui/SettingsView.tsx` (Connection section, Reconnect action) —
-  needs checking against D-041(a).
-- **Notes:** may just need a copy/label fix (name the primary account explicitly) if
-  D-041(a) is being followed correctly; worth confirming Reconnect isn't accidentally
-  acting on the wrong account in a multi-account setup before treating it as
-  copy-only.
-
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
 - **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
@@ -171,139 +95,6 @@ Resolved entries add:
   session this way has any TOS implications worth a sentence in
   `non-goals.md`/`authentication.md`.
 
-### B-092 — Video description doesn't always come through complete
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** sync
-- **What happens:** the description shown in the player is sometimes not the full
-  text.
-- **Expected:** the full `videos.list` description, not a truncated one.
-- **Code refs:** `src/adapters/youtube/api-client.ts` (`description:
-  snippet['description']` — hydration source, should be the full description);
-  `src/adapters/rss/rss-client.ts` (`media:description` — the RSS discovery feed only
-  ever carries a short/partial description); `src/core/sync-service.ts`
-  (`applyHydration` — if hydration fails or never runs for a video, its
-  RSS-discovered description is what's left in the DB and never gets overwritten by
-  the fuller API one).
-- **Notes:** likely the RSS-sourced description leaking through for videos whose
-  hydration hasn't completed/retried yet ([[B-051]] covers hydration failures more
-  generally) — but worth confirming against a specific reported video before assuming
-  that's the whole story; it's also possible the Data API's own `snippet.description`
-  is itself short for some videos.
-
-### B-091 — First sync: rename "Filtering Shorts" to "Identifying Shorts"; show discovered videos before Shorts identification finishes
-- **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** sync / onboarding
-- **What happens:** (1) the sync status copy says "Filtering Shorts" while it's
-  actually identifying which videos are Shorts (they're shown, not filtered out, per
-  D-035); (2) during first sync the feed stays blank until the whole sync — including
-  the Shorts-identification phase, which is the slow part — finishes.
-- **Expected:** (1) copy change to "Identifying Shorts"; (2) the feed should render
-  discovered/hydrated videos as soon as they're available, independent of whether
-  Shorts-identification has finished for them yet — the badge can arrive later once a
-  video's `is_short` is confirmed.
-- **Code refs:** `src/ui/i18n/en.ts` (`wizard.firstSync.progressShorts`,
-  `app.status.filteringShorts` — copy already changed 2026-07-15); `src/core/sync-service.ts`
-  (Shorts confirm-then-badge pipeline runs as its own phase after discovery/hydration —
-  see D-028/D-035); `src/ui/App.tsx` (`app.status.filteringShorts` usage, feed refresh
-  triggering).
-- **Notes:** part (1), the copy change, is done — `wizard.firstSync.progressShorts`,
-  `wizard.firstSync.why`, and `app.status.filteringShorts` all say "identifying" now.
-  Entry stays Open for part (2), the bigger piece: needs the feed view to re-render/refresh as
-  soon as videos are hydrated rather than waiting for the full `refresh:done` event,
-  which today only fires once the Shorts phase also completes.
-
-### B-090 — Onboarding: "go to app" button stays locked after first sync finishes; the wait shouldn't be required at all
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** onboarding
-- **What happens:** on the first-sync wizard step, after connecting and starting the
-  sync, the "open feed" button (gated on `phase === 'done'`) stays disabled even once
-  the sync has actually completed.
-- **Expected:** at minimum, the button unlocks once sync is done. But the owner's
-  stronger ask: this waiting step shouldn't exist — once the account is connected, go
-  straight to the app's home screen and let sync keep running in the background
-  (matches how every subsequent sync already works).
-- **Code refs:** `src/ui/onboarding/Wizard.tsx` (`FirstSyncStep` — `phase` state driven
-  by `refresh:progress`/`refresh:done`/`refresh:failed` events subscribed in a
-  `useEffect` on mount; `ConnectStep` — connecting doesn't itself trigger the sync,
-  `FirstSyncStep.start()` does via `window.chronicle.refreshFeed()`).
-- **Notes:** plausible root cause for the stuck button: if sync can start/finish before
-  `FirstSyncStep` mounts and subscribes its event listener (events aren't
-  queued/replayed), the `refresh:done` event is missed and `phase` never leaves
-  `running`. Worth verifying against that theory. The owner's redesign suggestion would
-  sidestep the whole class of bug by removing the blocking step — that's a product
-  decision (effectively retiring this wizard step) worth confirming before investing in
-  fixing the current mechanism instead.
-
-### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
-- **Type:** bug · **Severity:** minor (root cause unconfirmed — may be a YouTube embed
-  quirk)
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** player
-- **What happens:** pressing `F` while focus is inside the iframe goes fullscreen but
-  the player's own controls disappear; pressing `F` while focus is on the app
-  (Chronicle's own keydown handler) goes fullscreen correctly, controls intact.
-  Similarly, Space while focus is in the iframe toggles play/pause reliably every
-  press; Space while focus is on the app works once, then stops responding to further
-  presses.
-- **Expected:** consistent behavior regardless of where focus happens to be — ideally
-  both paths go through Chronicle's own handling so the result is always the
-  "app-focused" behavior described above (controls preserved on fullscreen, Space
-  toggling reliably every press).
-- **Code refs:** `src/ui/PlayerView.tsx` (app-focused keydown map — `case ' '`:
-  `command(playerStateRef.current === 1 ? 'pauseVideo' : 'playVideo')`; `case 'f'`:
-  `document.fullscreenElement`/`requestFullscreen()`; `playerStateRef` is only updated
-  from the iframe's own `onStateChange` postMessage events, asynchronously).
-- **Notes:** working theory for the Space issue: `playerStateRef.current` depends on
-  the iframe reliably posting back `onStateChange` after each programmatic `command()`
-  — if that round trip doesn't happen (or is delayed) after one toggle, the second
-  press reads a stale state and sends the same command again, which is a no-op. The
-  fullscreen-losing-controls half is likely a YouTube IFrame Player API quirk when *it*
-  (not Chronicle) owns the fullscreen transition — genuinely unclear if that half is
-  fixable from our side at all.
-
-### B-088 — Submitting a search from inside the player doesn't leave the video
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** player / ui-shell
-- **What happens:** while a video is playing, running an actual search (typing in the
-  topbar filter field and pressing Enter) updates the search results state but the
-  player view stays on screen — the search appears to silently do nothing.
-- **Expected:** submitting a search while a video is playing takes the user to the
-  search results, same as it does from anywhere else.
-- **Code refs:** `src/ui/App.tsx` (`runSearch`; the Enter handler on the topbar
-  `filter` input — it only ever touches `searchResults`/`searchQuery` state, never
-  `playerStack`, unlike `exitPlayerToSearch` which does `setPlayerStack([])`).
-- **Notes:** the topbar filter input and its Enter handler are apparently reachable/
-  live even while `PlayerView` is the active screen, but only the dedicated `/`-key
-  path (`exitPlayerToSearch`, see [[B-087]]) knows to clear `playerStack`. The fix
-  likely needs `runSearch`'s Enter handler itself to exit the player, rather than
-  relying on a separate keyboard shortcut to have done it first — the two bugs are two
-  sides of the same gap.
-
-### B-087 — Pressing "/" inside a video exits playback immediately, before any search happens
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** player
-- **What happens:** pressing `/` while a video is playing calls `onSearch()`, which
-  immediately clears the player stack and returns to the feed — before the user has
-  typed or submitted anything.
-- **Expected:** `/` should just focus the search field and keep playback where it is;
-  only actually leaving the video should require submitting a search (Enter) —
-  matching the intent, not just the wording, of the "search shouldn't require leaving
-  playback through a separate step first" comment already in the code.
-- **Code refs:** `src/ui/PlayerView.tsx` (`case '/': onSearch()`); `src/ui/App.tsx`
-  (`exitPlayerToSearch` — `setPlayerStack([])` then focuses `filterInputRef`, called
-  both by `/` and, per [[B-088]], nothing else).
-- **Notes:** fixing this alongside [[B-088]] together (rather than separately)
-  probably converges on the same design: focusing the field should never navigate on
-  its own; only `runSearch` actually submitting a query should call something like
-  `exitPlayerToSearch`'s `setPlayerStack([])`, from every entry point (the `/` key, and
-  the topbar Enter handler) — right now the two paths have the navigation logic
-  backwards from each other.
-
 ### B-086 — Members-only videos never show up in the feed
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
@@ -324,99 +115,6 @@ Resolved entries add:
   signed-in user's own membership) rather than a change to how a members-only video is
   displayed — needs research into whether/how the Data API exposes
   membership-restricted uploads to a member at all before this can be scoped.
-
-### B-085 — Upcoming videos never transition to "live"; premiere behavior unverified
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** sync
-- **What happens:** a video that was `upcoming` at the moment it was first hydrated
-  stays `upcoming` forever, even long after the broadcast has actually gone live —
-  `liveContent` is only ever captured once, at hydration time, and never re-checked.
-  Separately: unclear how a premiere behaves in the feed at all (untested).
-- **Expected:** an `upcoming` video should flip to `live` once the broadcast actually
-  starts, and can then stay `live` indefinitely, same as today's behavior for videos
-  hydrated while already live. Premiere behavior needs to be verified against actual
-  `liveBroadcastContent` values before deciding if it needs its own handling.
-- **Code refs:** `src/core/video.ts` (`liveContent: 'none' | 'live' | 'upcoming'`,
-  comment: "Captured at hydration from snippet.liveBroadcastContent");
-  `src/adapters/youtube/api-client.ts` (`live === 'live' || live === 'upcoming' ? live
-  : 'none'`); `src/core/sync-service.ts` (no re-check of already-hydrated `upcoming`
-  videos anywhere in `refresh`).
-- **Notes:** the owner's proposed fix (rather than re-syncing everything, which the
-  RSS-based design deliberately avoids): during sync, collect the local videos
-  currently flagged `upcoming` and re-query just those via `videos.list` (cheap —
-  bounded by however many upcoming videos exist, not the whole catalog) to refresh
-  their `liveContent`. This is a good fit for the existing hydration batching
-  machinery in `sync-service.ts`.
-
-### B-051 — Some subscribed channels show up with zero videos
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-12 · **Target:** 0.2.0
-- **Area:** sync
-- **What happens:** the owner reports several subscribed channels appear in the
-  sidebar/channel list with no videos at all. Investigated the sync pipeline
-  (`src/core/sync-service.ts`, `src/adapters/rss/rss-client.ts`,
-  `src/adapters/youtube/api-client.ts`) for plausible causes rather than reproducing
-  directly:
-  1. RSS feed genuinely has no `<entry>` elements (`rss-client.ts` `parseFeed`) —
-     channel has no public/listed uploads.
-  2. A channel that ever 404'd is flagged `available = 0` (`sync-service.ts`
-     `discoverChannel` → `markChannelUnavailable`, `sync-repository.ts`) and
-     **permanently excluded from future polling** (`listSubscribedChannels` filters
-     `available = 1`) — a transient 404 (handle change, CDN hiccup) silently and
-     permanently blacks out a channel with no way for the user to see or retry it.
-  3. All of a channel's uploads confirmed as Shorts (`confirmShorts`) and the "Show
-     Shorts" setting is off — rows exist but the `NOT_SHORT` feed filter
-     (`repositories.ts`) hides all of them, looking identical to "no videos."
-  4. First-time sync only pulls RSS's latest ~15 entries; gap-backfill requires
-     `lastSyncedAt !== null` and a resolved uploads playlist (`possibleGap`,
-     `fetchUploadsPlaylists`) — a channel added mid-catalog can look sparse.
-  5. Per-channel sync/hydration errors (e.g. malformed RSS) are only counted in an
-     aggregate `channelsFailed` total — there's no per-channel error state the UI
-     surfaces, so a channel failing every cycle is indistinguishable from one that's
-     simply quiet.
-  6. **(2026-07-15, now the leading suspect — code-confirmed, not just a hypothesis.)**
-     Gap-backfill is all-or-nothing: `possibleGap` (`sync-service.ts`
-     `discoverChannel`) only pages the uploads playlist to backfill missed videos when
-     **every single entry in the current RSS window is new**
-     (`newIds.length === ids.length`). If even one entry in that ~15-item window is
-     already known — e.g. because a prior sync partially succeeded, or the channel
-     just hasn't published enough since the last real sync to push it out — backfill
-     never triggers, even though videos published in the gap between the last known
-     video and the window's oldest new entry are real, silent misses. Once the
-     channel's RSS window slides past them (more uploads happen), those specific
-     videos are gone for good: no future sync will ever revisit them, because they're
-     outside every subsequent RSS window and `possibleGap` never fires to page back
-     for them. A full wipe + reconnect fixes it because it resets `lastSyncedAt` to
-     null, which routes the channel through the from-scratch backfill path instead of
-     this incremental (and broken) one.
-- **What happened (owner, 2026-07-15):** a sync reported several channels failed; the
-  next day's sync ran with no reported errors, but videos those channels had actually
-  published in the meantime still never showed up on screen. Only deleting all local
-  data and reconnecting from scratch made them appear. This matches hypothesis 6
-  almost exactly: the failed sync likely left `lastSyncedAt` stale or partially
-  advanced for those channels, and the following "successful" sync's RSS window no
-  longer fully overlapped with unknowns, so `possibleGap` stayed false and the
-  in-between videos were never backfilled.
-- **Expected:** gap-backfill needs to work incrementally, not all-or-nothing — a
-  channel should be able to backfill just the videos published since its last known
-  video even when the current RSS window is a *mix* of known and new entries, not only
-  when the window is 100% new. More generally: a resync must be able to catch up any
-  video from any subscribed channel that was never actually captured, regardless of
-  why it was missed last time (transient failure, partial window overlap, etc.) — not
-  require a full data wipe to recover.
-- **Code refs:** `src/core/sync-service.ts` (`refresh`, `discoverChannel` —
-  `possibleGap`/`backfillGap`, `confirmShorts`); `src/adapters/rss/rss-client.ts`
-  (`parseFeed`, `discoverRecent`); `src/adapters/storage/sync-repository.ts`
-  (`markChannelUnavailable`, `listSubscribedChannels`, `updateChannelSyncMeta`);
-  `src/adapters/storage/repositories.ts` (`NOT_SHORT` filter).
-- **Notes:** needs triage against the owner's actual DB (which of the 6 hypotheses fits
-  the specific channels reported) before this can move to "in progress," but hypothesis
-  6 is now strong enough to prioritize first — it's the only one directly confirmed by
-  a fresh, dated report rather than a theoretical read of the code. Possibly related to
-  [[B-021]] (new-subscription lag) if the empty channels are recently subscribed. Also
-  cross-referenced from [[B-097]] (no per-channel error detail — same root gap as
-  hypothesis 5 here).
 
 ### B-046 — Thumbnail hover preview (video scrub preview)
 - **Type:** adjustment (feasibility unclear)
@@ -519,15 +217,327 @@ Resolved entries add:
   would look exactly like a blank/frozen window, and would explain why fixing the
   renderer-URL *value* twice hasn't helped: the URL was probably always correct, the
   server behind it wasn't necessarily still alive. This would be dev-mode-only — a
-  packaged build's `loadFile()` has no such dependency. If confirmed, the fix is likely
-  to stop using OS-level `app.relaunch()`/`app.quit()` for this flow entirely and instead
-  do an in-process reset (destroy windows, wipe data, reinitialize the backend and open a
-  fresh window in the same process) — a larger change than the previous two attempts,
-  since today's `app.whenReady()` setup is one large one-shot closure, not something
-  currently callable a second time. Keep in "In progress" (not Resolved) until confirmed
-  live, per this bug's own established rule.
+  packaged build's `loadFile()` has no such dependency.
+  **Third attempt (2026-07-15), implementing exactly the recommendation above rather
+  than waiting to confirm the hypothesis first (a live check either way needs the
+  owner):** `deleteAllData` no longer calls `app.relaunch()`/`app.quit()` at all.
+  `src/platform/main.ts`'s entire composition root (was one large one-shot
+  `app.whenReady().then(async () => {...})` closure) is now a callable `async function
+  boot()`; `deleteAllData` tears down the current generation (clear both timers,
+  `ipcMain.removeHandler` for every `IpcChannel`, `protocol.unhandle('thumb')`, close and
+  null the DB handle) and calls `boot()` again in the same process — never exits, so
+  there's no child-process-exit event for electron-vite's supervisor to react to,
+  regardless of whether that theory is exactly right. Ordering detail that mattered:
+  the stale window(s) are destroyed only *after* `boot()`'s fresh one exists, not
+  before — destroying every window first would transiently drop
+  `BrowserWindow.getAllWindows()` to zero, which fires the existing
+  `window-all-closed` → `app.quit()` handler on Linux/Windows and would reproduce the
+  same "process exits mid-reset" failure a different way. `timer`/`updateTimer` moved
+  from `boot()`-local to module-level `let`s so the module-level `will-quit` cleanup
+  (and `deleteAllData` itself) can reach whichever generation is currently live;
+  `app.on('activate', ...)` also moved to module scope (registered once) since it was
+  previously inside the closure and would otherwise gain a duplicate listener per
+  reboot. `createWindow()` now returns the `BrowserWindow` it creates rather than
+  relying on `BrowserWindow.getAllWindows()[0]`, which stopped being reliable once two
+  windows can transiently coexist during a reboot. The dev-renderer-URL-through-argv
+  mechanism from the second attempt is now dead weight (nothing relaunches anymore) and
+  was simplified back to reading `process.env['ELECTRON_RENDERER_URL']` directly, which
+  stays valid for the process's whole lifetime including across reboots. No unit-test
+  coverage exists or is practical here (`main.ts`'s composition root has never been
+  tested, consistent with how every prior attempt on this bug was verified) — checked
+  via `npm run typecheck && npm run lint && npm test` (199/199) plus `npm run build`
+  (electron-vite build succeeds) as an extra sanity check beyond what earlier attempts
+  did, but **not run live**, per [[no-live-app-verification]]. Two attempts before this
+  one were each marked Fixed without a live check and both were disproven on the
+  owner's next live test — keeping this in "In progress" (not Resolved) until the owner
+  confirms live is this bug's own established rule, and matters more here than usual
+  given that history.
 
 ## Resolved
+
+### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
+- **Type:** bug · **Severity:** minor (root cause unconfirmed — may be a YouTube embed
+  quirk)
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player
+- **What happens:** pressing `F` while focus is inside the iframe goes fullscreen but
+  the player's own controls disappear; pressing `F` while focus is on the app
+  (Chronicle's own keydown handler) goes fullscreen correctly, controls intact.
+  Similarly, Space while focus is in the iframe toggles play/pause reliably every
+  press; Space while focus is on the app works once, then stops responding to further
+  presses.
+- **Expected:** consistent behavior regardless of where focus happens to be.
+- **Code refs:** `src/ui/PlayerView.tsx` (app-focused keydown map).
+- **Resolution:** the Space half was a real bug, confirmed and fixed: `playerStateRef`
+  only updates once the iframe posts back its own `onStateChange`, a round trip not
+  guaranteed to land before the next keypress — a rapid second press read the still-
+  stale pre-command state and reissued the same command as a no-op. Now updates the
+  ref optimistically the instant the command is sent; the real `onStateChange` event
+  still arrives and reconciles it either way. The fullscreen half is **not** a
+  Chronicle bug: pressing a key while focus is genuinely inside the cross-origin
+  YouTube iframe never reaches the parent frame's keydown listener at all (a browser
+  same-origin security boundary), so that keypress is handled entirely by YouTube's
+  own embedded player — which can behave differently — with no way for Chronicle's JS
+  to intercept or override it short of disabling the iframe's own legitimate
+  focus/interaction (its native controls, seek bar, volume), which would be a worse
+  regression. Documented as an accepted platform limitation in `playback.md`. No
+  live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-051 — Some subscribed channels show up with zero videos
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Area:** sync
+- **What happens:** the owner reported several subscribed channels appearing with no
+  videos at all; a fresh report on 2026-07-15 narrowed it to a specific mechanism (a
+  sync that reported failures, followed by a clean-looking resync that still never
+  caught up the missed videos — only a full wipe + reconnect recovered them).
+- **Expected:** a resync must be able to catch up any video from any subscribed
+  channel that was never actually captured, regardless of why it was missed last time
+  — not require a full data wipe to recover.
+- **Code refs:** `src/core/sync-service.ts` (`discoverChannel` — `possibleGap`).
+- **Resolution:** hypothesis 6 confirmed as the root cause: gap-backfill's trigger
+  (`possibleGap`) only paged the uploads playlist when **every** entry in the current
+  RSS window was new (`newIds.length === ids.length`). A window that's a *mix* of
+  known and new entries could still hide a real gap — RSS only ever returns the ~15
+  most recent entries, so a video missed on a day the sync failed (nothing gets
+  inserted or marked known that day) silently falls out of every future window the
+  moment enough newer videos push it out, regardless of whether *that* cycle's window
+  happens to still contain some unrelated already-known entry too. Changed the
+  trigger to `newIds.length > 0` — any newly discovered video is reason enough to
+  check. `backfillGap` itself already checks the real DB-wide known set per page (not
+  just the current window), so in the common gap-free case it stops at the very first
+  overlapping page — one extra bounded `playlistItems.list` call, not a deep walk.
+  `youtube-api.md` and `feed.md` §Backfill rules updated with the revised quota
+  reasoning. Also closes the other five hypotheses' worth of triage this entry
+  accumulated: none of them were ruled out, but hypothesis 6 was the one with a fresh,
+  dated, confirmed report behind it. Covered by two new `sync-service.test.ts` cases
+  (mixed-window gap-backfill, and no-op when nothing new was discovered). No live-app
+  check this session (needs the owner's actual account per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-097 — Sync failure banner gives no way to see what actually went wrong
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** sync / ui-shell
+- **What happens:** when a refresh reports failed channels, the banner just showed a
+  count with no way to find out which channels, or why.
+- **Expected:** an info affordance on the banner opens per-channel error detail.
+- **Code refs:** `src/core/sync-service.ts` (`SyncReport`); `src/ipc/contract.ts`
+  (`SyncReportDto`); `src/ui/App.tsx` (banner).
+- **Resolution:** `SyncReport`/`SyncReportDto` gained `failures:
+  { channelId, channelTitle, message }[]` (`channelId`/`channelTitle` null for
+  account-level failures — the subscription re-list, or a hydration batch spanning
+  more than one channel). Populated at every existing `channelsFailed += 1` site in
+  `sync-service.ts`'s `refresh`, including the per-channel `discoverChannel` failures
+  (now attributed by zipping the `mapPool` results back to their source channels).
+  Multi-account's `mergeReports` (`main.ts`) concatenates failures across accounts.
+  `App.tsx`'s partial-refresh banner gained a "Details" toggle (new shared `BannerBar`
+  component, used by both the main and Settings-screen banner render sites) that
+  discloses the list on demand rather than cluttering the one-line count. Directly
+  closes the per-channel-error-detail gap [[B-051]] hypothesis 5 and this entry's own
+  notes both pointed at. New `sync-service.test.ts` case asserts a per-channel failure
+  is attributed correctly. No live-app check this session (per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-096 — Clicking a channel name in the feed should open the channel, not the video
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** feed
+- **What happens:** every part of a feed row/card — including the channel name text —
+  opened the video.
+- **Expected:** clicking the channel name specifically navigates to that channel.
+- **Code refs:** `src/ui/FeedList.tsx` (`VideoRow`/`VideoCard`).
+- **Resolution:** `FeedVideoDto` gained a `channelId` field (the data was already
+  available server-side — `entry.video.channelId` — just never surfaced in the read
+  model). The channel name in both `VideoRow` and `VideoCard` is now its own
+  `.channel-link` span with a `stop()`-wrapped click handler, matching the pattern
+  already used for the row's action buttons. `App.tsx` gained a shared
+  `navigateToChannel` callback (extracted from what `PlayerView`'s existing
+  "click the channel name" handler already did) used by both the feed and the player.
+  No live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-095 — Grid view: smallest item sizes overlap; add a size larger than xl
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** ui-shell
+- **What happens:** at grid + `xs`/`small` item sizes, cards overlapped each other and
+  their badges/action-bar collided on top of the tiny thumbnail.
+- **Expected:** no overlap at any grid size; a size ceiling above the old `xl`.
+- **Code refs:** `src/ui/FeedList.tsx` (`GRID_CARD_SIZES`); `src/ui/styles.css`.
+- **Resolution:** the actual rendered card height (thumbnail + padding + gap + two-line
+  title + meta line) at `xs`/`small` was taller than `GRID_CARD_SIZES`' `height`
+  estimate — since the virtualizer never re-measures individual cards
+  (`useVirtualizer` with no `measureElement`), an underestimate meant consecutive
+  virtualized rows overlapped. Recomputed the height budgets with a generous margin
+  (`xs` 108→144, `small` 150→176, `medium` 210→214) and scaled the badges/duration/
+  action-bar down (smaller font/padding, tighter corner offsets) at `xs`/`small` only,
+  where the thumbnail itself is barely taller than the full-size versions of those
+  elements. Added a sixth `xxl` item-size step (`ItemSize`/`ITEM_SIZES`/
+  `GRID_CARD_SIZES`/`ROW_HEIGHTS`), threaded through `SettingsDto`/`AppSettings` and
+  their validation. No live-app check this session — this is inherently hard to get
+  pixel-perfect without seeing it rendered, so the fix leans generous on the height
+  margins rather than exact (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-094 — "Reconnect Google Account" in Settings doesn't say which account
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** auth / ui-shell
+- **What happens:** Settings → Connection's "Reconnect Google Account" action gave no
+  indication of which account it reconnects, now that multiple accounts exist (D-041).
+- **Expected:** the label makes it unambiguous which account is being reconnected.
+- **Code refs:** `src/ui/SettingsView.tsx` (Connection section, Reconnect action).
+- **Resolution:** copy-only, confirming D-041(a) is being followed correctly (Settings'
+  Reconnect only ever touches the primary account). The button now reads `Reconnect
+  "{account}"`, naming the primary account's label (`accounts.find(a => a.isPrimary)`,
+  already available in `App.tsx`'s `accounts` state). No live-app check this session
+  (per [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint
+  && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-092 — Video description doesn't always come through complete
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** sync / player
+- **What happens:** the description shown in the player was sometimes not the full
+  text.
+- **Expected:** the full `videos.list` description, not a truncated one.
+- **Code refs:** `src/platform/main.ts` (`getVideo` handler); `src/adapters/storage/
+  sync-repository.ts` (`DESCRIPTION_LIMIT = 500`, `truncate`).
+- **Resolution:** root cause was simpler than the original hypotheses (RSS-vs-API
+  description mismatch, hydration timing): storage has *always* capped descriptions at
+  500 chars for every video ever synced (`local-data.md` documents this as intentional
+  — "truncated (first ~500 chars) — full text on demand"), and `getVideo`'s local-video
+  branch was serving that stored (truncated) copy straight to the player with no
+  "on demand" fetch ever actually implemented, despite the code comment promising one.
+  Now re-fetches the full description via `apiClient.hydrate([id])` (`videos.list`,
+  1 unit) whenever a known video is opened, falling back to the stored copy on any
+  failure (offline, quota) rather than blocking playback — same trivial per-open cost
+  precedent as `getRating`. `youtube-api.md` documents the new call's quota cost. No
+  live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-090 — Onboarding: "go to app" button stays locked after first sync finishes; the wait shouldn't be required at all
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** onboarding
+- **What happens:** the first-sync wizard step's "open feed" button could stay disabled
+  even after sync had actually finished.
+- **Expected:** the owner's stronger ask, taken as the fix: the waiting step shouldn't
+  exist at all — connecting should go straight to the app, sync running in background.
+- **Code refs:** `src/ui/onboarding/Wizard.tsx` (`FirstSyncStep`, `STEP_SEQUENCE`).
+- **Resolution: D-044 (new decision).** Removed the wizard's `first-sync` step
+  entirely rather than fixing the stuck-button mechanism — `connectGoogle` (`main.ts`)
+  already auto-triggers a background sync the instant the connection succeeds (the
+  same path every later refresh uses), so the wizard step was a second, redundant
+  trigger for the same sync, gated on an event stream a not-yet-mounted step could
+  easily miss entirely (the actual root cause the stuck button traced back to).
+  `ConnectStep`'s success now calls `onDone` directly, finishing the wizard and landing
+  on the feed screen with sync continuing in the background. `onboarding.md` Step 8
+  and `decisions.md` updated (D-044); this is a Pending-decision-style product call
+  exercised with the owner's own stated preference rather than a mere recommendation,
+  flagged here per project convention. No live-app check this session (per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-091 — First sync: rename "Filtering Shorts" to "Identifying Shorts"; show discovered videos before Shorts identification finishes
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** sync / onboarding
+- **What happens:** (1) sync status copy said "Filtering Shorts" though Shorts are
+  shown, not filtered (D-035); (2) the feed stayed blank until the whole sync,
+  including the slow Shorts-identification phase, finished.
+- **Expected:** (1) "Identifying Shorts" copy; (2) the feed renders as soon as videos
+  are hydrated, independent of Shorts-identification finishing.
+- **Code refs:** `src/ui/App.tsx` (`refresh:progress` handler); `src/ui/i18n/en.ts`
+  (`app.status.filteringShorts`).
+- **Resolution:** part (1) — despite an earlier note claiming this copy change was
+  already done, `app.status.filteringShorts` still read "filtering Shorts" in the
+  actual code; fixed to "identifying Shorts". Part (2) — videos are already hydrated
+  and persisted well before the Shorts phase starts (it's a separate pass over rows
+  already in the DB), so a feed that's still empty when that phase begins no longer
+  waits for the full `refresh:done` event: a new `feedEmptyRef`/
+  `emptyFeedLoadTriggeredRef` pair triggers one `loadView()`/`loadChannels()` the
+  moment the channels→shorts phase transition is observed with nothing on screen yet.
+  Scoped to the empty-feed case specifically (not every refresh with new videos) to
+  avoid a misleading "new videos" signal on a cycle that's just retrying old
+  unconfirmed Shorts candidates with nothing actually new. `feed.md`/`youtube-api.md`
+  references to the now-removed onboarding "step 8" updated alongside [[B-090]]. No
+  live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-088 — Submitting a search from inside the player doesn't leave the video
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player / ui-shell
+- **What happens:** running an actual search while a video played updated search
+  state but the player view stayed on screen.
+- **Expected:** submitting a search while playing takes the user to search results.
+- **Code refs:** `src/ui/App.tsx` (`runSearch`).
+- **Resolution:** fixed together with [[B-087]] — the two were opposite sides of the
+  same navigation-vs-focus gap. `runSearch` now clears `playerStack` itself whenever
+  it actually runs a non-empty query, regardless of which entry point (the topbar
+  Enter handler, or anywhere else) triggered it — submitting a search is a real
+  navigation, on par with any other. No live-app check this session (per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-087 — Pressing "/" inside a video exits playback immediately, before any search happens
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player
+- **What happens:** pressing `/` while playing immediately cleared the player stack
+  and returned to the feed, before the user had typed or submitted anything.
+- **Expected:** `/` should just focus the search field and keep playback running;
+  only submitting a search should leave the video.
+- **Code refs:** `src/ui/PlayerView.tsx` (`case '/'`); `src/ui/App.tsx`
+  (`exitPlayerToSearch`).
+- **Resolution:** `exitPlayerToSearch` (which cleared the player stack *and* focused
+  the field) was renamed to `focusSearch` and now only focuses the field — the topbar
+  filter stays visible above the player at all times (the topbar itself never hides
+  while a video is open), so focusing it doesn't require leaving anything. Leaving the
+  player is now solely [[B-088]]'s job, triggered only by actually submitting a query.
+  `PlayerView`'s `onSearch` prop renamed to `onFocusSearch` to match the new,
+  narrower contract. No live-app check this session (per
+  [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
+  npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-085 — Upcoming videos never transition to "live"; premiere behavior unverified
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** sync
+- **What happens:** a video that was `upcoming` at hydration stayed `upcoming`
+  forever, even long after the broadcast actually went live.
+- **Expected:** an `upcoming` video should flip to `live` once the broadcast starts.
+- **Code refs:** `src/core/sync-service.ts` (`refresh`); `src/core/ports.ts`
+  (`SyncRepository`).
+- **Resolution:** took the owner's proposed fix directly. New `SyncRepository.
+  upcomingVideoIds(channelId?)` (SQLite: `SELECT video_id FROM videos WHERE
+  live_content = 'upcoming'`, scoped like `shortCandidates`); new
+  `SyncService.refreshUpcomingLiveStatus` re-hydrates just those (bounded by however
+  many are actually flagged upcoming) every refresh cycle, tolerant of failure the
+  same way `confirmShorts` is (a video left at `upcoming` just retries next cycle).
+  `applyHydration` already unconditionally overwrites `live_content` on conflict, so
+  no separate write path was needed. Premiere behavior remains unverified (no reported
+  case to test against) — left as a documented open question, not addressed by this
+  fix. Covered by new `sync-service.test.ts` and `sync-repository.test.ts` cases. No
+  live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (199/199).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-098 — Can't type space or "f" (or several other letters) into the comment box — player shortcuts eat the keystroke
 - **Type:** bug · **Severity:** major
