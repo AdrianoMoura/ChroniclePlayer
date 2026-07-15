@@ -150,7 +150,7 @@ Data handling for externally opened videos (Final):
   periodic tick, consistent with the app's "predictable, not continuously polling" style
   elsewhere (e.g. D-038's reissue-on-start pattern).
 
-## Miniplayer — D-046 (Final, exercised 2026-07-15)
+## Miniplayer — D-046 (Final, exercised 2026-07-15; revised same day after live testing)
 
 Leaving the full player view no longer has to stop playback. Three related surfaces,
 all `bugs.md` [[B-045]]:
@@ -160,33 +160,53 @@ all `bugs.md` [[B-045]]:
   of closing — the feed becomes interactive again underneath, keyboard shortcuts revert
   to normal feed navigation (j/k/etc.), and the video keeps playing. Paused/ended, or
   deeper in the queue stack (viewing a video reached via a description link), Esc/Back
-  behaves exactly as before. An explicit **"Miniplayer"** button in the full view docks
-  unconditionally, on demand, regardless of play state or stack depth.
+  behaves exactly as before. **Automatic only** — an explicit "Miniplayer" button was
+  tried first and dropped after live feedback: the product owner's actual ask was that
+  leaving a playing video dock by itself, and a separate manual button next to that
+  auto-behavior just read as redundant clutter.
 - **Maximizing**: clicking the corner box (or its own maximize button) returns to the
   full view, same video, same position, still playing.
 - **Extracting**: the corner box's extract action pops the video into its own
   always-on-top OS window, independent of the main Chronicle window.
+- **Resizable**: the corner box has a native browser resize handle
+  (`resize: horizontal`) — the default 360px width was reported as too small with no
+  way to adjust, on the first pass that shipped without this.
 
 **Continuity is the whole design constraint, and it splits into two different answers**
 depending on whether the destination is still inside the main window's renderer process:
 
 - Docking and maximizing stay inside the *same* renderer process, so the exact same live
   `<iframe>` — and its postMessage widget protocol connection — can keep running,
-  uninterrupted, the whole time. Implementation: the player is split into an
-  always-mounted `PlayerSurface` (owns the iframe, the widget protocol, resume-position
-  writes, and the full-view-only keyboard map) that portals its rendered output into
-  whichever slot element the current layout hands it, and a `PlayerDetails`/
-  `MiniPlayerBar` pair that supply those slots plus the surrounding chrome (title,
-  description, comments vs. a title strip and three icon buttons). Both chrome
-  components stay mounted at all times (just CSS-hidden when inactive) specifically so
-  their slot elements never disappear out from under `PlayerSurface` — if they did, it
-  would have nothing to portal into for a render pass and would unmount (and therefore
-  restart) the iframe.
+  uninterrupted, the whole time. **First implementation attempt used a React portal**
+  (`ReactDOM.createPortal`) to move `PlayerSurface`'s rendered output between a
+  full-view slot and a corner-box slot — this shipped, and live testing immediately
+  showed the video restarting from zero on every dock. Root cause: moving an `<iframe>`
+  to a different DOM parent — which is exactly what a portal does under the hood, even
+  without ever detaching it from the document — makes Chromium reload it. This isn't
+  React-specific or fixable by "portaling more carefully"; it's a browser behavior that
+  applies to any DOM-level reparent of an iframe, portal or not. **Fixed by dropping the
+  portal entirely**: `PlayerSurface` now renders at one single, permanently stable
+  position in the tree (a sibling of `PlayerDetails`/`MiniPlayerBar` in `App.tsx`, never
+  conditionally nested inside either) and never moves in the DOM at all. Instead it
+  measures whichever "slot" placeholder element (an empty, `ResizeObserver`-watched
+  `<div>`) the currently-active layout provides — `PlayerDetails` for full view,
+  `MiniPlayerBar` for docked — and mirrors that placeholder's on-screen rect via
+  `position: fixed` inline styles (`top`/`left`/`width`/`height`, recomputed on resize).
+  The iframe's actual DOM parent chain never changes; only numbers change. This also
+  means `.player-view`'s layout had to stop being one scrolling block: the stage
+  placeholder sits in a non-scrolling flex row (topbar + stage, fixed height) with only
+  `.player-info` (description/comments) scrolling below it — otherwise the placeholder's
+  on-screen position would shift on every scroll tick, needing scroll-tracking on top of
+  resize-tracking. `PlayerDetails`/`MiniPlayerBar` still both stay mounted at all times
+  (CSS `display: none` when inactive) so their placeholders never disappear out from
+  under `PlayerSurface`'s measurement effect.
 - Extracting crosses into a genuinely different renderer process (a second
   `BrowserWindow`, `alwaysOnTop: true`) — there is no way to move a DOM node between
-  two Electron renderer processes, full stop. This hands off a **snapshot** (current
-  playback position + playing/paused) to a fresh, minimal instance in the new window
-  instead: that window loads the exact same renderer bundle with an
+  two Electron renderer processes, full stop (the same constraint that broke docking
+  above, just one level up — a whole separate process, not only a different parent
+  within one). This hands off a **snapshot** (current playback position +
+  playing/paused) to a fresh, minimal instance in the new window instead: that window
+  loads the exact same renderer bundle with an
   `?extract=<videoId>&t=<startSeconds>&autoplay=<0|1>` query string, which the
   renderer's entry point checks to render a bare `ExtractedPlayerWindow` (just a
   clean-embed iframe filling the window, seeked to the handed-off position) instead of
@@ -194,13 +214,20 @@ depending on whether the destination is still inside the main window's renderer 
   playback now lives in that window. A brief reload/seek is an accepted, inherent cost
   of this leg, not something worth chasing a workaround for.
 
-**Stacking order:** the docked corner box is `position: fixed` with `z-index: 20`, high
-enough to float above the feed but below any modal (`.overlay-backdrop`, used by the
-help overlay, add-account, URL prompt, and write-scope consent dialogs, was bumped to
+**Stacking order:** the docked corner box is `position: fixed` with `z-index: 20`; the
+measured, always-fixed `.player-stage` itself sits at `z-index: 21` (above both the
+corner box and the full-view chrome, `.player-view` at `z-index: 5`, regardless of which
+one is currently active) but below any modal (`.overlay-backdrop`, used by the help
+overlay, add-account, URL prompt, and write-scope consent dialogs, was bumped to
 `z-index: 30` specifically so a dialog opened while docked — mini mode hands keyboard
 control back to the feed, so e.g. `?` for help is reachable there too — still wins).
 
-Needs the owner's own live validation (dock, maximize, extract, close, and the
+**Session note, same fix:** the first pass also gave every `BrowserWindow` (main, sign-in,
+extract) a custom named session partition as part of B-093, which broke every thumbnail
+in the app — see `authentication.md` §The embedded player's browser session and D-045.
+Reverted to Electron's default session everywhere in the same pass as the portal fix.
+
+Needs the owner's own live validation (dock, maximize, resize, extract, close, and the
 modal-stacking behavior above) before considering this closed — not something
 verifiable without actually driving the app.
 

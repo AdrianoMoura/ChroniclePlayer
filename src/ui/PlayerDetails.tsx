@@ -10,21 +10,26 @@ import { useWriteScopeGate } from './useWriteScopeGate'
 // comments — everything *around* the video surface. Split out of the
 // original PlayerView (B-045) so the surface itself (`PlayerSurface`, the
 // live iframe) can stay mounted and keep playing while this chrome is
-// hidden (miniplayer) or shown (full view). Renders a slot `<div>` where
-// `PlayerSurface` portals its content in — see `slotRef`.
+// hidden (miniplayer) or shown (full view). Renders a slot `<div>` that
+// PlayerSurface measures and visually aligns itself to — see `slotRef`
+// and PlayerSurface.tsx's own comment for why it's measurement, not a
+// portal.
+//
+// Docking is automatic only (leaving a playing video via Esc/Back, decided
+// in PlayerSurface) — there's deliberately no manual "dock" button here;
+// an earlier version had one and the product owner found it redundant
+// clutter next to the automatic behavior they'd actually asked for.
 
 interface PlayerDetailsProps {
   video: PlayerVideoDto
   state: VideoStateDto
   stackDepth: number
   // Stays mounted even while hidden (miniplayer mode) — see App.tsx: the
-  // portal slot this renders must never disappear, or PlayerSurface would
-  // have nowhere to portal its iframe into for a render pass, which unmounts
-  // (and reloads) it.
+  // slot this renders must never disappear, or PlayerSurface would have
+  // nothing to measure/align to for a render pass.
   hidden: boolean
   slotRef: (element: HTMLDivElement | null) => void
   onClose: () => void
-  onDock: () => void
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
@@ -37,7 +42,6 @@ export function PlayerDetails({
   hidden,
   slotRef,
   onClose,
-  onDock,
   onOpenVideo,
   onOpenChannel,
   onStatePatched
@@ -75,9 +79,6 @@ export function PlayerDetails({
       <div className="player-topbar">
         <button className="player-back" onClick={onClose}>
           {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')} <kbd>Esc</kbd>
-        </button>
-        <button className="player-dock" title={t('player.topbar.miniplayerTitle')} onClick={onDock}>
-          {t('player.topbar.miniplayer')}
         </button>
       </div>
       <div ref={slotRef} className="player-stage-slot" />

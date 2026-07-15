@@ -3,15 +3,16 @@ import { t } from './i18n'
 
 // The docked miniplayer's chrome (B-045) — a small corner box with a slot
 // `<div>` (see PlayerDetails for the same pattern) that PlayerSurface
-// portals its live iframe into, plus title + maximize/extract/close. The
-// feed underneath is fully interactive while this is showing — that's the
-// point of docking instead of closing.
+// measures and visually aligns its live iframe to (see PlayerSurface.tsx
+// for why it's measurement, not a portal), plus title +
+// maximize/extract/close. The feed underneath is fully interactive while
+// this is showing — that's the point of docking instead of closing.
+// Resizable via the browser's native CSS `resize: horizontal` (styles.css).
 
 interface MiniPlayerBarProps {
   video: PlayerVideoDto
   // Stays mounted even while hidden (full-view mode) — see PlayerDetails'
-  // own `hidden` prop for why this matters (the portal slot must never
-  // disappear).
+  // own `hidden` prop for why this matters (the slot must never disappear).
   hidden: boolean
   slotRef: (element: HTMLDivElement | null) => void
   onMaximize: () => void

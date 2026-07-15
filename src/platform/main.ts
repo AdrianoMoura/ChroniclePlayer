@@ -210,15 +210,18 @@ function devRendererUrl(): string | undefined {
   return process.env['ELECTRON_RENDERER_URL']
 }
 
-// B-093: named explicitly (rather than left as Electron's unnamed default
-// session) so it's clear this one persistent session is deliberately shared
-// by the main window, the player's embedded iframe (a plain <iframe> always
-// inherits its embedding page's session — there's no per-iframe override),
-// and the "Sign in to YouTube" window below. Chronicle's own OAuth connect
-// flow (D-001/D-012) runs in the *system* browser, never this session, so
-// this Chromium profile starts out never signed into anything until the
-// user explicitly uses that action.
-const CHRONICLE_SESSION_PARTITION = 'persist:chronicle'
+// B-093: deliberately *not* a named partition — every BrowserWindow here
+// omits `webPreferences.partition`, which means they all share Electron's
+// one unnamed default session, same as the player's embedded iframe (a
+// plain <iframe> always inherits its embedding page's session — there's no
+// per-iframe override) and the "Sign in to YouTube" window below. This was
+// tried as an explicitly *named* partition first, which broke thumbnails:
+// `protocol.handle()` (used for `thumb://` further down) registers on
+// `session.defaultSession` specifically, and a custom partition is a
+// different session with no handler on it at all. The default session was
+// always the right answer anyway — Chronicle's own OAuth connect flow
+// (D-001/D-012) runs in the *system* browser, never touching this one, so
+// it starts out signed into nothing regardless of a custom name.
 
 // Shared by createWindow() and the B-045 extract-to-window flow below —
 // both load the exact same renderer bundle; the extracted window just adds
@@ -254,8 +257,7 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false,
-      partition: CHRONICLE_SESSION_PARTITION
+      nodeIntegration: false
     }
   })
   loadRenderer(window)
@@ -277,8 +279,7 @@ function createExtractWindow(videoId: string, startSeconds: number, playing: boo
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false,
-      partition: CHRONICLE_SESSION_PARTITION
+      nodeIntegration: false
     }
   })
   window.setAspectRatio(16 / 9)
@@ -1318,16 +1319,13 @@ async function boot(): Promise<void> {
   ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
 
   // B-093: no automation, no credential handling — just a plain window at
-  // youtube.com in the app's own persistent session (CHRONICLE_SESSION_PARTITION),
-  // the same one the player's iframe already uses. The user signs in (or not)
-  // exactly like they would in any browser; closing the window is on them, same
-  // as the corner-icon workaround this replaces with a discoverable action.
+  // youtube.com. No explicit partition (see the comment above createWindow),
+  // so it shares the same default session the player's iframe already uses.
+  // The user signs in (or not) exactly like they would in any browser;
+  // closing the window is on them, same as the corner-icon workaround this
+  // replaces with a discoverable action.
   ipcMain.handle(IpcChannel.openYouTubeSignIn, () => {
-    const signInWindow = new BrowserWindow({
-      width: 480,
-      height: 720,
-      webPreferences: { partition: CHRONICLE_SESSION_PARTITION }
-    })
+    const signInWindow = new BrowserWindow({ width: 480, height: 720 })
     void signInWindow.loadURL('https://www.youtube.com')
   })
 

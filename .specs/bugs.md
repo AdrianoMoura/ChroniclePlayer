@@ -119,45 +119,56 @@ Resolved entries add:
 - **Area:** player / ui-shell
 - **What happens:** the player view was full-view only — leaving it went back to the feed
   and stopped playback (no background/PiP mode).
-- **Expected:** (1) leaving the player screen while a video is playing (Esc/Back) drops
-  it into a small persistent miniplayer docked bottom-right instead of stopping
-  playback; (2) an explicit "Miniplayer" button inside the full player view does the
-  same thing on demand; (3) an "extract" action on the miniplayer pops the video into
-  its own always-on-top OS window.
-- **Code refs:** `src/ui/PlayerSurface.tsx` (new — the live iframe + widget protocol,
-  split out so it can stay mounted across the layout swap); `src/ui/PlayerDetails.tsx`
-  (renamed from the old `PlayerView.tsx` — full-view chrome only, no iframe);
-  `src/ui/MiniPlayerBar.tsx` (new — docked chrome); `src/ui/ExtractedPlayerWindow.tsx`
-  (new — the minimal always-on-top window's content); `src/platform/main.ts`
-  (`createExtractWindow`, `loadRenderer`, `IpcChannel.extractPlayer`); `src/ui/main.tsx`
-  (`?extract=` query-param routing).
-- **Notes: D-046 (new decision).** Docking/maximizing keep the *same* live iframe
-  instance mounted throughout (per the product owner: a fresh instance on each
-  transition risks the video not continuing to play) — implemented via a
-  `PlayerSurface` component that portals its rendered iframe into whichever slot
-  element the current layout (`PlayerDetails` for full view, `MiniPlayerBar` for
-  docked) provides; both chrome components stay mounted at all times (CSS
-  `display:none` when inactive) specifically so their slot elements never disappear,
-  which would otherwise force `PlayerSurface` to briefly render nothing and unmount
-  (reload) the iframe. Extraction crosses into a second `BrowserWindow`
-  (`alwaysOnTop: true`) — a different renderer process, so the DOM node can't move
-  there — and hands off a playback snapshot (position, playing/paused) to a fresh,
-  minimal instance instead, per the owner's explicit direction to implement both legs
-  in the same pass and accept that reload as an inherent cost of the process boundary.
-  A `patch()` staleness bug surfaced during implementation and was fixed alongside
-  this: `playerStack` entries were never updated after the initial open, which the
-  miniplayer toggle would have exposed as read/favorite/watch-later state flickering
-  back to whatever it was when the video was first opened (`App.tsx`'s `patch` now
-  updates `playerStack` too, not just `videos`). Also found and fixed while wiring the
-  miniplayer's stacking: `.overlay-backdrop` (help, add-account, URL prompt, and
-  write-scope consent dialogs) had no explicit `z-index`, which the new
-  `.miniplayer`'s `z-index: 20` would have rendered above — bumped to `z-index: 30` so
-  a modal always wins regardless of what else is showing. Checked via
-  `npm run typecheck && npm run lint && npm test` (199/199) and `npm run build`; **not
-  run live** (per [[no-live-app-verification]]) — this is a substantial rework of the
-  player's mount lifecycle across two BrowserWindow processes, and needs the owner's
-  own hands-on validation (dock, maximize, extract, close, modal-over-miniplayer
-  stacking) before this can move to Resolved.
+- **Expected:** (1) leaving the player screen while a video is playing docks it into a
+  small persistent miniplayer instead of stopping playback, automatically — no manual
+  button; (2) an "extract" action on the miniplayer pops the video into its own
+  always-on-top OS window; (3) the miniplayer is resizable.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (the live iframe + widget protocol, split
+  out so it can stay mounted across the layout swap — renders at one fixed tree
+  position and measures/aligns to a slot rather than portaling into one, see Notes);
+  `src/ui/PlayerDetails.tsx` (renamed from the old `PlayerView.tsx` — full-view chrome
+  only, no iframe); `src/ui/MiniPlayerBar.tsx` (docked chrome); `src/ui/
+  ExtractedPlayerWindow.tsx` (the minimal always-on-top window's content); `src/
+  platform/main.ts` (`createExtractWindow`, `loadRenderer`, `IpcChannel.extractPlayer`);
+  `src/ui/main.tsx` (`?extract=` query-param routing); `src/ui/styles.css`
+  (`.player-view` flex-column restructure, `.miniplayer` resize).
+- **Notes: D-046.** First implementation (2026-07-15) used a React portal to move
+  `PlayerSurface`'s rendered iframe between a full-view slot and a corner-box slot.
+  **The owner's live test caught two real bugs and one design miss in that pass:**
+  (1) the video restarted from zero on every dock — moving an `<iframe>` to a
+  different DOM parent, which is exactly what a portal does even without ever
+  detaching it from the document, makes Chromium reload it; not a React bug, not
+  fixable by portaling more carefully. Fixed by dropping the portal entirely:
+  `PlayerSurface` now renders at one permanently stable position in the tree (a
+  sibling of `PlayerDetails`/`MiniPlayerBar`, never conditionally nested inside
+  either) and measures whichever slot placeholder the active layout provides
+  (`ResizeObserver` + resize listener), mirroring its on-screen rect via `position:
+  fixed` inline styles — the iframe's DOM parent never changes, only numbers do. This
+  also required restructuring `.player-view` from one scrolling block into a
+  non-scrolling topbar+stage row with only `.player-info` scrolling, so the
+  placeholder's rect doesn't shift on every scroll tick. (2) the corner box was too
+  small with no way to adjust — default width raised 260px→360px and given a native
+  `resize: horizontal` handle. (3) the explicit "Miniplayer" button was removed —
+  the owner's actual ask was purely automatic docking on leaving a playing video, and
+  the manual button next to that read as redundant clutter, not a second useful path.
+  Separately (also live-caught): B-093's session-partition change (same day) broke
+  every thumbnail in the app — see that entry. A `patch()` staleness bug surfaced
+  during the original implementation and was fixed alongside it: `playerStack`
+  entries were never updated after the initial open, which the miniplayer toggle
+  would have exposed as read/favorite/watch-later state flickering back to whatever
+  it was when the video was first opened (`App.tsx`'s `patch` now updates
+  `playerStack` too, not just `videos`). Also fixed while wiring the miniplayer's
+  stacking: `.overlay-backdrop` (help, add-account, URL prompt, and write-scope
+  consent dialogs) had no explicit `z-index`, which `.miniplayer`'s `z-index: 20`
+  would have rendered above — bumped to `z-index: 30` so a modal always wins.
+  Extraction (a genuinely different renderer process, no portal involved either way)
+  hands off a playback snapshot to a fresh, minimal instance, accepting the reload as
+  an inherent cost of that process boundary, per the owner's explicit direction.
+  Checked via `npm run typecheck && npm run lint && npm test` (199/199) and
+  `npm run build`; **not run live this round either** (per
+  [[no-live-app-verification]]) — needs the owner's own hands-on validation again
+  (dock, maximize, resize, extract, close, modal-over-miniplayer stacking) before this
+  can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
@@ -170,29 +181,33 @@ Resolved entries add:
   there, close it — the embed then starts working again, and stays working.
 - **Expected:** a friendlier explicit "Sign in to YouTube" action, discoverable in
   Settings rather than an accidentally-found corner-icon click.
-- **Code refs:** `src/platform/main.ts` (`CHRONICLE_SESSION_PARTITION`,
-  `createWindow`, `IpcChannel.openYouTubeSignIn`); `src/ui/SettingsView.tsx`
-  (Connection section).
-- **Notes: D-045 (new decision), implementing option (b) from this entry's original
-  two ideas, not (a).** The corner-icon workaround already showed that a *shared*
-  session between the popup and the iframe is sufficient once actually signed into —
-  the iframe is a plain `<iframe>`, which always inherits its embedding page's
-  session, and neither the main window nor that popup ever specified a custom
-  partition, so they were almost certainly already sharing Electron's unnamed default
-  session. The actual gap was never session isolation needing a bridge (option a,
-  cookie injection between two separate sessions) — it was that nothing *deliberately
-  triggers* signing into that session, so the owner had to stumble onto the
-  corner-icon click. Implemented: the whole app now uses an explicitly named
-  persistent partition (`persist:chronicle`, `authentication.md` §The embedded
-  player's browser session) instead of the implicit unnamed default, and Settings →
-  Connection gained a plain "Sign in to YouTube" button that opens a same-partition
-  window at youtube.com — no automation, no cookie extraction, the user signs in
-  themselves exactly like the workaround already did. Checked via
-  `npm run typecheck && npm run lint && npm test`; **not run live**
-  (per [[no-live-app-verification]]) — the owner's own plan is to validate by opening
-  that window, confirming it looks authenticated, then checking the player itself.
-  Staying "In progress" (not Resolved) until that live check confirms the bot-check
-  symptom actually clears, matching how [[B-022]] is tracked in this file.
+- **Code refs:** `src/platform/main.ts` (`createWindow`, `IpcChannel.openYouTubeSignIn`);
+  `src/ui/SettingsView.tsx` (Connection section).
+- **Notes: D-045, implementing option (b) from this entry's original two ideas, not
+  (a).** The corner-icon workaround already showed that a *shared* session between the
+  popup and the iframe is sufficient once actually signed into — the iframe is a plain
+  `<iframe>`, which always inherits its embedding page's session, and neither the main
+  window nor that popup ever specified a custom partition, so they were already
+  sharing Electron's unnamed default session. The actual gap was never session
+  isolation needing a bridge (option a, cookie injection between two separate
+  sessions) — it was that nothing *deliberately triggers* signing into that session,
+  so the owner had to stumble onto the corner-icon click. Settings → Connection gained
+  a plain "Sign in to YouTube" button that opens a window at youtube.com in that same
+  default session — no automation, no cookie extraction, the user signs in themselves
+  exactly like the workaround already did. **First attempt (same day) named that
+  session explicitly** (`persist:chronicle`) instead of leaving it as the default —
+  the owner's live test showed this broke every thumbnail in the app: `thumb://`'s
+  `protocol.handle()` registers on `session.defaultSession` specifically, and a custom
+  partition is a different session with no handler on it at all. Reverted to the
+  default session everywhere (main window, sign-in window, extractor window — see
+  [[B-045]]) in the same fix pass; no functional loss, since the default session was
+  already what everything here implicitly shared before this entry touched any of it.
+  Checked via `npm run typecheck && npm run lint && npm test`; **not run live this
+  round either** (per [[no-live-app-verification]]) — the owner's own plan is to
+  validate by opening that window, confirming it looks authenticated, then checking
+  the player itself, and separately confirming thumbnails are back. Staying
+  "In progress" (not Resolved) until that live check confirms both, matching how
+  [[B-022]] is tracked in this file.
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major

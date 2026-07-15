@@ -1683,7 +1683,7 @@ export function App() {
                   hasQueueNext={hasQueueNext}
                   defaultPlaybackRate={settings.defaultPlaybackRate}
                   active={!miniplayer}
-                  portalTarget={miniplayer ? miniSlot : fullSlot}
+                  alignTarget={miniplayer ? miniSlot : fullSlot}
                   onNextInQueue={nextInQueue}
                   onClose={closePlayer}
                   onDock={dockPlayer}
@@ -1697,7 +1697,6 @@ export function App() {
                   hidden={miniplayer}
                   slotRef={setFullSlot}
                   onClose={() => playerSurfaceRef.current?.requestClose()}
-                  onDock={dockPlayer}
                   onOpenVideo={(videoId) => openVideo(videoId)}
                   onOpenChannel={navigateToChannel}
                   onStatePatched={patch}

@@ -1,13 +1,22 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { PlayerVideoDto, VideoStateDto } from '../ipc/contract'
 import { t } from './i18n'
 
 // The live iframe + its postMessage widget protocol (playback.md, D-006) —
 // split out of what used to be the whole PlayerView so it can stay mounted
 // (and therefore never restart the video) across the full-view ↔ miniplayer
-// transition (B-045). Portals its rendered output into whichever slot
-// element the caller currently hands it — see `portalTarget`.
+// transition (B-045).
+//
+// This renders at one single, fixed position in the tree (App.tsx) and is
+// *never* reparented into PlayerDetails or MiniPlayerBar — a React portal
+// was tried first and reverted, because moving an <iframe> to a different
+// DOM parent (which is what a portal does under the hood, even without
+// ever removing it from the document) makes Chromium reload it, same as
+// any other cross-parent move. Instead this measures whichever "slot"
+// placeholder element the current layout hands it (`alignTarget` — an
+// empty div PlayerDetails/MiniPlayerBar render exactly where the video
+// should visually appear) and mirrors its on-screen rect via a `position:
+// fixed` wrapper. The iframe's actual DOM parent chain never changes.
 
 const PLAYER_ORIGIN = 'https://www.youtube.com'
 
@@ -51,7 +60,7 @@ interface PlayerSurfaceProps {
   // back-button — the miniplayer hands the app back to normal feed
   // navigation (App.tsx's own j/k shortcuts resume instead).
   active: boolean
-  portalTarget: HTMLElement | null
+  alignTarget: HTMLElement | null
   onNextInQueue: () => void
   onClose: () => void
   onDock: () => void
@@ -67,7 +76,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     hasQueueNext,
     defaultPlaybackRate,
     active,
-    portalTarget,
+    alignTarget,
     onNextInQueue,
     onClose,
     onDock,
@@ -81,10 +90,37 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
   const playerStateRef = useRef(-1)
   const currentTimeRef = useRef(0)
   const [surface, setSurface] = useState<Surface>('playing')
+  const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(
+    null
+  )
 
   useEffect(() => {
     setSurface('playing')
   }, [video.videoId])
+
+  // Mirrors alignTarget's on-screen box exactly, without ever touching the
+  // iframe's own DOM parent. Both PlayerDetails and MiniPlayerBar keep their
+  // stage slot out of any internally-scrolling region (see styles.css), so
+  // this only actually needs to re-measure on resize/layout changes — not
+  // on every scroll tick.
+  useEffect(() => {
+    if (alignTarget === null) {
+      setRect(null)
+      return
+    }
+    const measure = () => {
+      const box = alignTarget.getBoundingClientRect()
+      setRect({ top: box.top, left: box.left, width: box.width, height: box.height })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(alignTarget)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [alignTarget])
 
   const command = useCallback((func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -292,10 +328,16 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     return `${PLAYER_ORIGIN}/embed/${video.videoId}?${params.toString()}`
   }, [video.videoId, video.state.resumePositionSeconds])
 
-  if (portalTarget === null) return null
-
-  return createPortal(
-    <div className="player-stage" ref={wrapperRef}>
+  return (
+    <div
+      className="player-stage"
+      ref={wrapperRef}
+      style={
+        rect === null
+          ? { display: 'none' }
+          : { position: 'fixed', top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+      }
+    >
       {surface !== 'embed-blocked' && (
         <iframe
           ref={iframeRef}
@@ -352,7 +394,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           </div>
         </div>
       )}
-    </div>,
-    portalTarget
+    </div>
   )
 })

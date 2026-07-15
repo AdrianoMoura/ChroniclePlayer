@@ -344,8 +344,6 @@ export const en = {
   // PlayerView
   'player.topbar.back': '← Back',
   'player.topbar.backToFeed': '← Back to feed',
-  'player.topbar.miniplayer': 'Miniplayer',
-  'player.topbar.miniplayerTitle': 'Dock to a corner and keep browsing while it plays',
   'player.miniplayer.maximizeTitle': 'Back to full player',
   'player.miniplayer.extractTitle': 'Pop out into its own always-on-top window',
   'player.miniplayer.closeTitle': 'Close',

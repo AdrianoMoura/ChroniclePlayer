@@ -1263,19 +1263,21 @@ button.primary:disabled {
 
 /* The player replaces the feed region visually; the feed stays mounted
    underneath so Esc returns to the exact scroll position (ui.md). */
+/* B-045: flex column, not one scrolling block — the stage slot (where
+   PlayerSurface's fixed-position box aligns itself, see PlayerSurface.tsx)
+   must stay at a constant on-screen rect, or every scroll tick would need
+   to re-measure and reposition the iframe. Only .player-info scrolls. */
 .player-view {
   position: absolute;
   inset: 0;
   z-index: 5;
   background: var(--bg);
-  overflow-y: auto;
-  padding: 20px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 32px 0;
 }
 
 .player-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: 12px;
 }
 
@@ -1289,20 +1291,6 @@ button.primary:disabled {
   color: var(--text);
 }
 
-/* B-045: docks to the corner miniplayer, keeping playback going. */
-.player-dock {
-  color: var(--text-dim);
-  font-size: 13px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
-.player-dock:hover {
-  color: var(--text);
-  background: var(--surface-2);
-}
-
 .player-back kbd {
   font-size: 11px;
   color: var(--text-dim);
@@ -1312,17 +1300,31 @@ button.primary:disabled {
   margin-left: 2px;
 }
 
-/* Always theater (B-004): full available width; on wide/short viewports the
-   height cap wins and YouTube letterboxes inside the iframe. */
+/* B-045: PlayerSurface renders exactly one `.player-stage`, always
+   `position: fixed`, with its top/left/width/height set inline from
+   measuring whichever slot placeholder is currently active (never moved in
+   the DOM — see PlayerSurface.tsx for why). Visual-only properties live
+   here; sizing/position do not. z-index sits above both the full-view
+   chrome (.player-view, 5) and the miniplayer (.miniplayer, 20), below any
+   modal (.overlay-backdrop, 30). */
 .player-stage {
-  position: relative;
+  z-index: 21;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* The full view's placeholder — occupies the exact space PlayerSurface's
+   fixed box aligns itself to (B-004: full available width; on wide/short
+   viewports the height cap wins and YouTube letterboxes inside the
+   iframe). flex-shrink: 0 keeps it from being squeezed by .player-info's
+   flex: 1 below it. */
+.player-stage-slot {
   width: 100%;
   aspect-ratio: 16 / 9;
   max-height: calc(100vh - 240px);
   min-height: 240px;
-  background: #000;
-  border-radius: 10px;
-  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .player-iframe {
@@ -1340,11 +1342,18 @@ button.primary:disabled {
   position: fixed;
   bottom: 16px;
   right: 16px;
-  width: 260px;
+  width: 360px;
+  min-width: 220px;
+  max-width: 640px;
   z-index: 20;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
+  /* Native browser resize handle (bottom-right corner) — width-only so the
+     video's own aspect-ratio (below) drives height, rather than letting a
+     drag distort it. overflow: hidden both clips to the rounded corners and
+     satisfies `resize`'s requirement of a non-visible overflow value. */
+  resize: horizontal;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
@@ -1354,15 +1363,6 @@ button.primary:disabled {
   aspect-ratio: 16 / 9;
   background: #000;
   cursor: pointer;
-}
-
-.miniplayer-stage-slot .player-stage {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  aspect-ratio: unset;
-  border-radius: 0;
 }
 
 .miniplayer-bar {
@@ -1438,7 +1438,10 @@ button.primary:disabled {
 }
 
 .player-info {
-  padding-top: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 0 48px;
 }
 
 .player-title {
