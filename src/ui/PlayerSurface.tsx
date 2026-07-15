@@ -106,26 +106,43 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
   }, [video.videoId])
 
   // Mirrors alignTarget's on-screen box exactly, without ever touching the
-  // iframe's own DOM parent. Both PlayerDetails and MiniPlayerBar keep their
-  // stage slot out of any internally-scrolling region (see styles.css), so
-  // this only actually needs to re-measure on resize/layout changes — not
-  // on every scroll tick.
+  // iframe's own DOM parent. The full-view stage slot lives in the normally
+  // scrolling page (PlayerDetails/styles.css), so its on-screen rect changes
+  // on every scroll tick, not just on resize/layout changes — re-measuring
+  // is throttled to one `requestAnimationFrame` per tick rather than
+  // recomputing synchronously on each scroll event.
   useEffect(() => {
     if (alignTarget === null) {
       setRect(null)
       return
     }
+    let frame: number | null = null
     const measure = () => {
       const box = alignTarget.getBoundingClientRect()
       setRect({ top: box.top, left: box.left, width: box.width, height: box.height })
     }
+    const scheduleMeasure = () => {
+      if (frame !== null) return
+      frame = requestAnimationFrame(() => {
+        frame = null
+        measure()
+      })
+    }
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(scheduleMeasure)
     observer.observe(alignTarget)
-    window.addEventListener('resize', measure)
+    window.addEventListener('resize', scheduleMeasure)
+    // `capture: true`: scroll events don't bubble, but do fire in the
+    // capture phase on ancestors (including window) as they travel down to
+    // whichever element actually scrolled — this is what lets one listener
+    // here catch the page scrolling without needing a reference to
+    // `.player-view` itself.
+    window.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true })
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame)
       observer.disconnect()
-      window.removeEventListener('resize', measure)
+      window.removeEventListener('resize', scheduleMeasure)
+      window.removeEventListener('scroll', scheduleMeasure, { capture: true })
     }
   }, [alignTarget])
 

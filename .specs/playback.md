@@ -212,15 +212,16 @@ depending on whether the destination is still inside the main window's renderer 
   measures whichever "slot" placeholder element (an empty, `ResizeObserver`-watched
   `<div>`) the currently-active layout provides — `PlayerDetails` for full view,
   `MiniPlayerBar` for docked — and mirrors that placeholder's on-screen rect via
-  `position: fixed` inline styles (`top`/`left`/`width`/`height`, recomputed on resize).
-  The iframe's actual DOM parent chain never changes; only numbers change. This also
-  means `.player-view`'s layout had to stop being one scrolling block: the stage
-  placeholder sits in a non-scrolling flex row (topbar + stage, fixed height) with only
-  `.player-info` (description/comments) scrolling below it — otherwise the placeholder's
-  on-screen position would shift on every scroll tick, needing scroll-tracking on top of
-  resize-tracking. `PlayerDetails`/`MiniPlayerBar` still both stay mounted at all times
-  (CSS `display: none` when inactive) so their placeholders never disappear out from
-  under `PlayerSurface`'s measurement effect.
+  `position: fixed` inline styles (`top`/`left`/`width`/`height`, recomputed on resize
+  and, as of the seventh round below, on scroll too). The iframe's actual DOM parent
+  chain never changes; only numbers change. `PlayerDetails`/`MiniPlayerBar` still both
+  stay mounted at all times (CSS `display: none` when inactive) so their placeholders
+  never disappear out from under `PlayerSurface`'s measurement effect. **First attempt
+  at this measurement approach made `.player-view` a non-scrolling flex row (topbar +
+  stage, fixed height) with only `.player-info` scrolling below it, specifically to
+  avoid needing scroll-tracking on top of resize-tracking — reverted in the seventh
+  round below once the owner actually lived with that trade-off and wanted the whole
+  page to scroll together instead.**
 - Extracting crosses into a genuinely different renderer process (a second
   `BrowserWindow`, `alwaysOnTop: true`) — there is no way to move a DOM node between
   two Electron renderer processes, full stop (the same constraint that broke docking
@@ -330,10 +331,24 @@ applies D-038: `command('setPlaybackRate', [rate])` once on the widget-protocol 
 and reissued on the `onStateChange` transition to playing (`1`), since YouTube can reset
 the rate back to 1x the moment the stream actually starts.
 
+**Seventh round, same day:** the owner reported that the full-view player no longer
+scrolled as one page — only `.player-info` scrolled, with the video pinned above it. This
+was exactly the trade-off the first round's measurement fix deliberately made (see the
+note earlier in this section), and having actually used it, the owner wants the whole page
+to scroll together instead, video included, like a normal page. Fixed by reverting
+`.player-view` to one normally-flowing scrolling block (`overflow-y: auto` on the view
+itself) and teaching `PlayerSurface`'s measurement effect to also re-measure on scroll —
+`window.addEventListener('scroll', ..., { capture: true })`, since scroll events don't
+bubble but do fire during the capture phase on ancestors including `window`, so one
+listener there catches `.player-view` scrolling without needing a direct reference to it.
+Re-measuring is throttled to one `requestAnimationFrame` per scroll tick rather than
+running synchronously on every event.
+
 Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
 maximize, resize (grabbing the left-edge strip) + persistence across restarts, extract,
 extract autoplay, extract at the configured default speed, close-extract-to-restore-docked,
-no menu bar on the extract window, and the modal-stacking behavior above) before
+no menu bar on the extract window, full-view page scroll with the video scrolling smoothly
+alongside the description/comments, and the modal-stacking behavior above) before
 considering this closed — not something verifiable without actually driving the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)

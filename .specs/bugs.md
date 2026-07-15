@@ -277,6 +277,26 @@ Resolved entries add:
   run build`; **not run live** — needs the owner's own hands-on validation (extract a
   video with a non-1x default rate set in Settings, confirm it opens already at that
   speed) before this can move to Resolved.
+  **Seventh round, same day:** the owner reported the full-view player screen no longer
+  scrolled as one page — only `.player-info` (description/comments) scrolled, with the
+  video itself pinned in place above it. This was a deliberate trade-off from the first
+  round of this fix (a non-scrolling topbar+stage flex row, so the stage slot's on-screen
+  rect never moved and `PlayerSurface`'s `position: fixed` mirroring never needed to
+  re-measure on scroll) that the owner, having now actually used it, didn't want — they
+  want the whole page, video included, to scroll together like a normal page. Fixed by
+  reverting `.player-view` to one normally-flowing scrolling block (`overflow-y: auto` on
+  the view itself, not a separate scroll region below a pinned stage) and teaching
+  `PlayerSurface`'s rect-measurement effect (`src/ui/PlayerSurface.tsx`) to also re-measure
+  on scroll, not just resize — using `window.addEventListener('scroll', ..., { capture:
+  true })`, since scroll events don't bubble but do fire during the capture phase on
+  ancestors including `window`, which is what lets one listener there catch `.player-view`
+  scrolling without needing a direct reference to it. Re-measuring is throttled to one
+  `requestAnimationFrame` per scroll tick rather than running synchronously on every
+  event, to keep it cheap. Checked via `npm run typecheck && npm run lint && npm test`
+  (200/200) and `npm run build`; **not run live** — needs the owner's own hands-on
+  validation (scroll the full-view player and confirm the video now scrolls smoothly with
+  the rest of the page, in both directions and at different scroll speeds) before this
+  can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
