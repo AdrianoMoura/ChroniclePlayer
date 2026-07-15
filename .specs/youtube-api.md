@@ -107,15 +107,16 @@ video (bounded backfill; see `feed.md` §Backfill).
   scarce — deal with quota as a real constraint only if it becomes one. (Final)
 - Chronicle **never writes** subscriptions to YouTube (readonly scope, D-003).
 
-## Refresh policy (Final in shape; parameters Pending D-016)
+## Refresh policy (Final, D-016)
 
 - Refresh triggers: every app launch (B-011, 2026-07-11 — previously guarded by a
   10-min staleness check; RSS conditional GETs make a no-change pass cost ~0 quota),
   manual refresh button (always), background timer while the app runs.
-- **D-016 (Pending):** background interval default. Recommendation: **30 minutes**,
-  user-configurable 15 min–manual-only. Rationale: RSS discovery is free, but more
-  frequent than 15 min adds nothing (creators don't publish that fast) and contradicts
-  the calm-software ethos — Chronicle should not feel "live."
+- **D-016 (Final, exercised M2/M5):** background interval defaults to **30 minutes**,
+  user-configurable to 15/30/60 minutes or manual-only in Settings (M5, 2026-07-11).
+  Rationale: RSS discovery is free, but more frequent than 15 min adds nothing
+  (creators don't publish that fast) and contradicts the calm-software ethos —
+  Chronicle should not feel "live."
 - No refresh when the app is closed. Chronicle has no background daemon in MVP.
   (**Future idea:** optional tray-resident mode.)
 

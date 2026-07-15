@@ -203,15 +203,18 @@ bugs.md batches are the path to "happy with it".)*
 Exit criterion: a stranger can download, set up, and use Chronicle from the README alone.
 
 **Status (2026-07-13): in progress.** Landed: `electron-builder` config (Linux AppImage,
-macOS dmg unsigned, Windows nsis unsigned), placeholder app icon (no branding assets
-existed yet — swap when the owner has real ones), `ci.yml` (typecheck+lint+test on
-push/PR — this is also the "standalone CI" item deferred from M0), `release.yml`
-(tag-triggered `v*.*.*` matrix build across the three OSes, publishes a **draft**
-GitHub Release for the owner to review/annotate/publish manually), and the
-GitHub-Releases-API update check (D-026). Still open: wizard screenshots (pending since
-M4), and the owner has not yet cut a real tag to exercise the release workflow
-end-to-end on GitHub Actions — the local `npm run package:linux` build is
-verified, the CI-hosted matrix build is not.
+macOS dmg unsigned, Windows nsis unsigned), the real branded app icon (swapped in for
+the earlier placeholder), `ci.yml` (typecheck+lint+test on push/PR — this is also the
+"standalone CI" item deferred from M0), `release.yml` (tag-triggered `v*.*.*` matrix
+build across the three OSes, publishes a **draft** GitHub Release for the owner to
+review/annotate/publish manually — including a fix for a race condition where the
+three parallel OS jobs could each create their own draft release instead of sharing
+one), the GitHub-Releases-API update check (D-026), and B-084 (packaged AppImage
+showed YouTube Error 153; fixed by serving the renderer over a loopback `http://`
+origin instead of `file://` in packaged builds). Version bumped to 0.1.0. Still open:
+wizard screenshots (pending since M4), and the owner has not yet cut a real tag to
+exercise the release workflow end-to-end on GitHub Actions — the local
+`npm run package:linux` build is verified, the CI-hosted matrix build is not.
 
 ## Post-MVP horizon (order per `features.md` rationale)
 

@@ -124,9 +124,8 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 **M0–M5 implemented on 2026-07-11** (M2 exit verified with the product owner's real
 account: 229 subs, 76 quota units, 937 Shorts excluded; M3 in dogfooding; M4 awaiting
 console screenshots + external acid-testers; M5 done — the MVP is feature-complete
-from source; next is M6: packaging + release pipeline, split out by the product
-owner). Bugs found while dogfooding go to `.specs/bugs.md` as B-NNN entries and are
-only fixed when the product owner says so — stack: Electron (D-005) +
+from source). Bugs found while dogfooding go to `.specs/bugs.md` as B-NNN entries and
+are only fixed when the product owner says so — stack: Electron (D-005) +
 React/TypeScript (D-009) via electron-vite, **node:sqlite** (D-034 as amended — no
 native modules), npm (D-034 — the product owner uses npm, never pnpm). Layers per
 `architecture.md`, boundaries enforced by dependency-cruiser in `npm run lint`. In:
@@ -142,6 +141,13 @@ M4 onboarding wizard (10 screens, D-014 checkbox+mapping validation, resumable s
 screenshot pipeline with captures pending) and the M5 surface (schema v2 view counts,
 settings.json + Settings view with wizard re-entry points, JSON export per FORMAT.md,
 delete-all, README). Everything contract-tested offline (in-memory SQLite, fake fetch —
-never the real API). Dev fixtures require `CHRONICLE_FIXTURES=1`. No CI yet —
-deliberately (full pipeline with releases lands in M6); run
-`npm run typecheck && npm run lint && npm test` locally before committing.
+never the real API). Dev fixtures require `CHRONICLE_FIXTURES=1`.
+
+**M6 (packaging + release pipeline) is in progress** — see `.specs/roadmap.md` for the
+authoritative status. Landed: `ci.yml` (typecheck+lint+test on push/PR), `release.yml`
+(tag-triggered matrix build across Linux/macOS/Windows, publishes a draft GitHub
+Release), `electron-builder` config (AppImage/dmg/nsis), the real branded app icon,
+the GitHub-Releases-API update check (D-026), and version 0.1.0. Still open: wizard
+screenshots, and cutting a real tag to exercise the release workflow end-to-end on
+GitHub Actions. Run `npm run typecheck && npm run lint && npm test` locally before
+committing.

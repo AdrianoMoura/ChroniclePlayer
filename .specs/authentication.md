@@ -129,14 +129,13 @@ anyway) and the **refresh token** (genuinely sensitive).
   - Linux: Secret Service API (libsecret — GNOME Keyring / KWallet)
   - macOS: Keychain
   - Windows: Credential Manager (DPAPI-backed)
-- **Fallback (Pending detail, D-013):** on systems without a working secret service
-  (headless Linux, some minimal WMs), fall back to an encrypted file in the app data
-  directory. Options for the file key: (a) Electron `safeStorage`/OS-derived key where
-  available; (b) a machine-derived key (obfuscation only — honest about it);
-  (c) refuse to store and require auth per-session. **Recommendation: (a) where the shell
-  provides it, else (b) with an explicit warning in settings** ("your token is stored with
+- **Fallback (Final, D-013, exercised M2):** on systems without a working secret service
+  (headless Linux, some minimal WMs), Chronicle falls back to an encrypted file in the
+  app data directory: Electron `safeStorage` when a real OS keychain backs it, else
+  AES-256-GCM under a scrypt key derived from `/etc/machine-id`+user with
+  `isSecure()=false` surfaced as a warning in settings ("your token is stored with
   reversible local encryption; anyone with access to your user account can read it").
-  Never store secrets in plaintext.
+  The writing cipher is pinned in the store file. Never store secrets in plaintext.
 - **Never** transmit credentials anywhere except Google's OAuth endpoints. There is no
   Chronicle server to send them to (see `non-goals.md`).
 - The raw `client_secret.json` file: after import, Chronicle extracts `client_id` and

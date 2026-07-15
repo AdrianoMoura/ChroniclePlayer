@@ -165,13 +165,13 @@ reminder to add the new email as a Test user on the *same* Google Cloud project 
 project, no new OAuth client), then a Connect button. See `authentication.md` §Multi-account
 and `ui.md`'s sidebar section.
 
-## Open questions (Pending)
+## Resolved decisions
 
-- **D-014:** In-wizard live validation of Google-side steps 1–5 is impossible pre-auth
-  (no credentials to call with). Alternative: a "verify my setup" button at Step 7 that
-  maps every failure mode back to the responsible step (as specced above).
-  **Recommendation:** accept checkbox confirmations for 1–5 + strong failure mapping at 7.
-- **D-015:** Bundle a short screen-recording (GIF/video) per step instead of static
-  screenshots? Better guidance, heavier assets, harder to keep current.
-  **Recommendation:** static annotated screenshots for MVP; revisit after real user
-  feedback.
+- **D-014 (Final, exercised M4):** In-wizard live validation of Google-side steps 1–5 is
+  impossible pre-auth (no credentials to call with), so Chronicle uses checkbox
+  confirmations for steps 1–5 plus a strong failure→step mapping at Step 7 (as specced
+  above) instead of attempting live validation.
+- **D-015 (Final, exercised M4):** Static annotated screenshots per step, not a
+  screen-recording — lighter assets, easier to keep current. The asset pipeline
+  (verified-on dating) is built; capturing the actual screenshots is still open,
+  tracked as an M6 exit item in `roadmap.md`.
