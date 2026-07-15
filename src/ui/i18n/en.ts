@@ -248,11 +248,11 @@ export const en = {
   // Wizard — FirstSyncStep
   'wizard.firstSync.heading': 'Step 8 — First sync',
   'wizard.firstSync.why':
-    'Chronicle imports your subscriptions and fetches their recent uploads. The first run also filters Shorts, which takes a few minutes on large accounts — a one-time cost.',
+    'Chronicle imports your subscriptions and fetches their recent uploads. The first run also identifies Shorts, which takes a few minutes on large accounts — a one-time cost.',
   'wizard.firstSync.startButton': 'Import my subscriptions',
   'wizard.firstSync.tryAgainButton': 'Try again',
   'wizard.firstSync.progressStart': 'Importing your subscriptions…',
-  'wizard.firstSync.progressShorts': 'Filtering Shorts — {checked} of {total} checked…',
+  'wizard.firstSync.progressShorts': 'Identifying Shorts — {checked} of {total} checked…',
   'wizard.firstSync.progressChannels': 'Checking {checked} of {total} channels…',
   'wizard.firstSync.workingFallback': 'Working…',
   'wizard.firstSync.summary': '✓ Found {channels} subscriptions and {videos} recent videos.',
@@ -314,7 +314,7 @@ export const en = {
   'app.topbar.unfavoriteChannelTitle': 'Unfavorite',
 
   // App — status text
-  'app.status.filteringShorts': 'filtering Shorts — {checked} of {total} checked…',
+  'app.status.filteringShorts': 'identifying Shorts — {checked} of {total} checked…',
   'app.status.checkingChannels': 'checking {checked} of {total} channels…',
   'app.status.refreshing': 'refreshing…',
   'app.status.caughtUp': 'All caught up',
