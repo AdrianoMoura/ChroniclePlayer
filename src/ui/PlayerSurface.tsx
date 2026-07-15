@@ -48,6 +48,13 @@ export interface PlayerSurfaceHandle {
   // here so that button can trigger the exact same logic Esc/the mouse
   // back-button already use.
   requestClose: () => void
+  // B-045: used both by this component's own dock-vs-close decision and by
+  // App.tsx's "hard" navigation-away actions (sidebar clicks, submitting a
+  // search, switching accounts) so leaving the player through any of those
+  // paths docks consistently, not just Esc/Back. See `closeOrDock`'s own
+  // comment for why this is deliberately lenient rather than a strict
+  // `=== 1` (playing) check.
+  isStillGoing: () => boolean
 }
 
 interface PlayerSurfaceProps {
@@ -194,17 +201,29 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     void window.chronicle.openInBrowser(video.videoId)
   }
 
-  // B-045: leaving the full view while the video is actually playing docks
-  // to the miniplayer instead of stopping it — but only from the outermost
-  // level of the queue stack (a "Back" deeper in the stack still means "go
-  // to the previous video," same as it always has) and only via Esc/the
-  // Back button, matching the original ask ("leaving the player screen
-  // while a video is playing"). Paused/ended, or deeper in the stack, closes
-  // exactly as before.
+  // B-045: "is it still going" for the dock-vs-close decision — deliberately
+  // lenient (true unless we have positive evidence otherwise: explicitly
+  // ended (0) or paused (2)) rather than a strict `=== 1` (playing) check.
+  // `playerStateRef` only updates once the iframe posts back its own
+  // `onStateChange`, and that round trip firing promptly (or at all) for the
+  // *autoplay-initiated* state, as opposed to a state change our own
+  // `command()` calls triggered, isn't something to gate a core feature on —
+  // treating unstarted/buffering/cued the same as playing means a real
+  // in-progress video still docks even if that event happened to be slow,
+  // dropped, or never distinctly observed.
+  const isStillGoing = useCallback(() => {
+    return playerStateRef.current !== 0 && playerStateRef.current !== 2
+  }, [])
+
+  // Leaving the full view while the video is still going docks to the
+  // miniplayer instead of stopping it — but only from the outermost level of
+  // the queue stack (a "Back" deeper in the stack still means "go to the
+  // previous video," same as it always has). Explicitly paused/ended, or
+  // deeper in the stack, closes exactly as before.
   const closeOrDock = useCallback(() => {
-    if (stackDepth === 1 && playerStateRef.current === 1) onDock()
+    if (stackDepth === 1 && isStillGoing()) onDock()
     else onClose()
-  }, [stackDepth, onDock, onClose])
+  }, [stackDepth, onDock, onClose, isStillGoing])
 
   useImperativeHandle(
     ref,
@@ -213,9 +232,10 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         currentTimeSeconds: currentTimeRef.current,
         playing: playerStateRef.current === 1
       }),
-      requestClose: () => closeOrDock()
+      requestClose: () => closeOrDock(),
+      isStillGoing
     }),
-    [closeOrDock]
+    [closeOrDock, isStillGoing]
   )
 
   // Player keyboard map (playback.md): keys are proxied through the widget

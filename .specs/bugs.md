@@ -164,11 +164,28 @@ Resolved entries add:
   Extraction (a genuinely different renderer process, no portal involved either way)
   hands off a playback snapshot to a fresh, minimal instance, accepting the reload as
   an inherent cost of that process boundary, per the owner's explicit direction.
-  Checked via `npm run typecheck && npm run lint && npm test` (199/199) and
-  `npm run build`; **not run live this round either** (per
+  **Third round, same day:** the owner's next live test found automatic docking didn't
+  fire at all — neither the Back button/Esc nor sidebar navigation. Two distinct causes:
+  (1) every "hard" navigation-away action (sidebar view/channel/settings clicks,
+  submitting a search, switching accounts) called `setPlayerStack([])` directly,
+  bypassing the dock-vs-close decision entirely — those paths never had a chance to
+  dock, mid-playback or not. Fixed with a shared `leavePlayerForNavigation()` in
+  `App.tsx` that all of those call instead, collapsing the stack to just the current
+  video and docking it if still going, otherwise clearing exactly as before. (2) even
+  the Back/Esc path's own decision was gated on `playerStateRef.current === 1` (the
+  IFrame API's literal PLAYING state, updated only when the iframe's own
+  `onStateChange` postMessage arrives) — too strict: that round trip firing promptly
+  (or being distinctly observable at all) for the *autoplay-initiated* state, as
+  opposed to a state change our own `command()` triggered, isn't reliable enough to
+  gate a core feature on. Loosened to "still going" — true unless explicitly paused
+  (2) or ended (0) — so unstarted/buffering/cued all dock too, erring toward keeping
+  playback going rather than silently never docking. Exposed as
+  `PlayerSurfaceHandle.isStillGoing()`, used by both the automatic Esc/Back path and
+  `leavePlayerForNavigation()`. Checked via `npm run typecheck && npm run lint &&
+  npm test` (199/199) and `npm run build`; **not run live this round either** (per
   [[no-live-app-verification]]) — needs the owner's own hands-on validation again
-  (dock, maximize, resize, extract, close, modal-over-miniplayer stacking) before this
-  can move to Resolved.
+  (dock via Back/Esc, dock via sidebar navigation, maximize, resize, extract, close,
+  modal-over-miniplayer stacking) before this can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)

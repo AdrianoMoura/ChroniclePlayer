@@ -190,6 +190,27 @@ export function App() {
   const [fullSlot, setFullSlot] = useState<HTMLDivElement | null>(null)
   const [miniSlot, setMiniSlot] = useState<HTMLDivElement | null>(null)
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
+
+  // B-045: any "hard" navigation away from the player (sidebar clicks,
+  // submitting a search, switching accounts) used to just clear playerStack
+  // outright, bypassing the dock-vs-close decision entirely — leaving via
+  // any of those paths never docked, even mid-playback. This collapses the
+  // stack down to just the current (top) video and docks it if still going,
+  // otherwise clears the stack exactly like before. Safe to call with no
+  // player open at all: isStillGoing() reads false via the `?? false`
+  // fallback, so it just falls through to the same clear as always. Declared
+  // early (before runSearch/selectAccount/etc. reference it) since those are
+  // themselves declared well before the rest of the player-related callbacks.
+  const leavePlayerForNavigation = useCallback(() => {
+    if (playerSurfaceRef.current?.isStillGoing() ?? false) {
+      setPlayerStack((stack) => (stack.length > 0 ? [stack[stack.length - 1]] : []))
+      setMiniplayer(true)
+    } else {
+      setPlayerStack([])
+      setMiniplayer(false)
+    }
+  }, [])
+
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
@@ -478,7 +499,7 @@ export function App() {
     }
     // Submitting an actual search is a navigation like any other — it always
     // leaves the player, even though focusing the field to type it does not.
-    setPlayerStack([])
+    leavePlayerForNavigation()
     setSearchQuery(q)
     setSearching(true)
     void window.chronicle.searchYouTube(q).then((result) => {
@@ -498,7 +519,7 @@ export function App() {
       setSearchResults(result.value.results)
       setSearchNextPageToken(result.value.nextPageToken)
     })
-  }, [])
+  }, [leavePlayerForNavigation])
 
   // Explicit navigation (a sidebar view/channel/account/settings click)
   // always leaves search, even when the destination happens to already
@@ -621,11 +642,11 @@ export function App() {
   const selectAccount = useCallback(
     (accountId: string | null) => {
       closeSearch()
-      setPlayerStack([])
+      leavePlayerForNavigation()
       setScreen('feed')
       setAccountFilter(accountId)
     },
-    [closeSearch]
+    [closeSearch, leavePlayerForNavigation]
   )
 
   const removeAccount = useCallback(
@@ -740,10 +761,9 @@ export function App() {
     setMiniplayer(false)
   }, [])
 
-  // B-045: explicit "Miniplayer" action — dock on demand, regardless of
-  // stack depth or play state (unlike the Esc/Back auto-dock in
-  // PlayerSurface, which only kicks in for the outermost video while it's
-  // actually playing).
+  // Called automatically by PlayerSurface's own Esc/Back dock-vs-close
+  // decision (`closeOrDock`) — there's no manual "dock" button in the UI
+  // (removed per product-owner feedback: the ask was purely automatic).
   const dockPlayer = useCallback(() => setMiniplayer(true), [])
 
   // B-045: hands off a playback snapshot to a brand-new always-on-top
@@ -770,7 +790,7 @@ export function App() {
   // same channel-preview path search results use.
   const navigateToChannel = useCallback(
     (channelId: string, channelTitle: string) => {
-      setPlayerStack([])
+      leavePlayerForNavigation()
       setScreen('feed')
       setView('all')
       if (channels.some((c) => c.channelId === channelId)) {
@@ -779,7 +799,7 @@ export function App() {
         openChannelPreview(channelId, channelTitle, null)
       }
     },
-    [channels, openChannelPreview]
+    [channels, openChannelPreview, leavePlayerForNavigation]
   )
 
   // `/` while playing only focuses the search field — playback is left alone
@@ -1279,14 +1299,14 @@ export function App() {
           settingsOpen={screen === 'settings'}
           onSelectView={(next) => {
             closeSearch()
-            setPlayerStack([])
+            leavePlayerForNavigation()
             setScreen('feed')
             setChannelFilter(null)
             setView(next)
           }}
           onSelectChannel={(channelId) => {
             closeSearch()
-            setPlayerStack([])
+            leavePlayerForNavigation()
             setScreen('feed')
             // A channel is a different scope entirely from the five views —
             // carrying over Unread/Watch Later/Favorites/Ignored made the
@@ -1297,7 +1317,7 @@ export function App() {
           }}
           onOpenSettings={() => {
             closeSearch()
-            setPlayerStack([])
+            leavePlayerForNavigation()
             setScreen('settings')
             // B-015: refetch so the granted-scope line reflects any write
             // action (comment/like/subscribe/unsubscribe) taken since mount.

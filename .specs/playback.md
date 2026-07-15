@@ -155,15 +155,17 @@ Data handling for externally opened videos (Final):
 Leaving the full player view no longer has to stop playback. Three related surfaces,
 all `bugs.md` [[B-045]]:
 
-- **Docking**: pressing Esc/the Back button *while the video is actually playing*, from
-  the outermost level of the queue stack, docks to a small persistent corner box instead
-  of closing — the feed becomes interactive again underneath, keyboard shortcuts revert
-  to normal feed navigation (j/k/etc.), and the video keeps playing. Paused/ended, or
-  deeper in the queue stack (viewing a video reached via a description link), Esc/Back
-  behaves exactly as before. **Automatic only** — an explicit "Miniplayer" button was
-  tried first and dropped after live feedback: the product owner's actual ask was that
-  leaving a playing video dock by itself, and a separate manual button next to that
-  auto-behavior just read as redundant clutter.
+- **Docking**: leaving the player while a video is still going — Esc/the Back button, or
+  any "hard" navigation away (a sidebar view/channel/settings click, submitting a
+  search, switching accounts) — docks to a small persistent corner box instead of
+  closing, from the outermost level of the queue stack. The feed becomes interactive
+  again underneath, keyboard shortcuts revert to normal feed navigation (j/k/etc.), and
+  the video keeps playing. Explicitly paused/ended, or deeper in the queue stack
+  (viewing a video reached via a description link), every one of those paths still
+  behaves exactly as before (closes/navigates outright). **Automatic only** — an
+  explicit "Miniplayer" button was tried first and dropped after live feedback: the
+  product owner's actual ask was that leaving a playing video dock by itself, and a
+  separate manual button next to that auto-behavior just read as redundant clutter.
 - **Maximizing**: clicking the corner box (or its own maximize button) returns to the
   full view, same video, same position, still playing.
 - **Extracting**: the corner box's extract action pops the video into its own
@@ -227,9 +229,24 @@ extract) a custom named session partition as part of B-093, which broke every th
 in the app — see `authentication.md` §The embedded player's browser session and D-045.
 Reverted to Electron's default session everywhere in the same pass as the portal fix.
 
-Needs the owner's own live validation (dock, maximize, resize, extract, close, and the
-modal-stacking behavior above) before considering this closed — not something
-verifiable without actually driving the app.
+**Third round, same day:** the next live test found docking didn't fire at all, via any
+path. Two causes. First, every "hard" navigation-away action listed under Docking above
+called `setPlayerStack([])` directly — a full, unconditional clear that never consulted
+the dock decision at all. Fixed with a shared `leavePlayerForNavigation()` (`App.tsx`)
+that all of those call instead: collapses the queue stack down to just the current
+video and docks it if still going, otherwise clears exactly as before. Second, even the
+Back/Esc path's own decision was gated on the IFrame API's literal `PLAYING` (`1`)
+state, which only updates once the iframe posts back its own `onStateChange` — a round
+trip that firing promptly (or distinctly, for the *autoplay-initiated* transition
+specifically) isn't reliable enough to gate a core feature on. Loosened to "still
+going": true unless explicitly paused (`2`) or ended (`0`), so unstarted/buffering/cued
+all dock too — erring toward keeping playback going over silently never docking.
+Exposed as `PlayerSurfaceHandle.isStillGoing()`, shared by both the automatic Esc/Back
+path and `leavePlayerForNavigation()`.
+
+Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
+maximize, resize, extract, close, and the modal-stacking behavior above) before
+considering this closed — not something verifiable without actually driving the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)
 
