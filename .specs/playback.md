@@ -185,11 +185,13 @@ all `bugs.md` [[B-045]]:
   bar and reliable autoplay at the handed-off position. Closing that window docks the
   video back into the main window's corner box rather than losing it — extraction and
   docking are round-trippable, not a one-way trip.
-- **Resizable**: the corner box has a custom top-left drag handle (not the browser's
-  native `resize: horizontal`, whose handle sits in the box's bottom-right corner —
-  exactly where the box itself is anchored against the screen edge, making it awkward to
-  grab). The resulting width is persisted (`settings.json`, `miniplayerWidth`), not reset
-  every launch.
+- **Resizable**: the corner box has a custom drag handle occupying its own left-edge
+  strip (not the browser's native `resize: horizontal`, whose handle sits in the box's
+  bottom-right corner — exactly where the box itself is anchored against the screen edge,
+  making it awkward to grab; nor an absolutely-positioned overlay inside the box, which a
+  first attempt tried and which the video iframe's higher z-index rendered invisible and
+  unclickable — see the stacking-order note below). The resulting width is persisted
+  (`settings.json`, `miniplayerWidth`), not reset every launch.
 
 **Continuity is the whole design constraint, and it splits into two different answers**
 depending on whether the destination is still inside the main window's renderer process:
@@ -283,11 +285,39 @@ right edge), and the resulting width now persists as `miniplayerWidth` in `setti
 (clamped between `MINIPLAYER_MIN_WIDTH`/`MINIPLAYER_MAX_WIDTH`, `src/ipc/contract.ts`),
 written once per drag on mouseup rather than on every mousemove.
 
+**Fifth round, same day:** the next live test found the fourth round's own resize-handle
+and extract-autoplay fixes didn't actually work — two separate, specific bugs in how
+those fixes were built. The resize handle was `position: absolute; top: 0; left: 0`
+*inside* `.miniplayer` (z-index 20 per the stacking-order note below) — but the docked
+video is `PlayerSurface`'s always-mounted `.player-stage`, which mirrors the stage slot's
+rect at z-index 21, one layer *above* the miniplayer box, painted directly over that same
+corner. No z-index value on the handle itself could have fixed this: a positioned child
+can never paint above a sibling stacking context whose own z-index is higher than its
+parent's, regardless of what z-index the child requests — the handle was both invisible
+and unclickable, fully covered. Fixed by giving the handle real layout instead of an
+absolute overlay: `.miniplayer` is now a flex row — a fixed-width left-edge strip
+(`.miniplayer-resize-handle`) plus a `.miniplayer-content` column holding the stage slot
+and title bar. Since the video iframe only ever mirrors `.miniplayer-stage-slot`'s own
+rect (now inset by the strip's width, not the full box), it structurally cannot cover the
+handle regardless of z-index. Cursor changed from a diagonal `nwse-resize` to `ew-resize`
+to match that only width changes, never height. Separately: the explicit
+`command('playVideo')` added last round for extract-window autoplay was correct but never
+actually got exercised, because the bug was upstream of the extract window entirely.
+`extractToWindow` (`App.tsx`) reads a `playing` flag from `PlayerSurface`'s
+`getPlaybackSnapshot()`, which checked `playerStateRef.current === 1` — the exact same
+overly strict check the third round of this same fix already found and loosened for the
+*docking* decision (`isStillGoing()`, true unless explicitly paused or ended), because the
+autoplay-initiated `onStateChange` round trip isn't guaranteed to have landed by the time
+the user acts. `getPlaybackSnapshot` simply hadn't been updated to match, so extracting
+before that round trip landed handed off `playing: false`, and the extract window's
+autoplay logic (last round's fix) faithfully honored that — correctly — as "don't
+autoplay." Fixed by having `getPlaybackSnapshot().playing` reuse `isStillGoing()` too.
+
 Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
-maximize, resize + persistence across restarts, extract, extract autoplay, close-extract-
-to-restore-docked, no menu bar on the extract window, and the modal-stacking behavior
-above) before considering this closed — not something verifiable without actually driving
-the app.
+maximize, resize (grabbing the left-edge strip) + persistence across restarts, extract,
+extract autoplay, close-extract-to-restore-docked, no menu bar on the extract window, and
+the modal-stacking behavior above) before considering this closed — not something
+verifiable without actually driving the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)
 

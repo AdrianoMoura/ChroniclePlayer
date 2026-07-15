@@ -8,9 +8,15 @@ import { t } from './i18n'
 // for why it's measurement, not a portal), plus title +
 // maximize/extract/close. The feed underneath is fully interactive while
 // this is showing — that's the point of docking instead of closing.
-// Resizable via a custom top-left drag handle (not the browser's native
-// `resize`, which anchors its own handle to the box's bottom-right corner —
-// exactly where this box already sits against the screen's own corner).
+// Resizable via a custom drag handle in a dedicated left-edge strip (not the
+// browser's native `resize`, which anchors its own handle to the box's
+// bottom-right corner — exactly where this box already sits against the
+// screen's own corner). The strip is real layout (a flex sibling of
+// `.miniplayer-content`), not an absolutely-positioned overlay, because the
+// live video iframe is a separate floating element mirroring the stage
+// slot's rect at a higher z-index (see PlayerSurface.tsx / styles.css's
+// stacking-order note) — an overlay handle sitting inside that rect would be
+// painted over and unclickable, which is exactly what happened before this.
 
 interface MiniPlayerBarProps {
   video: PlayerVideoDto
@@ -49,7 +55,7 @@ export function MiniPlayerBar({
       const start = dragStartRef.current
       if (start === null) return
       // Right edge is anchored (bottom/right, styles.css) — dragging the
-      // top-left handle *left* must grow the box, hence start.x - clientX.
+      // left-edge handle *left* must grow the box, hence start.x - clientX.
       const next = Math.min(
         MINIPLAYER_MAX_WIDTH,
         Math.max(MINIPLAYER_MIN_WIDTH, start.width + (start.x - moveEvent.clientX))
@@ -80,31 +86,33 @@ export function MiniPlayerBar({
         title={t('player.miniplayer.resizeTitle')}
         onMouseDown={startResize}
       />
-      <div
-        ref={slotRef}
-        className="miniplayer-stage-slot"
-        role="button"
-        tabIndex={0}
-        title={t('player.miniplayer.maximizeTitle')}
-        onClick={onMaximize}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') onMaximize()
-        }}
-      />
-      <div className="miniplayer-bar">
-        <span className="miniplayer-title" title={video.title}>
-          {video.title}
-        </span>
-        <div className="miniplayer-actions">
-          <button title={t('player.miniplayer.extractTitle')} onClick={onExtract}>
-            ⧉
-          </button>
-          <button title={t('player.miniplayer.maximizeTitle')} onClick={onMaximize}>
-            ⤢
-          </button>
-          <button title={t('player.miniplayer.closeTitle')} onClick={onClose}>
-            ✕
-          </button>
+      <div className="miniplayer-content">
+        <div
+          ref={slotRef}
+          className="miniplayer-stage-slot"
+          role="button"
+          tabIndex={0}
+          title={t('player.miniplayer.maximizeTitle')}
+          onClick={onMaximize}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') onMaximize()
+          }}
+        />
+        <div className="miniplayer-bar">
+          <span className="miniplayer-title" title={video.title}>
+            {video.title}
+          </span>
+          <div className="miniplayer-actions">
+            <button title={t('player.miniplayer.extractTitle')} onClick={onExtract}>
+              ⧉
+            </button>
+            <button title={t('player.miniplayer.maximizeTitle')} onClick={onMaximize}>
+              ⤢
+            </button>
+            <button title={t('player.miniplayer.closeTitle')} onClick={onClose}>
+              ✕
+            </button>
+          </div>
         </div>
       </div>
     </div>

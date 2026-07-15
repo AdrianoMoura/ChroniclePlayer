@@ -1334,15 +1334,22 @@ button.primary:disabled {
   display: block;
 }
 
-/* B-045: the miniplayer — a small persistent corner box. PlayerSurface
-   portals the exact same `.player-stage` div used in the full view into
-   this slot, so its own full-view sizing rules (min/max-height tuned for a
-   theater-sized player) need resetting here to actually fit a small box. */
+/* B-045: the miniplayer — a small persistent corner box. Its stage slot is
+   just an empty placeholder `<div>`; the actual live iframe (`.player-stage`
+   in PlayerSurface.tsx) is a separate, always-mounted element elsewhere in
+   the tree that measures this slot's on-screen rect and mirrors it via
+   `position: fixed`, at z-index 21 — *above* this box (z-index 20, see the
+   stacking-order note further down) so the video is visible inside it. That
+   ordering is why the resize handle below is real layout, not an
+   absolutely-positioned overlay inside this box: anything positioned inside
+   `.miniplayer` at z-index 20 renders underneath — and is unclickable
+   behind — the z-index-21 iframe covering the same rect. */
 .miniplayer {
   position: fixed;
   bottom: 16px;
   right: 16px;
   z-index: 20;
+  display: flex;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1350,22 +1357,32 @@ button.primary:disabled {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-/* B-045: a custom top-left drag handle, not the browser's native `resize`
+/* B-045: a dedicated left-edge strip, not the browser's native `resize`
    (which always anchors its own handle to the resized box's bottom-right
    corner — exactly where this box already sits, against the screen's own
-   bottom-right corner, making it fiddly to grab). Growing the box happens
-   toward the top-left since bottom/right are the fixed anchors, so a
-   handle there matches the direction dragging it actually moves things. */
+   bottom-right corner, making it fiddly to grab). It's a real flex sibling
+   of `.miniplayer-content`, occupying its own column, so the video iframe
+   mirroring `.miniplayer-stage-slot` (which only spans `.miniplayer-content`,
+   not this strip) never overlaps or covers it. Growing the box happens
+   toward the left since bottom/right are the fixed anchors, so dragging left
+   grows the box — width-only, hence `ew-resize` rather than a diagonal
+   cursor. */
 .miniplayer-resize-handle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
-  /* A small corner wedge, quietly visible against the player's background. */
-  background: linear-gradient(135deg, transparent 50%, var(--border) 50%);
-  border-top-left-radius: 10px;
+  flex-shrink: 0;
+  width: 10px;
+  cursor: ew-resize;
+  background: var(--surface-2);
+}
+
+.miniplayer-resize-handle:hover {
+  background: var(--border);
+}
+
+.miniplayer-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .miniplayer-stage-slot {

@@ -230,7 +230,11 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     () => ({
       getPlaybackSnapshot: () => ({
         currentTimeSeconds: currentTimeRef.current,
-        playing: playerStateRef.current === 1
+        // Same lenient check as isStillGoing(), not a strict `=== 1`: the
+        // autoplay-initiated onStateChange round trip isn't guaranteed to
+        // have landed yet at the moment the user hits Extract, and a false
+        // negative here means the handed-off window opens paused.
+        playing: isStillGoing()
       }),
       requestClose: () => closeOrDock(),
       isStillGoing

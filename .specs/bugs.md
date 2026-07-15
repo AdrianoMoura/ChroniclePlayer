@@ -226,6 +226,37 @@ Resolved entries add:
   `npm run typecheck && npm run lint && npm test` (200/200) and `npm run build`; **not
   run live this round either** (per [[no-live-app-verification]]) — needs the owner's own
   hands-on validation again before this can move to Resolved.
+  **Fifth round, same day:** the owner's next live test found the fourth round's resize
+  handle and extract-autoplay fixes themselves didn't work. (1) The resize handle was
+  invisible and unclickable — it was `position: absolute; top: 0; left: 0` *inside*
+  `.miniplayer` (z-index 20), but the actual video is a separate, always-mounted element
+  (`.player-stage` in `PlayerSurface.tsx`) that mirrors the stage slot's rect at
+  `z-index: 21` — one layer *above* the miniplayer box, painted directly over that same
+  top-left corner, swallowing both the pixels and the clicks. No z-index on the handle
+  itself could fix this: a child capped at its stacking-context parent's z-index (20)
+  can never paint above a sibling context at z-index 21, however it's tuned. Fixed by
+  giving the handle real layout instead of an absolute overlay: `.miniplayer` is now a
+  flex row of a fixed-width left-edge strip (`.miniplayer-resize-handle`) plus a
+  `.miniplayer-content` column holding the stage slot and title bar — since the video
+  iframe only ever mirrors `.miniplayer-stage-slot`'s rect (now inset by the strip's
+  width, not the whole box's), it structurally cannot cover the handle anymore. Cursor
+  changed from a diagonal `nwse-resize` to `ew-resize` to match that only width actually
+  changes. (2) The explicit `command('playVideo')` added last round for extract-window
+  autoplay still required a manual play — root cause was a different bug entirely,
+  upstream of the extract window: `extractToWindow` (`App.tsx`) hands the extract window
+  a `playing` flag from `PlayerSurface`'s `getPlaybackSnapshot().playing`, which read
+  `playerStateRef.current === 1` — the exact same overly strict check that round 2 of
+  this same bug already found and loosened for the *docking* decision
+  (`isStillGoing()`), because the autoplay-initiated `onStateChange` round trip isn't
+  guaranteed to have landed by the time the user acts. `getPlaybackSnapshot` just hadn't
+  been updated to match, so a video extracted before that round trip landed handed off
+  `playing: false` — the extract window then correctly, faithfully honored `autoplay=0`;
+  nothing was wrong in the extract window itself. Fixed by having
+  `getPlaybackSnapshot().playing` reuse `isStillGoing()` instead of the strict check.
+  Checked via `npm run typecheck && npm run lint && npm test` (200/200) and `npm run
+  build`; **not run live this round either** — needs the owner's own hands-on validation
+  again (grab the resize handle, confirm extract autoplay) before this can move to
+  Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
