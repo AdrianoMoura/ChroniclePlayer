@@ -448,7 +448,7 @@ Resolved entries add:
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
-- **Status:** In progress · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
 - **Area:** player / auth
 - **What happens:** the embedded IFrame player started showing YouTube's bot-check
   ("Sign in to confirm you're not a bot… Sign in") on some videos; the in-player Sign

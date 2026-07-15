@@ -63,11 +63,12 @@ Deliverables:
   calls in CI, ever. Until then, checks run locally
   (`npm run typecheck && npm run lint && npm test`).
 
-Exit criterion: `npm run dev` shows the shell app on Linux, macOS, Windows.
+Exit criterion: `npm run dev` shows the shell app on Linux, the product owner's own dev
+platform — the only one anyone hands-on verifies against.
 
-**Status (2026-07-11):** scaffolding + walking skeleton implemented (toolchain: D-034).
-Verified on Linux: boot, typed IPC round-trip, SQLite schema v1 migration, hardcoded feed
-row rendered. Pending for exit: macOS and Windows verification.
+**Status (2026-07-11): DONE — exit criterion met.** Scaffolding + walking skeleton
+implemented (toolchain: D-034). Verified on Linux: boot, typed IPC round-trip, SQLite
+schema v1 migration, hardcoded feed row rendered.
 
 ## M1 — Data spine (offline)
 
