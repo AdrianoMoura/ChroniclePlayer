@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
-import { CommentsSection } from './Comments'
+import { CommentsSection, type CommentsSectionHandle } from './Comments'
 import { formatDuration, publishedLabel } from './format'
 import { t } from './i18n'
 import { useWriteScopeGate } from './useWriteScopeGate'
@@ -20,6 +20,16 @@ import { useWriteScopeGate } from './useWriteScopeGate'
 // an earlier version had one and the product owner found it redundant
 // clutter next to the automatic behavior they'd actually asked for.
 
+export interface PlayerDetailsHandle {
+  // The player's own keyboard shortcuts (l/s/c) live in PlayerSurface, a
+  // sibling component — these actions are write-scope-gated (like,
+  // subscribe) or own local state (comments' open/closed), both of which
+  // live here, so a plain callback prop can't reach them from outside.
+  toggleLike: () => void
+  toggleSubscribe: () => void
+  toggleComments: () => void
+}
+
 interface PlayerDetailsProps {
   video: PlayerVideoDto
   state: VideoStateDto
@@ -36,168 +46,197 @@ interface PlayerDetailsProps {
   onStatePatched: (videoId: string, state: VideoStateDto) => void
 }
 
-export function PlayerDetails({
-  video,
-  state,
-  stackDepth,
-  hidden,
-  slotRef,
-  onClose,
-  onExtract,
-  onOpenVideo,
-  onOpenChannel,
-  onStatePatched
-}: PlayerDetailsProps) {
-  const [descriptionOpen, setDescriptionOpen] = useState(false)
-  const [descriptionOverflows, setDescriptionOverflows] = useState(false)
-  // B-006: the user's own rating, fetched silently on open (a passive
-  // background check — failures, e.g. not connected, are not worth a banner).
-  const [rating, setRating] = useState<VideoRatingDto>('none')
-  const [subscribed, setSubscribed] = useState(video.isSubscribed)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const writeScopeGate = useWriteScopeGate()
+export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>(
+  function PlayerDetails(
+    {
+      video,
+      state,
+      stackDepth,
+      hidden,
+      slotRef,
+      onClose,
+      onExtract,
+      onOpenVideo,
+      onOpenChannel,
+      onStatePatched
+    }: PlayerDetailsProps,
+    ref
+  ) {
+    const commentsRef = useRef<CommentsSectionHandle>(null)
+    const [descriptionOpen, setDescriptionOpen] = useState(false)
+    const [descriptionOverflows, setDescriptionOverflows] = useState(false)
+    // B-006: the user's own rating, fetched silently on open (a passive
+    // background check — failures, e.g. not connected, are not worth a banner).
+    const [rating, setRating] = useState<VideoRatingDto>('none')
+    const [subscribed, setSubscribed] = useState(video.isSubscribed)
+    const [actionError, setActionError] = useState<string | null>(null)
+    const writeScopeGate = useWriteScopeGate()
 
-  useEffect(() => {
-    setDescriptionOpen(false)
-    setDescriptionOverflows(false)
-    setRating('none')
-    setSubscribed(video.isSubscribed)
-    setActionError(null)
-    void window.chronicle.getVideoRating(video.videoId).then((result) => {
-      if (result.ok) setRating(result.value)
-    })
-  }, [video.videoId, video.isSubscribed])
+    useEffect(() => {
+      setDescriptionOpen(false)
+      setDescriptionOverflows(false)
+      setRating('none')
+      setSubscribed(video.isSubscribed)
+      setActionError(null)
+      void window.chronicle.getVideoRating(video.videoId).then((result) => {
+        if (result.ok) setRating(result.value)
+      })
+    }, [video.videoId, video.isSubscribed])
 
-  function patch(next: VideoStateDto): void {
-    onStatePatched(video.videoId, next)
-  }
+    function patch(next: VideoStateDto): void {
+      onStatePatched(video.videoId, next)
+    }
 
-  function openInBrowser(): void {
-    void window.chronicle.openInBrowser(video.videoId)
-  }
+    function openInBrowser(): void {
+      void window.chronicle.openInBrowser(video.videoId)
+    }
 
-  return (
-    <div className="player-view" style={hidden ? { display: 'none' } : undefined}>
-      <div className="player-topbar">
-        <button className="player-back" onClick={onClose}>
-          {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')} <kbd>Esc</kbd>
-        </button>
-        <button className="player-topbar-extract" title={t('player.extractTitle')} onClick={onExtract}>
-          ⧉
-        </button>
-      </div>
-      <div ref={slotRef} className="player-stage-slot" />
+    function toggleLike(): void {
+      setActionError(null)
+      const next = rating === 'like' ? 'none' : 'like'
+      void writeScopeGate
+        .run(() => window.chronicle.rateVideo(video.videoId, next))
+        .then((result) => {
+          if (result.ok) setRating(next)
+          else if (result.errorKind !== 'cancelled') setActionError(result.message)
+        })
+    }
 
-      <div className="player-info">
-        <h1 className="player-title">{video.title}</h1>
-        <div className="player-meta">
+    function toggleSubscribe(): void {
+      setActionError(null)
+      if (subscribed) {
+        void writeScopeGate
+          .run(
+            () => window.chronicle.unsubscribeChannel(video.channelId),
+            () => window.chronicle.requestWriteScopeForChannel(video.channelId)
+          )
+          .then((result) => {
+            if (result.ok) setSubscribed(false)
+            else if (result.errorKind !== 'cancelled') setActionError(result.message)
+          })
+      } else {
+        void writeScopeGate
+          .run(() => window.chronicle.subscribeChannel(video.channelId))
+          .then((result) => {
+            if (result.ok) setSubscribed(true)
+            else if (result.errorKind !== 'cancelled') setActionError(result.message)
+          })
+      }
+    }
+
+    useImperativeHandle(ref, () => ({
+      toggleLike,
+      toggleSubscribe,
+      toggleComments: () => commentsRef.current?.toggle()
+    }))
+
+    return (
+      <div className="player-view" style={hidden ? { display: 'none' } : undefined}>
+        <div className="player-topbar">
+          <button className="player-back" onClick={onClose}>
+            {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')}{' '}
+            <kbd>Esc</kbd>
+          </button>
           <button
-            type="button"
-            className="channel-link"
-            onClick={() => onOpenChannel(video.channelId, video.channelTitle)}
+            className="player-topbar-extract"
+            title={t('player.extractTitle')}
+            onClick={onExtract}
           >
-            {video.channelTitle}
-          </button>{' '}
-          · {publishedLabel(video.publishedAt)}
-          {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
+            ⧉
+          </button>
         </div>
+        <div ref={slotRef} className="player-stage-slot" />
 
-        <div className="player-actions">
-          <ActionButton
-            label={state.readStatus === 'read' ? t('player.action.markUnread') : t('player.action.markRead')}
-            onClick={() =>
-              void window.chronicle
-                .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
-                .then(patch)
-            }
-          />
-          <ActionButton
-            label={state.favorite ? t('player.action.favorited') : t('player.action.favorite')}
-            active={state.favorite}
-            onClick={() => void window.chronicle.toggleFavorite(video.videoId).then(patch)}
-          />
-          <ActionButton
-            label={state.watchLater ? t('player.action.inWatchLater') : t('player.action.watchLater')}
-            active={state.watchLater}
-            onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
-          />
-          <ActionButton
-            label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
-            active={rating === 'like'}
-            onClick={() => {
-              setActionError(null)
-              const next = rating === 'like' ? 'none' : 'like'
-              void writeScopeGate.run(() => window.chronicle.rateVideo(video.videoId, next)).then((result) => {
-                if (result.ok) setRating(next)
-                else if (result.errorKind !== 'cancelled') setActionError(result.message)
-              })
-            }}
-          />
-          <ActionButton
-            label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
-            active={subscribed}
-            onClick={() => {
-              setActionError(null)
-              if (subscribed) {
-                void writeScopeGate
-                  .run(
-                    () => window.chronicle.unsubscribeChannel(video.channelId),
-                    () => window.chronicle.requestWriteScopeForChannel(video.channelId)
-                  )
-                  .then((result) => {
-                    if (result.ok) setSubscribed(false)
-                    else if (result.errorKind !== 'cancelled') setActionError(result.message)
-                  })
-              } else {
-                void writeScopeGate
-                  .run(() => window.chronicle.subscribeChannel(video.channelId))
-                  .then((result) => {
-                    if (result.ok) setSubscribed(true)
-                    else if (result.errorKind !== 'cancelled') setActionError(result.message)
-                  })
+        <div className="player-info">
+          <h1 className="player-title">{video.title}</h1>
+          <div className="player-meta">
+            <button
+              type="button"
+              className="channel-link"
+              onClick={() => onOpenChannel(video.channelId, video.channelTitle)}
+            >
+              {video.channelTitle}
+            </button>{' '}
+            · {publishedLabel(video.publishedAt)}
+            {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
+          </div>
+
+          <div className="player-actions">
+            <ActionButton
+              label={
+                state.readStatus === 'read'
+                  ? t('player.action.markUnread')
+                  : t('player.action.markRead')
               }
-            }}
-          />
-          <ActionButton
-            label={t('player.action.ignore')}
-            onClick={() =>
-              void window.chronicle
-                .setReadStatus(video.videoId, 'ignored')
-                .then((next) => {
+              onClick={() =>
+                void window.chronicle
+                  .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
+                  .then(patch)
+              }
+            />
+            <ActionButton
+              label={state.favorite ? t('player.action.favorited') : t('player.action.favorite')}
+              active={state.favorite}
+              onClick={() => void window.chronicle.toggleFavorite(video.videoId).then(patch)}
+            />
+            <ActionButton
+              label={
+                state.watchLater ? t('player.action.inWatchLater') : t('player.action.watchLater')
+              }
+              active={state.watchLater}
+              onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
+            />
+            <ActionButton
+              label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
+              active={rating === 'like'}
+              onClick={toggleLike}
+            />
+            <ActionButton
+              label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
+              active={subscribed}
+              onClick={toggleSubscribe}
+            />
+            <ActionButton
+              label={t('player.action.ignore')}
+              onClick={() =>
+                void window.chronicle.setReadStatus(video.videoId, 'ignored').then((next) => {
                   patch(next)
                   onClose()
                 })
-            }
-          />
-          <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
-        </div>
-        {actionError !== null && <p className="player-action-error">{actionError}</p>}
-
-        {video.description !== null && video.description.length > 0 && (
-          <div className="player-description">
-            <Description
-              text={video.description}
-              onOpenVideo={onOpenVideo}
-              clamped={!descriptionOpen}
-              onOverflowChange={setDescriptionOverflows}
+              }
             />
-            {(descriptionOverflows || descriptionOpen) && (
-              <button
-                className="description-toggle"
-                onClick={() => setDescriptionOpen((o) => !o)}
-              >
-                {descriptionOpen ? t('player.description.showLess') : t('player.description.showMore')}
-              </button>
-            )}
+            <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
           </div>
-        )}
+          {actionError !== null && <p className="player-action-error">{actionError}</p>}
 
-        <CommentsSection key={video.videoId} videoId={video.videoId} />
+          {video.description !== null && video.description.length > 0 && (
+            <div className="player-description">
+              <Description
+                text={video.description}
+                onOpenVideo={onOpenVideo}
+                clamped={!descriptionOpen}
+                onOverflowChange={setDescriptionOverflows}
+              />
+              {(descriptionOverflows || descriptionOpen) && (
+                <button
+                  className="description-toggle"
+                  onClick={() => setDescriptionOpen((o) => !o)}
+                >
+                  {descriptionOpen
+                    ? t('player.description.showLess')
+                    : t('player.description.showMore')}
+                </button>
+              )}
+            </div>
+          )}
+
+          <CommentsSection ref={commentsRef} key={video.videoId} videoId={video.videoId} />
+        </div>
+        {writeScopeGate.dialog}
       </div>
-      {writeScopeGate.dialog}
-    </div>
-  )
-}
+    )
+  }
+)
 
 function ActionButton({
   label,

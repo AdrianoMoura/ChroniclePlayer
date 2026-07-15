@@ -2215,6 +2215,18 @@ button.primary.danger {
   margin-bottom: 12px;
 }
 
+.overlay h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 14px 0 4px;
+}
+
+.overlay h3:first-of-type {
+  margin-top: 0;
+}
+
 .overlay table {
   border-collapse: collapse;
   width: 100%;

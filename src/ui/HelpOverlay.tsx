@@ -1,41 +1,78 @@
 import { t } from './i18n'
 
-const SHORTCUTS: readonly [string, () => string][] = [
+// Two groups rather than one flat list: several keys mean different things
+// depending on where they're pressed (`s` sidebar-toggle in the feed vs.
+// subscribe in the player), and this overlay is reachable from both screens
+// (B-102 fixed `?` doing nothing in the player) — showing both groups
+// always, regardless of which screen it was opened from, is simpler and
+// more honest than trying to filter the list by context.
+const FEED_SHORTCUTS: readonly [string, () => string][] = [
   ['j / k  ·  ↓ / ↑', () => t('help.action.nextPrev')],
   ['Enter / o', () => t('help.action.play')],
   ['Ctrl+O', () => t('help.action.openByUrl')],
-  ['Space · ← →', () => t('help.action.playerControls')],
   ['b', () => t('help.action.openInBrowser')],
   ['m', () => t('help.action.toggleReadUnread')],
   ['i', () => t('help.action.ignore')],
   ['u', () => t('help.action.undoIgnore')],
   ['f', () => t('help.action.toggleFavorite')],
   ['w', () => t('help.action.toggleWatchLater')],
+  ['M', () => t('help.action.markAllRead')],
+  ['v', () => t('help.action.toggleLayout')],
   ['gg / G', () => t('help.action.topEnd')],
   ['1…5', () => t('help.action.switchView')],
   ['r', () => t('help.action.reload')],
   ['/', () => t('help.action.filter')],
   ['c', () => t('help.action.findChannel')],
-  ['s', () => t('help.action.toggleSidebar')],
+  ['s', () => t('help.action.toggleSidebar')]
+]
+
+// Acts on whichever video is currently open (playback.md).
+const PLAYER_SHORTCUTS: readonly [string, () => string][] = [
+  ['Space', () => t('help.action.playPause')],
+  ['← →', () => t('help.action.seek')],
+  ['b', () => t('help.action.openInBrowser')],
+  ['m', () => t('help.action.toggleReadUnread')],
+  ['i', () => t('help.action.ignorePlayer')],
+  ['f', () => t('help.action.toggleFavorite')],
+  ['w', () => t('help.action.toggleWatchLater')],
+  ['l', () => t('help.action.toggleLike')],
+  ['s', () => t('help.action.toggleSubscribe')],
+  ['c', () => t('help.action.toggleComments')],
+  ['n', () => t('help.action.nextInQueue')],
+  ['p', () => t('help.action.extractWindow')],
+  ['/', () => t('help.action.filter')]
+]
+
+const GLOBAL_SHORTCUTS: readonly [string, () => string][] = [
   ['?', () => t('help.action.thisOverlay')],
   ['Esc', () => t('help.action.backClose')]
 ]
+
+function ShortcutTable({ rows }: { rows: readonly [string, () => string][] }) {
+  return (
+    <table>
+      <tbody>
+        {rows.map(([keys, action]) => (
+          <tr key={keys}>
+            <td className="keys">{keys}</td>
+            <td>{action()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div className="overlay" onClick={(event) => event.stopPropagation()}>
         <h2>{t('help.title')}</h2>
-        <table>
-          <tbody>
-            {SHORTCUTS.map(([keys, action]) => (
-              <tr key={keys}>
-                <td className="keys">{keys}</td>
-                <td>{action()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <h3>{t('help.section.feed')}</h3>
+        <ShortcutTable rows={FEED_SHORTCUTS} />
+        <h3>{t('help.section.player')}</h3>
+        <ShortcutTable rows={PLAYER_SHORTCUTS} />
+        <ShortcutTable rows={GLOBAL_SHORTCUTS} />
       </div>
     </div>
   )

@@ -226,6 +226,72 @@ Resolved entries add:
 
 ## Resolved
 
+### B-103 — Keyboard-shortcut coverage audit: player parity + previously mouse-only feed commands
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** ui-shell, player
+- **What happens:** reported alongside [[B-102]] as "map the commands with no keyboard
+  shortcut and add them." Two categories of gap, both found by walking every action with
+  a mouse-only path: (1) several of the player's own action-bar buttons (mark read/
+  unread, favorite, watch later, ignore) had a working shortcut in the feed that simply
+  stopped reaching anything once the full-view player took over the keydown map — same
+  root-cause shape as B-102, just for `m`/`i`/`f`/`w` instead of `?`; (2) like, subscribe/
+  unsubscribe, show/hide comments, pop out to the always-on-top window, and next-in-queue
+  never had a shortcut anywhere, feed or player.
+- **Expected:** every high-frequency action reachable by mouse in the player and the feed
+  topbar has a keyboard equivalent, following the existing precedent ([[B-043]]) that a
+  real control with a mouse-only path is a gap, not a deliberate omission — except
+  genuinely secondary/graduated controls (Settings, context menus, the item-size slider),
+  which `ui.md`'s "Secondary screens" rule already exempts.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (player keydown map), `src/ui/PlayerDetails.tsx`
+  (`PlayerDetailsHandle` — like/subscribe are write-scope-gated, comments' open state is
+  local to `CommentsSection`, so the new player shortcuts reach them through an
+  imperative ref rather than a plain callback prop), `src/ui/Comments.tsx`
+  (`CommentsSectionHandle`), `src/ui/App.tsx` (feed keydown map, `M`/`v`), `src/ui/
+  HelpOverlay.tsx`, `src/ui/i18n/en.ts`.
+- **Resolution:** player gained `m` (toggle read/unread), `i` (ignore — always sets
+  'ignored' and closes/docks, mirroring the mouse button; no un-ignore toggle like the
+  feed's `i`, since watching an already-ignored video in the player is rare enough not to
+  warrant it), `f` (toggle favorite — free to reuse now that [[B-089]] removed Chronicle's
+  own fullscreen shortcut), `w` (toggle watch later), `l` (toggle like), `s` (subscribe/
+  unsubscribe), `c` (show/hide comments), `n` (next in queue, only when
+  `hasQueueNext`), `p` (pop out to the always-on-top window). Feed topbar gained `M`
+  (mark all as read, current view — capitalized per the existing g/G convention: the
+  shifted key of a single-item action is its bulk counterpart) and `v` (toggle grid/list
+  layout). The shortcuts overlay (`HelpOverlay.tsx`) was restructured from one flat list
+  into labeled Feed/Player sections, shown together always regardless of which screen it
+  was opened from — several keys now mean different things per screen (`s` is sidebar-
+  toggle in the feed, subscribe in the player; same shape as the pre-B-089 `f` ambiguity)
+  and the overlay is reachable from both as of [[B-102]], so a single undifferentiated
+  list would misdescribe half the bindings depending on where it's read. Player action
+  buttons and a few topbar buttons/titles also picked up inline `(key)` hints in their
+  label text, matching the existing `Open in browser (b)` convention. `ui.md` and
+  `playback.md` updated with the full map. Checked via `npm run typecheck && npm run
+  lint && npm test`.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
+### B-102 — `?` does nothing while the full-view player is open
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player
+- **What happens:** pressing `?` while a video is open in the full-view (non-miniplayer)
+  player has no effect at all — the shortcuts overlay never opens.
+- **Expected:** `?` opens the shortcuts overlay from anywhere in the app, same as it
+  already does from the feed.
+- **Code refs:** `src/ui/App.tsx` (the feed's own keydown handler, which owns
+  `setHelpOpen` and returns early — `if ((playerOpen && !miniplayer) || urlPromptOpen)
+  return` — for every key including `?` whenever the full-view player is active — this
+  guard is [[B-045]]'s, not new); `src/ui/PlayerSurface.tsx` (the player's own keydown
+  map, the sole listener active in that state, had no `?` case, so the key fell through
+  to `default: return` and was silently dropped).
+- **Resolution:** `PlayerSurface` gained a `helpOpen`/`onToggleHelp` prop pair (App.tsx's
+  `setHelpOpen` toggled from the player, same as the feed) and a `case '?'`. Also guards
+  the rest of the player's keydown map while the overlay is open — mirroring the feed
+  handler's own `if (helpOpen) { ...; return }` branch — so e.g. Space doesn't also pause
+  the video underneath while the overlay is being read, and Escape closes the overlay
+  instead of exiting fullscreen/docking the player. Bundled with [[B-103]] once the same
+  audit turned up the player's other mouse-only actions.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
 ### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
 - **Type:** bug · **Severity:** minor
 - **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0

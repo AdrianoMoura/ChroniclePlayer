@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { CommentDto } from '../ipc/contract'
 import { publishedLabel } from './format'
 import { t } from './i18n'
@@ -15,135 +15,158 @@ function commentsErrorMessage(errorKind: string, message: string): string {
 // comment. There is no public API to like a *comment* (only videos, via
 // PlayerView's own Like button) — likeCount here is read-only display.
 
+export interface CommentsSectionHandle {
+  // Lets the player's own keyboard shortcut (`c`) drive the same show/hide
+  // this component's button does — the open state is local to this
+  // component (reset per video via PlayerDetails' `key={video.videoId}`),
+  // so a plain callback prop can't reach it from outside.
+  toggle: () => void
+}
+
 interface CommentsSectionProps {
   videoId: string
 }
 
-export function CommentsSection({ videoId }: CommentsSectionProps) {
-  const writeScopeGate = useWriteScopeGate()
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [comments, setComments] = useState<CommentDto[] | null>(null)
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [newComment, setNewComment] = useState('')
-  const [posting, setPosting] = useState(false)
+export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSectionProps>(
+  function CommentsSection({ videoId }, ref) {
+    const writeScopeGate = useWriteScopeGate()
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const [comments, setComments] = useState<CommentDto[] | null>(null)
+    const [nextPageToken, setNextPageToken] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [newComment, setNewComment] = useState('')
+    const [posting, setPosting] = useState(false)
 
-  function load(): void {
-    setLoading(true)
-    setError(null)
-    void writeScopeGate.run(() => window.chronicle.getComments(videoId)).then((result) => {
-      setLoading(false)
-      if (!result.ok) {
-        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
-        return
-      }
-      setComments(result.value.comments)
-      setNextPageToken(result.value.nextPageToken)
-    })
-  }
+    function load(): void {
+      setLoading(true)
+      setError(null)
+      void writeScopeGate
+        .run(() => window.chronicle.getComments(videoId))
+        .then((result) => {
+          setLoading(false)
+          if (!result.ok) {
+            if (result.errorKind !== 'cancelled')
+              setError(commentsErrorMessage(result.errorKind, result.message))
+            return
+          }
+          setComments(result.value.comments)
+          setNextPageToken(result.value.nextPageToken)
+        })
+    }
 
-  const loadMore = useCallback(() => {
-    if (nextPageToken === null || loadingMore) return
-    setLoadingMore(true)
-    void writeScopeGate.run(() => window.chronicle.getComments(videoId, nextPageToken)).then((result) => {
-      setLoadingMore(false)
-      if (!result.ok) {
-        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
-        return
-      }
-      setComments((current) => [...(current ?? []), ...result.value.comments])
-      setNextPageToken(result.value.nextPageToken)
-    })
-  }, [videoId, nextPageToken, loadingMore, writeScopeGate])
+    const loadMore = useCallback(() => {
+      if (nextPageToken === null || loadingMore) return
+      setLoadingMore(true)
+      void writeScopeGate
+        .run(() => window.chronicle.getComments(videoId, nextPageToken))
+        .then((result) => {
+          setLoadingMore(false)
+          if (!result.ok) {
+            if (result.errorKind !== 'cancelled')
+              setError(commentsErrorMessage(result.errorKind, result.message))
+            return
+          }
+          setComments((current) => [...(current ?? []), ...result.value.comments])
+          setNextPageToken(result.value.nextPageToken)
+        })
+    }, [videoId, nextPageToken, loadingMore, writeScopeGate])
 
-  function toggle(): void {
-    const next = !open
-    setOpen(next)
-    if (next && comments === null) load()
-  }
+    function toggle(): void {
+      const next = !open
+      setOpen(next)
+      if (next && comments === null) load()
+    }
 
-  // Auto-paginate on scroll, same as the main feed and search results —
-  // no "Load more" click anywhere else in the app. The comments list isn't
-  // its own scroll container (it flows inside the player's page-level
-  // scroll), so a sentinel + IntersectionObserver is simpler than tracking
-  // scroll position on some ancestor.
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => {
-    if (!open || nextPageToken === null) return
-    const el = sentinelRef.current
-    if (el === null) return
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) loadMore()
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [open, nextPageToken, loadMore])
+    useImperativeHandle(ref, () => ({ toggle }))
 
-  function postTopLevel(): void {
-    const text = newComment.trim()
-    if (text === '') return
-    setPosting(true)
-    void writeScopeGate.run(() => window.chronicle.postComment(videoId, text)).then((result) => {
-      setPosting(false)
-      if (!result.ok) {
-        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
-        return
-      }
-      setNewComment('')
-      setComments((current) => [result.value, ...(current ?? [])])
-    })
-  }
+    // Auto-paginate on scroll, same as the main feed and search results —
+    // no "Load more" click anywhere else in the app. The comments list isn't
+    // its own scroll container (it flows inside the player's page-level
+    // scroll), so a sentinel + IntersectionObserver is simpler than tracking
+    // scroll position on some ancestor.
+    const sentinelRef = useRef<HTMLDivElement | null>(null)
+    useEffect(() => {
+      if (!open || nextPageToken === null) return
+      const el = sentinelRef.current
+      if (el === null) return
+      const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) loadMore()
+      })
+      observer.observe(el)
+      return () => observer.disconnect()
+    }, [open, nextPageToken, loadMore])
 
-  return (
-    <div className="comments-section">
-      <button className="comments-toggle" onClick={toggle}>
-        {open ? t('comments.hide') : t('comments.show')}
-      </button>
-      {open && (
-        <div className="comments-body">
-          <div className="comment-composer">
-            <textarea
-              value={newComment}
-              onChange={(event) => setNewComment(event.target.value)}
-              placeholder={t('comments.addPlaceholder')}
-            />
-            <button
-              className="primary"
-              disabled={posting || newComment.trim() === ''}
-              onClick={postTopLevel}
-            >
-              {posting ? t('comments.posting') : t('comments.postButton')}
-            </button>
-          </div>
-          {error !== null && <p className="comments-error">{error}</p>}
-          {loading && <p className="comments-loading">{t('comments.loading')}</p>}
-          {!loading && comments !== null && comments.length === 0 && (
-            <p className="comments-empty">{t('comments.empty')}</p>
-          )}
-          {comments?.map((comment) => (
-            <CommentItem
-              key={comment.commentId}
-              comment={comment}
-              runWithWriteScope={writeScopeGate.run}
-              onReplyPosted={(reply) => {
-                setComments((current) =>
-                  (current ?? []).map((c) =>
-                    c.commentId === comment.commentId ? { ...c, replies: [...c.replies, reply] } : c
+    function postTopLevel(): void {
+      const text = newComment.trim()
+      if (text === '') return
+      setPosting(true)
+      void writeScopeGate
+        .run(() => window.chronicle.postComment(videoId, text))
+        .then((result) => {
+          setPosting(false)
+          if (!result.ok) {
+            if (result.errorKind !== 'cancelled')
+              setError(commentsErrorMessage(result.errorKind, result.message))
+            return
+          }
+          setNewComment('')
+          setComments((current) => [result.value, ...(current ?? [])])
+        })
+    }
+
+    return (
+      <div className="comments-section">
+        <button className="comments-toggle" onClick={toggle}>
+          {open ? t('comments.hide') : t('comments.show')}
+        </button>
+        {open && (
+          <div className="comments-body">
+            <div className="comment-composer">
+              <textarea
+                value={newComment}
+                onChange={(event) => setNewComment(event.target.value)}
+                placeholder={t('comments.addPlaceholder')}
+              />
+              <button
+                className="primary"
+                disabled={posting || newComment.trim() === ''}
+                onClick={postTopLevel}
+              >
+                {posting ? t('comments.posting') : t('comments.postButton')}
+              </button>
+            </div>
+            {error !== null && <p className="comments-error">{error}</p>}
+            {loading && <p className="comments-loading">{t('comments.loading')}</p>}
+            {!loading && comments !== null && comments.length === 0 && (
+              <p className="comments-empty">{t('comments.empty')}</p>
+            )}
+            {comments?.map((comment) => (
+              <CommentItem
+                key={comment.commentId}
+                comment={comment}
+                runWithWriteScope={writeScopeGate.run}
+                onReplyPosted={(reply) => {
+                  setComments((current) =>
+                    (current ?? []).map((c) =>
+                      c.commentId === comment.commentId
+                        ? { ...c, replies: [...c.replies, reply] }
+                        : c
+                    )
                   )
-                )
-              }}
-            />
-          ))}
-          {nextPageToken !== null && <div ref={sentinelRef} />}
-          {loadingMore && <p className="comments-loading">{t('comments.loadingMore')}</p>}
-        </div>
-      )}
-      {writeScopeGate.dialog}
-    </div>
-  )
-}
+                }}
+              />
+            ))}
+            {nextPageToken !== null && <div ref={sentinelRef} />}
+            {loadingMore && <p className="comments-loading">{t('comments.loadingMore')}</p>}
+          </div>
+        )}
+        {writeScopeGate.dialog}
+      </div>
+    )
+  }
+)
 
 type RunWithWriteScope = ReturnType<typeof useWriteScopeGate>['run']
 
@@ -165,16 +188,19 @@ function CommentItem({
     const text = replyText.trim()
     if (text === '') return
     setPosting(true)
-    void runWithWriteScope(() => window.chronicle.replyToComment(comment.commentId, text)).then((result) => {
-      setPosting(false)
-      if (!result.ok) {
-        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
-        return
+    void runWithWriteScope(() => window.chronicle.replyToComment(comment.commentId, text)).then(
+      (result) => {
+        setPosting(false)
+        if (!result.ok) {
+          if (result.errorKind !== 'cancelled')
+            setError(commentsErrorMessage(result.errorKind, result.message))
+          return
+        }
+        setReplyText('')
+        setReplying(false)
+        onReplyPosted(result.value)
       }
-      setReplyText('')
-      setReplying(false)
-      onReplyPosted(result.value)
-    })
+    )
   }
 
   return (
@@ -191,7 +217,11 @@ function CommentItem({
             onChange={(event) => setReplyText(event.target.value)}
             placeholder={t('comments.replyPlaceholder')}
           />
-          <button className="primary" disabled={posting || replyText.trim() === ''} onClick={postReply}>
+          <button
+            className="primary"
+            disabled={posting || replyText.trim() === ''}
+            onClick={postReply}
+          >
             {posting ? t('comments.posting') : t('comments.postButton')}
           </button>
           {error !== null && <p className="comments-error">{error}</p>}
@@ -238,16 +268,19 @@ function ReplyItem({
     const text = replyText.trim()
     if (text === '') return
     setPosting(true)
-    void runWithWriteScope(() => window.chronicle.replyToComment(topLevelId, text)).then((result) => {
-      setPosting(false)
-      if (!result.ok) {
-        if (result.errorKind !== 'cancelled') setError(commentsErrorMessage(result.errorKind, result.message))
-        return
+    void runWithWriteScope(() => window.chronicle.replyToComment(topLevelId, text)).then(
+      (result) => {
+        setPosting(false)
+        if (!result.ok) {
+          if (result.errorKind !== 'cancelled')
+            setError(commentsErrorMessage(result.errorKind, result.message))
+          return
+        }
+        setReplyText(`@${reply.authorDisplayName} `)
+        setReplying(false)
+        onReplyPosted(result.value)
       }
-      setReplyText(`@${reply.authorDisplayName} `)
-      setReplying(false)
-      onReplyPosted(result.value)
-    })
+    )
   }
 
   return (
@@ -264,7 +297,11 @@ function ReplyItem({
             onChange={(event) => setReplyText(event.target.value)}
             placeholder={t('comments.replyPlaceholder')}
           />
-          <button className="primary" disabled={posting || replyText.trim() === ''} onClick={postReply}>
+          <button
+            className="primary"
+            disabled={posting || replyText.trim() === ''}
+            onClick={postReply}
+          >
             {posting ? t('comments.posting') : t('comments.postButton')}
           </button>
           {error !== null && <p className="comments-error">{error}</p>}

@@ -34,7 +34,7 @@ import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { t } from './i18n'
 import { MiniPlayerBar } from './MiniPlayerBar'
-import { PlayerDetails } from './PlayerDetails'
+import { PlayerDetails, type PlayerDetailsHandle } from './PlayerDetails'
 import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
 import { SettingsView } from './SettingsView'
 import {
@@ -93,7 +93,11 @@ function BannerBar({
               {detailsOpen ? t('app.banner.hideDetails') : t('app.banner.showDetails')}
             </button>
           )}
-          <button className="banner-dismiss" title={t('app.banner.dismissTitle')} onClick={onDismiss}>
+          <button
+            className="banner-dismiss"
+            title={t('app.banner.dismissTitle')}
+            onClick={onDismiss}
+          >
             ✕
           </button>
         </span>
@@ -190,6 +194,7 @@ export function App() {
   const [fullSlot, setFullSlot] = useState<HTMLDivElement | null>(null)
   const [miniSlot, setMiniSlot] = useState<HTMLDivElement | null>(null)
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
+  const playerDetailsRef = useRef<PlayerDetailsHandle>(null)
 
   // B-045: any "hard" navigation away from the player (sidebar clicks,
   // submitting a search, switching accounts) used to just clear playerStack
@@ -295,7 +300,10 @@ export function App() {
     })
     // B-042: the priority section only makes sense in the main feed
     // ('all'/'unread', unfiltered) — cleared everywhere else.
-    if (channelRef.current === null && (viewRef.current === 'all' || viewRef.current === 'unread')) {
+    if (
+      channelRef.current === null &&
+      (viewRef.current === 'all' || viewRef.current === 'unread')
+    ) {
       void window.chronicle.getPriorityFeed(accountRef.current).then(setPriorityVideos)
     } else {
       setPriorityVideos([])
@@ -491,36 +499,39 @@ export function App() {
   )
 
   // B-009/D-031: explicit user action only — never fired on keystroke.
-  const runSearch = useCallback((query: string) => {
-    const q = query.trim()
-    if (q === '') {
-      setSearchResults(null)
-      setSearchNextPageToken(null)
-      return
-    }
-    // Submitting an actual search is a navigation like any other — it always
-    // leaves the player, even though focusing the field to type it does not.
-    leavePlayerForNavigation()
-    setSearchQuery(q)
-    setSearching(true)
-    void window.chronicle.searchYouTube(q).then((result) => {
-      setSearching(false)
-      if (!result.ok) {
-        if (result.errorKind === 'quota-exceeded') {
-          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
-        } else if (result.errorKind === 'network-unavailable') {
-          setBanner({ text: t('app.banner.offline') })
-        } else {
-          setBanner({ text: t('app.banner.searchFailed', { message: result.message }) })
-        }
-        setSearchResults([])
+  const runSearch = useCallback(
+    (query: string) => {
+      const q = query.trim()
+      if (q === '') {
+        setSearchResults(null)
         setSearchNextPageToken(null)
         return
       }
-      setSearchResults(result.value.results)
-      setSearchNextPageToken(result.value.nextPageToken)
-    })
-  }, [leavePlayerForNavigation])
+      // Submitting an actual search is a navigation like any other — it always
+      // leaves the player, even though focusing the field to type it does not.
+      leavePlayerForNavigation()
+      setSearchQuery(q)
+      setSearching(true)
+      void window.chronicle.searchYouTube(q).then((result) => {
+        setSearching(false)
+        if (!result.ok) {
+          if (result.errorKind === 'quota-exceeded') {
+            setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+          } else if (result.errorKind === 'network-unavailable') {
+            setBanner({ text: t('app.banner.offline') })
+          } else {
+            setBanner({ text: t('app.banner.searchFailed', { message: result.message }) })
+          }
+          setSearchResults([])
+          setSearchNextPageToken(null)
+          return
+        }
+        setSearchResults(result.value.results)
+        setSearchNextPageToken(result.value.nextPageToken)
+      })
+    },
+    [leavePlayerForNavigation]
+  )
 
   // Explicit navigation (a sidebar view/channel/account/settings click)
   // always leaves search, even when the destination happens to already
@@ -548,31 +559,38 @@ export function App() {
 
   // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
   // may open the system browser once for incremental write-scope consent.
-  const subscribeToChannel = useCallback((channelId: string) => {
-    void writeScopeGate.run(() => window.chronicle.subscribeChannel(channelId)).then((result) => {
-      if (!result.ok) {
-        if (result.errorKind === 'cancelled') {
-          // User declined the write-scope dialog — no error to show.
-        } else if (result.errorKind === 'auth-expired') {
-          setBanner({
-            text: t('app.banner.reconnectRequired'),
-            action: { label: t('app.banner.reconnectAction'), run: connect }
-          })
-        } else if (result.errorKind === 'network-unavailable') {
-          setBanner({ text: t('app.banner.offline') })
-        } else {
-          setBanner({ text: t('app.banner.subscribeFailed', { message: result.message }) })
-        }
-        return
-      }
-      loadChannels()
-      setSearchResults((current) =>
-        current === null
-          ? null
-          : current.map((r) => (r.kind === 'channel' && r.channelId === channelId ? { ...r, subscribed: true } : r))
-      )
-    })
-  }, [connect, loadChannels, writeScopeGate])
+  const subscribeToChannel = useCallback(
+    (channelId: string) => {
+      void writeScopeGate
+        .run(() => window.chronicle.subscribeChannel(channelId))
+        .then((result) => {
+          if (!result.ok) {
+            if (result.errorKind === 'cancelled') {
+              // User declined the write-scope dialog — no error to show.
+            } else if (result.errorKind === 'auth-expired') {
+              setBanner({
+                text: t('app.banner.reconnectRequired'),
+                action: { label: t('app.banner.reconnectAction'), run: connect }
+              })
+            } else if (result.errorKind === 'network-unavailable') {
+              setBanner({ text: t('app.banner.offline') })
+            } else {
+              setBanner({ text: t('app.banner.subscribeFailed', { message: result.message }) })
+            }
+            return
+          }
+          loadChannels()
+          setSearchResults((current) =>
+            current === null
+              ? null
+              : current.map((r) =>
+                  r.kind === 'channel' && r.channelId === channelId ? { ...r, subscribed: true } : r
+                )
+          )
+        })
+    },
+    [connect, loadChannels, writeScopeGate]
+  )
 
   // Opens a search channel result's screen even though it isn't subscribed
   // yet — ChannelHeader/getChannelDetail already work for any channelId;
@@ -670,20 +688,23 @@ export function App() {
     [accountFilter, loadChannels, loadView]
   )
 
-  const syncAccountNow = useCallback((accountId: string) => {
-    void window.chronicle.syncAccountNow(accountId).then((result) => {
-      if (!result.ok) {
-        if (result.errorKind === 'auth-expired') {
-          setBanner({
-            text: t('app.banner.reconnectRequired'),
-            action: { label: t('app.banner.reconnectAction'), run: connect }
-          })
-        } else {
-          setBanner({ text: t('app.banner.accountSyncFailed', { message: result.message }) })
+  const syncAccountNow = useCallback(
+    (accountId: string) => {
+      void window.chronicle.syncAccountNow(accountId).then((result) => {
+        if (!result.ok) {
+          if (result.errorKind === 'auth-expired') {
+            setBanner({
+              text: t('app.banner.reconnectRequired'),
+              action: { label: t('app.banner.reconnectAction'), run: connect }
+            })
+          } else {
+            setBanner({ text: t('app.banner.accountSyncFailed', { message: result.message }) })
+          }
         }
-      }
-    })
-  }, [connect])
+      })
+    },
+    [connect]
+  )
 
   function handleTopbarUnsubscribe(): void {
     if (!confirmingUnsubscribe) {
@@ -694,7 +715,8 @@ export function App() {
       )
       return
     }
-    if (confirmUnsubscribeTimer.current !== null) window.clearTimeout(confirmUnsubscribeTimer.current)
+    if (confirmUnsubscribeTimer.current !== null)
+      window.clearTimeout(confirmUnsubscribeTimer.current)
     setConfirmingUnsubscribe(false)
     if (channelFilter !== null) unsubscribeChannel(channelFilter)
   }
@@ -821,6 +843,10 @@ export function App() {
     requestAnimationFrame(() => filterInputRef.current?.focus())
   }, [])
 
+  // Shared by the feed's own `?`/Escape handling and the player's (B-102:
+  // the player had no `?` case at all, so it never reached setHelpOpen).
+  const toggleHelp = useCallback(() => setHelpOpen((open) => !open), [])
+
   const nextInQueue = useCallback(() => {
     const queue = queueRef.current
     if (queue === null || queue.index >= queue.ids.length - 1) return
@@ -849,7 +875,11 @@ export function App() {
           // discovered video is already hydrated and persisted — so if the
           // feed is still empty when it begins, there's already something
           // real to show instead of waiting out that (often slow) phase too.
-          if (event.phase === 'shorts' && feedEmptyRef.current && !emptyFeedLoadTriggeredRef.current) {
+          if (
+            event.phase === 'shorts' &&
+            feedEmptyRef.current &&
+            !emptyFeedLoadTriggeredRef.current
+          ) {
             emptyFeedLoadTriggeredRef.current = true
             loadView()
             loadChannels()
@@ -925,24 +955,22 @@ export function App() {
     if (nextCursor) {
       loadingRef.current = true
       setLoadingMore(true)
-      void window.chronicle.getFeed(targetView, nextCursor, targetChannel, targetAccount).then((slice) => {
-        if (requestGenerationRef.current !== generation) return
-        loadingRef.current = false
-        setLoadingMore(false)
-        setVideos((current) => [...current, ...slice.videos])
-        setNextCursor(slice.nextCursor)
-      })
+      void window.chronicle
+        .getFeed(targetView, nextCursor, targetChannel, targetAccount)
+        .then((slice) => {
+          if (requestGenerationRef.current !== generation) return
+          loadingRef.current = false
+          setLoadingMore(false)
+          setVideos((current) => [...current, ...slice.videos])
+          setNextCursor(slice.nextCursor)
+        })
       return
     }
 
     // Local archive exhausted in a channel-filtered view — fetch older
     // videos from YouTube (uploads playlist paging + hydration) on demand,
     // then resume the exact same page instead of resetting to the top.
-    if (
-      targetChannel === null ||
-      archiveExhausted.has(targetChannel) ||
-      backfillingRef.current
-    ) {
+    if (targetChannel === null || archiveExhausted.has(targetChannel) || backfillingRef.current) {
       return
     }
     backfillingRef.current = true
@@ -1205,6 +1233,15 @@ export function App() {
         case '?':
           setHelpOpen(true)
           break
+        case 'M':
+          // Capital, matching the existing g/G (single row vs. whole list)
+          // convention — bulk actions get the shifted key of their
+          // single-item counterpart.
+          if (view === 'all' || view === 'unread') markAllRead()
+          break
+        case 'v':
+          changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
+          break
         case 'Escape':
           if (filter !== '') setFilter('')
           else setChannelFilter(null)
@@ -1238,7 +1275,11 @@ export function App() {
     urlPromptOpen,
     openFromFeed,
     screen,
-    toggleSidebar
+    toggleSidebar,
+    view,
+    markAllRead,
+    settings,
+    changeSettings
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
@@ -1301,7 +1342,11 @@ export function App() {
   return (
     <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {sidebarCollapsed ? (
-        <button className="sidebar-expand" title={t('app.sidebar.showTitle')} onClick={toggleSidebar}>
+        <button
+          className="sidebar-expand"
+          title={t('app.sidebar.showTitle')}
+          onClick={toggleSidebar}
+        >
           ☰
         </button>
       ) : (
@@ -1383,375 +1428,411 @@ export function App() {
           </>
         ) : (
           <>
-        <header className="topbar">
-          <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
-            <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
-          </button>
-          <span className="topbar-view">
-            {VIEW_LABELS[view]}
-            {accountFilter !== null && (
-              <span className="topbar-account-suffix">
-                {' · '}
-                {accounts.find((a) => a.accountId === accountFilter)?.label ??
-                  t('app.topbar.channelFallback')}
+            <header className="topbar">
+              <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
+                <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
+              </button>
+              <span className="topbar-view">
+                {VIEW_LABELS[view]}
+                {accountFilter !== null && (
+                  <span className="topbar-account-suffix">
+                    {' · '}
+                    {accounts.find((a) => a.accountId === accountFilter)?.label ??
+                      t('app.topbar.channelFallback')}
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-          <span className="status">{statusText}</span>
-          {showMarkAllRead && (
-            <button className="mark-all-read" onClick={markAllRead}>
-              {t('app.topbar.markAllRead')}
-            </button>
-          )}
-          <div className="field-wrap">
-            <input
-              ref={filterInputRef}
-              className="filter"
-              placeholder={t('app.topbar.searchYouTubePlaceholder')}
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') runSearch(filter)
-              }}
-            />
-            {filter !== '' && (
-              <button
-                className="field-clear"
-                title={t('app.topbar.clearFilterTitle')}
-                onClick={() => {
-                  closeSearch()
-                  filterInputRef.current?.focus()
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {(!playerOpen || miniplayer) && (
-            <input
-              className="size-slider"
-              type="range"
-              min={0}
-              max={ITEM_SIZES.length - 1}
-              step={1}
-              value={ITEM_SIZES.indexOf(settings.itemSize)}
-              title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
-              onChange={(event) =>
-                changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
-              }
-            />
-          )}
-          {(!playerOpen || miniplayer) && (
-            <button
-              className="layout-toggle"
-              title={
-                settings.layout === 'grid'
-                  ? t('app.topbar.switchToListView')
-                  : t('app.topbar.switchToGridView')
-              }
-              onClick={() =>
-                changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
-              }
-            >
-              {settings.layout === 'grid' ? '☰' : '⊞'}
-            </button>
-          )}
-        </header>
-
-        {(!playerOpen || miniplayer) && channelFilter !== null && searchResults === null &&
-          (() => {
-            const selectedChannel = channels.find((c) => c.channelId === channelFilter)
-            const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
-            const headerChannel =
-              selectedChannel ??
-              (preview !== null
-                ? {
-                    channelId: preview.channelId,
-                    title: preview.title,
-                    thumbnailUrl: preview.thumbnailUrl,
-                    unreadCount: 0,
-                    favorite: false
+              <span className="status">{statusText}</span>
+              {showMarkAllRead && (
+                <button className="mark-all-read" onClick={markAllRead}>
+                  {t('app.topbar.markAllRead')}
+                </button>
+              )}
+              <div className="field-wrap">
+                <input
+                  ref={filterInputRef}
+                  className="filter"
+                  placeholder={t('app.topbar.searchYouTubePlaceholder')}
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') runSearch(filter)
+                  }}
+                />
+                {filter !== '' && (
+                  <button
+                    className="field-clear"
+                    title={t('app.topbar.clearFilterTitle')}
+                    onClick={() => {
+                      closeSearch()
+                      filterInputRef.current?.focus()
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {(!playerOpen || miniplayer) && (
+                <input
+                  className="size-slider"
+                  type="range"
+                  min={0}
+                  max={ITEM_SIZES.length - 1}
+                  step={1}
+                  value={ITEM_SIZES.indexOf(settings.itemSize)}
+                  title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
+                  onChange={(event) =>
+                    changeSettings({
+                      ...settings,
+                      itemSize: ITEM_SIZES[Number(event.target.value)]
+                    })
                   }
-                : undefined)
-            return headerChannel !== undefined ? (
-              <ChannelHeader
-                channel={headerChannel}
-                subscribed={selectedChannel !== undefined}
-                confirmingUnsubscribe={confirmingUnsubscribe}
-                onUnsubscribe={handleTopbarUnsubscribe}
-                onSubscribe={() => subscribeToChannel(channelFilter)}
-                onToggleFavorite={() => toggleChannelFavorite(channelFilter)}
-                onOpenInBrowser={() =>
-                  void window.chronicle.openExternalUrl(`https://www.youtube.com/channel/${channelFilter}`)
-                }
+                />
+              )}
+              {(!playerOpen || miniplayer) && (
+                <button
+                  className="layout-toggle"
+                  title={
+                    settings.layout === 'grid'
+                      ? t('app.topbar.switchToListView')
+                      : t('app.topbar.switchToGridView')
+                  }
+                  onClick={() =>
+                    changeSettings({
+                      ...settings,
+                      layout: settings.layout === 'grid' ? 'list' : 'grid'
+                    })
+                  }
+                >
+                  {settings.layout === 'grid' ? '☰' : '⊞'}
+                </button>
+              )}
+            </header>
+
+            {(!playerOpen || miniplayer) &&
+              channelFilter !== null &&
+              searchResults === null &&
+              (() => {
+                const selectedChannel = channels.find((c) => c.channelId === channelFilter)
+                const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
+                const headerChannel =
+                  selectedChannel ??
+                  (preview !== null
+                    ? {
+                        channelId: preview.channelId,
+                        title: preview.title,
+                        thumbnailUrl: preview.thumbnailUrl,
+                        unreadCount: 0,
+                        favorite: false
+                      }
+                    : undefined)
+                return headerChannel !== undefined ? (
+                  <ChannelHeader
+                    channel={headerChannel}
+                    subscribed={selectedChannel !== undefined}
+                    confirmingUnsubscribe={confirmingUnsubscribe}
+                    onUnsubscribe={handleTopbarUnsubscribe}
+                    onSubscribe={() => subscribeToChannel(channelFilter)}
+                    onToggleFavorite={() => toggleChannelFavorite(channelFilter)}
+                    onOpenInBrowser={() =>
+                      void window.chronicle.openExternalUrl(
+                        `https://www.youtube.com/channel/${channelFilter}`
+                      )
+                    }
+                  />
+                ) : null
+              })()}
+
+            {banner !== null && (
+              <BannerBar
+                banner={banner}
+                showAction
+                detailsOpen={failureDetailsOpen}
+                onToggleDetails={() => setFailureDetailsOpen((open) => !open)}
+                onDismiss={() => setBanner(null)}
               />
-            ) : null
-          })()}
-
-        {banner !== null && (
-          <BannerBar
-            banner={banner}
-            showAction
-            detailsOpen={failureDetailsOpen}
-            onToggleDetails={() => setFailureDetailsOpen((open) => !open)}
-            onDismiss={() => setBanner(null)}
-          />
-        )}
-
-        {showConnectPanel ? (
-          <ConnectPanel
-            auth={auth}
-            connecting={connecting}
-            onImportSecret={(json) => {
-              void window.chronicle.importClientSecret(json).then((result) => {
-                if (result.ok) setAuth(result.value)
-                else setBanner({ text: result.message })
-              })
-            }}
-            onConnect={connect}
-          />
-        ) : (
-          <div className="feed-region">
-            {newVideosPill !== null && (
-              <button className="new-videos-pill" onClick={() => loadView()}>
-                {t('app.banner.newVideos', {
-                  count: newVideosPill,
-                  plural: newVideosPill > 1 ? 's' : ''
-                })}
-              </button>
             )}
-            {searchResults !== null ? (
-              <div
-                className={`search-results size-${settings.itemSize}`}
-                onScroll={(event) => {
-                  const el = event.currentTarget
-                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) loadMoreSearchResults()
+
+            {showConnectPanel ? (
+              <ConnectPanel
+                auth={auth}
+                connecting={connecting}
+                onImportSecret={(json) => {
+                  void window.chronicle.importClientSecret(json).then((result) => {
+                    if (result.ok) setAuth(result.value)
+                    else setBanner({ text: result.message })
+                  })
                 }}
-              >
-                {searching && <div className="empty">{t('search.searching')}</div>}
-                {!searching && searchResults.length === 0 && (
-                  <div className="empty">{t('search.empty')}</div>
-                )}
-                {(() => {
-                  const visible = searchResults.filter(
-                    (result) => result.kind !== 'video' || settings.showShorts || !result.isShort
-                  )
-                  if (settings.layout === 'grid') {
-                    return (
-                      <div
-                        className="grid-row"
-                        style={{
-                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                        }}
-                      >
-                        {visible.map((result) =>
-                          result.kind === 'video' ? (
-                            <SearchVideoCard
-                              key={result.videoId}
-                              result={result}
-                              onOpen={() => openVideo(result.videoId, 'replace')}
-                            />
-                          ) : (
-                            <SearchChannelCard
-                              key={result.channelId}
-                              result={result}
-                              onOpen={() =>
-                                openChannelPreview(result.channelId, result.title, result.thumbnailUrl)
-                              }
-                              onSubscribe={() => subscribeToChannel(result.channelId)}
-                            />
-                          )
-                        )}
-                      </div>
-                    )
-                  }
-                  // This list has no other keyboard path (unlike the main
-                  // FeedList, which has global j/k/Enter navigation) — each
-                  // row/card is individually focusable.
-                  return visible.map((result) =>
-                    result.kind === 'video' ? (
-                      <SearchVideoRow
-                        key={result.videoId}
-                        result={result}
-                        onOpen={() => openVideo(result.videoId, 'replace')}
-                      />
-                    ) : (
-                      <SearchChannelRow
-                        key={result.channelId}
-                        result={result}
-                        onOpen={() =>
-                          openChannelPreview(result.channelId, result.title, result.thumbnailUrl)
-                        }
-                        onSubscribe={() => subscribeToChannel(result.channelId)}
-                      />
-                    )
-                  )
-                })()}
-                {searchLoadingMore && <div className="feed-loading-more">{t('search.loadingMore')}</div>}
-              </div>
-            ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
-              <div
-                className={`search-results size-${settings.itemSize}`}
-                onScroll={(event) => {
-                  const el = event.currentTarget
-                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) loadMoreChannelPreview()
-                }}
-              >
-                {channelPreview.loading && <div className="empty">{t('search.searching')}</div>}
-                {!channelPreview.loading && channelPreview.videos.length === 0 && (
-                  <div className="empty">{t('search.empty')}</div>
-                )}
-                {(() => {
-                  const visible = channelPreview.videos.filter(
-                    (video) => settings.showShorts || !video.isShort
-                  )
-                  if (settings.layout === 'grid') {
-                    return (
-                      <div
-                        className="grid-row"
-                        style={{
-                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                        }}
-                      >
-                        {visible.map((video) => (
-                          <SearchVideoCard
-                            key={video.videoId}
-                            result={video}
-                            onOpen={() => openVideo(video.videoId, 'replace')}
-                          />
-                        ))}
-                      </div>
-                    )
-                  }
-                  return visible.map((video) => (
-                    <SearchVideoRow
-                      key={video.videoId}
-                      result={video}
-                      onOpen={() => openVideo(video.videoId, 'replace')}
-                    />
-                  ))
-                })()}
-                {channelPreview.loadingMore && (
-                  <div className="feed-loading-more">{t('search.loadingMore')}</div>
-                )}
-              </div>
+                onConnect={connect}
+              />
             ) : (
-              <>
-                {priorityVideos.length > 0 && (
-                  <div className={`priority-section size-${settings.itemSize}`}>
-                    <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
-                    {settings.layout === 'grid' ? (
-                      <div
-                        className="grid-row"
-                        style={{
-                          gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                        }}
-                      >
-                        {priorityVideos.map((video) => (
-                          <VideoCard
-                            key={video.videoId}
-                            video={video}
-                            selected={false}
-                            undoable={undoable.has(video.videoId)}
-                            actions={actions}
-                            onOpen={() => openVideo(video.videoId, 'replace')}
-                            onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
-                            showViewCounts={settings.showViewCounts}
-                            focusable
+              <div className="feed-region">
+                {newVideosPill !== null && (
+                  <button className="new-videos-pill" onClick={() => loadView()}>
+                    {t('app.banner.newVideos', {
+                      count: newVideosPill,
+                      plural: newVideosPill > 1 ? 's' : ''
+                    })}
+                  </button>
+                )}
+                {searchResults !== null ? (
+                  <div
+                    className={`search-results size-${settings.itemSize}`}
+                    onScroll={(event) => {
+                      const el = event.currentTarget
+                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300)
+                        loadMoreSearchResults()
+                    }}
+                  >
+                    {searching && <div className="empty">{t('search.searching')}</div>}
+                    {!searching && searchResults.length === 0 && (
+                      <div className="empty">{t('search.empty')}</div>
+                    )}
+                    {(() => {
+                      const visible = searchResults.filter(
+                        (result) =>
+                          result.kind !== 'video' || settings.showShorts || !result.isShort
+                      )
+                      if (settings.layout === 'grid') {
+                        return (
+                          <div
+                            className="grid-row"
+                            style={{
+                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                            }}
+                          >
+                            {visible.map((result) =>
+                              result.kind === 'video' ? (
+                                <SearchVideoCard
+                                  key={result.videoId}
+                                  result={result}
+                                  onOpen={() => openVideo(result.videoId, 'replace')}
+                                />
+                              ) : (
+                                <SearchChannelCard
+                                  key={result.channelId}
+                                  result={result}
+                                  onOpen={() =>
+                                    openChannelPreview(
+                                      result.channelId,
+                                      result.title,
+                                      result.thumbnailUrl
+                                    )
+                                  }
+                                  onSubscribe={() => subscribeToChannel(result.channelId)}
+                                />
+                              )
+                            )}
+                          </div>
+                        )
+                      }
+                      // This list has no other keyboard path (unlike the main
+                      // FeedList, which has global j/k/Enter navigation) — each
+                      // row/card is individually focusable.
+                      return visible.map((result) =>
+                        result.kind === 'video' ? (
+                          <SearchVideoRow
+                            key={result.videoId}
+                            result={result}
+                            onOpen={() => openVideo(result.videoId, 'replace')}
                           />
-                        ))}
-                      </div>
-                    ) : (
-                      priorityVideos.map((video) => (
-                        <VideoRow
-                          key={video.videoId}
-                          video={video}
-                          selected={false}
-                          undoable={undoable.has(video.videoId)}
-                          actions={actions}
-                          onOpen={() => openVideo(video.videoId, 'replace')}
-                          onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
-                          showViewCounts={settings.showViewCounts}
-                          focusable
-                        />
-                      ))
+                        ) : (
+                          <SearchChannelRow
+                            key={result.channelId}
+                            result={result}
+                            onOpen={() =>
+                              openChannelPreview(
+                                result.channelId,
+                                result.title,
+                                result.thumbnailUrl
+                              )
+                            }
+                            onSubscribe={() => subscribeToChannel(result.channelId)}
+                          />
+                        )
+                      )
+                    })()}
+                    {searchLoadingMore && (
+                      <div className="feed-loading-more">{t('search.loadingMore')}</div>
                     )}
                   </div>
-                )}
-                {filtered.length === 0 ? (
-                  <div className="empty">
-                    {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
+                ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
+                  <div
+                    className={`search-results size-${settings.itemSize}`}
+                    onScroll={(event) => {
+                      const el = event.currentTarget
+                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300)
+                        loadMoreChannelPreview()
+                    }}
+                  >
+                    {channelPreview.loading && <div className="empty">{t('search.searching')}</div>}
+                    {!channelPreview.loading && channelPreview.videos.length === 0 && (
+                      <div className="empty">{t('search.empty')}</div>
+                    )}
+                    {(() => {
+                      const visible = channelPreview.videos.filter(
+                        (video) => settings.showShorts || !video.isShort
+                      )
+                      if (settings.layout === 'grid') {
+                        return (
+                          <div
+                            className="grid-row"
+                            style={{
+                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                            }}
+                          >
+                            {visible.map((video) => (
+                              <SearchVideoCard
+                                key={video.videoId}
+                                result={video}
+                                onOpen={() => openVideo(video.videoId, 'replace')}
+                              />
+                            ))}
+                          </div>
+                        )
+                      }
+                      return visible.map((video) => (
+                        <SearchVideoRow
+                          key={video.videoId}
+                          result={video}
+                          onOpen={() => openVideo(video.videoId, 'replace')}
+                        />
+                      ))
+                    })()}
+                    {channelPreview.loadingMore && (
+                      <div className="feed-loading-more">{t('search.loadingMore')}</div>
+                    )}
                   </div>
                 ) : (
-                  <FeedList
-                    rows={rows}
-                    cursorVideoIndex={effectiveCursor}
-                    undoable={undoable}
-                    actions={actions}
-                    onOpen={(videoIndex) => {
-                      setCursorIdx(videoIndex)
-                      openFromFeed(videoIndex, filtered)
-                    }}
-                    onOpenChannel={(channelId) => {
-                      const title =
-                        filtered.find((v) => v.channelId === channelId)?.channelTitle ?? ''
-                      navigateToChannel(channelId, title)
-                    }}
-                    onNearEnd={loadMore}
-                    onAtTopChange={(atTop) => {
-                      atTopRef.current = atTop
-                    }}
-                    itemSize={settings.itemSize}
-                    layout={settings.layout}
-                    showViewCounts={settings.showViewCounts}
-                    loadingMore={loadingMore}
-                  />
+                  <>
+                    {priorityVideos.length > 0 && (
+                      <div className={`priority-section size-${settings.itemSize}`}>
+                        <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
+                        {settings.layout === 'grid' ? (
+                          <div
+                            className="grid-row"
+                            style={{
+                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                            }}
+                          >
+                            {priorityVideos.map((video) => (
+                              <VideoCard
+                                key={video.videoId}
+                                video={video}
+                                selected={false}
+                                undoable={undoable.has(video.videoId)}
+                                actions={actions}
+                                onOpen={() => openVideo(video.videoId, 'replace')}
+                                onOpenChannel={() =>
+                                  navigateToChannel(video.channelId, video.channelTitle)
+                                }
+                                showViewCounts={settings.showViewCounts}
+                                focusable
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          priorityVideos.map((video) => (
+                            <VideoRow
+                              key={video.videoId}
+                              video={video}
+                              selected={false}
+                              undoable={undoable.has(video.videoId)}
+                              actions={actions}
+                              onOpen={() => openVideo(video.videoId, 'replace')}
+                              onOpenChannel={() =>
+                                navigateToChannel(video.channelId, video.channelTitle)
+                              }
+                              showViewCounts={settings.showViewCounts}
+                              focusable
+                            />
+                          ))
+                        )}
+                      </div>
+                    )}
+                    {filtered.length === 0 ? (
+                      <div className="empty">
+                        {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
+                      </div>
+                    ) : (
+                      <FeedList
+                        rows={rows}
+                        cursorVideoIndex={effectiveCursor}
+                        undoable={undoable}
+                        actions={actions}
+                        onOpen={(videoIndex) => {
+                          setCursorIdx(videoIndex)
+                          openFromFeed(videoIndex, filtered)
+                        }}
+                        onOpenChannel={(channelId) => {
+                          const title =
+                            filtered.find((v) => v.channelId === channelId)?.channelTitle ?? ''
+                          navigateToChannel(channelId, title)
+                        }}
+                        onNearEnd={loadMore}
+                        onAtTopChange={(atTop) => {
+                          atTopRef.current = atTop
+                        }}
+                        itemSize={settings.itemSize}
+                        layout={settings.layout}
+                        showViewCounts={settings.showViewCounts}
+                        loadingMore={loadingMore}
+                      />
+                    )}
+                  </>
                 )}
-              </>
+                {playerOpen && currentPlayerVideo && (
+                  <>
+                    <PlayerSurface
+                      ref={playerSurfaceRef}
+                      video={currentPlayerVideo}
+                      state={currentPlayerVideo.state}
+                      stackDepth={playerStack.length}
+                      hasQueueNext={hasQueueNext}
+                      defaultPlaybackRate={settings.defaultPlaybackRate}
+                      active={!miniplayer}
+                      alignTarget={miniplayer ? miniSlot : fullSlot}
+                      helpOpen={helpOpen}
+                      onNextInQueue={nextInQueue}
+                      onClose={closePlayer}
+                      onDock={dockPlayer}
+                      onFocusSearch={focusSearch}
+                      onToggleHelp={toggleHelp}
+                      onToggleLike={() => playerDetailsRef.current?.toggleLike()}
+                      onToggleSubscribe={() => playerDetailsRef.current?.toggleSubscribe()}
+                      onToggleComments={() => playerDetailsRef.current?.toggleComments()}
+                      onExtract={extractToWindow}
+                      onStatePatched={patch}
+                    />
+                    <PlayerDetails
+                      ref={playerDetailsRef}
+                      video={currentPlayerVideo}
+                      state={currentPlayerVideo.state}
+                      stackDepth={playerStack.length}
+                      hidden={miniplayer}
+                      slotRef={setFullSlot}
+                      onClose={() => playerSurfaceRef.current?.requestClose()}
+                      onExtract={extractToWindow}
+                      onOpenVideo={(videoId) => openVideo(videoId)}
+                      onOpenChannel={navigateToChannel}
+                      onStatePatched={patch}
+                    />
+                    <MiniPlayerBar
+                      video={currentPlayerVideo}
+                      hidden={!miniplayer}
+                      width={settings.miniplayerWidth}
+                      slotRef={setMiniSlot}
+                      onMaximize={() => setMiniplayer(false)}
+                      onClose={closePlayer}
+                      onExtract={extractToWindow}
+                      onResizeEnd={(width) =>
+                        changeSettings({ ...settings, miniplayerWidth: width })
+                      }
+                    />
+                  </>
+                )}
+              </div>
             )}
-            {playerOpen && currentPlayerVideo && (
-              <>
-                <PlayerSurface
-                  ref={playerSurfaceRef}
-                  video={currentPlayerVideo}
-                  state={currentPlayerVideo.state}
-                  stackDepth={playerStack.length}
-                  hasQueueNext={hasQueueNext}
-                  defaultPlaybackRate={settings.defaultPlaybackRate}
-                  active={!miniplayer}
-                  alignTarget={miniplayer ? miniSlot : fullSlot}
-                  onNextInQueue={nextInQueue}
-                  onClose={closePlayer}
-                  onDock={dockPlayer}
-                  onFocusSearch={focusSearch}
-                  onStatePatched={patch}
-                />
-                <PlayerDetails
-                  video={currentPlayerVideo}
-                  state={currentPlayerVideo.state}
-                  stackDepth={playerStack.length}
-                  hidden={miniplayer}
-                  slotRef={setFullSlot}
-                  onClose={() => playerSurfaceRef.current?.requestClose()}
-                  onExtract={extractToWindow}
-                  onOpenVideo={(videoId) => openVideo(videoId)}
-                  onOpenChannel={navigateToChannel}
-                  onStatePatched={patch}
-                />
-                <MiniPlayerBar
-                  video={currentPlayerVideo}
-                  hidden={!miniplayer}
-                  width={settings.miniplayerWidth}
-                  slotRef={setMiniSlot}
-                  onMaximize={() => setMiniplayer(false)}
-                  onClose={closePlayer}
-                  onExtract={extractToWindow}
-                  onResizeEnd={(width) => changeSettings({ ...settings, miniplayerWidth: width })}
-                />
-              </>
-            )}
-          </div>
-        )}
           </>
         )}
       </main>

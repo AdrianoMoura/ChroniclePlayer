@@ -132,8 +132,18 @@ Data handling for externally opened videos (Final):
 - On `ended`: Chronicle's end overlay — "Back to feed" and, if the video came from the
   Watch Later queue, "Next in queue" (explicit button; auto-advance within the user's own
   queue is **D-021, Pending** — recommendation: off by default, opt-in setting).
-- Keyboard: space play/pause, ←/→ seek, esc back to feed (full map in `ui.md`). Note:
-  keyboard control of the IFrame player requires proxying keys through the IFrame API
+- Keyboard: space play/pause, ←/→ seek, esc back to feed/exit fullscreen, b open in
+  browser, `/` focus search. **Extended in the B-102/B-103 audit (2026-07-15)** with the
+  rest of the player's own action bar: `m` toggle read/unread, `i` ignore (closes/docks
+  the player, same as the mouse Ignore button — no undo, unlike the feed's `i`), `f`
+  toggle favorite (free to reuse here since Chronicle's own fullscreen shortcut was
+  removed, see below), `w` toggle watch later, `l` toggle like, `s` subscribe/unsubscribe
+  from the channel, `c` show/hide comments, `n` next in queue (only when one is queued),
+  `p` pop out to the always-on-top window, `?` shortcuts overlay (previously did nothing
+  here — [[B-102]] — the app-level handler that owns `?` for the feed bails out early
+  whenever the full-view player is active, and the player's own keydown map had no `?`
+  case to pick it up). Full map in `ui.md`, plus the audit note there. Note: keyboard
+  control of the IFrame player requires proxying keys through the IFrame API
   (`player.playVideo()` etc.) since the iframe swallows focus — an implementation
   detail worth planning for.
 - **Known limitation, confirmed 2026-07-15 ([[B-089]]):** the proxying above only covers

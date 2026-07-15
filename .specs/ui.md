@@ -76,6 +76,8 @@ with a visible cursor row.
 | `u` | undo the last ignore (within its undo window) |
 | `f` | toggle favorite |
 | `w` | toggle watch later |
+| `M` | mark all as read (current view) — added in the B-103 audit |
+| `v` | toggle grid/list layout — added in the B-103 audit |
 | `gg` / `G` | top / end of loaded feed |
 | `1…5` | switch view (All, Unread, WL, Fav, Ignored) |
 | `r` | refresh |
@@ -83,8 +85,13 @@ with a visible cursor row.
 | `/` | focus the search field — Enter searches YouTube directly (D-031); also works while a video is playing, exiting fully back to the feed first |
 | `c` | focus the sidebar's channel-filter field (B-024) |
 | `s` | show/hide the sidebar (B-037) — added in the B-043 audit, had no keyboard path at all |
-| `?` | shortcut overlay |
+| `?` | shortcut overlay — also reachable from the full-view player as of B-102 |
 | `Esc` | back / close overlay, or cancel the current field |
+
+The full-view player has its own extended key map for the video currently open (`m`/`i`/`f`/`w` mirror
+their feed meaning, plus `l`/`s`/`c`/`n`/`p` for actions that only exist in the player) — see
+`playback.md` §Player view spec, not duplicated here since it acts on "the open video," not "the
+cursor row."
 
 - Vim-flavored because the audience overlaps heavily; **all** bindings also exist as
   visible UI affordances (hover actions on rows) — keyboard-first, not keyboard-only.
@@ -112,6 +119,22 @@ with a visible cursor row.
   every new interactive control must state its keyboard path (a binding, or which
   existing mechanism — Tab order, cursor navigation — already covers it) before it's
   considered done.
+- **B-102/B-103 audit (2026-07-15):** the `?` overlay silently did nothing while the
+  full-view player owned the keydown map ([[B-102]], same root-cause shape as B-045's
+  earlier `if (playerOpen && !miniplayer) return` in the feed's own handler — the
+  player's own keydown map just had no `?` case at all). Fixing that exposed a second,
+  broader gap: several of the player's mouse-only actions (mark read/unread, favorite,
+  watch later, ignore, like, subscribe, comments) had a feed-level keyboard equivalent
+  that simply stopped working the moment the player took over — or, for like/subscribe/
+  comments/pop-out/next-in-queue, never had one anywhere. `m`/`i`/`f`/`w` now work
+  identically in the player (`f` was free to reuse for favorite there once B-089 removed
+  Chronicle's own fullscreen shortcut); `l`/`s`/`c`/`n`/`p` are new, player-only bindings
+  (full list: `playback.md` §Player view spec). Added `M`/`v` to the feed table above for
+  the same reason B-043 added `s`: real controls (mark-all-read's button, the grid/list
+  toggle) that had shipped with a mouse path only. The shortcuts overlay itself was split
+  into labeled Feed/Player sections (`HelpOverlay.tsx`) rather than one flat list, since
+  several keys now mean different things per screen (`s` toggles the sidebar in the feed,
+  subscribe in the player) and the overlay is reachable from both.
 
 ## States & feedback (Final)
 
