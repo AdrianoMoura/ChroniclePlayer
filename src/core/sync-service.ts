@@ -24,12 +24,23 @@ export interface SyncProgress {
   total: number
 }
 
+// B-097: the raw per-channel (or account-level, when channelId is null —
+// e.g. the subscription re-list itself, or a hydration batch spanning more
+// than one channel) detail behind channelsFailed, so a failure banner has
+// something to actually show beyond a bare count.
+export interface SyncFailureDetail {
+  channelId: string | null
+  channelTitle: string | null
+  message: string
+}
+
 export interface SyncReport {
   trigger: SyncTrigger
   startedAt: string
   finishedAt: string
   channelsPolled: number
   channelsFailed: number
+  failures: SyncFailureDetail[]
   videosNew: number
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
@@ -40,6 +51,10 @@ export interface SyncReport {
   // (B-020: drives the connect-time backlog auto-read — the composition
   // root marks pre-existing videos read after this report comes back).
   firstSync: boolean
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 const RSS_CONCURRENCY = 8 // youtube-api.md politeness rule
@@ -83,6 +98,7 @@ export class SyncService {
     let channelsPolled = 0
     let videosNew = 0
     let subscriptions: { added: number; removed: number } | null = null
+    const failures: SyncFailureDetail[] = []
     const firstSyncMetaKey = `${META_SUBSCRIPTIONS_SYNCED_AT}:${accountId}`
     const firstSync = repo.getMeta(firstSyncMetaKey) === null
 
@@ -93,7 +109,11 @@ export class SyncService {
         } catch (error) {
           if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
           else if (isDomainError(error, 'auth-expired')) throw error
-          else channelsFailed += 1 // stale subscription list; continue with local channels
+          else {
+            // stale subscription list; continue with local channels
+            channelsFailed += 1
+            failures.push({ channelId: null, channelTitle: null, message: errorMessage(error) })
+          }
         }
       }
 
@@ -109,7 +129,7 @@ export class SyncService {
         this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
         return newIds
       })
-      for (const result of results) {
+      results.forEach((result, index) => {
         if (result.ok) {
           toHydrate.push(...result.value)
         } else if (isDomainError(result.error, 'quota-exceeded')) {
@@ -118,8 +138,14 @@ export class SyncService {
           throw result.error
         } else {
           channelsFailed += 1
+          const channel = channels[index]
+          failures.push({
+            channelId: channel.channelId,
+            channelTitle: channel.title,
+            message: errorMessage(result.error)
+          })
         }
-      }
+      })
 
       const newIds = [...new Set(toHydrate)]
       videosNew = newIds.length
@@ -147,10 +173,16 @@ export class SyncService {
           // (rows keep hydrated_at NULL).
           if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
           else if (isDomainError(error, 'auth-expired')) throw error
-          else channelsFailed += 1
+          else {
+            channelsFailed += 1
+            // Spans whatever channels' videos were in this batch — not
+            // attributable to a single one.
+            failures.push({ channelId: null, channelTitle: null, message: errorMessage(error) })
+          }
         }
       }
 
+      await this.refreshUpcomingLiveStatus(channelId, ctx)
       await this.confirmShorts(channelId)
 
       const outcome = ctx.quotaHit
@@ -165,6 +197,7 @@ export class SyncService {
         startedAt,
         channelsPolled,
         channelsFailed,
+        failures,
         videosNew,
         quotaBefore,
         outcome,
@@ -178,6 +211,7 @@ export class SyncService {
           startedAt,
           channelsPolled,
           channelsFailed,
+          failures,
           videosNew,
           quotaBefore,
           'failed',
@@ -194,6 +228,7 @@ export class SyncService {
     startedAt: string,
     channelsPolled: number,
     channelsFailed: number,
+    failures: SyncFailureDetail[],
     videosNew: number,
     quotaBefore: number,
     outcome: SyncReport['outcome'],
@@ -207,6 +242,7 @@ export class SyncService {
       finishedAt,
       channelsPolled,
       channelsFailed,
+      failures,
       videosNew,
       quotaSpent: this.deps.quota.spent - quotaBefore,
       outcome,
@@ -287,14 +323,22 @@ export class SyncService {
     repo.insertDiscoveredVideos(channel.channelId, newEntries, now)
     const newIds = newEntries.map((entry) => entry.videoId)
 
-    // Gap detection: the whole RSS window being new on a previously synced
-    // channel suggests missed uploads — page the uploads playlist until
-    // overlap with known videos, bounded (feed.md §Backfill).
+    // Gap detection: any newly discovered video on a previously synced
+    // channel is reason enough to check the uploads playlist for older
+    // misses (feed.md §Backfill). Previously gated on the *entire* RSS
+    // window being new — but a window that's a mix of known and new entries
+    // can still hide a real gap: RSS only ever shows the ~15 most recent
+    // entries, so a video missed on a day sync failed (or otherwise never
+    // got captured) silently falls out of every future window the moment
+    // enough newer videos push it out, regardless of whether *this* cycle's
+    // window happens to still contain some already-known entry too
+    // (`bugs.md` B-051, hypothesis 6). `backfillGap` itself already checks
+    // the real DB-known set per page (not just this window), so it stops at
+    // the very first overlapping page in the common, gap-free case — the
+    // extra cost of checking is normally one bounded page fetch, not a deep
+    // walk; GAP_BACKFILL_MAX still caps the worst case.
     const possibleGap =
-      ids.length > 0 &&
-      newIds.length === ids.length &&
-      channel.lastSyncedAt !== null &&
-      channel.uploadsPlaylist !== null
+      newIds.length > 0 && channel.lastSyncedAt !== null && channel.uploadsPlaylist !== null
     if (possibleGap && !ctx.quotaHit) {
       try {
         newIds.push(...(await this.backfillGap(channel.uploadsPlaylist as string, newIds)))
@@ -386,6 +430,28 @@ export class SyncService {
       pageToken = page.nextPageToken
     }
     return collected.slice(0, GAP_BACKFILL_MAX)
+  }
+
+  // B-085: liveContent is captured once, at hydration time — a video that
+  // was `upcoming` then stays `upcoming` forever unless something re-checks
+  // it. Bounded by however many local videos are actually still flagged
+  // upcoming (typically tiny), re-hydrated the same way newly discovered
+  // videos are. Tolerant of failure the same way confirmShorts is: a video
+  // left at `upcoming` just gets retried on the next cycle.
+  private async refreshUpcomingLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
+    if (ctx.quotaHit) return
+    const ids = this.deps.repo.upcomingVideoIds(channelId)
+    if (ids.length === 0) return
+    try {
+      for (let i = 0; i < ids.length; i += HYDRATE_BATCH) {
+        const hydrated = await this.deps.videoSource.hydrate(ids.slice(i, i + HYDRATE_BATCH))
+        this.deps.repo.applyHydration(hydrated, this.deps.clock.now().toISOString())
+      }
+    } catch (error) {
+      if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
+      else if (isDomainError(error, 'auth-expired')) throw error
+      // Other failures: leave these stuck at `upcoming`, retried next cycle.
+    }
   }
 
   // D-028 pipeline: candidates are confirmed via HEAD probe, cached forever.

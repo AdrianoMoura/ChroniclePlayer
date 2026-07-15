@@ -132,10 +132,22 @@ YouTube account"). In the MVP, the wizard is the sole entry path.
 
 ### Step 8 — First sync & done
 
-- Import subscriptions (see `youtube-api.md`), show progress ("Found 142 subscriptions…
-  fetching recent uploads…"), then land on the populated feed.
-- Closing message reinforces ownership: "Everything Chronicle knows is stored on this
-  computer. Your key can be revoked anytime at myaccount.google.com/permissions."
+**Revised 2026-07-15 ([[B-090]]):** there is no separate blocking step here anymore. The
+backend already starts the first sync itself as soon as Step 7's connection succeeds
+(same `connectGoogle` path that also fires background refreshes later); the wizard used to
+add its own second "Start sync" button and a step that waited for that sync to finish
+before unlocking "Open feed" — a second trigger for the same sync, and a wait the app
+never asks for again after this one time (every later sync just runs in the background
+while the feed stays usable). Landing directly on the app the moment Step 7 finishes had
+already been the owner's stated preference; it also sidesteps a whole class of bug the
+blocking step had: the app's event stream isn't guaranteed to still be un-missed by the
+time a not-yet-mounted step subscribes to it, so a sync that raced ahead of the wizard UI
+could leave the "Open feed" button stuck disabled forever ([[B-090]]).
+- Step 7's success immediately finishes the wizard and shows the feed screen — populating
+  in the background exactly like a normal refresh (status line, progress in the topbar,
+  the [[B-091]] progressive-render work).
+- Closing message reinforces ownership ("Everything Chronicle knows is stored on this
+  computer...") lives on Step 7's own success state, not a separate screen.
 
 ## Screenshots pipeline (implementation constraint)
 

@@ -70,8 +70,8 @@ describe('settings store', () => {
     expect(normalizeSettings({ refreshMinutes: 0 }).refreshMinutes).toBe(0)
   })
 
-  it('accepts all five item-size steps (D-037)', () => {
-    for (const itemSize of ['xs', 'small', 'medium', 'large', 'xl']) {
+  it('accepts all six item-size steps (D-037)', () => {
+    for (const itemSize of ['xs', 'small', 'medium', 'large', 'xl', 'xxl']) {
       expect(normalizeSettings({ itemSize }).itemSize).toBe(itemSize)
     }
   })

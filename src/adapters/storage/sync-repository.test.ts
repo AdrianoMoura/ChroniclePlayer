@@ -200,6 +200,21 @@ describe('discovery and hydration', () => {
     expect(entries.find((e) => e.video.videoId === 'normal-1')?.video.liveContent).toBe('none')
   })
 
+  it('upcomingVideoIds finds videos still flagged upcoming, and clears once re-hydrated live (B-085)', () => {
+    sync.applyHydration(
+      [
+        { ...hydratedVideo('premiere-1', 600), liveContent: 'upcoming' },
+        { ...hydratedVideo('normal-1', 600), liveContent: 'none' }
+      ],
+      NOW
+    )
+    expect(sync.upcomingVideoIds()).toEqual(['premiere-1'])
+    sync.applyHydration([{ ...hydratedVideo('premiere-1', 600), liveContent: 'live' }], NOW)
+    expect(sync.upcomingVideoIds()).toEqual([])
+    const entries = feed.listPage('all', null, 10).entries
+    expect(entries.find((e) => e.video.videoId === 'premiere-1')?.video.liveContent).toBe('live')
+  })
+
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {
     const many = Array.from({ length: 600 }, (_, i) => discovered(`v${i}`))
     sync.insertDiscoveredVideos('UCa', many, NOW)

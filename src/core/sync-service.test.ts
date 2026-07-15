@@ -34,6 +34,8 @@ class FakeRepo implements SyncRepository {
   candidates: string[] = []
   candidateChannel = new Map<string, string>() // videoId -> channelId, for scoped shortCandidates tests
   shortStatuses = new Map<string, boolean>()
+  upcoming: string[] = []
+  upcomingChannel = new Map<string, string>() // videoId -> channelId, for scoped upcomingVideoIds tests
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
@@ -108,6 +110,10 @@ class FakeRepo implements SyncRepository {
   }
   setShortStatus(videoId: string, isShort: boolean): void {
     this.shortStatuses.set(videoId, isShort)
+  }
+  upcomingVideoIds(channelId?: string): string[] {
+    if (channelId === undefined) return this.upcoming
+    return this.upcoming.filter((id) => this.upcomingChannel.get(id) === channelId)
   }
   recordSync(entry: SyncLogEntry): void {
     this.logs.push(entry)
@@ -277,6 +283,24 @@ describe('SyncService.refresh', () => {
     expect(report.outcome).toBe('partial')
   })
 
+  it('attributes a per-channel failure to its channel in the report (B-097)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCbad', { title: 'Bad Channel' })
+    const source = fakeVideoSource({
+      feeds: {
+        UCbad: () => {
+          throw networkUnavailable()
+        }
+      }
+    })
+
+    const report = await service(repo, source).refresh('manual', 'acc1')
+
+    expect(report.failures).toEqual([
+      { channelId: 'UCbad', channelTitle: 'Bad Channel', message: 'network unavailable' }
+    ])
+  })
+
   it('marks deleted channels unavailable without failing the sync', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCgone')
@@ -290,6 +314,24 @@ describe('SyncService.refresh', () => {
     const report = await service(repo, source).refresh('manual', 'acc1')
     expect(repo.unavailable).toEqual(['UCgone'])
     expect(report.outcome).toBe('ok')
+  })
+
+  it('re-checks locally upcoming videos every refresh, so a broadcast that went live can update (B-085)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    repo.upcoming = ['premiere-1']
+    const source = fakeVideoSource()
+    await service(repo, source).refresh('timer', 'acc1')
+    expect(source.hydrateCalls.flat()).toContain('premiere-1')
+    expect(repo.hydrated).toContain('premiere-1')
+  })
+
+  it('skips the upcoming re-check entirely when there is nothing flagged upcoming', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    const source = fakeVideoSource()
+    await service(repo, source).refresh('timer', 'acc1')
+    expect(source.hydrateCalls).toEqual([])
   })
 
   it('treats not-modified as a successful no-op poll', async () => {
@@ -327,6 +369,46 @@ describe('SyncService.refresh', () => {
     // sync, not deep-archive history — they stay unread, unlike
     // backfillArchive's videos (see the describe block below).
     expect(repo.markedRead).toEqual([])
+  })
+
+  it('backfills a gap even when the RSS window is a mix of known and new entries (B-051)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { lastSyncedAt: '2026-07-01T00:00:00Z', uploadsPlaylist: 'UUa' })
+    // 'window-known' sits in the current RSS window alongside genuinely new
+    // entries — under the old all-or-nothing gate this alone would have
+    // suppressed gap-backfill entirely, hiding 'missed-1' forever even
+    // though it's a real, never-captured video sitting just past the RSS
+    // window and just before 'window-known' in the uploads playlist.
+    repo.known.add('window-known')
+    const rssEntries = [discovered('rss-new-1'), discovered('rss-new-2'), discovered('window-known')]
+    const source = fakeVideoSource({
+      feeds: { UCa: { kind: 'ok', entries: rssEntries, etag: null, lastModified: null } },
+      uploads: {
+        UUa: [['rss-new-1', 'rss-new-2', 'missed-1', 'window-known']]
+      }
+    })
+
+    const report = await service(repo, source).refresh('manual', 'acc1')
+
+    expect(report.videosNew).toBe(3) // rss-new-1, rss-new-2, missed-1
+    expect(source.hydrateCalls.flat()).toContain('missed-1')
+  })
+
+  it('does not attempt gap-backfill when nothing new was discovered this cycle', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { lastSyncedAt: '2026-07-01T00:00:00Z', uploadsPlaylist: 'UUa' })
+    repo.known.add('already-known')
+    const source = fakeVideoSource({
+      feeds: {
+        UCa: { kind: 'ok', entries: [discovered('already-known')], etag: null, lastModified: null }
+      },
+      uploads: { UUa: [['should-never-be-fetched']] }
+    })
+
+    const report = await service(repo, source).refresh('manual', 'acc1')
+
+    expect(report.videosNew).toBe(0)
+    expect(source.hydrateCalls).toEqual([])
   })
 
   it('marks backlog videos read as soon as they hydrate on a first sync, not only once the whole sync finishes (B-069)', async () => {

@@ -59,6 +59,7 @@ Confirmed by the product owner (2026-07-10, decision session):
 | D-016 | **Background refresh default interval = 30 min, configurable 15 min–manual** (rejected: fixed 15 min or hourly). **Exercised:** 30-min default (M2); configurable 15/30/60/manual in Settings (M5, 2026-07-11). | `youtube-api.md` |
 | D-014 | **Wizard validation for Google-console steps 1–5 = checkbox confirmations + failure→step mapping at connect time** (rejected: attempt live validation). **Exercised in M4 (2026-07-11).** | `onboarding.md` |
 | D-015 | **Wizard media = static annotated screenshots** (rejected: per-step recordings). **Exercised in M4 (2026-07-11):** asset pipeline with verified-on dating built. Capture of the actual screenshots is still open, tracked as an M6 exit item in `roadmap.md` — the decision (format) is settled, only the asset-capture work remains. | `onboarding.md` |
+| D-044 | **Wizard Step 8 ("First sync") removed as a blocking step** (`bugs.md` [[B-090]]) — supersedes the original design where the wizard waited for the first sync to finish before unlocking "Open feed." Step 7's successful connection already triggers a first sync in the backend (the same `connectGoogle` path used ever since M2); the wizard step was a second, redundant trigger for that same sync, gating on an event stream the not-yet-mounted step could easily miss (root cause of the button getting stuck disabled). **Exercised 2026-07-15**, per the product owner's own stated preference: the wizard now finishes the instant Step 7 connects, landing on the feed screen with sync continuing in the background exactly like every later refresh already works. | `onboarding.md` |
 
 ## Pending decisions
 
@@ -88,7 +89,7 @@ Ordered by how urgently they block work (see `roadmap.md`).
 
 ## How to add an entry
 
-Next free ID: **D-044**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-045**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.

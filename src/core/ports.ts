@@ -276,6 +276,10 @@ export interface SyncRepository {
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[]
   setShortStatus(videoId: string, isShort: boolean): void
+  // liveContent is only ever captured at hydration time — a video hydrated
+  // while the broadcast hadn't started yet stays 'upcoming' forever unless
+  // something re-queries it. channelId scopes to a single channel (B-036).
+  upcomingVideoIds(channelId?: string): string[]
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null
   getMeta(key: string): string | null

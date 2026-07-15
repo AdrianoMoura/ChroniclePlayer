@@ -21,7 +21,6 @@ export type WizardStepId =
   | 'client'
   | 'import'
   | 'connect'
-  | 'first-sync'
 
 export interface StepAsset {
   src: string

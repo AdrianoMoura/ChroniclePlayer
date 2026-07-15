@@ -183,12 +183,20 @@ appear. (Predictability over liveliness.)
     row already exists for that video; never overwrites a real read/unread preference.
     Routine gap-backfill (below) is unaffected — those videos are genuinely missed
     uploads since the last sync and stay unread.
-- **First-ever sync (onboarding step 8):** same rule per channel — RSS window only.
-  200 subs ≈ 3,000 candidate videos discovered free, hydrated for ~60 units, well within
-  quota (see `youtube-api.md`).
-- **Gap detection:** if every RSS item for a channel is new (possible missed uploads
-  between refreshes), page `playlistItems.list` until overlap with known videos, bounded
-  at 200 videos/channel per cycle.
+- **First-ever sync:** same rule per channel — RSS window only. 200 subs ≈ 3,000 candidate
+  videos discovered free, hydrated for ~60 units, well within quota (see `youtube-api.md`).
+  Runs in the background as soon as the account connects — no dedicated blocking wizard
+  step anymore (D-044).
+- **Gap detection:** any newly discovered video for a channel is enough to page
+  `playlistItems.list` for that channel, stopping at the first page whose videos overlap
+  the real known set (bounded at 200 videos/channel per cycle). **Revised 2026-07-15
+  ([[B-051]]):** previously only triggered when *every* RSS item was new — too narrow, since
+  a window that mixes known and new entries can still hide an older miss (e.g. a video from
+  a day the sync failed, later pushed out of the ~15-item window by newer uploads before a
+  clean-looking resync ever ran). The known-set check inside the backfill itself is already
+  DB-wide, not scoped to the current window, so it correctly finds the true gap boundary
+  once it's allowed to run — the fix was loosening the outer trigger, not the backfill
+  mechanism itself.
 
 ## Shorts — D-028 (Final, reversed 2026-07-12 by B-028)
 

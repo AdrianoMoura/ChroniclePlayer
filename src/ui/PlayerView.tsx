@@ -34,7 +34,7 @@ interface PlayerViewProps {
   defaultPlaybackRate: number
   onNextInQueue: () => void
   onClose: () => void
-  onSearch: () => void
+  onFocusSearch: () => void
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
@@ -49,7 +49,7 @@ export function PlayerView({
   defaultPlaybackRate,
   onNextInQueue,
   onClose,
-  onSearch,
+  onFocusSearch,
   onOpenVideo,
   onOpenChannel,
   onStatePatched
@@ -156,9 +156,21 @@ export function PlayerView({
     function onKeyDown(event: KeyboardEvent): void {
       if (event.target instanceof HTMLInputElement) return
       switch (event.key) {
-        case ' ':
-          command(playerStateRef.current === 1 ? 'pauseVideo' : 'playVideo')
+        case ' ': {
+          // playerStateRef only updates once the iframe posts back its own
+          // onStateChange — a round trip that isn't guaranteed to land
+          // before the next keypress. Waiting for it made a second, rapid
+          // Space press read the still-stale pre-command state and reissue
+          // the same command as a no-op. Updating the ref optimistically,
+          // right when the command is sent, means every subsequent press
+          // toggles correctly regardless of that round trip's timing; the
+          // real onStateChange event still arrives and reconciles it either
+          // way, same as it always did.
+          const playing = playerStateRef.current === 1
+          command(playing ? 'pauseVideo' : 'playVideo')
+          playerStateRef.current = playing ? 2 : 1
           break
+        }
         case 'ArrowLeft':
           command('seekTo', [Math.max(0, currentTimeRef.current - 5), true])
           break
@@ -180,10 +192,10 @@ export function PlayerView({
           openInBrowser()
           break
         case '/':
-          // Search shouldn't require leaving playback through a separate
-          // step first — exits fully back to the feed (not just one level
-          // of the queue stack, like Esc/Back) with the filter focused.
-          onSearch()
+          // Only focuses the search field — playback keeps running
+          // untouched. Actually leaving the video is left to submitting a
+          // search (Enter in the field), not to focusing it.
+          onFocusSearch()
           break
         default:
           return
@@ -193,7 +205,7 @@ export function PlayerView({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [command, onClose, onSearch, video.videoId])
+  }, [command, onClose, onFocusSearch, video.videoId])
 
   // B-039: the mouse "back" side button (XButton1, event.button === 3) exits
   // the player, same as Esc/the visible Back button — mirrors what browsers

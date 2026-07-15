@@ -14,6 +14,7 @@ import type {
   SearchResultDto,
   SearchVideoResultDto,
   SettingsDto,
+  SyncFailureDetailDto,
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
@@ -55,9 +56,70 @@ const BUCKET_LABELS: Record<FeedBucketDto, string> = {
 
 const UNDO_WINDOW_MS = 5000
 
+// B-097: the banner itself stays a one-line count; per-channel detail is an
+// on-demand disclosure rather than always-rendered clutter.
+function BannerBar({
+  banner,
+  showAction = false,
+  detailsOpen,
+  onToggleDetails,
+  onDismiss
+}: {
+  banner: Banner
+  showAction?: boolean
+  detailsOpen: boolean
+  onToggleDetails: () => void
+  onDismiss: () => void
+}) {
+  const hasDetails = banner.failureDetails !== undefined && banner.failureDetails.length > 0
+  return (
+    <>
+      <div className="banner">
+        <span>{banner.text}</span>
+        <span className="banner-actions">
+          {showAction && banner.action && (
+            <button className="banner-action" onClick={banner.action.run}>
+              {banner.action.label}
+            </button>
+          )}
+          {hasDetails && (
+            <button
+              className="banner-detail-toggle"
+              title={t('app.banner.showDetailsTitle')}
+              onClick={onToggleDetails}
+            >
+              {detailsOpen ? t('app.banner.hideDetails') : t('app.banner.showDetails')}
+            </button>
+          )}
+          <button className="banner-dismiss" title={t('app.banner.dismissTitle')} onClick={onDismiss}>
+            ✕
+          </button>
+        </span>
+      </div>
+      {hasDetails && detailsOpen && (
+        <div className="banner-detail-panel">
+          <ul>
+            {banner.failureDetails!.map((failure, index) => (
+              <li key={index}>
+                <strong>{failure.channelTitle ?? t('app.banner.failureAccountLevel')}</strong>
+                {' — '}
+                {failure.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  )
+}
+
 interface Banner {
   text: string
   action?: { label: string; run: () => void }
+  // B-097: raw per-channel error detail behind a partial-refresh banner,
+  // shown on demand via an info toggle instead of cluttering the one-line
+  // count that's already there.
+  failureDetails?: SyncFailureDetailDto[]
 }
 
 export function App() {
@@ -86,6 +148,7 @@ export function App() {
   const [undoable, setUndoable] = useState<ReadonlySet<string>>(new Set())
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
+  const [failureDetailsOpen, setFailureDetailsOpen] = useState(false)
   const [channels, setChannels] = useState<ChannelDto[]>([])
   // B-042: unread videos from favorited channels — bucket-less priority
   // section shown above the chronological feed (main views only, D-039).
@@ -161,6 +224,14 @@ export function App() {
   // enough and left loadingRef stuck true on the superseded path).
   const requestGenerationRef = useRef(0)
   const [archiveExhausted, setArchiveExhausted] = useState<ReadonlySet<string>>(new Set())
+  // Videos are already hydrated and persisted well before the (slower)
+  // Shorts-identification phase starts — it's a separate pass over rows
+  // already in the DB — so a feed that's still empty when that phase begins
+  // doesn't need to keep waiting for the full refresh:done event. Tracked
+  // via refs (not state) so the progress-event handler below can read the
+  // latest value without resubscribing on every video/refresh-cycle change.
+  const feedEmptyRef = useRef(true)
+  const emptyFeedLoadTriggeredRef = useRef(false)
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
@@ -232,6 +303,10 @@ export function App() {
   useEffect(() => {
     loadView(view, channelFilter, accountFilter)
   }, [view, channelFilter, accountFilter, loadView])
+
+  useEffect(() => {
+    feedEmptyRef.current = videos.length === 0
+  }, [videos])
 
   // Switching accounts should read as a full context switch — the sidebar's
   // channel list is account-scoped too, so it needs its own refresh here
@@ -389,6 +464,9 @@ export function App() {
       setSearchNextPageToken(null)
       return
     }
+    // Submitting an actual search is a navigation like any other — it always
+    // leaves the player, even though focusing the field to type it does not.
+    setPlayerStack([])
     setSearchQuery(q)
     setSearching(true)
     void window.chronicle.searchYouTube(q).then((result) => {
@@ -638,11 +716,29 @@ export function App() {
     setPlayerStack((stack) => stack.slice(0, -1))
   }, [])
 
-  // `/` while playing exits fully back to the feed (not just one level of
-  // the queue stack, like Esc does) and focuses the filter, so a new search
-  // never requires leaving playback through a separate step.
-  const exitPlayerToSearch = useCallback(() => {
-    setPlayerStack([])
+  // A channel name (in the feed, or from the player's video info) is its own
+  // navigation target, distinct from opening the video/leaving the player. A
+  // channel the user isn't subscribed to (e.g. reached from an external
+  // video) has nothing in the local-feed pipeline, so it falls back to the
+  // same channel-preview path search results use.
+  const navigateToChannel = useCallback(
+    (channelId: string, channelTitle: string) => {
+      setPlayerStack([])
+      setScreen('feed')
+      setView('all')
+      if (channels.some((c) => c.channelId === channelId)) {
+        setChannelFilter(channelId)
+      } else {
+        openChannelPreview(channelId, channelTitle, null)
+      }
+    },
+    [channels, openChannelPreview]
+  )
+
+  // `/` while playing only focuses the search field — playback is left alone
+  // until an actual search is submitted (runSearch itself leaves the player
+  // then, since submitting is the real navigation, not focusing the field).
+  const focusSearch = useCallback(() => {
     requestAnimationFrame(() => filterInputRef.current?.focus())
   }, [])
 
@@ -666,9 +762,19 @@ export function App() {
         case 'refresh:started':
           setRefreshing(true)
           setProgress(null)
+          emptyFeedLoadTriggeredRef.current = false
           break
         case 'refresh:progress':
           setProgress({ phase: event.phase, checked: event.checked, total: event.total })
+          // The Shorts-identification phase only starts once every newly
+          // discovered video is already hydrated and persisted — so if the
+          // feed is still empty when it begins, there's already something
+          // real to show instead of waiting out that (often slow) phase too.
+          if (event.phase === 'shorts' && feedEmptyRef.current && !emptyFeedLoadTriggeredRef.current) {
+            emptyFeedLoadTriggeredRef.current = true
+            loadView()
+            loadChannels()
+          }
           break
         case 'refresh:done':
           setRefreshing(false)
@@ -683,8 +789,10 @@ export function App() {
             loadView()
           }
           if (event.report.outcome === 'partial') {
+            setFailureDetailsOpen(false)
             setBanner({
-              text: t('app.banner.refreshPartial', { count: event.report.channelsFailed })
+              text: t('app.banner.refreshPartial', { count: event.report.channelsFailed }),
+              failureDetails: event.report.failures
             })
           }
           break
@@ -1159,21 +1267,18 @@ export function App() {
         {screen === 'settings' ? (
           <>
             {banner !== null && (
-              <div className="banner">
-                <span>{banner.text}</span>
-                <span className="banner-actions">
-                  <button
-                    className="banner-dismiss"
-                    title={t('app.banner.dismissTitle')}
-                    onClick={() => setBanner(null)}
-                  >
-                    ✕
-                  </button>
-                </span>
-              </div>
+              <BannerBar
+                banner={banner}
+                detailsOpen={failureDetailsOpen}
+                onToggleDetails={() => setFailureDetailsOpen((open) => !open)}
+                onDismiss={() => setBanner(null)}
+              />
             )}
             <SettingsView
               auth={auth}
+              primaryAccountLabel={
+                accounts.find((a) => a.isPrimary)?.label ?? t('app.topbar.channelFallback')
+              }
               settings={settings}
               appVersion={appVersion}
               onSettingsChange={changeSettings}
@@ -1297,23 +1402,13 @@ export function App() {
           })()}
 
         {banner !== null && (
-          <div className="banner">
-            <span>{banner.text}</span>
-            <span className="banner-actions">
-              {banner.action && (
-                <button className="banner-action" onClick={banner.action.run}>
-                  {banner.action.label}
-                </button>
-              )}
-              <button
-                className="banner-dismiss"
-                title={t('app.banner.dismissTitle')}
-                onClick={() => setBanner(null)}
-              >
-                ✕
-              </button>
-            </span>
-          </div>
+          <BannerBar
+            banner={banner}
+            showAction
+            detailsOpen={failureDetailsOpen}
+            onToggleDetails={() => setFailureDetailsOpen((open) => !open)}
+            onDismiss={() => setBanner(null)}
+          />
         )}
 
         {showConnectPanel ? (
@@ -1473,6 +1568,7 @@ export function App() {
                             undoable={undoable.has(video.videoId)}
                             actions={actions}
                             onOpen={() => openVideo(video.videoId)}
+                            onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
                             showViewCounts={settings.showViewCounts}
                             focusable
                           />
@@ -1487,6 +1583,7 @@ export function App() {
                           undoable={undoable.has(video.videoId)}
                           actions={actions}
                           onOpen={() => openVideo(video.videoId)}
+                          onOpenChannel={() => navigateToChannel(video.channelId, video.channelTitle)}
                           showViewCounts={settings.showViewCounts}
                           focusable
                         />
@@ -1508,6 +1605,11 @@ export function App() {
                       setCursorIdx(videoIndex)
                       openFromFeed(videoIndex, filtered)
                     }}
+                    onOpenChannel={(channelId) => {
+                      const title =
+                        filtered.find((v) => v.channelId === channelId)?.channelTitle ?? ''
+                      navigateToChannel(channelId, title)
+                    }}
                     onNearEnd={loadMore}
                     onAtTopChange={(atTop) => {
                       atTopRef.current = atTop
@@ -1528,22 +1630,9 @@ export function App() {
                 defaultPlaybackRate={settings.defaultPlaybackRate}
                 onNextInQueue={nextInQueue}
                 onClose={closePlayer}
-                onSearch={exitPlayerToSearch}
+                onFocusSearch={focusSearch}
                 onOpenVideo={(videoId) => openVideo(videoId)}
-                onOpenChannel={(channelId, channelTitle) => {
-                  setPlayerStack([])
-                  setScreen('feed')
-                  setView('all')
-                  // A video's channel may not be one the user is subscribed
-                  // to (e.g. opened from search) — the local-feed pipeline
-                  // has nothing for that channelId, so it needs the same
-                  // preview path search's own channel results use.
-                  if (channels.some((c) => c.channelId === channelId)) {
-                    setChannelFilter(channelId)
-                  } else {
-                    openChannelPreview(channelId, channelTitle, null)
-                  }
-                }}
+                onOpenChannel={navigateToChannel}
                 onStatePatched={patch}
               />
             )}

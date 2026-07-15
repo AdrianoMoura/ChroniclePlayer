@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { ChronicleEventDto, WizardStateDto } from '../../ipc/contract'
+import { useCallback, useState } from 'react'
+import type { WizardStateDto } from '../../ipc/contract'
 import { STEP_ASSETS, type WizardStepId } from './assets'
 import { t } from '../i18n'
 
@@ -90,6 +90,9 @@ const CONSOLE_STEPS: StepDefinition[] = [
   }
 ]
 
+// No 'first-sync' step: connecting (Step 7) already triggers the first sync
+// in the backend, so a second, wizard-owned "start sync and wait" step was
+// both redundant and a source of its own bugs — see decisions.md D-044.
 export const STEP_SEQUENCE: WizardStepId[] = [
   'welcome',
   'project',
@@ -99,8 +102,7 @@ export const STEP_SEQUENCE: WizardStepId[] = [
   'publish',
   'client',
   'import',
-  'connect',
-  'first-sync'
+  'connect'
 ]
 
 interface WizardProps {
@@ -136,7 +138,7 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
       {stepId !== 'welcome' && (
         <div className="wizard-progress">
           {STEP_SEQUENCE.slice(1).map((id) => {
-            const label = id === 'import' ? '6' : id === 'connect' ? '7' : id === 'first-sync' ? '8' : CONSOLE_STEPS.find((s) => s.id === id)?.label
+            const label = id === 'import' ? '6' : id === 'connect' ? '7' : CONSOLE_STEPS.find((s) => s.id === id)?.label
             const index = STEP_SEQUENCE.indexOf(id)
             return (
               <span
@@ -161,8 +163,7 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
         />
       )}
       {stepId === 'import' && <ImportStep next={next} back={back} goTo={goTo} />}
-      {stepId === 'connect' && <ConnectStep next={next} back={back} goTo={goTo} />}
-      {stepId === 'first-sync' && <FirstSyncStep onDone={onDone} />}
+      {stepId === 'connect' && <ConnectStep onDone={onDone} back={back} goTo={goTo} />}
     </div>
   )
 }
@@ -435,11 +436,11 @@ function FileDrop({ onFile }: { onFile: (file: File) => void }) {
 }
 
 function ConnectStep({
-  next,
+  onDone,
   back,
   goTo
 }: {
-  next: () => void
+  onDone: () => void
   back: () => void
   goTo: (id: WizardStepId) => void
 }) {
@@ -517,6 +518,7 @@ function ConnectStep({
               ? t('wizard.connect.connectedAs', { name: identity })
               : t('wizard.connect.connectedPlain')}
           </p>
+          <p className="wizard-dim">{t('wizard.connect.closingNote')}</p>
         </div>
       )}
 
@@ -524,73 +526,11 @@ function ConnectStep({
         <button className="wizard-quiet" onClick={back}>
           {t('wizard.nav.back')}
         </button>
-        <button className="primary" disabled={phase !== 'connected'} onClick={next}>
-          {t('wizard.nav.next')}
+        <button className="primary" disabled={phase !== 'connected'} onClick={onDone}>
+          {t('wizard.connect.openChronicleButton')}
         </button>
       </div>
     </div>
   )
 }
 
-function FirstSyncStep({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle')
-  const [statusLine, setStatusLine] = useState('')
-  const [summary, setSummary] = useState<{ channels: number; videos: number } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    return window.chronicle.onEvent((event: ChronicleEventDto) => {
-      if (event.type === 'refresh:progress') {
-        setStatusLine(
-          event.phase === 'shorts'
-            ? t('wizard.firstSync.progressShorts', { checked: event.checked, total: event.total })
-            : t('wizard.firstSync.progressChannels', { checked: event.checked, total: event.total })
-        )
-      }
-      if (event.type === 'refresh:done') {
-        setPhase('done')
-        setSummary({ channels: event.report.channelsPolled, videos: event.report.videosNew })
-      }
-      // B-023: without this, a failure mid-sync left the step stuck on
-      // "Working…" forever with no way forward except quitting the wizard.
-      if (event.type === 'refresh:failed') {
-        setPhase('idle')
-        setError(event.message)
-      }
-    })
-  }, [])
-
-  function start(): void {
-    setError(null)
-    setPhase('running')
-    setStatusLine(t('wizard.firstSync.progressStart'))
-    void window.chronicle.refreshFeed()
-  }
-
-  return (
-    <div className="wizard-step">
-      <h1>{t('wizard.firstSync.heading')}</h1>
-      <p className="wizard-why">{t('wizard.firstSync.why')}</p>
-
-      {phase === 'idle' && (
-        <button className="primary" onClick={start}>
-          {error !== null ? t('wizard.firstSync.tryAgainButton') : t('wizard.firstSync.startButton')}
-        </button>
-      )}
-      {error !== null && phase === 'idle' && <p className="wizard-error">{error}</p>}
-      {phase === 'running' && <p className="wizard-dim">{statusLine || t('wizard.firstSync.workingFallback')}</p>}
-      {phase === 'done' && summary !== null && (
-        <div className="wizard-ok">
-          <p>{t('wizard.firstSync.summary', { channels: summary.channels, videos: summary.videos })}</p>
-          <p className="wizard-dim">{t('wizard.firstSync.summaryNote')}</p>
-        </div>
-      )}
-
-      <div className="wizard-nav">
-        <button className="primary" disabled={phase !== 'done'} onClick={onDone}>
-          {t('wizard.firstSync.openFeedButton')}
-        </button>
-      </div>
-    </div>
-  )
-}

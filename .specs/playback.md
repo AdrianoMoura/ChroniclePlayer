@@ -124,6 +124,19 @@ Data handling for externally opened videos (Final):
   `ui.md`). Note: keyboard control of the IFrame player requires proxying keys through
   the IFrame API (`player.playVideo()` etc.) since the iframe swallows focus — an
   implementation detail worth planning for.
+- **Known limitation, confirmed 2026-07-15 ([[B-089]]):** the proxying above only covers
+  key presses while focus is on Chronicle's own app (the common case, since the iframe
+  "swallows focus" only for its own internal controls the user clicks directly). If focus
+  is genuinely inside the cross-origin YouTube iframe when a key is pressed, that keydown
+  never reaches the parent frame's listener at all — a browser same-origin security
+  boundary, not something any amount of Chronicle JS can intercept or override. In that
+  case the key press is handled entirely by YouTube's own embedded player instead, which
+  can behave differently (observed: its own fullscreen toggle drops its player controls,
+  where Chronicle's own `f` handling — `requestFullscreen()` on the wrapping element —
+  keeps them). Not fixable from Chronicle's side without disabling the iframe's own
+  legitimate focus/interaction entirely (its native controls, seek bar, volume), which
+  would be a worse regression than the inconsistency itself — accepted as a platform
+  limitation rather than pursued further.
 - **Resume playback position — implemented 2026-07-13 (`bugs.md` B-044), promoted off
   this future-ideas list per product-owner request.** `video_state.resume_position_seconds`
   (schema v7) persists the last known position, read via the IFrame API's `infoDelivery`

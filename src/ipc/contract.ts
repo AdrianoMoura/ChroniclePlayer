@@ -18,6 +18,7 @@ export interface VideoStateDto {
 export interface FeedVideoDto {
   videoId: string
   title: string
+  channelId: string
   channelTitle: string
   publishedAt: string // ISO-8601 UTC
   durationSeconds: number | null
@@ -140,7 +141,7 @@ export const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
 // Mirrors platform settings.json (human-editable; local-data.md).
 export interface SettingsDto {
   theme: 'system' | 'dark' | 'light'
-  itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl' // B-007/D-037, default medium — list + grid
+  itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl' // B-007/D-037, default medium — list + grid
   layout: 'list' | 'grid' // B-007, default list
   refreshMinutes: number // 0 = manual only (D-016)
   showViewCounts: boolean // D-018
@@ -203,10 +204,19 @@ export interface AuthStatusDto {
   writeScopeGranted: boolean
 }
 
+// B-097: raw per-channel (or account-level, when channelId is null) detail
+// behind channelsFailed — the banner's info affordance shows these.
+export interface SyncFailureDetailDto {
+  channelId: string | null
+  channelTitle: string | null
+  message: string
+}
+
 export interface SyncReportDto {
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
   channelsPolled: number
   channelsFailed: number
+  failures: SyncFailureDetailDto[]
   videosNew: number
   quotaSpent: number
   finishedAt: string

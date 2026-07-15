@@ -10,6 +10,7 @@ import { t } from './i18n'
 
 interface SettingsViewProps {
   auth: AuthStatusDto | null
+  primaryAccountLabel: string
   settings: SettingsDto
   appVersion: string
   onSettingsChange: (settings: SettingsDto) => void
@@ -22,6 +23,7 @@ interface SettingsViewProps {
 
 export function SettingsView({
   auth,
+  primaryAccountLabel,
   settings,
   appVersion,
   onSettingsChange,
@@ -105,7 +107,7 @@ export function SettingsView({
         <p className="settings-line dim">{t('settings.connection.playerSessionNote')}</p>
         <div className="settings-actions">
           <button className="primary" onClick={onReconnect}>
-            {t('settings.connection.reconnectButton')}
+            {t('settings.connection.reconnectButton', { account: primaryAccountLabel })}
           </button>
           <button className="primary" onClick={onReplaceKey}>
             {t('settings.connection.replaceKeyButton')}

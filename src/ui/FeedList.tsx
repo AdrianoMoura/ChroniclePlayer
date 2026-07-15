@@ -16,22 +16,37 @@ type DisplayRow =
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
   | { kind: 'card-row'; key: string; items: { video: FeedVideoDto; videoIndex: number }[] }
 
-// File-explorer-style item size (B-007, five steps as of the B-037 follow-up):
-// shared by list rows and grid cards. Medium is the default (formerly
-// "comfortable" density). The xl step is a deliberately bigger jump than the
-// rest — it's the "as big as it gets" option, not another even increment.
-export type ItemSize = 'xs' | 'small' | 'medium' | 'large' | 'xl'
-export const ITEM_SIZES: ItemSize[] = ['xs', 'small', 'medium', 'large', 'xl']
-const ROW_HEIGHTS: Record<ItemSize, number> = { xs: 40, small: 56, medium: 76, large: 108, xl: 156 }
+// File-explorer-style item size (B-007, six steps as of the B-095
+// follow-up): shared by list rows and grid cards. Medium is the default
+// (formerly "comfortable" density). The xl/xxl steps are deliberately bigger
+// jumps than the rest — "as big as it gets" territory, not another even
+// increment.
+export type ItemSize = 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl'
+export const ITEM_SIZES: ItemSize[] = ['xs', 'small', 'medium', 'large', 'xl', 'xxl']
+const ROW_HEIGHTS: Record<ItemSize, number> = {
+  xs: 40,
+  small: 56,
+  medium: 76,
+  large: 108,
+  xl: 156,
+  xxl: 208
+}
 const HEADER_HEIGHT = 38
 // Card target width; actual column count is derived from container width so
 // the grid reflows instead of overflowing (D-037). Both grow with itemSize.
+// `height` must cover the card's actual rendered height (thumb + padding +
+// gap + two-line title + meta line at that size's own font-size) — the
+// virtualizer never re-measures individual cards (no `measureElement`), so
+// an estimate shorter than the real content makes consecutive virtualized
+// rows overlap. xs/small were previously under-budgeted (B-095); the
+// margin below is generous on purpose rather than pixel-exact.
 export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
-  xs: { minWidth: 110, height: 108 },
-  small: { minWidth: 160, height: 150 },
-  medium: { minWidth: 220, height: 210 },
+  xs: { minWidth: 110, height: 144 },
+  small: { minWidth: 160, height: 176 },
+  medium: { minWidth: 220, height: 214 },
   large: { minWidth: 300, height: 290 },
-  xl: { minWidth: 420, height: 400 }
+  xl: { minWidth: 420, height: 400 },
+  xxl: { minWidth: 560, height: 420 }
 }
 
 function buildCardRows(
@@ -74,6 +89,7 @@ interface FeedListProps {
   undoable: ReadonlySet<string>
   actions: VideoActions
   onOpen: (videoIndex: number) => void
+  onOpenChannel: (channelId: string) => void
   onNearEnd: () => void
   onAtTopChange: (atTop: boolean) => void
   itemSize: ItemSize
@@ -88,6 +104,7 @@ export function FeedList({
   undoable,
   actions,
   onOpen,
+  onOpenChannel,
   onNearEnd,
   onAtTopChange,
   itemSize,
@@ -181,6 +198,7 @@ export function FeedList({
                       undoable={undoable.has(video.videoId)}
                       actions={actions}
                       onOpen={() => onOpen(videoIndex)}
+                      onOpenChannel={onOpenChannel}
                       showViewCounts={showViewCounts}
                     />
                   ))}
@@ -192,6 +210,7 @@ export function FeedList({
                   undoable={undoable.has(row.video.videoId)}
                   actions={actions}
                   onOpen={() => onOpen(row.videoIndex)}
+                  onOpenChannel={onOpenChannel}
                   showViewCounts={showViewCounts}
                 />
               )}
@@ -210,6 +229,7 @@ interface VideoRowProps {
   undoable: boolean
   actions: VideoActions
   onOpen: () => void
+  onOpenChannel: (channelId: string) => void
   showViewCounts: boolean
   // B-043: the main virtualized FeedList has its own keyboard path (global
   // j/k/Enter cursor navigation) — making every row individually Tab-
@@ -233,6 +253,7 @@ export function VideoRow({
   undoable,
   actions,
   onOpen,
+  onOpenChannel,
   showViewCounts,
   focusable = false
 }: VideoRowProps) {
@@ -273,7 +294,13 @@ export function VideoRow({
       <div className="row-text">
         <span className="title">{video.title}</span>
         <span className="meta">
-          {video.channelTitle} · {publishedLabel(video.publishedAt)}
+          <span
+            className="channel-link"
+            onClick={(e) => stop(e, () => onOpenChannel(video.channelId))}
+          >
+            {video.channelTitle}
+          </span>{' '}
+          · {publishedLabel(video.publishedAt)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
           {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
           {state.watchLater && (
@@ -338,6 +365,7 @@ export function VideoCard({
   undoable,
   actions,
   onOpen,
+  onOpenChannel,
   showViewCounts,
   focusable = false
 }: VideoCardProps) {
@@ -418,7 +446,13 @@ export function VideoCard({
       <div className="row-text">
         <span className="title">{video.title}</span>
         <span className="meta">
-          {video.channelTitle} · {publishedLabel(video.publishedAt)}
+          <span
+            className="channel-link"
+            onClick={(e) => stop(e, () => onOpenChannel(video.channelId))}
+          >
+            {video.channelTitle}
+          </span>{' '}
+          · {publishedLabel(video.publishedAt)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
           {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
           {state.watchLater && (

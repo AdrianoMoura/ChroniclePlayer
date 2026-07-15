@@ -779,6 +779,43 @@ input:focus-visible,
   border-radius: 6px;
 }
 
+/* B-097: per-channel sync-failure detail, disclosed on demand rather than
+   dumped into the banner text itself (which stays a one-line count). */
+.banner-detail-toggle {
+  color: var(--text-dim);
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+
+.banner-detail-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.banner-detail-panel {
+  margin: 4px 20px 0;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.banner-detail-panel ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.banner-detail-panel li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .refresh-icon {
   display: inline-block;
 }
@@ -1009,6 +1046,12 @@ button.primary:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.channel-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .glyph {
@@ -1610,6 +1653,80 @@ button.primary.active {
 
 :is(.feed-scroll, .priority-section, .search-results).size-small .card .title {
   font-size: 12.5px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xxl .row {
+  height: 180px;
+  gap: 22px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xxl .row .thumb {
+  width: 320px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xxl .title {
+  font-size: 17px;
+}
+
+/* B-095: the grid card's badges/action-bar are fixed-size and corner-
+   anchored regardless of item size — fine once the card (and its thumbnail)
+   are large enough to hold them with room to spare, but at xs/small the
+   thumbnail itself is barely taller than the badges, so the full-size
+   versions collide with each other. Shrunk and pulled closer to the corner
+   at these two sizes only; medium and up have always had enough headroom. */
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-thumb-wrap .unread-dot {
+  top: 3px;
+  left: 3px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-short-badge,
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-live-badge {
+  top: 3px;
+  right: 3px;
+  font-size: 9px;
+  padding: 1px 4px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-duration {
+  bottom: 3px;
+  right: 3px;
+  font-size: 10px;
+  padding: 2px 3px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-actions {
+  bottom: 3px;
+  left: 3px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-xs .card-actions button {
+  padding: 2px;
+  font-size: 10px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-small .card-short-badge,
+:is(.feed-scroll, .priority-section, .search-results).size-small .card-live-badge {
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-small .card-duration {
+  bottom: 6px;
+  right: 4px;
+  font-size: 11px;
+  padding: 3px 4px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-small .card-actions {
+  bottom: 6px;
+  left: 4px;
+}
+
+:is(.feed-scroll, .priority-section, .search-results).size-small .card-actions button {
+  padding: 4px;
+  font-size: 11px;
 }
 
 /* ── Settings ────────────────────────────────────────── */

@@ -23,6 +23,7 @@ justified against this document and its quota cost stated in a code comment.**
 | `channels.list` (batched, 50 ids/call) | 1 per call | Uploads-playlist IDs, channel metadata |
 | `playlistItems.list` (50/page) | 1 per call | Gap detection during sync, and on-demand back-catalog fetch when scrolling past a channel's local archive ([[B-002]], implemented 2026-07-12 — bounded at 4 pages/call, resumable) |
 | `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live/premiere status, stats |
+| `videos.list` (single id) | 1 per call | Full (untruncated) description on every player open of an already-known video ([[B-092]], implemented 2026-07-15) — storage caps descriptions at 500 chars (local-data.md), which the player was serving as-is with no way to see the rest. Same trivial-per-open-cost precedent as `getRating` above; falls back to the stored (possibly short) copy on failure rather than blocking playback. |
 | `subscriptions.delete` | 50 per call | Unsubscribe ([[B-010]], implemented 2026-07-12; incremental scope per D-032) |
 | `subscriptions.insert` | 50 per call | In-app subscribe ([[B-009]], implemented 2026-07-12; D-030, incremental scope per D-032) |
 | `videos.rate` / `videos.getRating` | 50 / 1 | Like a video ([[B-006]], implemented 2026-07-12; D-032). `getRating` runs silently on every video open (readonly scope, no consent needed) — 1 unit is trivial even at high viewing volume. No public endpoint exists to like a *comment*. |
@@ -83,10 +84,22 @@ videos are fetched by default; older content loads on demand as the user scrolls
 - Cost of the hybrid: two code paths and reconciliation logic. Accepted; the port design
   in `architecture.md` contains it.
 
-Edge case: RSS's 15-item window can miss uploads for very-high-volume channels between
-infrequent refreshes. Mitigation: per-channel gap detection — if all 15 RSS items are new,
-assume possible gap and page `playlistItems.list` for that channel until reaching a known
-video (bounded backfill; see `feed.md` §Backfill).
+Edge case: RSS's 15-item window can miss uploads — for very-high-volume channels between
+infrequent refreshes, or for any channel whose sync ever failed mid-cycle (nothing gets
+inserted or marked known that day, so once enough newer videos push the missed ones out
+of the window, they're gone from every future window too). **Revised 2026-07-15
+(`bugs.md` [[B-051]]):** originally gated on the whole RSS window being new (any known
+entry in the window was taken as proof there was no gap) — too conservative, since a
+window can be a mix of known and new entries and still hide an older miss the known entry
+says nothing about. Now: any channel with **at least one** newly discovered video this
+cycle pages `playlistItems.list` for that channel, stopping at the first page that
+overlaps the real (DB-wide, not just this window's) known set — bounded backfill; see
+`feed.md` §Backfill. In the common gap-free case this is one extra `playlistItems.list`
+call (1 unit) per channel per cycle that had any new video, since the very first page
+already overlaps; still comfortably inside the daily budget (single digits to low tens of
+units becomes, worst case, roughly one unit per active channel per cycle — for the
+229-subscription real-world smoke in M2, still well under 1 unit × 229 ≈ 229 units even if
+*every* channel published something in the same cycle, against the 10,000/day budget).
 
 ## Subscription import & sync (Final in shape)
 

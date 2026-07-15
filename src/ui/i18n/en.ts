@@ -83,7 +83,10 @@ export const en = {
     'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it (D-013 fallback).',
   'settings.connection.playerSessionNote':
     "The embedded player uses Electron's own persistent browser session, separate from the Google connection above — but there's currently no way to sign into that session from inside Chronicle, so YouTube Premium's ad-free playback won't apply here even if you're signed into Premium elsewhere.",
-  'settings.connection.reconnectButton': 'Reconnect Google account',
+  // Names the account explicitly — this action only ever touches the
+  // primary account, which is otherwise ambiguous now that multiple
+  // accounts can exist.
+  'settings.connection.reconnectButton': 'Reconnect "{account}"',
   'settings.connection.replaceKeyButton': 'Replace API key',
   'settings.connection.fixWeeklyLogoutButton': 'Fix weekly logout',
   'settings.connection.signOutButton': 'Sign out',
@@ -244,21 +247,11 @@ export const en = {
   'wizard.connect.fixItButton': '← Fix it in Step {step}',
   'wizard.connect.connectedPlain': '✓ Connected.',
   'wizard.connect.connectedAs': '✓ Connected as {name}.',
-
-  // Wizard — FirstSyncStep
-  'wizard.firstSync.heading': 'Step 8 — First sync',
-  'wizard.firstSync.why':
-    'Chronicle imports your subscriptions and fetches their recent uploads. The first run also filters Shorts, which takes a few minutes on large accounts — a one-time cost.',
-  'wizard.firstSync.startButton': 'Import my subscriptions',
-  'wizard.firstSync.tryAgainButton': 'Try again',
-  'wizard.firstSync.progressStart': 'Importing your subscriptions…',
-  'wizard.firstSync.progressShorts': 'Filtering Shorts — {checked} of {total} checked…',
-  'wizard.firstSync.progressChannels': 'Checking {checked} of {total} channels…',
-  'wizard.firstSync.workingFallback': 'Working…',
-  'wizard.firstSync.summary': '✓ Found {channels} subscriptions and {videos} recent videos.',
-  'wizard.firstSync.summaryNote':
+  // Chronicle starts importing subscriptions in the background the moment
+  // this connects — no separate "first sync" step to wait through.
+  'wizard.connect.closingNote':
     'Everything Chronicle knows is stored on this computer. Your key can be revoked anytime at myaccount.google.com/permissions.',
-  'wizard.firstSync.openFeedButton': 'Open my feed →',
+  'wizard.connect.openChronicleButton': 'Open Chronicle →',
 
   // App — feed buckets
   'app.bucket.today': 'Today',
@@ -277,6 +270,10 @@ export const en = {
   'app.banner.openVideoFailed': 'Could not open the video: {message}',
   'app.banner.refreshPartial':
     'Refresh finished, but {count} channel(s) failed — they will be retried next cycle.',
+  'app.banner.showDetails': 'Details',
+  'app.banner.hideDetails': 'Hide details',
+  'app.banner.showDetailsTitle': 'Show which channels failed and why',
+  'app.banner.failureAccountLevel': 'Account-level',
   'app.banner.quotaExceeded':
     'Daily API limit reached — it resets at {time} your time. Chronicle keeps working from local data; discovery via RSS continues free.',
   'app.banner.signedOut': 'Signed out. Local data was kept — reconnect anytime.',
@@ -314,7 +311,10 @@ export const en = {
   'app.topbar.unfavoriteChannelTitle': 'Unfavorite',
 
   // App — status text
-  'app.status.filteringShorts': 'filtering Shorts — {checked} of {total} checked…',
+  // "Identifying," not "filtering" — Shorts are shown, badged, not excluded
+  // (see feed.md §Shorts / D-035); this phase only confirms which already-
+  // visible videos get the badge.
+  'app.status.filteringShorts': 'identifying Shorts — {checked} of {total} checked…',
   'app.status.checkingChannels': 'checking {checked} of {total} channels…',
   'app.status.refreshing': 'refreshing…',
   'app.status.caughtUp': 'All caught up',

@@ -88,6 +88,7 @@ function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
   return {
     videoId: entry.video.videoId,
     title: entry.video.title,
+    channelId: entry.video.channelId,
     channelTitle: entry.channelTitle,
     publishedAt: entry.video.publishedAt,
     durationSeconds: entry.video.durationSeconds,
@@ -115,6 +116,7 @@ function toReportDto(report: SyncReport): SyncReportDto {
     outcome: report.outcome,
     channelsPolled: report.channelsPolled,
     channelsFailed: report.channelsFailed,
+    failures: report.failures,
     videosNew: report.videosNew,
     quotaSpent: report.quotaSpent,
     finishedAt: report.finishedAt,
@@ -201,25 +203,14 @@ function chooseSecretStore(file: string): FileSecretStore {
   return new FileSecretStore(file, ciphers[chosen], chosen)
 }
 
-const RENDERER_URL_ARG_PREFIX = '--chronicle-renderer-url='
-
-// B-022: `app.relaunch()` has no `env` option (only `args`/`execPath`), so a
-// dev renderer URL that only lives in `process.env['ELECTRON_RENDERER_URL']`
-// (set by electron-vite's dev orchestrator on the original process) is not
-// guaranteed to reach the relaunched instance the same way. Falling through
-// to `loadFile()` in dev would try to load a renderer bundle that only
-// exists in a packaged build — exactly the blank/frozen window reported
-// after "Delete all data". Reading it from argv too removes the dependency
-// on env-inheritance behavior entirely; `deleteAllData` below writes it into
-// `args` before relaunching.
+// electron-vite's dev orchestrator sets this once on this process and it
+// stays set for the process's whole lifetime — including across a "delete
+// all data" reset, which no longer spawns a new process at all (see boot()).
 function devRendererUrl(): string | undefined {
-  const fromEnv = process.env['ELECTRON_RENDERER_URL']
-  if (fromEnv) return fromEnv
-  const fromArgv = process.argv.find((arg) => arg.startsWith(RENDERER_URL_ARG_PREFIX))
-  return fromArgv?.slice(RENDERER_URL_ARG_PREFIX.length)
+  return process.env['ELECTRON_RENDERER_URL']
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -249,6 +240,7 @@ function createWindow(): void {
     // fail with Error 153 on it.
     void window.loadFile(join(__dirname, '../renderer/index.html'))
   }
+  return window
 }
 
 function broadcast(event: ChronicleEventDto): void {
@@ -260,14 +252,24 @@ function broadcast(event: ChronicleEventDto): void {
 let db: DatabaseSync | undefined
 let packagedRendererUrl: string | null = null
 let closeRendererServer: (() => void) | null = null
+// Module-level (not boot()-local): "delete all data" tears boot() down and
+// calls it again in-process (see boot()'s own comment for why), and the
+// will-quit cleanup below needs to reach whichever generation's timers are
+// currently live regardless of how many times boot() has run.
+let timer: ReturnType<typeof setInterval> | null = null
+let updateTimer: ReturnType<typeof setInterval> | null = null
 
-void app.whenReady().then(async () => {
-  if (app.isPackaged) {
-    const server = await startRendererServer(join(__dirname, '../renderer'))
-    packagedRendererUrl = `${server.url}/index.html`
-    closeRendererServer = server.close
-  }
-
+// Composition root + IPC registration. Callable more than once: "delete all
+// data" (IpcChannel.deleteAllData below) tears everything down and calls
+// this again in the same process, landing on a genuinely fresh first-run
+// state without ever exiting the process. Previously this flow used
+// `app.relaunch()` + `app.quit()` instead, which reportedly left the
+// relaunched window frozen/blank — the working theory is that `electron-vite
+// dev` supervises this process as its own child and tears down the Vite dev
+// server the moment it sees that child exit, which a relaunched instance
+// then has nothing to `loadURL()` against. Never exiting the process at all
+// sidesteps that regardless of whether the theory is exactly right.
+async function boot(): Promise<void> {
   const dataDir = chronicleDataDir()
   mkdirSync(dataDir, { recursive: true })
   // Migrations run before anything reads the DB (local-data.md §Migrations).
@@ -397,6 +399,7 @@ void app.whenReady().then(async () => {
       finishedAt: acc.finishedAt > r.finishedAt ? acc.finishedAt : r.finishedAt,
       channelsPolled: acc.channelsPolled + r.channelsPolled,
       channelsFailed: acc.channelsFailed + r.channelsFailed,
+      failures: [...acc.failures, ...r.failures],
       videosNew: acc.videosNew + r.videosNew,
       quotaSpent: acc.quotaSpent + r.quotaSpent,
       outcome: outcomeRank[r.outcome] > outcomeRank[acc.outcome] ? r.outcome : acc.outcome,
@@ -799,7 +802,20 @@ void app.whenReady().then(async () => {
       const id = parseVideoId(videoId)
       const local = feedRepository.findVideo(id)
       if (local !== null) {
-        const { entry, description } = local
+        const { entry, description: storedDescription } = local
+        // Storage keeps descriptions truncated to 500 chars (local-data.md).
+        // The player wants the full text, so it's re-fetched here rather
+        // than served straight from the truncated copy — videos.list, 1 unit,
+        // same call the external-video branch below already makes for the
+        // same reason. Never blocks opening the video: a failure (offline,
+        // quota) just falls back to the shorter stored copy.
+        let description = storedDescription
+        try {
+          const [fresh] = await apiClient.hydrate([id])
+          if (fresh !== undefined) description = fresh.description
+        } catch {
+          // Keep the stored (possibly truncated) description.
+        }
         return {
           ok: true,
           value: {
@@ -1215,7 +1231,6 @@ void app.whenReady().then(async () => {
   let settings: AppSettings = loaded.settings
   const settingsWarning = loaded.warning
 
-  let timer: ReturnType<typeof setInterval> | null = null
   function applyRefreshTimer(): void {
     if (timer !== null) clearInterval(timer)
     timer = null
@@ -1231,7 +1246,6 @@ void app.whenReady().then(async () => {
   // API — a startup check plus a slow (24h) interval, since unlike sync
   // there's no reason to poll a release feed often.
   const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000
-  let updateTimer: ReturnType<typeof setInterval> | null = null
   async function checkForUpdates(): Promise<void> {
     const release = await updateSource.latestRelease()
     if (release !== null && isNewerVersion(app.getVersion(), release.version)) {
@@ -1290,8 +1304,8 @@ void app.whenReady().then(async () => {
   })
 
   // local-data.md §Privacy invariants: DB + secrets + caches gone, then a
-  // clean relaunch (which lands on the first-run wizard).
-  ipcMain.handle(IpcChannel.deleteAllData, () => {
+  // clean first-run state — entirely in-process (see boot()'s own comment).
+  ipcMain.handle(IpcChannel.deleteAllData, async () => {
     db?.close()
     db = undefined
     for (const suffix of ['', '-wal', '-shm']) {
@@ -1300,43 +1314,54 @@ void app.whenReady().then(async () => {
     rmSync(settingsFile, { force: true })
     rmSync(join(dataDir, 'secrets.json'), { force: true })
     rmSync(chronicleCacheDir(), { recursive: true, force: true })
-    // B-022: carry the dev renderer URL through relaunch via argv, not just
-    // env-inheritance (see devRendererUrl() above) — relaunch's API has no
-    // `env` option to set it directly.
-    const rendererUrl = devRendererUrl()
-    const relaunchArgs = process.argv
-      .slice(1)
-      .filter((arg) => !arg.startsWith(RENDERER_URL_ARG_PREFIX))
-    if (!app.isPackaged && rendererUrl) {
-      relaunchArgs.push(`${RENDERER_URL_ARG_PREFIX}${rendererUrl}`)
+    if (timer !== null) {
+      clearInterval(timer)
+      timer = null
     }
-    app.relaunch({ args: relaunchArgs })
-    // app.exit() skips window teardown and the normal quit sequence — the
-    // relaunched window can start before the old one's GPU/compositor
-    // surface is gone, which lands as a frozen/blank window on some
-    // compositors (observed on niri/Wayland). Destroying windows and quitting
-    // normally lets the old instance tear down cleanly before the new one
-    // starts.
-    for (const window of BrowserWindow.getAllWindows()) window.destroy()
-    app.quit()
+    if (updateTimer !== null) {
+      clearInterval(updateTimer)
+      updateTimer = null
+    }
+    // Every handler this boot() generation registered must go before the
+    // next boot() re-registers them — ipcMain.handle throws if a channel
+    // already has one.
+    for (const channel of Object.values(IpcChannel)) ipcMain.removeHandler(channel)
+    try {
+      protocol.unhandle('thumb')
+    } catch {
+      // Nothing registered yet — fine.
+    }
+    // The stale windows are kept alive (not destroyed) until boot() has a
+    // fresh one up: destroying every window first would momentarily drop
+    // BrowserWindow.getAllWindows() to zero, which on Linux/Windows fires
+    // the window-all-closed handler below straight into app.quit() — the
+    // same "process exits mid-reset" failure mode this whole rework exists
+    // to avoid, just reached a different way.
+    const staleWindows = BrowserWindow.getAllWindows()
+    await boot()
+    for (const window of staleWindows) window.destroy()
   })
 
-  createWindow()
-
-  const firstWindow = BrowserWindow.getAllWindows()[0]
-  firstWindow?.webContents.once('did-finish-load', () => {
+  const window = createWindow()
+  window.webContents.once('did-finish-load', () => {
     void validateConnectionAndCatchUp()
   })
+}
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+void app.whenReady().then(async () => {
+  if (app.isPackaged) {
+    const server = await startRendererServer(join(__dirname, '../renderer'))
+    packagedRendererUrl = `${server.url}/index.html`
+    closeRendererServer = server.close
+  }
+  await boot()
+})
 
-  app.on('will-quit', () => {
-    if (timer !== null) clearInterval(timer)
-    if (updateTimer !== null) clearInterval(updateTimer)
-    closeRendererServer?.()
-  })
+// Registered once, outside boot() — boot() itself can run more than once
+// (delete-all), and createWindow() is already a stable top-level function,
+// so this doesn't need to be re-registered on every generation.
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
 app.on('window-all-closed', () => {
@@ -1344,5 +1369,8 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  if (timer !== null) clearInterval(timer)
+  if (updateTimer !== null) clearInterval(updateTimer)
+  closeRendererServer?.()
   db?.close()
 })

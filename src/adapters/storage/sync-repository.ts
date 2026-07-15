@@ -370,6 +370,17 @@ export class SqliteSyncRepository implements SyncRepository {
       .run(isShort ? 1 : 0, videoId)
   }
 
+  upcomingVideoIds(channelId?: string): string[] {
+    const rows = (
+      channelId === undefined
+        ? this.db.prepare(`SELECT video_id FROM videos WHERE live_content = 'upcoming'`)
+        : this.db.prepare(
+            `SELECT video_id FROM videos WHERE live_content = 'upcoming' AND channel_id = ?`
+          )
+    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
+    return rows.map((row) => row.video_id)
+  }
+
   recordSync(entry: SyncLogEntry): void {
     this.db
       .prepare(
