@@ -286,6 +286,8 @@ export const IpcChannel = {
   removeAccount: 'accounts:remove',
   syncAccountNow: 'accounts:syncNow',
   getAppVersion: 'app:getVersion',
+  openYouTubeSignIn: 'auth:openYouTubeSignIn',
+  extractPlayer: 'player:extract',
   events: 'chronicle:event'
 } as const
 
@@ -346,6 +348,17 @@ export interface ChronicleApi {
   setSettings(settings: SettingsDto): Promise<void>
   // Settings' About line + the D-026 update check's "current version" baseline.
   getAppVersion(): Promise<string>
+  // Opens a plain window (system chrome, no custom frame) at youtube.com in the
+  // app's own persistent session — the same one the embedded player's iframe
+  // uses, since the OAuth connect flow (D-001/D-012) runs in the system
+  // browser and never touches this one. Signing in here is what lets the
+  // player pass YouTube's bot-check (B-093).
+  openYouTubeSignIn(): Promise<void>
+  // B-045: pops the player into its own always-on-top OS window. There's no
+  // way to move the live iframe's DOM node into a different renderer
+  // process, so this hands off a snapshot (current position, playing or
+  // paused) to a fresh instance in the new window rather than the same one.
+  extractPlayer(videoId: string, currentTimeSeconds: number, playing: boolean): Promise<void>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

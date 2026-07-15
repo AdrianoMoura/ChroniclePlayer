@@ -69,105 +69,130 @@ Resolved entries add:
 
 ## Open
 
-### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
-- **Type:** adjustment (feasibility unclear)
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
-- **Area:** player / auth
-- **What happens:** the embedded IFrame player started showing YouTube's bot-check
-  ("Sign in to confirm you're not a bot… Sign in") on some videos; the in-player Sign
-  in link does nothing. Current manual workaround found by the owner: click the
-  YouTube icon in the player corner (opens the video's YouTube page in an Electron
-  window), sign in there, close it — the embed then starts working again, and stays
-  working (that window's session persists).
-- **Expected:** no single obvious fix — ideas raised: (a) share the authenticated
-  session/cookies from wherever the owner already signs in (the "open on YouTube"
-  Electron window) into the iframe's session, so the embed itself is authenticated;
-  (b) a friendlier explicit "Sign in to YouTube" action that opens a controlled
-  Electron window for login and keeps that session for the embed afterward, rather
-  than relying on the owner discovering the corner-icon workaround.
-- **Code refs:** `src/ui/PlayerView.tsx` (iframe embed, `enablejsapi=1`, the corner
-  "open on YouTube" link); `src/platform/main.ts` (window/session creation — an
-  Electron `session` partition is the likely mechanism: pointing the iframe's session
-  at the same partition as the "open on YouTube" window instead of the default one).
-- **Notes:** needs a **Pending decision** in `decisions.md` before implementing — this
-  touches how Electron sessions/partitions are structured across the app, which is an
-  architecture question, not a small UI tweak. Also worth checking whether sharing a
-  session this way has any TOS implications worth a sentence in
-  `non-goals.md`/`authentication.md`.
-
 ### B-086 — Members-only videos never show up in the feed
 - **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
+  confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
+  0.2.0
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
-  (Whether it would actually play in the embedded player once listed is untested —
-  separate question.)
 - **Expected:** at minimum, members-only videos should be discoverable/listed like any
-  other video from a subscribed channel.
-- **Code refs:** `src/adapters/rss/rss-client.ts` (`parseFeed` — the per-channel RSS
-  feed is Chronicle's only discovery source per D-007, and YouTube's public RSS feed
-  does not include members-only videos at all, since it's unauthenticated).
-- **Notes:** per the owner, once discovered there's no need for special handling —
-  treat it as a normal video. The gap is entirely on the discovery side: RSS
-  structurally can't surface members-only content. Fixing this needs an authenticated
-  discovery path (e.g. querying the channel's uploads via the Data API with the
-  signed-in user's own membership) rather than a change to how a members-only video is
-  displayed — needs research into whether/how the Data API exposes
-  membership-restricted uploads to a member at all before this can be scoped.
+  other video from a subscribed channel — no special handling needed once discovered
+  (per the owner: even if playback turns out not to work, just knowing the video exists
+  is the ask).
+- **Code refs:** `src/adapters/rss/rss-client.ts` (`parseFeed` — structurally can't
+  carry members-only content, unauthenticated); `src/adapters/youtube/api-client.ts`
+  (`listUploads` — `playlistItems.list` on the uploads playlist, called with the
+  signed-in user's own OAuth token, no client-side filtering by privacy/visibility);
+  `src/core/sync-service.ts` (`discoverChannel`'s gap-backfill, `backfillArchive` —
+  both page through `listUploads`).
+- **Notes (research, 2026-07-15):** confirmed RSS can never carry this (unauthenticated,
+  no way for it to know who's asking). The open question was whether the *authenticated*
+  path (`playlistItems.list` via `listUploads`, already used by both gap-backfill and
+  on-demand archive backfill) can see members-only uploads when called with a genuine
+  member's own OAuth token. Checked the code for anything that would filter such videos
+  out if the API did return them — found nothing: `listUploads` and `applyHydration`
+  pass through whatever `items` the API gives back with no privacy/visibility filtering.
+  Whether the API actually *includes* member content for an authenticated member's own
+  request isn't confirmed by public documentation and isn't something to guess at by
+  writing speculative code against — it needs a live test against a real membership. Two
+  concrete things worth the owner testing directly, in order of cost: (1) scroll to the
+  bottom of that channel's screen to trigger `backfillArchive` (already-shipped, already
+  authenticated) and see if the members-only video appears; (2) if the channel also
+  publishes anything public, wait for the next regular sync — [[B-051]]'s fix (any new
+  video now triggers a gap-backfill pass, not just an all-new RSS window) may already
+  surface member content sitting in the same uploads-playlist window as a side effect,
+  with no new code. **Deliberately not implemented:** a routine per-cycle authenticated
+  playlist walk for every channel regardless of RSS activity, to catch the case where a
+  channel posts *only* member content and nothing public ever triggers a backfill pass —
+  at ~1 unit/channel/cycle × 229 channels × 48 cycles/day (30-min interval) that's
+  ~11,000 units/day on its own, over the entire 10,000/day budget by itself. Worth
+  revisiting only if (1)/(2) above confirm the authenticated path actually works and this
+  specific gap (member-only-only channels) turns out to matter in practice.
 
-### B-046 — Thumbnail hover preview (video scrub preview)
-- **Type:** adjustment (feasibility unclear)
-- **Status:** Open · **Reported:** 2026-07-12 · **Target:** 0.2.0
-- **Area:** feed / player
-- **What happens:** the owner would like hovering a thumbnail in the feed to preview the
-  video (like youtube.com's hover-scrub), and isn't sure it's feasible.
-- **Expected:** needs a research spike before scoping, not a straightforward "add it."
-  YouTube's own site-side hover preview is served via storyboard sprite sheets / short
-  muted clips through endpoints that aren't part of the public Data API — there's no
-  documented, quota-accounted way to fetch them today. Also worth checking whether the
-  IFrame Player API exposes anything usable per-video without loading a full second
-  player instance per thumbnail — likely too heavy for a virtualized feed regardless.
-- **Code refs:** `src/ui/FeedList.tsx` (`VideoCard`/`VideoRow` thumbnail rendering,
-  `thumb://` cache); `.specs/youtube-api.md` (endpoint budget — any new endpoint needs a
-  quota/justification entry here per project convention).
-- **Notes:** flagging as **research needed** rather than a scoped adjustment — the ask
-  itself doesn't conflict with the "who is driving?" test (it's a user-initiated hover,
-  not algorithmic), but the *data source* to power it is the open question.
+## In progress
 
 ### B-045 — Miniplayer: detach to a corner mini-view, extract to an always-on-top window
 - **Type:** adjustment
-- **Status:** Open · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0
 - **Area:** player / ui-shell
-- **What happens:** today the player view is full-view only (`playback.md` §Player view
-  spec) — leaving it goes back to the feed and playback stops (no background/PiP mode
-  exists).
-- **Expected:** three related asks bundled together: (1) leaving the player screen while
-  a video is playing (Esc/Back) drops it into a small persistent miniplayer docked
-  bottom-right instead of stopping playback; (2) an explicit "miniplayer" button inside
-  the full player view that does the same thing on demand (return to the feed/home, keep
-  playing in the corner); (3) a further "extract" action on the miniplayer that pops the
-  video into its own always-on-top OS window, independent of the main Chronicle window.
-- **Code refs:** `src/platform/main.ts` (single `createWindow()`/single-`BrowserWindow`
-  pattern today — the "extract to its own window" request needs a second `BrowserWindow`
-  with `alwaysOnTop: true`, which Electron supports natively); `src/ui/PlayerView.tsx`
-  (the postMessage widget protocol driving the current embed — a miniplayer would need to
-  either keep this same iframe instance alive across the view swap, or hand off playback
-  state (video id + `getCurrentTime()`) to a second instance, since re-mounting a fresh
-  iframe would restart the video); `.specs/playback.md` §Player view spec (no
-  miniplayer/background-playback concept exists yet).
-- **Notes:** this is a genuine architecture question, not a small UI tweak — needs a
-  **Pending decision** in `decisions.md` before implementing: does the miniplayer keep
-  the *same* iframe/player instance alive (continuity, no restart, but means the player
-  must be portal-able across two very different layout contexts), or hand off to a fresh
-  instance at the last known timestamp (simpler, but a visible hiccup/reload on
-  transition)? The "extract to always-on-top window" leg additionally needs deciding
-  whether that's a second `BrowserWindow` hosting its own iframe (clean process boundary,
-  definitely a restart-and-seek handoff) or something else. Also interacts with whatever
-  [[B-044]]'s resume-position storage ends up looking like — the same "read current
-  playback time" primitive is needed by both.
+- **What happens:** the player view was full-view only — leaving it went back to the feed
+  and stopped playback (no background/PiP mode).
+- **Expected:** (1) leaving the player screen while a video is playing (Esc/Back) drops
+  it into a small persistent miniplayer docked bottom-right instead of stopping
+  playback; (2) an explicit "Miniplayer" button inside the full player view does the
+  same thing on demand; (3) an "extract" action on the miniplayer pops the video into
+  its own always-on-top OS window.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (new — the live iframe + widget protocol,
+  split out so it can stay mounted across the layout swap); `src/ui/PlayerDetails.tsx`
+  (renamed from the old `PlayerView.tsx` — full-view chrome only, no iframe);
+  `src/ui/MiniPlayerBar.tsx` (new — docked chrome); `src/ui/ExtractedPlayerWindow.tsx`
+  (new — the minimal always-on-top window's content); `src/platform/main.ts`
+  (`createExtractWindow`, `loadRenderer`, `IpcChannel.extractPlayer`); `src/ui/main.tsx`
+  (`?extract=` query-param routing).
+- **Notes: D-046 (new decision).** Docking/maximizing keep the *same* live iframe
+  instance mounted throughout (per the product owner: a fresh instance on each
+  transition risks the video not continuing to play) — implemented via a
+  `PlayerSurface` component that portals its rendered iframe into whichever slot
+  element the current layout (`PlayerDetails` for full view, `MiniPlayerBar` for
+  docked) provides; both chrome components stay mounted at all times (CSS
+  `display:none` when inactive) specifically so their slot elements never disappear,
+  which would otherwise force `PlayerSurface` to briefly render nothing and unmount
+  (reload) the iframe. Extraction crosses into a second `BrowserWindow`
+  (`alwaysOnTop: true`) — a different renderer process, so the DOM node can't move
+  there — and hands off a playback snapshot (position, playing/paused) to a fresh,
+  minimal instance instead, per the owner's explicit direction to implement both legs
+  in the same pass and accept that reload as an inherent cost of the process boundary.
+  A `patch()` staleness bug surfaced during implementation and was fixed alongside
+  this: `playerStack` entries were never updated after the initial open, which the
+  miniplayer toggle would have exposed as read/favorite/watch-later state flickering
+  back to whatever it was when the video was first opened (`App.tsx`'s `patch` now
+  updates `playerStack` too, not just `videos`). Also found and fixed while wiring the
+  miniplayer's stacking: `.overlay-backdrop` (help, add-account, URL prompt, and
+  write-scope consent dialogs) had no explicit `z-index`, which the new
+  `.miniplayer`'s `z-index: 20` would have rendered above — bumped to `z-index: 30` so
+  a modal always wins regardless of what else is showing. Checked via
+  `npm run typecheck && npm run lint && npm test` (199/199) and `npm run build`; **not
+  run live** (per [[no-live-app-verification]]) — this is a substantial rework of the
+  player's mount lifecycle across two BrowserWindow processes, and needs the owner's
+  own hands-on validation (dock, maximize, extract, close, modal-over-miniplayer
+  stacking) before this can move to Resolved.
 
-## In progress
+### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
+- **Type:** adjustment (feasibility unclear)
+- **Status:** In progress · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** player / auth
+- **What happens:** the embedded IFrame player started showing YouTube's bot-check
+  ("Sign in to confirm you're not a bot… Sign in") on some videos; the in-player Sign
+  in link does nothing. Manual workaround the owner found: click the YouTube icon in
+  the player corner (opens the video's YouTube page in an Electron window), sign in
+  there, close it — the embed then starts working again, and stays working.
+- **Expected:** a friendlier explicit "Sign in to YouTube" action, discoverable in
+  Settings rather than an accidentally-found corner-icon click.
+- **Code refs:** `src/platform/main.ts` (`CHRONICLE_SESSION_PARTITION`,
+  `createWindow`, `IpcChannel.openYouTubeSignIn`); `src/ui/SettingsView.tsx`
+  (Connection section).
+- **Notes: D-045 (new decision), implementing option (b) from this entry's original
+  two ideas, not (a).** The corner-icon workaround already showed that a *shared*
+  session between the popup and the iframe is sufficient once actually signed into —
+  the iframe is a plain `<iframe>`, which always inherits its embedding page's
+  session, and neither the main window nor that popup ever specified a custom
+  partition, so they were almost certainly already sharing Electron's unnamed default
+  session. The actual gap was never session isolation needing a bridge (option a,
+  cookie injection between two separate sessions) — it was that nothing *deliberately
+  triggers* signing into that session, so the owner had to stumble onto the
+  corner-icon click. Implemented: the whole app now uses an explicitly named
+  persistent partition (`persist:chronicle`, `authentication.md` §The embedded
+  player's browser session) instead of the implicit unnamed default, and Settings →
+  Connection gained a plain "Sign in to YouTube" button that opens a same-partition
+  window at youtube.com — no automation, no cookie extraction, the user signs in
+  themselves exactly like the workaround already did. Checked via
+  `npm run typecheck && npm run lint && npm test`; **not run live**
+  (per [[no-live-app-verification]]) — the owner's own plan is to validate by opening
+  that window, confirming it looks authenticated, then checking the player itself.
+  Staying "In progress" (not Resolved) until that live check confirms the bot-check
+  symptom actually clears, matching how [[B-022]] is tracked in this file.
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
@@ -254,6 +279,29 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-046 — Thumbnail hover preview (video scrub preview)
+- **Type:** adjustment (feasibility unclear)
+- **Status:** Won't fix · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Area:** feed / player
+- **What happens:** the owner would like hovering a thumbnail in the feed to preview the
+  video (like youtube.com's hover-scrub).
+- **Expected:** was flagged as needing a research spike before scoping.
+- **Code refs:** `.specs/youtube-api.md` (§Terms-of-service constraints).
+- **Resolution:** research spike concluded **not feasible within Chronicle's own rules**,
+  not just technically hard. YouTube's site-side hover preview is served by storyboard
+  sprite sheets / short muted clips through endpoints that were never part of the public
+  Data API — they're Innertube/internal-only. `youtube-api.md` §Terms-of-service
+  constraints already states, as a permanent project rule: "Use documented, official
+  endpoints... No scraping of youtube.com internals, no Innertube private API, no cookie
+  extraction." Powering this feature would require exactly what that rule bans. The
+  fallback idea (a second, muted IFrame player instance per hovered thumbnail) was
+  already flagged in the original report as likely too heavy for a virtualized feed, and
+  doesn't sidestep the rule anyway since seeking a hidden player still needs metadata the
+  Data API doesn't expose per-timestamp. No code changes; the ask itself was always fine
+  by the "who is driving?" test (a user-initiated hover, not algorithmic) — only the data
+  source was ever in question, and it's now settled as unavailable.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Won't fix
 
 ### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
 - **Type:** bug · **Severity:** minor (root cause unconfirmed — may be a YouTube embed

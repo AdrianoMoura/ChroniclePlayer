@@ -150,6 +150,60 @@ Data handling for externally opened videos (Final):
   periodic tick, consistent with the app's "predictable, not continuously polling" style
   elsewhere (e.g. D-038's reissue-on-start pattern).
 
+## Miniplayer — D-046 (Final, exercised 2026-07-15)
+
+Leaving the full player view no longer has to stop playback. Three related surfaces,
+all `bugs.md` [[B-045]]:
+
+- **Docking**: pressing Esc/the Back button *while the video is actually playing*, from
+  the outermost level of the queue stack, docks to a small persistent corner box instead
+  of closing — the feed becomes interactive again underneath, keyboard shortcuts revert
+  to normal feed navigation (j/k/etc.), and the video keeps playing. Paused/ended, or
+  deeper in the queue stack (viewing a video reached via a description link), Esc/Back
+  behaves exactly as before. An explicit **"Miniplayer"** button in the full view docks
+  unconditionally, on demand, regardless of play state or stack depth.
+- **Maximizing**: clicking the corner box (or its own maximize button) returns to the
+  full view, same video, same position, still playing.
+- **Extracting**: the corner box's extract action pops the video into its own
+  always-on-top OS window, independent of the main Chronicle window.
+
+**Continuity is the whole design constraint, and it splits into two different answers**
+depending on whether the destination is still inside the main window's renderer process:
+
+- Docking and maximizing stay inside the *same* renderer process, so the exact same live
+  `<iframe>` — and its postMessage widget protocol connection — can keep running,
+  uninterrupted, the whole time. Implementation: the player is split into an
+  always-mounted `PlayerSurface` (owns the iframe, the widget protocol, resume-position
+  writes, and the full-view-only keyboard map) that portals its rendered output into
+  whichever slot element the current layout hands it, and a `PlayerDetails`/
+  `MiniPlayerBar` pair that supply those slots plus the surrounding chrome (title,
+  description, comments vs. a title strip and three icon buttons). Both chrome
+  components stay mounted at all times (just CSS-hidden when inactive) specifically so
+  their slot elements never disappear out from under `PlayerSurface` — if they did, it
+  would have nothing to portal into for a render pass and would unmount (and therefore
+  restart) the iframe.
+- Extracting crosses into a genuinely different renderer process (a second
+  `BrowserWindow`, `alwaysOnTop: true`) — there is no way to move a DOM node between
+  two Electron renderer processes, full stop. This hands off a **snapshot** (current
+  playback position + playing/paused) to a fresh, minimal instance in the new window
+  instead: that window loads the exact same renderer bundle with an
+  `?extract=<videoId>&t=<startSeconds>&autoplay=<0|1>` query string, which the
+  renderer's entry point checks to render a bare `ExtractedPlayerWindow` (just a
+  clean-embed iframe filling the window, seeked to the handed-off position) instead of
+  the full app. The main window's player closes outright once extraction happens —
+  playback now lives in that window. A brief reload/seek is an accepted, inherent cost
+  of this leg, not something worth chasing a workaround for.
+
+**Stacking order:** the docked corner box is `position: fixed` with `z-index: 20`, high
+enough to float above the feed but below any modal (`.overlay-backdrop`, used by the
+help overlay, add-account, URL prompt, and write-scope consent dialogs, was bumped to
+`z-index: 30` specifically so a dialog opened while docked — mini mode hands keyboard
+control back to the feed, so e.g. `?` for help is reachable there too — still wins).
+
+Needs the owner's own live validation (dock, maximize, extract, close, and the
+modal-stacking behavior above) before considering this closed — not something
+verifiable without actually driving the app.
+
 ## Default playback speed — D-038 (Final, 2026-07-12)
 
 Settings → Playback offers a **default speed** dropdown over the IFrame API's fixed rate

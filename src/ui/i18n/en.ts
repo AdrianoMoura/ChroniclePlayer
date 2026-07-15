@@ -82,7 +82,8 @@ export const en = {
   'settings.connection.keychainFallback':
     'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it (D-013 fallback).',
   'settings.connection.playerSessionNote':
-    "The embedded player uses Electron's own persistent browser session, separate from the Google connection above — but there's currently no way to sign into that session from inside Chronicle, so YouTube Premium's ad-free playback won't apply here even if you're signed into Premium elsewhere.",
+    "The embedded player uses its own separate browser session, distinct from the Google connection above — sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
+  'settings.connection.signInToYouTubeButton': 'Sign in to YouTube',
   // Names the account explicitly — this action only ever touches the
   // primary account, which is otherwise ambiguous now that multiple
   // accounts can exist.
@@ -343,6 +344,11 @@ export const en = {
   // PlayerView
   'player.topbar.back': '← Back',
   'player.topbar.backToFeed': '← Back to feed',
+  'player.topbar.miniplayer': 'Miniplayer',
+  'player.topbar.miniplayerTitle': 'Dock to a corner and keep browsing while it plays',
+  'player.miniplayer.maximizeTitle': 'Back to full player',
+  'player.miniplayer.extractTitle': 'Pop out into its own always-on-top window',
+  'player.miniplayer.closeTitle': 'Close',
   'player.overlay.ended.title': 'That’s the end.',
   'player.overlay.back': 'Back (Esc)',
   'player.overlay.backToFeed': 'Back to feed (Esc)',

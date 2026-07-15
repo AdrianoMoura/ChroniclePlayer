@@ -33,7 +33,9 @@ import {
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { t } from './i18n'
-import { PlayerView } from './PlayerView'
+import { MiniPlayerBar } from './MiniPlayerBar'
+import { PlayerDetails } from './PlayerDetails'
+import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
 import { SettingsView } from './SettingsView'
 import {
   SearchChannelCard,
@@ -181,6 +183,13 @@ export function App() {
   } | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [playerStack, setPlayerStack] = useState<PlayerVideoDto[]>([])
+  // B-045: docked to a corner instead of full view — the video keeps
+  // playing (PlayerSurface stays mounted regardless) while the feed
+  // underneath becomes interactive again.
+  const [miniplayer, setMiniplayer] = useState(false)
+  const [fullSlot, setFullSlot] = useState<HTMLDivElement | null>(null)
+  const [miniSlot, setMiniSlot] = useState<HTMLDivElement | null>(null)
+  const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
@@ -238,8 +247,11 @@ export function App() {
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed((collapsed) => !collapsed), [])
 
+  // B-045: only the full-view layout wants the sidebar out of the way —
+  // docked-to-a-corner mode is "back to browsing the feed," sidebar included.
   useEffect(() => {
-    if (playerOpen) {
+    const fullView = playerOpen && !miniplayer
+    if (fullView) {
       setSidebarCollapsed((current) => {
         sidebarBeforePlayerRef.current = current
         return true
@@ -248,7 +260,7 @@ export function App() {
       setSidebarCollapsed(sidebarBeforePlayerRef.current)
       sidebarBeforePlayerRef.current = null
     }
-  }, [playerOpen])
+  }, [playerOpen, miniplayer])
 
   // Fetches feed meta and reconciles `refreshing` against backend truth
   // (B-023): a renderer that missed a terminal sync event — mounting mid-run,
@@ -670,6 +682,15 @@ export function App() {
       setVideos((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
+      // B-045: playerStack entries used to never get updated after the
+      // initial open — harmless while the player only ever fully
+      // remounted on a fresh openVideo() call, but PlayerDetails now stays
+      // mounted (just hidden) across the miniplayer toggle, so its local
+      // `state` (read/favorite/watch-later) would otherwise flicker back to
+      // whatever it was when the video was first opened.
+      setPlayerStack((current) =>
+        current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+      )
       syncMeta()
       // The sidebar's per-channel unread badge is a separate data source
       // (channels state) from the topbar's count (meta) — a read/unread
@@ -692,6 +713,8 @@ export function App() {
         patch(videoId, state)
         const entry = { ...result.value, state }
         setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
+        // Always starts in full view, even if a previous video was docked.
+        setMiniplayer(false)
       })
     },
     [patch]
@@ -714,7 +737,31 @@ export function App() {
 
   const closePlayer = useCallback(() => {
     setPlayerStack((stack) => stack.slice(0, -1))
+    setMiniplayer(false)
   }, [])
+
+  // B-045: explicit "Miniplayer" action — dock on demand, regardless of
+  // stack depth or play state (unlike the Esc/Back auto-dock in
+  // PlayerSurface, which only kicks in for the outermost video while it's
+  // actually playing).
+  const dockPlayer = useCallback(() => setMiniplayer(true), [])
+
+  // B-045: hands off a playback snapshot to a brand-new always-on-top
+  // window rather than moving the live iframe there (impossible across
+  // renderer processes) — then fully closes the in-app player, since the
+  // video now lives in that window instead.
+  const extractToWindow = useCallback(() => {
+    const video = playerStack.at(-1)
+    if (video === undefined) return
+    const snapshot = playerSurfaceRef.current?.getPlaybackSnapshot()
+    void window.chronicle.extractPlayer(
+      video.videoId,
+      snapshot?.currentTimeSeconds ?? 0,
+      snapshot?.playing ?? false
+    )
+    setPlayerStack([])
+    setMiniplayer(false)
+  }, [playerStack])
 
   // A channel name (in the feed, or from the player's video info) is its own
   // navigation target, distinct from opening the video/leaving the player. A
@@ -1026,7 +1073,10 @@ export function App() {
         setUrlPromptOpen(true)
         return
       }
-      if (playerOpen || urlPromptOpen) return // PlayerView/UrlPrompt own their keys
+      // B-045: docked mode hands global keys back to normal feed navigation
+      // — only the full-view layout (PlayerSurface's own keydown map) owns
+      // them.
+      if ((playerOpen && !miniplayer) || urlPromptOpen) return
       if (screen === 'settings') {
         if (event.key === 'Escape') setScreen('feed')
         return
@@ -1148,6 +1198,7 @@ export function App() {
     doRefresh,
     filter,
     playerOpen,
+    miniplayer,
     urlPromptOpen,
     openFromFeed,
     screen,
@@ -1340,7 +1391,7 @@ export function App() {
               </button>
             )}
           </div>
-          {!playerOpen && (
+          {(!playerOpen || miniplayer) && (
             <input
               className="size-slider"
               type="range"
@@ -1354,7 +1405,7 @@ export function App() {
               }
             />
           )}
-          {!playerOpen && (
+          {(!playerOpen || miniplayer) && (
             <button
               className="layout-toggle"
               title={
@@ -1371,7 +1422,7 @@ export function App() {
           )}
         </header>
 
-        {!playerOpen && channelFilter !== null && searchResults === null &&
+        {(!playerOpen || miniplayer) && channelFilter !== null && searchResults === null &&
           (() => {
             const selectedChannel = channels.find((c) => c.channelId === channelFilter)
             const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
@@ -1623,18 +1674,43 @@ export function App() {
               </>
             )}
             {playerOpen && currentPlayerVideo && (
-              <PlayerView
-                video={currentPlayerVideo}
-                stackDepth={playerStack.length}
-                hasQueueNext={hasQueueNext}
-                defaultPlaybackRate={settings.defaultPlaybackRate}
-                onNextInQueue={nextInQueue}
-                onClose={closePlayer}
-                onFocusSearch={focusSearch}
-                onOpenVideo={(videoId) => openVideo(videoId)}
-                onOpenChannel={navigateToChannel}
-                onStatePatched={patch}
-              />
+              <>
+                <PlayerSurface
+                  ref={playerSurfaceRef}
+                  video={currentPlayerVideo}
+                  state={currentPlayerVideo.state}
+                  stackDepth={playerStack.length}
+                  hasQueueNext={hasQueueNext}
+                  defaultPlaybackRate={settings.defaultPlaybackRate}
+                  active={!miniplayer}
+                  portalTarget={miniplayer ? miniSlot : fullSlot}
+                  onNextInQueue={nextInQueue}
+                  onClose={closePlayer}
+                  onDock={dockPlayer}
+                  onFocusSearch={focusSearch}
+                  onStatePatched={patch}
+                />
+                <PlayerDetails
+                  video={currentPlayerVideo}
+                  state={currentPlayerVideo.state}
+                  stackDepth={playerStack.length}
+                  hidden={miniplayer}
+                  slotRef={setFullSlot}
+                  onClose={() => playerSurfaceRef.current?.requestClose()}
+                  onDock={dockPlayer}
+                  onOpenVideo={(videoId) => openVideo(videoId)}
+                  onOpenChannel={navigateToChannel}
+                  onStatePatched={patch}
+                />
+                <MiniPlayerBar
+                  video={currentPlayerVideo}
+                  hidden={!miniplayer}
+                  slotRef={setMiniSlot}
+                  onMaximize={() => setMiniplayer(false)}
+                  onClose={closePlayer}
+                  onExtract={extractToWindow}
+                />
+              </>
             )}
           </div>
         )}

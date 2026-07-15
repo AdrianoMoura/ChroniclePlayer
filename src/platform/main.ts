@@ -210,6 +210,36 @@ function devRendererUrl(): string | undefined {
   return process.env['ELECTRON_RENDERER_URL']
 }
 
+// B-093: named explicitly (rather than left as Electron's unnamed default
+// session) so it's clear this one persistent session is deliberately shared
+// by the main window, the player's embedded iframe (a plain <iframe> always
+// inherits its embedding page's session — there's no per-iframe override),
+// and the "Sign in to YouTube" window below. Chronicle's own OAuth connect
+// flow (D-001/D-012) runs in the *system* browser, never this session, so
+// this Chromium profile starts out never signed into anything until the
+// user explicitly uses that action.
+const CHRONICLE_SESSION_PARTITION = 'persist:chronicle'
+
+// Shared by createWindow() and the B-045 extract-to-window flow below —
+// both load the exact same renderer bundle; the extracted window just adds
+// a query string the renderer's main.tsx checks to render a different, much
+// smaller UI instead of the full app (see src/ui/main.tsx).
+function loadRenderer(window: BrowserWindow, query?: Record<string, string>): void {
+  const qs = query ? `?${new URLSearchParams(query).toString()}` : ''
+  const rendererUrl = devRendererUrl()
+  if (!app.isPackaged && rendererUrl) {
+    void window.loadURL(rendererUrl + qs)
+  } else if (packagedRendererUrl !== null) {
+    void window.loadURL(packagedRendererUrl + qs)
+  } else {
+    // Should be unreachable (the server is started and awaited before the
+    // first createWindow() call) — file:// as a last resort still shows a
+    // window instead of a crash, even though the embedded player would
+    // fail with Error 153 on it.
+    void window.loadFile(join(__dirname, '../renderer/index.html'), query ? { query } : undefined)
+  }
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1200,
@@ -224,23 +254,39 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      partition: CHRONICLE_SESSION_PARTITION
     }
   })
-
-  const rendererUrl = devRendererUrl()
-  if (!app.isPackaged && rendererUrl) {
-    void window.loadURL(rendererUrl)
-  } else if (packagedRendererUrl !== null) {
-    void window.loadURL(packagedRendererUrl)
-  } else {
-    // Should be unreachable (the server is started and awaited before the
-    // first createWindow() call) — file:// as a last resort still shows a
-    // window instead of a crash, even though the embedded player would
-    // fail with Error 153 on it.
-    void window.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  loadRenderer(window)
   return window
+}
+
+// B-045: a second BrowserWindow (its own renderer process — the live
+// iframe's DOM node can't move between them) hosting the minimal
+// ExtractedPlayerWindow UI, seeked to wherever the main window's player was
+// when the user chose to extract. alwaysOnTop is the whole point: a small
+// floating video that stays above other windows while the user works.
+function createExtractWindow(videoId: string, startSeconds: number, playing: boolean): void {
+  const window = new BrowserWindow({
+    width: 480,
+    height: 270,
+    alwaysOnTop: true,
+    backgroundColor: '#000000',
+    webPreferences: {
+      preload: join(__dirname, '../preload/preload.js'),
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      partition: CHRONICLE_SESSION_PARTITION
+    }
+  })
+  window.setAspectRatio(16 / 9)
+  loadRenderer(window, {
+    extract: videoId,
+    t: String(Math.max(0, Math.floor(startSeconds))),
+    autoplay: playing ? '1' : '0'
+  })
 }
 
 function broadcast(event: ChronicleEventDto): void {
@@ -1270,6 +1316,29 @@ async function boot(): Promise<void> {
     applyUpdateCheckTimer()
   })
   ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
+
+  // B-093: no automation, no credential handling — just a plain window at
+  // youtube.com in the app's own persistent session (CHRONICLE_SESSION_PARTITION),
+  // the same one the player's iframe already uses. The user signs in (or not)
+  // exactly like they would in any browser; closing the window is on them, same
+  // as the corner-icon workaround this replaces with a discoverable action.
+  ipcMain.handle(IpcChannel.openYouTubeSignIn, () => {
+    const signInWindow = new BrowserWindow({
+      width: 480,
+      height: 720,
+      webPreferences: { partition: CHRONICLE_SESSION_PARTITION }
+    })
+    void signInWindow.loadURL('https://www.youtube.com')
+  })
+
+  ipcMain.handle(
+    IpcChannel.extractPlayer,
+    (_event, videoId: unknown, currentTimeSeconds: unknown, playing: unknown) => {
+      const id = parseVideoId(videoId)
+      const t = typeof currentTimeSeconds === 'number' ? currentTimeSeconds : 0
+      createExtractWindow(id, t, playing === true)
+    }
+  )
 
   ipcMain.handle(IpcChannel.exportData, async (): Promise<
     ResultDto<{ path: string; videos: number; states: number }>

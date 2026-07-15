@@ -118,6 +118,9 @@ export function SettingsView({
           <button className="primary" onClick={onSignOut}>
             {t('settings.connection.signOutButton')}
           </button>
+          <button className="primary" onClick={() => void window.chronicle.openYouTubeSignIn()}>
+            {t('settings.connection.signInToYouTubeButton')}
+          </button>
         </div>
       </section>
 

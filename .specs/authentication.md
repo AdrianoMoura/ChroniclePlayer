@@ -169,6 +169,29 @@ why D-032's incremental-scope model and this profile-keyed secret design paid of
   account's subscriptions merged; selecting one account in the sidebar narrows to it,
   exactly like selecting a channel (`feed.md`).
 
+## The embedded player's browser session — D-045 (Final, exercised 2026-07-15)
+
+The player's embedded `<iframe>` (`playback.md`, D-006) is a plain HTML iframe, not
+Electron's own `<webview>` tag — it always inherits whichever session its embedding
+Chronicle window uses. That window's whole session is now an explicitly named
+persistent Electron partition (`persist:chronicle`, `src/platform/main.ts`
+`CHRONICLE_SESSION_PARTITION`), used for nothing else and never signed into
+automatically. **This is a completely separate Chromium browsing profile from the
+Google account Chronicle itself is connected to** — the OAuth flow above (D-001/D-012)
+always runs in the user's own *system* browser, never inside Electron, by design (a
+Chronicle-owned window making that flow would defeat the point of the user trusting
+their own browser's password manager/2FA/session over an app-controlled one).
+
+Because of that separation, this session starts out signed into nothing, which is what
+causes `bugs.md` [[B-093]]: the embedded player can hit YouTube's bot-check wall with no
+way to clear it from inside the app. Settings → Connection's **"Sign in to YouTube"**
+button opens a plain window (system chrome, no custom frame — deliberately, so it reads
+as a normal browser window and not part of Chronicle's own UI) at `youtube.com`, in this
+exact same `persist:chronicle` session. The user signs in there themselves, same as in
+any browser — no automation, no credential handling by Chronicle, no scraping
+(`youtube-api.md` §Terms-of-service constraints). Signing in there is also the only way
+YouTube Premium's ad-free playback would ever apply inside the embedded player.
+
 ## Security posture summary
 
 - Tokens: memory-only (access) / OS keychain (refresh).

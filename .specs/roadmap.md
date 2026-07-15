@@ -18,16 +18,24 @@ Dates are deliberately absent — this is sequencing, not scheduling.
 - **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-098
   (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
   fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
-  §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15:** B-098 (Fixed
-  same day it was reported), then B-085, B-087, B-088, B-089, B-090, B-091, B-092, B-094,
-  B-095, B-096, B-097, and B-051 (carried over from before 0.1.0) — all Fixed. Still open:
-  B-093 and B-045 (each need a Pending decision in `decisions.md` before implementing —
-  session, partition, and miniplayer architecture questions respectively, not scoped
-  yet), B-086 (needs research into an authenticated discovery path), B-046 (research
-  spike, feasibility genuinely unclear), and B-022 (a third fix attempt landed but stays
+  §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
+  passes.** First pass: B-098 (Fixed same day it was reported), then B-085, B-087,
+  B-088, B-089, B-090, B-091, B-092, B-094, B-095, B-096, B-097, and B-051 (carried
+  over from before 0.1.0) — all Fixed. **Second pass**, once the owner reviewed what
+  was still open: B-046 researched and closed **Won't fix** (the hover-preview data
+  source would require exactly what `youtube-api.md` §Terms-of-service constraints
+  already bans — Innertube/undocumented endpoints); B-086 researched (RSS structurally
+  can't carry members-only videos; the authenticated `playlistItems.list` path
+  gap-backfill and archive-backfill already use *should* — unconfirmed without a live
+  membership test — so no speculative per-cycle-per-channel code was added, stays Open
+  pending the owner testing the existing paths); B-093 (D-045, embedded-player
+  session) and B-045 (D-046, miniplayer + extract-to-window) both implemented per the
+  owner's explicit direction and moved to **In progress**, pending the owner's own live
+  validation — same reasoning as B-022 below, not something verifiable without
+  actually driving the app. Still open: B-022 (a third fix attempt landed but stays
   "In progress" pending the owner's live confirmation — two earlier attempts on this
   specific bug were each marked Fixed without a live check and both were disproven on
-  the next live test).
+  the next live test), B-093, B-045.
 
 ## M0 — Walking skeleton
 
@@ -262,8 +270,10 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 
 **Status: the first two batches below are complete** — every item in B-001–B-017 and
 B-054–B-066 is Resolved in `bugs.md` (shipped as part of 0.1.0), except B-022 which is
-still In progress and B-045/B-046 which are still Open (B-051 also carried over, but was
-Fixed in the third batch below, 2026-07-15). Kept here for history.
+still In progress. B-046 was carried over too but is now Resolved (Won't fix, researched
+2026-07-15); B-045 was carried over and is now In progress (implemented 2026-07-15,
+pending live validation); B-051 was carried over and is now Resolved (Fixed
+2026-07-15). Kept here for history.
 
 **First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
@@ -352,11 +362,25 @@ mostly correctness gaps and interaction polish surfaced by living with the app:
 
 **Attacked 2026-07-15** (same day as reported), per the owner's go-ahead: B-085, B-087,
 B-088, B-089, B-090, B-091, B-092, B-094, B-095, B-096, B-097 all Fixed (B-087/B-088
-fixed together, as the natural pair they were flagged as). B-086 stays Open — the
-authenticated-discovery-path research it needs wasn't scoped this round. B-093 stays
-Open too, exactly as flagged: it needs a Pending decision in `decisions.md` (Electron
-session/partition architecture) before implementation starts, same as B-058 needed
-last batch — not something to resolve unilaterally mid-batch.
+fixed together, as the natural pair they were flagged as). B-086 and B-093 were left
+for the owner to review and direct, exactly as flagged (B-093 needed a Pending decision
+before implementation, same as B-058 needed last batch — not something to resolve
+unilaterally mid-batch).
+
+**Second pass, same day, once the owner reviewed the above:** directed all four
+remaining items at once — B-093: implement the session-sharing action (D-045), the
+owner will validate live; B-045 (miniplayer): implement both the docked corner (same
+live instance) and extract-to-window (accepting the reload-and-seek that leg
+inherently costs) in the same pass (D-046); B-086: investigate, and it's fine if only
+discoverability lands, not necessarily playback; B-046: investigate, and it's fine if
+the answer is "can't." Landed: B-093 and B-045 implemented, both **In progress**
+pending the owner's own live confirmation (same reasoning as B-022); B-086 researched
+(RSS confirmed structurally incapable; the already-shipped authenticated
+`playlistItems.list` paths — gap-backfill, archive-backfill — plausibly already cover
+it, but that's unconfirmed without a live membership test, so no new code was added on
+a guess); B-046 researched and closed **Won't fix** — the feature's only real data
+source is exactly what `youtube-api.md` §Terms-of-service constraints already
+permanently bans (Innertube/undocumented endpoints), not a case of "not scoped yet."
 
 ## Standing release checklist (every release, starting M4)
 
