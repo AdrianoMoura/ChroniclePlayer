@@ -1242,6 +1242,17 @@ export function App() {
         case 'v':
           changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
           break
+        // B-105: the docked miniplayer's own maximize/close buttons
+        // (MiniPlayerBar) had no keyboard path — only reachable while
+        // `miniplayer` is actually docked (`playerOpen && miniplayer`),
+        // same guard MiniPlayerBar's own rendering uses. `e` mirrors the
+        // corner box's "⤢ expand" button; `x` mirrors its "✕ close" button.
+        case 'e':
+          if (playerOpen && miniplayer) setMiniplayer(false)
+          break
+        case 'x':
+          if (playerOpen && miniplayer) closePlayer()
+          break
         case 'Escape':
           if (filter !== '') setFilter('')
           else setChannelFilter(null)
@@ -1279,7 +1290,8 @@ export function App() {
     view,
     markAllRead,
     settings,
-    changeSettings
+    changeSettings,
+    closePlayer
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0

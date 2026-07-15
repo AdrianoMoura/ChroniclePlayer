@@ -14,6 +14,7 @@ export const en = {
   'help.title': 'Keyboard shortcuts',
   'help.section.feed': 'Feed',
   'help.section.player': 'Player (the video currently open)',
+  'help.section.miniplayer': 'Miniplayer (while docked)',
   'help.action.nextPrev': 'next / previous video',
   'help.action.play': 'play (opens the player view)',
   'help.action.openByUrl': 'open a video by URL',
@@ -39,6 +40,8 @@ export const en = {
   'help.action.toggleComments': 'show / hide comments',
   'help.action.nextInQueue': 'next in queue (when one is queued)',
   'help.action.extractWindow': 'pop out into its own always-on-top window',
+  'help.action.maximizeMiniplayer': 'back to the full player',
+  'help.action.closeMiniplayer': 'close',
   'help.action.thisOverlay': 'this overlay',
   'help.action.backClose': 'back / close',
 
@@ -358,8 +361,8 @@ export const en = {
   // PlayerView
   'player.topbar.back': '← Back',
   'player.topbar.backToFeed': '← Back to feed',
-  'player.miniplayer.maximizeTitle': 'Back to full player',
-  'player.miniplayer.closeTitle': 'Close',
+  'player.miniplayer.maximizeTitle': 'Back to full player (e)',
+  'player.miniplayer.closeTitle': 'Close (x)',
   'player.extractTitle': 'Pop out into its own always-on-top window (p)',
   'player.miniplayer.resizeTitle': 'Drag to resize',
   'player.overlay.ended.title': 'That’s the end.',

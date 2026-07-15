@@ -226,6 +226,31 @@ Resolved entries add:
 
 ## Resolved
 
+### B-104 — Miniplayer's maximize/close buttons had no keyboard path
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** ui-shell, player
+- **What happens:** caught by the owner right after [[B-103]] landed — that audit covered
+  the full-view player and the feed topbar, but missed the docked miniplayer's own two
+  buttons (`MiniPlayerBar.tsx`'s "⤢ expand" and "✕ close"), which stayed mouse/Tab-only.
+- **Expected:** same precedent as B-043/B-103 — a real control with a mouse-only path is a
+  gap, not a deliberate omission.
+- **Code refs:** `src/ui/App.tsx` (feed keydown map — the miniplayer's own actions are
+  handled there, not in `PlayerSurface.tsx`, since docking hands keyboard control back to
+  normal feed navigation per [[B-045]]), `src/ui/MiniPlayerBar.tsx` (the buttons these
+  mirror), `src/ui/HelpOverlay.tsx`, `src/ui/i18n/en.ts`.
+- **Resolution:** added `e` (maximize, back to the full player — mirrors the "⤢ expand"
+  button) and `x` (close — mirrors the "✕ close" button) to the feed's keydown map, both
+  guarded on `playerOpen && miniplayer` (the same condition `MiniPlayerBar` itself renders
+  under) so they're no-ops otherwise. Kept as dedicated keys rather than folding into
+  Escape's existing clear-filter/clear-channel-filter cascade — stopping playback is
+  meaningfully different from clearing a text field, and a third silent escalation level
+  on a key already doing two different things risked closing the video by surprise.
+  `HelpOverlay.tsx` gained a third "Miniplayer" section (distinct from "Player" — these
+  route through the feed's keydown map, not `PlayerSurface`'s, so keeping them out of the
+  Player section keeps the grouping honest about which code path owns which key). `ui.md`
+  updated. Checked via `npm run typecheck && npm run lint && npm test`.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
 ### B-103 — Keyboard-shortcut coverage audit: player parity + previously mouse-only feed commands
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
 - **Area:** ui-shell, player

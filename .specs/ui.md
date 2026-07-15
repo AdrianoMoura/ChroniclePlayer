@@ -78,6 +78,8 @@ with a visible cursor row.
 | `w` | toggle watch later |
 | `M` | mark all as read (current view) — added in the B-103 audit |
 | `v` | toggle grid/list layout — added in the B-103 audit |
+| `e` | maximize the docked miniplayer back to the full player (only while docked) — B-104 |
+| `x` | close the docked miniplayer (only while docked) — B-104 |
 | `gg` / `G` | top / end of loaded feed |
 | `1…5` | switch view (All, Unread, WL, Fav, Ignored) |
 | `r` | refresh |
@@ -91,7 +93,9 @@ with a visible cursor row.
 The full-view player has its own extended key map for the video currently open (`m`/`i`/`f`/`w` mirror
 their feed meaning, plus `l`/`s`/`c`/`n`/`p` for actions that only exist in the player) — see
 `playback.md` §Player view spec, not duplicated here since it acts on "the open video," not "the
-cursor row."
+cursor row." `e`/`x` above are the exception: they act on the docked miniplayer, but — unlike the
+full-view player's own map — are handled by *this* table's keydown map, since docking hands keyboard
+control back to the feed (`playback.md` §Miniplayer).
 
 - Vim-flavored because the audience overlaps heavily; **all** bindings also exist as
   visible UI affordances (hover actions on rows) — keyboard-first, not keyboard-only.
@@ -135,6 +139,11 @@ cursor row."
   into labeled Feed/Player sections (`HelpOverlay.tsx`) rather than one flat list, since
   several keys now mean different things per screen (`s` toggles the sidebar in the feed,
   subscribe in the player) and the overlay is reachable from both.
+- **B-104 (2026-07-15, same day):** the B-102/B-103 audit above still missed one thing —
+  the docked miniplayer's own maximize/close buttons (`MiniPlayerBar.tsx`), caught by the
+  owner right after. Added `e`/`x` (table above) and a third "Miniplayer" section to the
+  overlay, kept separate from "Player" since these route through the feed's own keydown
+  map (docking hands keyboard control back to it), not `PlayerSurface`'s.
 
 ## States & feedback (Final)
 

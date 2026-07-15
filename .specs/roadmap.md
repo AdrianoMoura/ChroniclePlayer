@@ -15,7 +15,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-103
+- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-104
   (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
   fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
   §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
@@ -44,7 +44,9 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   full-view player and asked for a keyboard-shortcut coverage pass — B-102 (the `?` bug)
   and B-103 (the coverage audit: player parity for m/i/f/w, new l/s/c/n/p player
   bindings, M/v feed bindings, the shortcuts overlay split into Feed/Player sections)
-  both Fixed, checked via `npm run typecheck && npm run lint && npm test`.
+  both Fixed. The owner caught one more right after: the docked miniplayer's own
+  maximize/close buttons — B-104, Fixed same day (`e`/`x`, a third "Miniplayer" overlay
+  section). All checked via `npm run typecheck && npm run lint && npm test`.
 
 ## M0 — Walking skeleton
 

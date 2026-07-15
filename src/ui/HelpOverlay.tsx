@@ -43,6 +43,15 @@ const PLAYER_SHORTCUTS: readonly [string, () => string][] = [
   ['/', () => t('help.action.filter')]
 ]
 
+// Only live while the player is docked to its corner box (B-045) — the feed
+// is fully interactive underneath then, so these are handled by the feed's
+// own keydown map (App.tsx), not PlayerSurface's, guarded on `miniplayer`
+// being true.
+const MINIPLAYER_SHORTCUTS: readonly [string, () => string][] = [
+  ['e', () => t('help.action.maximizeMiniplayer')],
+  ['x', () => t('help.action.closeMiniplayer')]
+]
+
 const GLOBAL_SHORTCUTS: readonly [string, () => string][] = [
   ['?', () => t('help.action.thisOverlay')],
   ['Esc', () => t('help.action.backClose')]
@@ -72,6 +81,8 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         <ShortcutTable rows={FEED_SHORTCUTS} />
         <h3>{t('help.section.player')}</h3>
         <ShortcutTable rows={PLAYER_SHORTCUTS} />
+        <h3>{t('help.section.miniplayer')}</h3>
+        <ShortcutTable rows={MINIPLAYER_SHORTCUTS} />
         <ShortcutTable rows={GLOBAL_SHORTCUTS} />
       </div>
     </div>
