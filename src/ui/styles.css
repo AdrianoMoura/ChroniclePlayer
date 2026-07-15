@@ -1446,9 +1446,10 @@ button.primary:disabled {
 
 .miniplayer-actions button {
   color: var(--text-dim);
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .miniplayer-actions button:hover {

@@ -135,8 +135,11 @@ Resolved entries add:
   since it's no longer miniplayer-only. Checked via `npm run typecheck && npm run lint
   && npm test` and `npm run build`. **Live-tested by the owner (2026-07-15):** the new
   topbar button worked but was too small to comfortably hit — `.player-topbar-extract`'s
-  `font-size` raised 13px→22px and padding widened to match (`src/ui/styles.css`).
-  Otherwise not run live (per [[no-live-app-verification]]) — needs the owner's own
+  `font-size` raised 13px→22px and padding widened to match (`src/ui/styles.css`). The
+  owner then asked for the same treatment on the miniplayer's own icon row (extract/
+  maximize/close, not just extract) — `.miniplayer-actions button`'s `font-size` raised
+  13px→20px with matching padding, same file. Otherwise not run live (per
+  [[no-live-app-verification]]) — needs the owner's own
   hands-on validation (extract directly from the full-view
   screen, confirm it behaves the same as extracting from the miniplayer) before this
   can move to Resolved.
