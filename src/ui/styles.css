@@ -1305,9 +1305,10 @@ button.primary:disabled {
 
 .player-topbar-extract {
   color: var(--text-dim);
-  padding: 3px 6px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 22px;
+  line-height: 1;
   flex-shrink: 0;
 }
 
