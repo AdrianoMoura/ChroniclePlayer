@@ -5,7 +5,7 @@
 *A desktop YouTube client that brings back the experience of opening YouTube and simply seeing the channels you chose to follow.*
 
 <p align="center">
-  <em>(Screenshots coming soon)</em>
+  <em><img src="https://raw.githubusercontent.com/AdrianoMoura/ChroniclePlayer/refs/heads/main/screenshot.png"/></em>
 </p>
 
 ---
