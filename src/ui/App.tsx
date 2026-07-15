@@ -788,11 +788,12 @@ export function App() {
     void window.chronicle.extractPlayer(
       video.videoId,
       snapshot?.currentTimeSeconds ?? 0,
-      snapshot?.playing ?? false
+      snapshot?.playing ?? false,
+      settings.defaultPlaybackRate
     )
     setPlayerStack([])
     setMiniplayer(false)
-  }, [playerStack])
+  }, [playerStack, settings.defaultPlaybackRate])
 
   // A channel name (in the feed, or from the player's video info) is its own
   // navigation target, distinct from opening the video/leaving the player. A

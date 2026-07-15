@@ -257,6 +257,26 @@ Resolved entries add:
   build`; **not run live this round either** — needs the owner's own hands-on validation
   again (grab the resize handle, confirm extract autoplay) before this can move to
   Resolved.
+  **Sixth round, same day** (plus a cosmetic tweak: the resize handle now shows a
+  six-dot drag-grip glyph, `MiniPlayerBar.tsx`/`styles.css`): the owner found D-038's
+  default playback speed setting wasn't reaching the extracted window at all — it would
+  always open at 1x regardless of Settings. Root cause: `extractPlayer`
+  (`src/ipc/contract.ts`'s `ChronicleApi`) never had a `defaultPlaybackRate` parameter in
+  its signature to begin with, so nothing downstream (`preload.ts`, the `main.ts` IPC
+  handler, `createExtractWindow`, the `?extract=` query string, `ExtractedPlayerWindow`)
+  had any way to know the setting even existed — unlike the main player
+  (`PlayerSurface.tsx`), which gets it as a normal React prop from `App.tsx`'s own
+  `settings` state. Fixed by threading it through every layer: `extractPlayer` gained a
+  fourth parameter, validated server-side against `PLAYBACK_RATES` (falling back to 1x
+  for anything outside that list, same pattern as `normalizeSettings`), carried across the
+  query string as `rate=`, and applied in `ExtractedPlayerWindow` the same way
+  `PlayerSurface` applies it for D-038: `command('setPlaybackRate', ...)` once on the
+  widget-protocol handshake, and reissued on the `onStateChange` transition to `1`
+  (playing), since YouTube can reset the rate back to 1x the moment the stream actually
+  starts. Checked via `npm run typecheck && npm run lint && npm test` (200/200) and `npm
+  run build`; **not run live** — needs the owner's own hands-on validation (extract a
+  video with a non-1x default rate set in Settings, confirm it opens already at that
+  speed) before this can move to Resolved.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)

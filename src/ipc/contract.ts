@@ -368,7 +368,12 @@ export interface ChronicleApi {
   // way to move the live iframe's DOM node into a different renderer
   // process, so this hands off a snapshot (current position, playing or
   // paused) to a fresh instance in the new window rather than the same one.
-  extractPlayer(videoId: string, currentTimeSeconds: number, playing: boolean): Promise<void>
+  extractPlayer(
+    videoId: string,
+    currentTimeSeconds: number,
+    playing: boolean,
+    defaultPlaybackRate: number
+  ): Promise<void>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

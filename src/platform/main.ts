@@ -47,7 +47,7 @@ import type {
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
-import { IpcChannel } from '../ipc/contract'
+import { IpcChannel, PLAYBACK_RATES } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
 import { startRendererServer } from './renderer-server'
@@ -269,7 +269,12 @@ function createWindow(): BrowserWindow {
 // ExtractedPlayerWindow UI, seeked to wherever the main window's player was
 // when the user chose to extract. alwaysOnTop is the whole point: a small
 // floating video that stays above other windows while the user works.
-function createExtractWindow(videoId: string, startSeconds: number, playing: boolean): void {
+function createExtractWindow(
+  videoId: string,
+  startSeconds: number,
+  playing: boolean,
+  defaultPlaybackRate: number
+): void {
   const window = new BrowserWindow({
     width: 480,
     height: 270,
@@ -295,7 +300,8 @@ function createExtractWindow(videoId: string, startSeconds: number, playing: boo
   loadRenderer(window, {
     extract: videoId,
     t: String(Math.max(0, Math.floor(startSeconds))),
-    autoplay: playing ? '1' : '0'
+    autoplay: playing ? '1' : '0',
+    rate: String(defaultPlaybackRate)
   })
   // The main window's miniplayer picks the video back up once this window
   // closes, resuming from wherever ExtractedPlayerWindow's own
@@ -1347,10 +1353,21 @@ async function boot(): Promise<void> {
 
   ipcMain.handle(
     IpcChannel.extractPlayer,
-    (_event, videoId: unknown, currentTimeSeconds: unknown, playing: unknown) => {
+    (
+      _event,
+      videoId: unknown,
+      currentTimeSeconds: unknown,
+      playing: unknown,
+      defaultPlaybackRate: unknown
+    ) => {
       const id = parseVideoId(videoId)
       const t = typeof currentTimeSeconds === 'number' ? currentTimeSeconds : 0
-      createExtractWindow(id, t, playing === true)
+      const rate =
+        typeof defaultPlaybackRate === 'number' &&
+        (PLAYBACK_RATES as readonly number[]).includes(defaultPlaybackRate)
+          ? defaultPlaybackRate
+          : 1
+      createExtractWindow(id, t, playing === true, rate)
     }
   )
 

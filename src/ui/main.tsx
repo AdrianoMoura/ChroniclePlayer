@@ -21,6 +21,7 @@ createRoot(root).render(
         videoId={extractVideoId}
         startSeconds={Number(params.get('t') ?? '0')}
         autoplay={params.get('autoplay') === '1'}
+        defaultPlaybackRate={Number(params.get('rate') ?? '1')}
       />
     ) : (
       <>

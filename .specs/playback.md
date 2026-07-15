@@ -313,11 +313,28 @@ before that round trip landed handed off `playing: false`, and the extract windo
 autoplay logic (last round's fix) faithfully honored that — correctly — as "don't
 autoplay." Fixed by having `getPlaybackSnapshot().playing` reuse `isStillGoing()` too.
 
+**Sixth round, same day:** the owner found D-038's default playback speed wasn't
+reaching the extracted window — it always opened at 1x regardless of the Settings value.
+Unlike the two fixes above, this wasn't a bug in already-written plumbing; the plumbing
+never existed. `extractPlayer` (`src/ipc/contract.ts`) never had a `defaultPlaybackRate`
+parameter, so there was no path for the value to travel through at all — the main player
+gets it as an ordinary React prop from `App.tsx`'s own `settings` state
+(`PlayerSurface`'s `defaultPlaybackRate` prop), but the extract window is a *different
+renderer process* reached only through the `extractPlayer` IPC call and the `?extract=`
+query string, and neither carried it. Fixed by threading it through every layer:
+`extractPlayer` gained a fourth parameter, validated in the `main.ts` IPC handler against
+`PLAYBACK_RATES` (falling back to 1x for anything outside that list, the same pattern
+`normalizeSettings` already uses for settings.json), carried across as the query string's
+new `rate=` param, and applied in `ExtractedPlayerWindow` exactly the way `PlayerSurface`
+applies D-038: `command('setPlaybackRate', [rate])` once on the widget-protocol handshake,
+and reissued on the `onStateChange` transition to playing (`1`), since YouTube can reset
+the rate back to 1x the moment the stream actually starts.
+
 Needs the owner's own live validation (dock via Back/Esc, dock via sidebar navigation,
 maximize, resize (grabbing the left-edge strip) + persistence across restarts, extract,
-extract autoplay, close-extract-to-restore-docked, no menu bar on the extract window, and
-the modal-stacking behavior above) before considering this closed — not something
-verifiable without actually driving the app.
+extract autoplay, extract at the configured default speed, close-extract-to-restore-docked,
+no menu bar on the extract window, and the modal-stacking behavior above) before
+considering this closed — not something verifiable without actually driving the app.
 
 ## Default playback speed — D-038 (Final, 2026-07-12)
 

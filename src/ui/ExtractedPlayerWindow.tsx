@@ -8,13 +8,17 @@ import { useCallback, useEffect, useRef } from 'react'
 // seeked to the snapshot the main window handed off. No Chronicle chrome,
 // no keyboard shortcuts — this window is meant to be a small floating
 // video, not a second copy of the app. It does speak the same postMessage
-// widget protocol PlayerSurface uses, for two reasons: (1) the URL's own
+// widget protocol PlayerSurface uses, for three reasons: (1) the URL's own
 // `autoplay=1` alone wasn't reliably starting playback in this top-level
 // (not nested-iframe) context, so this issues an explicit `playVideo()`
 // command once the embed announces itself; (2) `resumePositionSeconds`
 // needs to be kept current so that closing this window and having the
 // main window's miniplayer pick the video back up doesn't lose the
-// user's place.
+// user's place; (3) D-038's default playback rate has to be applied the
+// same way PlayerSurface applies it (`setPlaybackRate` on announce, then
+// reissued once playback actually starts) — there's no URL param for
+// playback rate, and the main window's rate isn't otherwise handed off to
+// this fresh instance at all.
 
 const VIDEO_ID_PATTERN = /^[\w-]{1,64}$/
 const PLAYER_ORIGIN = 'https://www.youtube.com'
@@ -23,11 +27,13 @@ const RESUME_MIN_SECONDS = 10
 export function ExtractedPlayerWindow({
   videoId,
   startSeconds,
-  autoplay
+  autoplay,
+  defaultPlaybackRate
 }: {
   videoId: string
   startSeconds: number
   autoplay: boolean
+  defaultPlaybackRate: number
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const currentTimeRef = useRef(startSeconds)
@@ -47,7 +53,11 @@ export function ExtractedPlayerWindow({
     // See the file comment: the URL's autoplay=1 alone isn't reliable here,
     // so this is issued explicitly once the widget protocol is live.
     if (autoplay) command('playVideo')
-  }, [command, autoplay])
+    // D-038: same as PlayerSurface — set the default rate up front, and
+    // reissue it once playback actually starts (below), since YouTube can
+    // reset it back to 1x the moment the stream begins.
+    if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
+  }, [command, autoplay, defaultPlaybackRate])
 
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
@@ -58,6 +68,13 @@ export function ExtractedPlayerWindow({
       } catch {
         return
       }
+      if (
+        payload.event === 'onStateChange' &&
+        payload.info === 1 &&
+        defaultPlaybackRate !== 1
+      ) {
+        command('setPlaybackRate', [defaultPlaybackRate])
+      }
       if (payload.event === 'infoDelivery') {
         const info = payload.info as { currentTime?: number } | undefined
         if (typeof info?.currentTime === 'number') currentTimeRef.current = info.currentTime
@@ -65,7 +82,7 @@ export function ExtractedPlayerWindow({
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [])
+  }, [command, defaultPlaybackRate])
 
   // Best-effort: persist wherever playback got to before this window
   // closes, so reopening the video (main window's miniplayer, on the
