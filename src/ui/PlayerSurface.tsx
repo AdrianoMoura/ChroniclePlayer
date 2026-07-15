@@ -289,18 +289,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         case 'ArrowRight':
           command('seekTo', [currentTimeRef.current + 5, true])
           break
-        case 'f':
-          // Fullscreens the wrapping div, not the <iframe> itself. Tried
-          // targeting the iframe directly once (theory: matching what the
-          // embed's own fullscreen button does internally) — live-tested by
-          // the owner and it made no difference to the embed-focused case
-          // this was meant to fix, so reverted. Fullscreening the wrapper is
-          // also what's confirmed working for this app-focused path: the
-          // iframe just scales up via ordinary layout, YouTube's own UI never
-          // needing to know it's "fullscreen" at all.
-          if (document.fullscreenElement) void document.exitFullscreen()
-          else void wrapperRef.current?.requestFullscreen()
-          break
         case 'Escape':
           if (document.fullscreenElement) {
             void document.exitFullscreen()

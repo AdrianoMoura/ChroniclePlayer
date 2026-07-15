@@ -15,7 +15,7 @@ export const en = {
   'help.action.nextPrev': 'next / previous video',
   'help.action.play': 'play (opens the player view)',
   'help.action.openByUrl': 'open a video by URL',
-  'help.action.playerControls': 'player: pause / seek / fullscreen',
+  'help.action.playerControls': 'player: pause / seek',
   'help.action.openInBrowser': 'open in browser',
   'help.action.toggleReadUnread': 'toggle read / unread',
   'help.action.ignore': 'ignore (undo with u)',

@@ -4,7 +4,7 @@ const SHORTCUTS: readonly [string, () => string][] = [
   ['j / k  ·  ↓ / ↑', () => t('help.action.nextPrev')],
   ['Enter / o', () => t('help.action.play')],
   ['Ctrl+O', () => t('help.action.openByUrl')],
-  ['Space · ← → · f', () => t('help.action.playerControls')],
+  ['Space · ← →', () => t('help.action.playerControls')],
   ['b', () => t('help.action.openInBrowser')],
   ['m', () => t('help.action.toggleReadUnread')],
   ['i', () => t('help.action.ignore')],

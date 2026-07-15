@@ -132,31 +132,36 @@ Data handling for externally opened videos (Final):
 - On `ended`: Chronicle's end overlay — "Back to feed" and, if the video came from the
   Watch Later queue, "Next in queue" (explicit button; auto-advance within the user's own
   queue is **D-021, Pending** — recommendation: off by default, opt-in setting).
-- Keyboard: space play/pause, ←/→ seek, f fullscreen, esc back to feed (full map in
-  `ui.md`). Note: keyboard control of the IFrame player requires proxying keys through
-  the IFrame API (`player.playVideo()` etc.) since the iframe swallows focus — an
-  implementation detail worth planning for.
+- Keyboard: space play/pause, ←/→ seek, esc back to feed (full map in `ui.md`). Note:
+  keyboard control of the IFrame player requires proxying keys through the IFrame API
+  (`player.playVideo()` etc.) since the iframe swallows focus — an implementation
+  detail worth planning for.
 - **Known limitation, confirmed 2026-07-15 ([[B-089]]):** the proxying above only covers
   key presses while focus is on Chronicle's own app (the common case, since the iframe
   "swallows focus" only for its own internal controls the user clicks directly). If focus
   is genuinely inside the cross-origin YouTube iframe when a key is pressed, that keydown
   never reaches the parent frame's listener at all — a browser same-origin security
   boundary, not something any amount of Chronicle JS can intercept or override. In that
-  case the key press is handled entirely by YouTube's own embedded player instead. This
-  part of the original write-up stands.
-- **Fullscreen specifically: still being chased, not settled — see [[B-089]] for the
-  live history.** A second round tried fullscreening the `<iframe>` itself instead of
-  the wrapping div (theory: matching what the embed's own fullscreen button does
-  internally, since a fullscreen request on an `<iframe>` can propagate into its nested
-  browsing context). The owner's live test showed no change, disproving that specific
-  mechanism — reverted back to fullscreening the wrapper, the one thing already
-  confirmed working for the app-focused case. Separately found and fixed a real gap
-  regardless of root cause: the `<iframe>` was missing the classic `allowfullscreen`
-  attribute that YouTube's own official embed snippet always includes (only the newer
-  Permissions-Policy `allow="fullscreen"` string was present) — added
-  `allowFullScreen` to both the main player and the extract window's iframe. Not yet
-  confirmed live whether this addresses the embed-focused symptom; `bugs.md` [[B-089]]
-  stays "In progress" until it is.
+  case the key press is handled entirely by YouTube's own embedded player instead.
+- **Fullscreen has no Chronicle-owned keyboard shortcut anymore — resolved 2026-07-15,
+  third round ([[B-089]]).** Two fix attempts (fullscreen the wrapping div, then the
+  `<iframe>` itself) each targeted *which element* Chronicle's own `f` handler should
+  fullscreen, on the theory that matching the embed's own mechanism would make its
+  controls render correctly either way. Neither changed the owner's actual reported
+  symptom on live re-test. The handler was removed instead of retargeted again: it only
+  ever ran while focus was on Chronicle's own app, which was never the case the owner
+  was hitting (they were pressing `f` with focus on the video itself, where Chronicle's
+  listener structurally cannot run at all — the same-origin boundary above). Removing it
+  also removes the *other* symptom it was causing on its own (the embed's native
+  fullscreen button no longer working, and `f` no longer toggling back out, once
+  Chronicle's own wrapper-fullscreen had been triggered first) — that was two competing
+  fullscreen mechanisms fighting over the browser's single fullscreen-element state, not
+  two things that both needed to keep existing. Fullscreen is now exclusively the
+  embed's own native button, already confirmed reliable. `allowFullScreen` stays on both
+  iframes (`PlayerSurface.tsx`, `ExtractedPlayerWindow.tsx`) since it's a standards gap
+  worth having regardless. `Esc` still exits fullscreen first before closing/docking the
+  player (`document.fullscreenElement` check), which works regardless of which mechanism
+  triggered it, since exiting fullscreen via Esc is browser-native.
 - **Resume playback position — implemented 2026-07-13 (`bugs.md` B-044), promoted off
   this future-ideas list per product-owner request.** `video_state.resume_position_seconds`
   (schema v7) persists the last known position, read via the IFrame API's `infoDelivery`
