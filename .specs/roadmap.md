@@ -15,7 +15,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-104
+- **0.2.0 — delivered.** Driven by the third dogfooding batch, `bugs.md` B-085–B-104
   (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
   fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
   §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
@@ -46,7 +46,15 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   bindings, M/v feed bindings, the shortcuts overlay split into Feed/Player sections)
   both Fixed. The owner caught one more right after: the docked miniplayer's own
   maximize/close buttons — B-104, Fixed same day (`e`/`x`, a third "Miniplayer" overlay
-  section). All checked via `npm run typecheck && npm run lint && npm test`.
+  section). All checked via `npm run typecheck && npm run lint && npm test`. **Shipped
+  2026-07-15** — `package.json` bumped to `0.2.0`; `bugs.md` §Versions closed out with
+  the final commit hashes. Three entries didn't make it in and carried over to 0.3.0
+  with their Target bumped: B-022 (In progress, needs the owner's live confirmation),
+  B-086 (Open, blocked on one of the owner's membership channels publishing something
+  to test against), B-101 (Open, the fullscreen-widget-protocol research spike, not
+  yet started).
+- **0.3.0 — in progress.** Carries B-022, B-086, B-101 forward from 0.2.0 (see above).
+  No batch of its own yet — new items reported after 0.2.0 shipped land here.
 
 ## M0 — Walking skeleton
 

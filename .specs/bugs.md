@@ -35,12 +35,21 @@ Batches of this file map onto app releases (`package.json` version, semver):
   of this release; it covers all work from the project's start through 2026-07-14. No
   per-entry version tag needed for that history — the *Resolved* section heading was
   the marker, since 0.1.0 was the only release that existed at the time.
-- **0.2.0** — the release currently being assembled. Every *Open*/*In progress* entry
-  carries a **Target** field for the version it's aimed at; entries reported before
-  0.1.0 shipped but not fixed in time carry over with their target bumped to 0.2.0. A
-  fix landed *during* 0.2.0's development moves straight to *Resolved* but **keeps its
-  Target field** (now meaning "shipped in" rather than "aimed at") so the entry doesn't
-  read as if it shipped in 0.1.0 before that version actually cuts.
+- **0.2.0** — shipped 2026-07-15. The third dogfooding batch (B-085–B-104, reported
+  2026-07-15) plus three items carried over from before 0.1.0 shipped (B-051, B-046,
+  B-045): 20 entries Fixed, 1 Won't fix (B-046 — hover-preview would require exactly
+  the undocumented-endpoint use `youtube-api.md` bans). Three entries didn't make it
+  and carry over to **0.3.0** with their Target bumped: [[B-022]] (in progress — a
+  third fix attempt for the delete-all-data relaunch bug has landed but the owner
+  hasn't live-confirmed it yet), [[B-086]] (open — members-only videos never appear in
+  the feed; the recommended live checks need one of the owner's membership channels to
+  publish something, which hadn't happened as of this release), [[B-101]] (open — a
+  research spike into proxying fullscreen through the widget protocol, not yet
+  started). Every *Open*/*In progress* entry carries a **Target** field for the
+  version it's aimed at. A fix landed *during* a version's development moves straight
+  to *Resolved* but **keeps its Target field** (meaning "shipped in" once that version
+  actually cuts) so the entry doesn't read as if it shipped earlier than it did.
+- **0.3.0** — in progress. Carries B-022, B-086, B-101 forward from 0.2.0 (see above).
 - When a release ships, add a new versioned bullet here with its date and a one-line
   summary of the batch, same as above.
 
@@ -70,7 +79,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
+  (carried over — 0.2.0 shipped 2026-07-15 without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -97,7 +107,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.2.0
+  0.3.0 (carried over — 0.2.0 shipped 2026-07-15 without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -142,7 +152,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.3.0 (carried over —
+  0.2.0 shipped 2026-07-15 without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -249,7 +260,7 @@ Resolved entries add:
   route through the feed's keydown map, not `PlayerSurface`'s, so keeping them out of the
   Player section keeps the grouping honest about which code path owns which key). `ui.md`
   updated. Checked via `npm run typecheck && npm run lint && npm test`.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 03c9118 · **Outcome:** Fixed
 
 ### B-103 — Keyboard-shortcut coverage audit: player parity + previously mouse-only feed commands
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
@@ -292,7 +303,7 @@ Resolved entries add:
   label text, matching the existing `Open in browser (b)` convention. `ui.md` and
   `playback.md` updated with the full map. Checked via `npm run typecheck && npm run
   lint && npm test`.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 93a9ce6 · **Outcome:** Fixed
 
 ### B-102 — `?` does nothing while the full-view player is open
 - **Type:** bug · **Severity:** minor
@@ -315,7 +326,7 @@ Resolved entries add:
   the video underneath while the overlay is being read, and Escape closes the overlay
   instead of exiting fullscreen/docking the player. Bundled with [[B-103]] once the same
   audit turned up the player's other mouse-only actions.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 93a9ce6 · **Outcome:** Fixed
 
 ### B-089 — Fullscreen (F) and Space behave differently depending on whether the iframe or the app has focus
 - **Type:** bug · **Severity:** minor
@@ -365,7 +376,7 @@ Resolved entries add:
   `npm run typecheck && npm run lint && npm test` (200/200). **Live-confirmed by the
   owner (2026-07-15):** the repeated "no change" reports across rounds 2 and 3 is what
   correctly pointed at removing the shortcut instead of continuing to retarget it.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 06fba40 · **Outcome:** Fixed
 
 ### B-100 — Grid view: cards overlap at the largest item size on narrower screens
 - **Type:** bug · **Severity:** minor
@@ -389,7 +400,7 @@ Resolved entries add:
   how CSS `auto-fill` packs columns) so it no longer occasionally under-counts by one.
   No live-app check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (200/200).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** c1639bb · **Outcome:** Fixed
 
 ### B-099 — Extract-to-window button only reachable from the miniplayer, not the full-view player screen
 - **Type:** adjustment
@@ -420,7 +431,7 @@ Resolved entries add:
   live-tested again together with the rest of [[B-045]] — extracting from the full-view
   screen behaves the same as extracting from the miniplayer, icon sizes are comfortable.
   Moving to Resolved.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6f98d60 · **Outcome:** Fixed
 
 ### B-045 — Miniplayer: detach to a corner mini-view, extract to an always-on-top window
 - **Type:** adjustment
@@ -631,7 +642,7 @@ Resolved entries add:
   **Owner confirmation (2026-07-15):** live-tested everything from all eight rounds —
   automatic docking, resize handle, extract, extract-window autoplay, extract-window
   default speed, full-view scroll — and confirmed it all works. Moving to Resolved.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 3d1165c · **Outcome:** Fixed
 - **Resolution:** see the eight in-progress rounds above for the full history; no
   further changes made at resolution time.
 
@@ -680,7 +691,7 @@ Resolved entries add:
   Thumbnails also confirmed unaffected. The owner notes this may not be the *ideal*
   sign-in experience long-term, but it's good enough for now — no further design
   changes requested. Moving to Resolved.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** aeda365 · **Outcome:** Fixed
 - **Resolution:** see the notes above for the full history (D-045, option (b)); no
   further changes made at resolution time.
 
@@ -705,7 +716,7 @@ Resolved entries add:
   Data API doesn't expose per-timestamp. No code changes; the ask itself was always fine
   by the "who is driving?" test (a user-initiated hover, not algorithmic) — only the data
   source was ever in question, and it's now settled as unavailable.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Won't fix
+- **Resolved:** 2026-07-15 · **Commit:** aeda365 · **Outcome:** Won't fix
 
 ### B-051 — Some subscribed channels show up with zero videos
 - **Type:** bug · **Severity:** major
@@ -739,7 +750,7 @@ Resolved entries add:
   check this session (needs the owner's actual account per
   [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
   npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-097 — Sync failure banner gives no way to see what actually went wrong
 - **Type:** adjustment
@@ -765,7 +776,7 @@ Resolved entries add:
   is attributed correctly. No live-app check this session (per
   [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
   npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-096 — Clicking a channel name in the feed should open the channel, not the video
 - **Type:** adjustment
@@ -784,7 +795,7 @@ Resolved entries add:
   "click the channel name" handler already did) used by both the feed and the player.
   No live-app check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-095 — Grid view: smallest item sizes overlap; add a size larger than xl
 - **Type:** bug · **Severity:** minor
@@ -808,7 +819,7 @@ Resolved entries add:
   pixel-perfect without seeing it rendered, so the fix leans generous on the height
   margins rather than exact (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-094 — "Reconnect Google Account" in Settings doesn't say which account
 - **Type:** adjustment
@@ -824,7 +835,7 @@ Resolved entries add:
   already available in `App.tsx`'s `accounts` state). No live-app check this session
   (per [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint
   && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-092 — Video description doesn't always come through complete
 - **Type:** bug · **Severity:** minor
@@ -847,7 +858,7 @@ Resolved entries add:
   precedent as `getRating`. `youtube-api.md` documents the new call's quota cost. No
   live-app check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-090 — Onboarding: "go to app" button stays locked after first sync finishes; the wait shouldn't be required at all
 - **Type:** bug · **Severity:** major
@@ -871,7 +882,7 @@ Resolved entries add:
   flagged here per project convention. No live-app check this session (per
   [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
   npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-091 — First sync: rename "Filtering Shorts" to "Identifying Shorts"; show discovered videos before Shorts identification finishes
 - **Type:** adjustment
@@ -898,7 +909,7 @@ Resolved entries add:
   references to the now-removed onboarding "step 8" updated alongside [[B-090]]. No
   live-app check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-088 — Submitting a search from inside the player doesn't leave the video
 - **Type:** bug · **Severity:** major
@@ -915,7 +926,7 @@ Resolved entries add:
   navigation, on par with any other. No live-app check this session (per
   [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
   npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-087 — Pressing "/" inside a video exits playback immediately, before any search happens
 - **Type:** bug · **Severity:** minor
@@ -936,7 +947,7 @@ Resolved entries add:
   narrower contract. No live-app check this session (per
   [[no-live-app-verification]]); verified via `npm run typecheck && npm run lint &&
   npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-085 — Upcoming videos never transition to "live"; premiere behavior unverified
 - **Type:** bug · **Severity:** major
@@ -959,7 +970,7 @@ Resolved entries add:
   fix. Covered by new `sync-service.test.ts` and `sync-repository.test.ts` cases. No
   live-app check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (199/199).
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 6cec3cd · **Outcome:** Fixed
 
 ### B-098 — Can't type space or "f" (or several other letters) into the comment box — player shortcuts eat the keystroke
 - **Type:** bug · **Severity:** major
@@ -979,7 +990,7 @@ Resolved entries add:
   — it only exempted `<input>` elements, not `<textarea>`. Now also exempts
   `HTMLTextAreaElement`. Comments only render inside `PlayerView`, so no other screen's
   shortcut handler was affected.
-- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-15 · **Commit:** 01095c0 · **Outcome:** Fixed
 
 ### B-084 — Player shows YouTube Error 153 in the packaged AppImage (works fine under `npm run dev`)
 - **Type:** bug · **Severity:** blocker
@@ -993,7 +1004,7 @@ Resolved entries add:
 - **Code refs:** `src/platform/main.ts` (`createWindow` picked `loadFile()` for any
   packaged build, `loadURL()` only in dev); `src/ui/PlayerView.tsx` (`enablejsapi=1`
   embed — playback.md, D-006).
-- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-13 · **Commit:** 2534f07 · **Outcome:** Fixed
 - **Resolution:** root cause: the embedded YouTube player's postMessage widget
   protocol (`enablejsapi=1`) needs the top frame to have a real, stable origin to
   validate — `file://` (what `loadFile()` gives a packaged build) has no such origin,
@@ -1024,7 +1035,7 @@ Resolved entries add:
   player's page-level scroll (`.player-view`), so there's no single element's
   `scrollTop` to check; a sentinel element crossing into view works regardless of which
   ancestor actually scrolls.
-- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-13 · **Commit:** 08a2c5f · **Outcome:** Fixed
 
 ### B-082 — No way to favorite a channel from its own screen
 - **Type:** adjustment
@@ -1043,7 +1054,7 @@ Resolved entries add:
   [[B-061]]) — favoriting is meaningless before you're actually subscribed. No live-app
   check this session (per [[no-live-app-verification]]); verified via
   `npm run typecheck && npm run lint && npm test` (179/179).
-- **Resolved:** 2026-07-13 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-13 · **Commit:** f94e463 · **Outcome:** Fixed
 
 ### B-081 — Reading comments 403s with no explanation; unsubscribe still opens the browser with no warning dialog
 - **Type:** bug
