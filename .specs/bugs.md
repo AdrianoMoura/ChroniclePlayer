@@ -110,12 +110,101 @@ Resolved entries add:
   ~11,000 units/day on its own, over the entire 10,000/day budget by itself. Worth
   revisiting only if (1)/(2) above confirm the authenticated path actually works and this
   specific gap (member-only-only channels) turns out to matter in practice.
+  **Owner update (2026-07-15):** neither of the two suggested checks can be run yet —
+  none of the owner's membership channels has published anything since this was written.
+  Staying Open until one of them does.
 
 ## In progress
 
+### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Area:** ui-shell / storage
+- **What happens:** Settings → delete all data wipes and restarts the app, but the
+  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
+  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
+  the product owner, live, after the first fix attempt (commit 877a30d) — reopened.
+- **Expected:** after the wipe the app comes back in its clean first-run state. Today
+  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
+  so the post-wipe landing should be whatever "fresh start without an account" becomes
+  once B-003 lands — design the fix so the landing screen is the normal first-run
+  entrypoint, not a hardcoded wizard jump.
+- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler, `devRendererUrl()`,
+  `createWindow()`).
+- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
+  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
+  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
+  Fixed without live validation — the owner's live re-test showed the blank/frozen
+  screen still happens, so the teardown-race theory is disproven or at least
+  incomplete. **Second attempt (commit 9be2d72):** `createWindow()` picked the renderer
+  source with `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ?
+  loadURL(...) : loadFile(...)`. `app.relaunch()` has no `env` option (only
+  `args`/`execPath`) — whether `ELECTRON_RENDERER_URL` (set by electron-vite's dev
+  orchestrator) survives into the relaunched process depends on env-inheritance
+  behavior the code never controlled explicitly. In dev, a relaunch that lost the
+  var would fall through to `loadFile()` against a renderer bundle that only exists
+  in a packaged build — exactly a blank window. Fixed by making the URL travel
+  explicitly through `args` (a new `devRendererUrl()` helper checks
+  `process.argv` for a `--chronicle-renderer-url=` flag as a fallback to the env var,
+  and `deleteAllData` now passes `app.relaunch({ args: [...relaunchArgs,
+  '--chronicle-renderer-url=...'] })`), removing the dependency on env-inheritance
+  entirely regardless of whether that was the true root cause. **Confirmed still
+  reproducing 2026-07-12** by the product owner, live, after this second attempt too
+  (commit 9be2d72) — "deletei tudo, o app reabriu mas fica numa tela em branco." Two
+  attempts down, both aimed at the renderer-URL-not-reaching-the-relaunched-process
+  theory; that theory itself may be wrong, or only part of the picture.
+  **New working hypothesis, not yet verified — worth checking first on the next
+  attempt:** `npm run dev` runs via `electron-vite dev`, which supervises the Electron
+  process as its own child and owns the Vite dev server backing
+  `ELECTRON_RENDERER_URL`. `deleteAllData` calls `app.relaunch()` (spawns a *new*,
+  untracked grandchild Electron process) then `app.quit()`s the original — from
+  electron-vite's supervisor's point of view, its child just exited, which may cause it
+  to tear down the Vite dev server (thinking the user closed the app) before or shortly
+  after the relaunched instance tries to `loadURL()` against it — a dead dev server
+  would look exactly like a blank/frozen window, and would explain why fixing the
+  renderer-URL *value* twice hasn't helped: the URL was probably always correct, the
+  server behind it wasn't necessarily still alive. This would be dev-mode-only — a
+  packaged build's `loadFile()` has no such dependency.
+  **Third attempt (2026-07-15), implementing exactly the recommendation above rather
+  than waiting to confirm the hypothesis first (a live check either way needs the
+  owner):** `deleteAllData` no longer calls `app.relaunch()`/`app.quit()` at all.
+  `src/platform/main.ts`'s entire composition root (was one large one-shot
+  `app.whenReady().then(async () => {...})` closure) is now a callable `async function
+  boot()`; `deleteAllData` tears down the current generation (clear both timers,
+  `ipcMain.removeHandler` for every `IpcChannel`, `protocol.unhandle('thumb')`, close and
+  null the DB handle) and calls `boot()` again in the same process — never exits, so
+  there's no child-process-exit event for electron-vite's supervisor to react to,
+  regardless of whether that theory is exactly right. Ordering detail that mattered:
+  the stale window(s) are destroyed only *after* `boot()`'s fresh one exists, not
+  before — destroying every window first would transiently drop
+  `BrowserWindow.getAllWindows()` to zero, which fires the existing
+  `window-all-closed` → `app.quit()` handler on Linux/Windows and would reproduce the
+  same "process exits mid-reset" failure a different way. `timer`/`updateTimer` moved
+  from `boot()`-local to module-level `let`s so the module-level `will-quit` cleanup
+  (and `deleteAllData` itself) can reach whichever generation is currently live;
+  `app.on('activate', ...)` also moved to module scope (registered once) since it was
+  previously inside the closure and would otherwise gain a duplicate listener per
+  reboot. `createWindow()` now returns the `BrowserWindow` it creates rather than
+  relying on `BrowserWindow.getAllWindows()[0]`, which stopped being reliable once two
+  windows can transiently coexist during a reboot. The dev-renderer-URL-through-argv
+  mechanism from the second attempt is now dead weight (nothing relaunches anymore) and
+  was simplified back to reading `process.env['ELECTRON_RENDERER_URL']` directly, which
+  stays valid for the process's whole lifetime including across reboots. No unit-test
+  coverage exists or is practical here (`main.ts`'s composition root has never been
+  tested, consistent with how every prior attempt on this bug was verified) — checked
+  via `npm run typecheck && npm run lint && npm test` (199/199) plus `npm run build`
+  (electron-vite build succeeds) as an extra sanity check beyond what earlier attempts
+  did, but **not run live**, per [[no-live-app-verification]]. Two attempts before this
+  one were each marked Fixed without a live check and both were disproven on the
+  owner's next live test — keeping this in "In progress" (not Resolved) until the owner
+  confirms live is this bug's own established rule, and matters more here than usual
+  given that history.
+
+## Resolved
+
 ### B-099 — Extract-to-window button only reachable from the miniplayer, not the full-view player screen
 - **Type:** adjustment
-- **Status:** In progress · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
 - **Area:** player / ui-shell
 - **What happens:** [[B-045]] added an "extract to always-on-top window" action, but it
   only ever existed in `MiniPlayerBar`'s docked chrome — the full-view player screen
@@ -138,15 +227,15 @@ Resolved entries add:
   `font-size` raised 13px→22px and padding widened to match (`src/ui/styles.css`). The
   owner then asked for the same treatment on the miniplayer's own icon row (extract/
   maximize/close, not just extract) — `.miniplayer-actions button`'s `font-size` raised
-  13px→20px with matching padding, same file. Otherwise not run live (per
-  [[no-live-app-verification]]) — needs the owner's own
-  hands-on validation (extract directly from the full-view
-  screen, confirm it behaves the same as extracting from the miniplayer) before this
-  can move to Resolved.
+  13px→20px with matching padding, same file. **Owner confirmation (2026-07-15):**
+  live-tested again together with the rest of [[B-045]] — extracting from the full-view
+  screen behaves the same as extracting from the miniplayer, icon sizes are comfortable.
+  Moving to Resolved.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-045 — Miniplayer: detach to a corner mini-view, extract to an always-on-top window
 - **Type:** adjustment
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0
+- **Status:** Fixed · **Reported:** 2026-07-12 · **Target:** 0.2.0
 - **Area:** player / ui-shell
 - **What happens:** the player view was full-view only — leaving it went back to the feed
   and stopped playback (no background/PiP mode).
@@ -350,6 +439,12 @@ Resolved entries add:
   run build`; **not run live** — needs the owner's own hands-on validation (extract a
   video with a non-1x default rate configured, confirm it's actually applied within the
   first couple of seconds) before this can move to Resolved.
+  **Owner confirmation (2026-07-15):** live-tested everything from all eight rounds —
+  automatic docking, resize handle, extract, extract-window autoplay, extract-window
+  default speed, full-view scroll — and confirmed it all works. Moving to Resolved.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** see the eight in-progress rounds above for the full history; no
+  further changes made at resolution time.
 
 ### B-093 — Player shows YouTube's "Sign in to confirm you're not a bot"; no in-app way to authenticate the embed
 - **Type:** adjustment (feasibility unclear)
@@ -389,92 +484,16 @@ Resolved entries add:
   the player itself, and separately confirming thumbnails are back. Staying
   "In progress" (not Resolved) until that live check confirms both, matching how
   [[B-022]] is tracked in this file.
-
-### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
-- **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.0
-- **Area:** ui-shell / storage
-- **What happens:** Settings → delete all data wipes and restarts the app, but the
-  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
-  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
-  the product owner, live, after the first fix attempt (commit 877a30d) — reopened.
-- **Expected:** after the wipe the app comes back in its clean first-run state. Today
-  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
-  so the post-wipe landing should be whatever "fresh start without an account" becomes
-  once B-003 lands — design the fix so the landing screen is the normal first-run
-  entrypoint, not a hardcoded wizard jump.
-- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler, `devRendererUrl()`,
-  `createWindow()`).
-- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
-  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
-  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
-  Fixed without live validation — the owner's live re-test showed the blank/frozen
-  screen still happens, so the teardown-race theory is disproven or at least
-  incomplete. **Second attempt (commit 9be2d72):** `createWindow()` picked the renderer
-  source with `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ?
-  loadURL(...) : loadFile(...)`. `app.relaunch()` has no `env` option (only
-  `args`/`execPath`) — whether `ELECTRON_RENDERER_URL` (set by electron-vite's dev
-  orchestrator) survives into the relaunched process depends on env-inheritance
-  behavior the code never controlled explicitly. In dev, a relaunch that lost the
-  var would fall through to `loadFile()` against a renderer bundle that only exists
-  in a packaged build — exactly a blank window. Fixed by making the URL travel
-  explicitly through `args` (a new `devRendererUrl()` helper checks
-  `process.argv` for a `--chronicle-renderer-url=` flag as a fallback to the env var,
-  and `deleteAllData` now passes `app.relaunch({ args: [...relaunchArgs,
-  '--chronicle-renderer-url=...'] })`), removing the dependency on env-inheritance
-  entirely regardless of whether that was the true root cause. **Confirmed still
-  reproducing 2026-07-12** by the product owner, live, after this second attempt too
-  (commit 9be2d72) — "deletei tudo, o app reabriu mas fica numa tela em branco." Two
-  attempts down, both aimed at the renderer-URL-not-reaching-the-relaunched-process
-  theory; that theory itself may be wrong, or only part of the picture.
-  **New working hypothesis, not yet verified — worth checking first on the next
-  attempt:** `npm run dev` runs via `electron-vite dev`, which supervises the Electron
-  process as its own child and owns the Vite dev server backing
-  `ELECTRON_RENDERER_URL`. `deleteAllData` calls `app.relaunch()` (spawns a *new*,
-  untracked grandchild Electron process) then `app.quit()`s the original — from
-  electron-vite's supervisor's point of view, its child just exited, which may cause it
-  to tear down the Vite dev server (thinking the user closed the app) before or shortly
-  after the relaunched instance tries to `loadURL()` against it — a dead dev server
-  would look exactly like a blank/frozen window, and would explain why fixing the
-  renderer-URL *value* twice hasn't helped: the URL was probably always correct, the
-  server behind it wasn't necessarily still alive. This would be dev-mode-only — a
-  packaged build's `loadFile()` has no such dependency.
-  **Third attempt (2026-07-15), implementing exactly the recommendation above rather
-  than waiting to confirm the hypothesis first (a live check either way needs the
-  owner):** `deleteAllData` no longer calls `app.relaunch()`/`app.quit()` at all.
-  `src/platform/main.ts`'s entire composition root (was one large one-shot
-  `app.whenReady().then(async () => {...})` closure) is now a callable `async function
-  boot()`; `deleteAllData` tears down the current generation (clear both timers,
-  `ipcMain.removeHandler` for every `IpcChannel`, `protocol.unhandle('thumb')`, close and
-  null the DB handle) and calls `boot()` again in the same process — never exits, so
-  there's no child-process-exit event for electron-vite's supervisor to react to,
-  regardless of whether that theory is exactly right. Ordering detail that mattered:
-  the stale window(s) are destroyed only *after* `boot()`'s fresh one exists, not
-  before — destroying every window first would transiently drop
-  `BrowserWindow.getAllWindows()` to zero, which fires the existing
-  `window-all-closed` → `app.quit()` handler on Linux/Windows and would reproduce the
-  same "process exits mid-reset" failure a different way. `timer`/`updateTimer` moved
-  from `boot()`-local to module-level `let`s so the module-level `will-quit` cleanup
-  (and `deleteAllData` itself) can reach whichever generation is currently live;
-  `app.on('activate', ...)` also moved to module scope (registered once) since it was
-  previously inside the closure and would otherwise gain a duplicate listener per
-  reboot. `createWindow()` now returns the `BrowserWindow` it creates rather than
-  relying on `BrowserWindow.getAllWindows()[0]`, which stopped being reliable once two
-  windows can transiently coexist during a reboot. The dev-renderer-URL-through-argv
-  mechanism from the second attempt is now dead weight (nothing relaunches anymore) and
-  was simplified back to reading `process.env['ELECTRON_RENDERER_URL']` directly, which
-  stays valid for the process's whole lifetime including across reboots. No unit-test
-  coverage exists or is practical here (`main.ts`'s composition root has never been
-  tested, consistent with how every prior attempt on this bug was verified) — checked
-  via `npm run typecheck && npm run lint && npm test` (199/199) plus `npm run build`
-  (electron-vite build succeeds) as an extra sanity check beyond what earlier attempts
-  did, but **not run live**, per [[no-live-app-verification]]. Two attempts before this
-  one were each marked Fixed without a live check and both were disproven on the
-  owner's next live test — keeping this in "In progress" (not Resolved) until the owner
-  confirms live is this bug's own established rule, and matters more here than usual
-  given that history.
-
-## Resolved
+  **Owner confirmation (2026-07-15):** live-tested — the "Sign in to YouTube" button
+  opens an authenticated window and the player works again; incidentally validated
+  more strongly than planned, since the owner's YouTube Premium account unlocked the
+  3x playback-speed option (previously unselectable, unsigned-in) once signed in.
+  Thumbnails also confirmed unaffected. The owner notes this may not be the *ideal*
+  sign-in experience long-term, but it's good enough for now — no further design
+  changes requested. Moving to Resolved.
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** see the notes above for the full history (D-045, option (b)); no
+  further changes made at resolution time.
 
 ### B-046 — Thumbnail hover preview (video scrub preview)
 - **Type:** adjustment (feasibility unclear)

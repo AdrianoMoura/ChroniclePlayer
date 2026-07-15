@@ -15,7 +15,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-098
+- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-099
   (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
   fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
   §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
@@ -29,13 +29,18 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   gap-backfill and archive-backfill already use *should* — unconfirmed without a live
   membership test — so no speculative per-cycle-per-channel code was added, stays Open
   pending the owner testing the existing paths); B-093 (D-045, embedded-player
-  session) and B-045 (D-046, miniplayer + extract-to-window) both implemented per the
-  owner's explicit direction and moved to **In progress**, pending the owner's own live
-  validation — same reasoning as B-022 below, not something verifiable without
-  actually driving the app. Still open: B-022 (a third fix attempt landed but stays
-  "In progress" pending the owner's live confirmation — two earlier attempts on this
+  session), B-045 (D-046, miniplayer + extract-to-window), and B-099 (extract button
+  reachable from the full-view player too) implemented per the owner's explicit
+  direction. **Third pass, same day:** the owner live-tested all three and confirmed
+  every part works — B-045 and B-093 (and B-099, folded into B-045's live check) moved
+  to **Resolved**; B-093's sign-in flow was validated more strongly than planned, since
+  signing in unlocked the owner's YouTube-Premium-only 3x playback speed option in the
+  embed. Still open: B-022 (a third fix attempt landed but stays "In progress" pending
+  the owner's own live confirmation, planned for later — two earlier attempts on this
   specific bug were each marked Fixed without a live check and both were disproven on
-  the next live test), B-093, B-045.
+  the next live test) and B-086 (stays Open — the owner has no membership channel that
+  has published anything since this was researched, so the recommended live checks
+  can't run yet).
 
 ## M0 — Walking skeleton
 
@@ -271,8 +276,8 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 **Status: the first two batches below are complete** — every item in B-001–B-017 and
 B-054–B-066 is Resolved in `bugs.md` (shipped as part of 0.1.0), except B-022 which is
 still In progress. B-046 was carried over too but is now Resolved (Won't fix, researched
-2026-07-15); B-045 was carried over and is now In progress (implemented 2026-07-15,
-pending live validation); B-051 was carried over and is now Resolved (Fixed
+2026-07-15); B-045 was carried over and is now Resolved (implemented and owner-confirmed
+live 2026-07-15); B-051 was carried over and is now Resolved (Fixed
 2026-07-15). Kept here for history.
 
 **First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
@@ -381,6 +386,16 @@ it, but that's unconfirmed without a live membership test, so no new code was ad
 a guess); B-046 researched and closed **Won't fix** — the feature's only real data
 source is exactly what `youtube-api.md` §Terms-of-service constraints already
 permanently bans (Innertube/undocumented endpoints), not a case of "not scoped yet."
+
+**Third pass, same day:** the owner live-tested B-045, B-093, and B-099 (the last one
+reported and fixed in between passes — the extract button wasn't reachable from the
+full-view player screen, only the miniplayer) and confirmed all three work as expected.
+Moved to **Resolved**. B-093's "Sign in to YouTube" button was validated more strongly
+than planned: signing in also unlocked the owner's YouTube-Premium-only 3x playback
+speed option inside the embed, which had been unselectable while signed out. B-022
+(delete-all-data relaunch) and B-086 (members-only videos) remain open — B-022's next
+live test is planned for later; B-086 is blocked on one of the owner's membership
+channels actually publishing something, which hasn't happened yet.
 
 ## Standing release checklist (every release, starting M4)
 
