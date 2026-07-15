@@ -69,7 +69,7 @@ Resolved entries add:
 
 ## Open
 
-### B-100 — Investigate proxying fullscreen into the embed via the widget protocol
+### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.0
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
