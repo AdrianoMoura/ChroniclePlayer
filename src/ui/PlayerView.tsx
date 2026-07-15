@@ -154,7 +154,7 @@ export function PlayerView({
   // protocol because the iframe swallows focus.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (event.target instanceof HTMLInputElement) return
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
       switch (event.key) {
         case ' ': {
           // playerStateRef only updates once the iframe posts back its own

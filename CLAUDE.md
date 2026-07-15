@@ -151,3 +151,8 @@ the GitHub-Releases-API update check (D-026), and version 0.1.0. Still open: wiz
 screenshots, and cutting a real tag to exercise the release workflow end-to-end on
 GitHub Actions. Run `npm run typecheck && npm run lint && npm test` locally before
 committing.
+
+**Bugs/adjustments are now tracked by target release** in `.specs/bugs.md` §Versions —
+everything through the two dogfooding batches shipped as **0.1.0**; the current open
+batch (B-085–B-097 plus a handful carried over) targets **0.2.0**. See
+`.specs/roadmap.md` §Release status for the summary.

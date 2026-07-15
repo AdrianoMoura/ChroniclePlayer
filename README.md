@@ -38,9 +38,8 @@ build from [Releases](../../releases) once the first one ships.
 
 ## Installing a packaged build
 
-Packaged builds are unsigned for now — no Apple Developer or code-signing budget exists
-yet (D-025/D-043 in [`.specs/decisions.md`](.specs/decisions.md)); this only affects the
-one-time first-run warning below, nothing else.
+Packaged builds are unsigned (D-025/D-043 in [`.specs/decisions.md`](.specs/decisions.md));
+this only affects the one-time first-run warning below, nothing else.
 
 - **Linux** — download the `.AppImage`, `chmod +x` it, run it directly. No installation,
   no root.

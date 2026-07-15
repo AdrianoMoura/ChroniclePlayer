@@ -6,6 +6,21 @@ playback. Everything else is well-understood engineering.
 
 Dates are deliberately absent — this is sequencing, not scheduling.
 
+## Release status
+
+- **0.1.0 — delivered.** M0 through M5 are fully implemented and dogfooded, and M6's
+  packaging/CI plumbing is built and working (`package.json` carries `0.1.0`). This is
+  everything documented as done in the milestones below, plus the two dogfooding
+  batches (`bugs.md` B-001–B-017 and B-054–B-066), all of which are Resolved. Two M6
+  loose ends remain outstanding but don't block calling the app itself done at this
+  version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
+  (the workflow is built and locally verified, just never exercised end-to-end).
+- **0.2.0 — in progress.** Driven by the third dogfooding batch, `bugs.md` B-085–B-097
+  (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
+  fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
+  §Dogfooding backlog below for the batch breakdown. Not attacked yet — same rule as
+  every prior batch: worked when the product owner says so.
+
 ## M0 — Walking skeleton
 
 Decisions resolved 2026-07-10: D-006 (embedded player) → D-005 (**Electron**), D-009
@@ -187,10 +202,8 @@ dogfooding batches below — release prep only starts once the application is fu
 and the owner is happy with it. The MVP-from-source milestone (M5) already holds; the
 bugs.md batches are the path to "happy with it".)*
 
-- Packaging/signing for Linux (AppImage — D-024, resolved 2026-07-13: AppImage only for
-  the first release, Flatpak deferred), macOS (dmg, D-043: unsigned for the first
-  release — no Apple Developer budget yet), Windows (nsis installer, D-025: unsigned for
-  the first release — no code-signing budget yet).
+- Packaging for Linux (AppImage — D-024, resolved 2026-07-13: AppImage only, Flatpak
+  deferred), macOS (dmg, D-043: unsigned), Windows (nsis installer, D-025: unsigned).
 - CI/CD pipeline (deferred from M0, 2026-07-11): checks (typecheck + lint + tests) +
   tagged releases + automatic binary builds for the three OSes, designed as one piece.
   No API calls in CI, ever.
@@ -224,12 +237,12 @@ exercise the release workflow end-to-end on GitHub Actions — the local
    further down already said as much but the item itself was never updated to match):
    YouTube search (D-031, B-009) and "Subscribe on YouTube" (D-030 mechanism (a),
    B-009/B-010) are shipped; multi-account (B-003) went further than this item
-   originally scoped. Still open: "Follow locally" (D-030 mechanism (b), RSS-only
-   following with no YouTube-side subscription) and true accountless mode (D-033, using
-   Chronicle with zero accounts at all) — a proper **channel detail screen** (avatar,
-   banner, subscribe button, video list) is also still missing and is now tracked as
-   B-056 in `bugs.md`.
-2. Hide live/premieres + duration filters (cheap once data flows)
+   originally scoped; the **channel detail screen** (avatar, banner, subscribe button,
+   video list) shipped too (B-056, resolved 2026-07-12). Still open: "Follow locally"
+   (D-030 mechanism (b), RSS-only following with no YouTube-side subscription) and true
+   accountless mode (D-033, using Chronicle with zero accounts at all).
+2. Hide live/premieres + duration filters (cheap once data flows) — partially
+   overlaps with the live-status accuracy work now needed for B-085.
 3. Channel categories/folders
 4. Local notes (+ FTS local search)
 5. Import/restore of exports
@@ -237,9 +250,15 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 
 (Shorts exclusion was promoted from this list into MVP — D-028.)
 
-## Dogfooding backlog (2026-07-11)
+## Dogfooding backlog
 
-The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
+**Status: the first two batches below are complete** — every item in B-001–B-017 and
+B-054–B-066 is Resolved in `bugs.md` (shipped as part of 0.1.0), except B-022 which is
+still In progress and B-045/B-046/B-051 which are still Open; all three carry over into
+the 0.2.0 batch (see "Release status" above and the third batch below). Kept here for
+history.
+
+**First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
 (all batches precede M6, per the re-sequencing note there): batch 1 = local polish
 (B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was closed by M5 during
@@ -292,10 +311,41 @@ handful of standalone UX gaps, not new scope:
   account/channel `…` context menus clip inside their scroll containers; removing the
   last account fails silently.
 
-None of these are attacked yet — same rule as the first batch: worked when the product
-owner says so, in whatever order makes sense once picked up (B-054/B-055/B-056 and
-B-060/B-061 are natural sequencing pairs; B-058 needs a Pending decision before it can
-be fixed, see its entry).
+All of the above shipped as part of 0.1.0, except B-058 which needed the Pending
+decision it called for (resolved as D-042) before it could be fixed — also shipped.
+
+**Third dogfooding batch, B-085–B-097 (reported 2026-07-15), added to `bugs.md`,
+targeting 0.2.0.** Reported from continued daily use post-0.1.0 — no single theme,
+mostly correctness gaps and interaction polish surfaced by living with the app:
+- **Live/discovery gaps rooted in the RSS design** (B-085, B-086): `upcoming` videos
+  never flip to `live` once the broadcast starts (`liveContent` is only ever captured
+  once, at hydration); members-only videos never appear at all, since the per-channel
+  RSS feed structurally can't carry them. Both need discovery-time work in
+  `sync-service.ts`, not just display changes.
+- **Search/player focus interaction** (B-087, B-088, B-089): `/` inside a video
+  navigates back to the feed immediately instead of just focusing the field; the
+  inverse gap — submitting an actual search from inside a video doesn't leave the
+  player at all; F/Space behave inconsistently depending on iframe vs. app focus.
+  B-087/B-088 are two sides of the same navigation-vs-search-submit gap and should
+  likely be fixed together.
+- **First-run onboarding** (B-090, B-091): the first-sync step's "open feed" button can
+  get stuck disabled even after sync finishes, and the owner is now questioning whether
+  the blocking wait belongs in the wizard at all; separately, first-sync leaves the feed
+  blank until the (slow) Shorts-identification phase finishes instead of showing videos
+  as they're discovered (copy fix already applied 2026-07-15, the progressive-render
+  piece is not).
+- **UI polish** (B-092, B-094, B-095, B-096, B-097): incomplete video descriptions;
+  Settings' Reconnect action doesn't name which account it reconnects now that
+  multi-account exists (D-041); grid view overlaps at the smallest item sizes and wants
+  a size above `xl`; clicking a channel name in the feed should go to the channel, not
+  the video; the sync-failure banner has no way to surface the actual per-channel error.
+- **Research needed, not just a fix** (B-093): the embedded player has started showing
+  YouTube's bot-check sign-in wall, with no working in-app sign-in path — the fix
+  likely needs an Electron session/partition decision, not a UI patch.
+
+Not attacked yet — same rule as every prior batch: worked when the product owner says
+so. B-087/B-088 are a natural pair; B-093 needs a Pending decision in `decisions.md`
+before implementation starts, same as B-058 did last batch.
 
 ## Standing release checklist (every release, starting M4)
 
