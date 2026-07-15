@@ -1370,12 +1370,25 @@ button.primary:disabled {
 .miniplayer-resize-handle {
   flex-shrink: 0;
   width: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: ew-resize;
   background: var(--surface-2);
 }
 
 .miniplayer-resize-handle:hover {
   background: var(--border);
+}
+
+/* A 2x3 dot grid (six dots), the familiar drag-grip glyph. */
+.miniplayer-resize-grip {
+  width: 6px;
+  height: 14px;
+  background-image: radial-gradient(circle, var(--text-dim) 1px, transparent 1.2px);
+  background-size: 3px 4.5px;
+  background-position: 0 0;
+  opacity: 0.9;
 }
 
 .miniplayer-content {

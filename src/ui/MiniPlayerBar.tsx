@@ -85,7 +85,9 @@ export function MiniPlayerBar({
         className="miniplayer-resize-handle"
         title={t('player.miniplayer.resizeTitle')}
         onMouseDown={startResize}
-      />
+      >
+        <span className="miniplayer-resize-grip" aria-hidden="true" />
+      </div>
       <div className="miniplayer-content">
         <div
           ref={slotRef}
