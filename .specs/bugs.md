@@ -254,6 +254,30 @@ Resolved entries add:
 
 ## Resolved
 
+### B-100 — Grid view: cards overlap at the largest item size on narrower screens
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
+- **Area:** ui-shell
+- **What happens:** at grid + `xxl` item size, on a screen narrow enough that only two
+  columns fit per row, cards overlapped vertically with the row below.
+- **Expected:** no overlap at any grid size/viewport combination.
+- **Code refs:** `src/ui/FeedList.tsx` (`GRID_CARD_SIZES`, the column-count `useEffect`).
+- **Resolution:** same root cause class as [[B-095]], at the opposite (wide) end. Grid
+  columns render at `1fr`, so once the container only fits N columns, each column
+  stretches to fill the remaining width — at `xxl` with only two columns, a card can end
+  up ~1.5x its `minWidth` (560px) wide. The thumbnail's `aspect-ratio: 16/9` makes its
+  rendered height follow that stretched width, so the real card height grew past the
+  fixed `GRID_CARD_SIZES[...].height` estimate the virtualizer uses to position
+  subsequent rows (no `measureElement`, same constraint as B-095) — the next row started
+  before the taller one actually ended. Fixed by computing the virtualized row height
+  per resize from the actual column width (thumbnail height scaled by real width, plus
+  the constant non-thumbnail chrome height) instead of the static per-size value; also
+  made the column-count formula gap-aware (`(width + gap) / (minWidth + gap)`, matching
+  how CSS `auto-fill` packs columns) so it no longer occasionally under-counts by one.
+  No live-app check this session (per [[no-live-app-verification]]); verified via
+  `npm run typecheck && npm run lint && npm test` (200/200).
+- **Resolved:** 2026-07-15 · **Commit:** (pending) · **Outcome:** Fixed
+
 ### B-099 — Extract-to-window button only reachable from the miniplayer, not the full-view player screen
 - **Type:** adjustment
 - **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0

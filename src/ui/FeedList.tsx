@@ -32,14 +32,21 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
   xxl: 208
 }
 const HEADER_HEIGHT = 38
+// Must mirror `.grid-row`'s `gap` in styles.css — used below to derive the
+// actual per-card width from the container width, in sync with how the CSS
+// grid distributes space.
+const GRID_GAP = 16
 // Card target width; actual column count is derived from container width so
 // the grid reflows instead of overflowing (D-037). Both grow with itemSize.
-// `height` must cover the card's actual rendered height (thumb + padding +
-// gap + two-line title + meta line at that size's own font-size) — the
-// virtualizer never re-measures individual cards (no `measureElement`), so
-// an estimate shorter than the real content makes consecutive virtualized
-// rows overlap. xs/small were previously under-budgeted (B-095); the
-// margin below is generous on purpose rather than pixel-exact.
+// `height` is the card's rendered height *at exactly `minWidth` wide* (thumb
+// + padding + gap + two-line title + meta line at that size's own
+// font-size). Columns render at `1fr` and stretch past `minWidth` to fill
+// the row, and the thumbnail's `aspect-ratio` makes real height grow with
+// actual column width — so the virtualizer (which never re-measures
+// individual cards; no `measureElement`) is fed a width-adjusted estimate
+// computed in the resize handler below, not this constant directly (B-095
+// covered the under-budgeted xs/small case; this covers the same failure at
+// the wide end, e.g. xxl with only two columns on a narrow screen).
 export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
   xs: { minWidth: 110, height: 144 },
   small: { minWidth: 160, height: 176 },
@@ -116,20 +123,37 @@ export function FeedList({
   const rowHeight = ROW_HEIGHTS[itemSize]
   const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
+  const [cardRowHeight, setCardRowHeight] = useState(gridCardSize.height)
 
   // Column count follows the scroll container's width so the grid reflows
-  // instead of overflowing or leaving dead space (B-007).
+  // instead of overflowing or leaving dead space (B-007). Row height is
+  // recomputed alongside it: columns render at `1fr`, so the actual card
+  // width can be well past `minWidth` (worst case, just under double it,
+  // right before a row would gain another column) — and since the
+  // thumbnail's height follows its width (`aspect-ratio`), the fixed
+  // per-size `height` alone underestimates real card height once a column
+  // stretches. Scale the thumbnail portion by actual width and keep the
+  // rest (padding/title/meta) constant to get an accurate estimate.
   useEffect(() => {
     if (layout !== 'grid') return
     const el = scrollRef.current
     if (!el) return
-    const observe = (width: number) =>
-      setColumns(Math.max(1, Math.floor(width / gridCardSize.minWidth)))
+    const observe = (width: number) => {
+      const cols = Math.max(
+        1,
+        Math.floor((width + GRID_GAP) / (gridCardSize.minWidth + GRID_GAP))
+      )
+      setColumns(cols)
+      const cardWidth = (width - GRID_GAP * (cols - 1)) / cols
+      const thumbHeightAtMinWidth = gridCardSize.minWidth * (9 / 16)
+      const nonThumbHeight = gridCardSize.height - thumbHeightAtMinWidth
+      setCardRowHeight(cardWidth * (9 / 16) + nonThumbHeight)
+    }
     observe(el.clientWidth)
     const observer = new ResizeObserver((entries) => observe(entries[0].contentRect.width))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [layout, gridCardSize.minWidth])
+  }, [layout, gridCardSize.minWidth, gridCardSize.height])
 
   const displayRows = useMemo<DisplayRow[]>(
     () => (layout === 'grid' ? buildCardRows(rows, columns) : rows),
@@ -141,7 +165,7 @@ export function FeedList({
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => {
       const row = displayRows[index]
-      return row.kind === 'header' ? HEADER_HEIGHT : row.kind === 'card-row' ? gridCardSize.height : rowHeight
+      return row.kind === 'header' ? HEADER_HEIGHT : row.kind === 'card-row' ? cardRowHeight : rowHeight
     },
     overscan: 12
   })
@@ -149,7 +173,7 @@ export function FeedList({
   // Item size/layout/column switches change row sizes; re-measure.
   useEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, gridCardSize.height, layout, columns, virtualizer])
+  }, [rowHeight, cardRowHeight, layout, columns, virtualizer])
 
   const items = virtualizer.getVirtualItems()
 
