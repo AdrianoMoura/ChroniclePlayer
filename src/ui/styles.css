@@ -351,6 +351,27 @@ input:focus-visible,
   opacity: 0;
 }
 
+/* D-050 redesign: unlike .channel-menu-btn, always visible (opacity 1) —
+   its filled/outline glyph *is* the current state, not just an action
+   trigger, so hiding it until hover would hide information, not just a
+   control. */
+.channel-notify-btn {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.channel-notify-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.channel-notify-btn.notifying {
+  color: var(--accent);
+}
+
 .channel-row:hover .channel-menu-btn,
 .channel-menu-btn:focus-visible {
   opacity: 1;
@@ -534,6 +555,7 @@ input:focus-visible,
 
 .channel-header.has-banner .channel-header-actions .open-channel-btn,
 .channel-header.has-banner .channel-header-actions .favorite-channel-btn,
+.channel-header.has-banner .channel-header-actions .notify-channel-btn,
 .channel-header.has-banner .channel-header-actions .unsubscribe-btn {
   background: rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.25);
@@ -542,6 +564,7 @@ input:focus-visible,
 
 .channel-header.has-banner .channel-header-actions .open-channel-btn:hover,
 .channel-header.has-banner .channel-header-actions .favorite-channel-btn:hover,
+.channel-header.has-banner .channel-header-actions .notify-channel-btn:hover,
 .channel-header.has-banner .channel-header-actions .unsubscribe-btn:hover {
   background: rgba(0, 0, 0, 0.5);
 }
@@ -653,6 +676,27 @@ input:focus-visible,
 }
 
 .favorite-channel-btn.favorited {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* D-050 redesign: same pattern as .favorite-channel-btn, for the channel
+   details page's notify toggle next to Favorite. */
+.notify-channel-btn {
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.notify-channel-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.notify-channel-btn.notifying {
   color: var(--accent);
   border-color: var(--accent);
 }

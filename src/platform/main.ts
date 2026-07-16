@@ -58,6 +58,19 @@ import { createAppTray } from './tray'
 
 const clock: Clock = { now: () => new Date() }
 
+// D-050: before tray-resident mode existed, closing the window always quit
+// the app, so relaunching it (e.g. restarting the dev server) never left a
+// stale process behind. Now that "Run in background" keeps the process
+// alive with no window open, launching a second instance on top of a
+// tray-resident one would leave two independent processes each with their
+// own tray icon — the first (ghost) one never torn down, and unaffected by
+// Settings changes made in the second. This must be checked before anything
+// else registers.
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+}
+
 // Chromium only auto-detects the keychain on desktops it knows (GNOME, KDE…).
 // On anything else (niri, sway, headless) it silently picks basic_text even
 // when org.freedesktop.secrets is live on D-Bus. Requesting gnome-libsecret
@@ -363,6 +376,19 @@ let isQuitting = false
 // createWindow()'s close handler can read it without needing boot()'s whole
 // closure — kept in sync by applyBackgroundMode() every time it runs.
 let backgroundModeEnabled = false
+
+// Isolated try/catch so a throwing destroy() (unlikely, but seen with flaky
+// Linux tray hosts) can never skip resetting the reference — leaving `tray`
+// non-null after a failed destroy would wrongly convince applyBackgroundMode
+// a tray still exists and skip creating a fresh one.
+function destroyTray(): void {
+  try {
+    tray?.destroy()
+  } catch (error) {
+    console.error('D-050: tray destroy failed', error)
+  }
+  tray = null
+}
 
 function showOrCreateMainWindow(): void {
   if (mainWindow !== null && !mainWindow.isDestroyed()) {
@@ -712,13 +738,22 @@ async function boot(): Promise<void> {
     const id = parseChannelIdRequired(channelId)
     const accountId = resolveOwningAccountId(id)
     if (accountId === undefined) return false
-    return feedRepository.toggleChannelFavorite(accountId, id)
+    const favorite = feedRepository.toggleChannelFavorite(accountId, id)
+    // D-050 redesign: a one-shot nudge at the moment of the favorite toggle,
+    // not a persistent binding — a later manual notify toggle on this same
+    // channel is never re-overridden by this until the next favorite/
+    // unfavorite event.
+    if (settings.autoNotifyFavorites) feedRepository.setChannelNotify(accountId, id, favorite)
+    return favorite
   })
   ipcMain.handle(IpcChannel.toggleChannelNotify, (_event, channelId: unknown) => {
     const id = parseChannelIdRequired(channelId)
     const accountId = resolveOwningAccountId(id)
     if (accountId === undefined) return false
     return feedRepository.toggleChannelNotify(accountId, id)
+  })
+  ipcMain.handle(IpcChannel.bulkSetChannelNotifyForFavorites, (_event, enable: unknown) => {
+    feedRepository.bulkSetNotifyForFavorites(Boolean(enable))
   })
   ipcMain.handle(IpcChannel.getPriorityFeed, (_event, accountId: unknown): FeedVideoDto[] =>
     feedService.getPriorityVideos(settings.showShorts, parseAccountId(accountId)).map(toVideoDto)
@@ -1408,6 +1443,7 @@ async function boot(): Promise<void> {
     backgroundModeEnabled = settings.backgroundMode
     try {
       if (settings.backgroundMode) {
+        if (tray !== null && tray.isDestroyed()) tray = null // self-heal a stale reference
         if (tray === null) {
           tray = createAppTray(trayIconPath(), {
             onOpen: showOrCreateMainWindow,
@@ -1419,8 +1455,7 @@ async function boot(): Promise<void> {
           })
         }
       } else {
-        tray?.destroy()
-        tray = null
+        destroyTray()
         // Turning the toggle off shouldn't leave the app invisible in the
         // background with no way back in beyond relaunching it.
         if (mainWindow !== null && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
@@ -1434,10 +1469,11 @@ async function boot(): Promise<void> {
   applyBackgroundMode()
 
   // D-050: never fires on an account's first sync (that's backlog, not
-  // something that happened while backgrounded — mirrors D-047's reasoning),
-  // and resolves notifyScope against whichever channels are actually
-  // followed right now (favorite/notify flags OR'd across every connected
-  // account, same semantics listFollowedChannels already uses elsewhere).
+  // something that happened while backgrounded — mirrors D-047's reasoning).
+  // 'all' ignores the per-channel notify flag entirely; 'selected' respects
+  // it (notify flags OR'd across every connected account, same semantics
+  // listFollowedChannels already uses elsewhere) — switching scope never
+  // writes to those flags, so they survive round-trips between modes.
   function maybeNotifyNewVideos(report: SyncReport): void {
     if (!settings.notifyNewVideos || report.firstSync || report.newVideosByChannel.length === 0) {
       return
@@ -1445,13 +1481,9 @@ async function boot(): Promise<void> {
     try {
       if (!Notification.isSupported()) return
       let matched = report.newVideosByChannel
-      if (settings.notifyScope !== 'all') {
+      if (settings.notifyScope === 'selected') {
         const followed = feedRepository.listFollowedChannels(true)
-        const scopedIds = new Set(
-          followed
-            .filter((c) => (settings.notifyScope === 'favorites' ? c.favorite : c.notify))
-            .map((c) => c.channel.channelId)
-        )
+        const scopedIds = new Set(followed.filter((c) => c.notify).map((c) => c.channel.channelId))
         matched = matched.filter((entry) => scopedIds.has(entry.channelId))
       }
       if (matched.length === 0) return
@@ -1565,8 +1597,7 @@ async function boot(): Promise<void> {
     // generation's runRefresh/settings — stale once boot() reruns below, so
     // it's destroyed here and freshly recreated by the new generation's own
     // applyBackgroundMode() rather than left pointing at torn-down state.
-    tray?.destroy()
-    tray = null
+    destroyTray()
     // Every handler this boot() generation registered must go before the
     // next boot() re-registers them — ipcMain.handle throws if a channel
     // already has one.
@@ -1594,12 +1625,21 @@ async function boot(): Promise<void> {
 }
 
 void app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return // already quitting — see the lock check above
   if (app.isPackaged) {
     const server = await startRendererServer(join(__dirname, '../renderer'))
     packagedRendererUrl = `${server.url}/index.html`
     closeRendererServer = server.close
   }
   await boot()
+})
+
+// D-050: a second launch attempt (e.g. clicking the app icon again while
+// tray-resident) hits this in the *original* instance instead of spawning
+// its own process — bring the existing window forward like the tray's own
+// Open item does.
+app.on('second-instance', () => {
+  if (gotSingleInstanceLock) showOrCreateMainWindow()
 })
 
 // Registered once, outside boot() — boot() itself can run more than once
@@ -1616,8 +1656,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   if (timer !== null) clearInterval(timer)
   if (updateTimer !== null) clearInterval(updateTimer)
-  tray?.destroy()
-  tray = null
+  destroyTray()
   closeRendererServer?.()
   db?.close()
 })

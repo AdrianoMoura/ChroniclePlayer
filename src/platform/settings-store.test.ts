@@ -31,7 +31,8 @@ describe('settings store', () => {
       autoStart: true,
       backgroundMode: true,
       notifyNewVideos: true,
-      notifyScope: 'favorites'
+      notifyScope: 'selected',
+      autoNotifyFavorites: true
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -58,7 +59,8 @@ describe('settings store', () => {
         autoStart: 'yes',
         backgroundMode: 1,
         notifyNewVideos: null,
-        notifyScope: 'everything'
+        notifyScope: 'everything',
+        autoNotifyFavorites: 'yes'
       })
     ).toEqual({
       theme: 'light',
@@ -73,21 +75,32 @@ describe('settings store', () => {
       autoStart: false,
       backgroundMode: false,
       notifyNewVideos: false,
-      notifyScope: 'all'
+      notifyScope: 'all',
+      autoNotifyFavorites: false
     })
   })
 
-  it('accepts the three D-050 toggles + notify scope', () => {
+  it('accepts the D-050 toggles + notify scope (all|selected only, D-050 redesign)', () => {
     expect(
-      normalizeSettings({ autoStart: true, backgroundMode: true, notifyNewVideos: true, notifyScope: 'custom' })
+      normalizeSettings({
+        autoStart: true,
+        backgroundMode: true,
+        notifyNewVideos: true,
+        notifyScope: 'selected',
+        autoNotifyFavorites: true
+      })
     ).toEqual(
       expect.objectContaining({
         autoStart: true,
         backgroundMode: true,
         notifyNewVideos: true,
-        notifyScope: 'custom'
+        notifyScope: 'selected',
+        autoNotifyFavorites: true
       })
     )
+    // 'favorites'/'custom' no longer exist as scopes — fall back to 'all'.
+    expect(normalizeSettings({ notifyScope: 'favorites' }).notifyScope).toBe('all')
+    expect(normalizeSettings({ notifyScope: 'custom' }).notifyScope).toBe('all')
   })
 
   it('accepts checkForUpdates=false (D-026)', () => {

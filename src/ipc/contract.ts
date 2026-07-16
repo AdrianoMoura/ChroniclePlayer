@@ -161,7 +161,12 @@ export interface SettingsDto {
   autoStart: boolean
   backgroundMode: boolean
   notifyNewVideos: boolean
-  notifyScope: 'all' | 'favorites' | 'custom'
+  // 'all' ignores the per-channel notify flag (everyone notifies); 'selected'
+  // respects it — switching between the two never touches the flag itself.
+  notifyScope: 'all' | 'selected'
+  // Convenience: favoriting/unfavoriting a channel also sets its notify flag
+  // to match, unless manually changed since.
+  autoNotifyFavorites: boolean
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -288,6 +293,7 @@ export const IpcChannel = {
   unsubscribeChannel: 'channel:unsubscribe',
   toggleChannelFavorite: 'channel:toggleFavorite',
   toggleChannelNotify: 'channel:toggleNotify',
+  bulkSetChannelNotifyForFavorites: 'channel:bulkSetNotifyForFavorites',
   getPriorityFeed: 'feed:priority',
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
@@ -405,9 +411,13 @@ export interface ChronicleApi {
   // B-042: local-only channel priority marker — never touches YouTube.
   // Returns the new favorite state.
   toggleChannelFavorite(channelId: string): Promise<boolean>
-  // D-050: local-only "Custom" notification-scope membership — never touches
-  // YouTube. Returns the new notify state.
+  // D-050: local-only per-channel notify flag (the "Selected Channels" scope
+  // membership) — never touches YouTube. Returns the new notify state.
   toggleChannelNotify(channelId: string): Promise<boolean>
+  // D-050: bulk-applies the notify flag to every currently-favorited channel
+  // — used both when "auto-enable on favorite" is turned on (enable=true)
+  // and, if the user confirms, when it's turned back off (enable=false).
+  bulkSetChannelNotifyForFavorites(enable: boolean): Promise<void>
   // B-042: unread videos from favorited channels, capped and bucket-less
   // (D-039) — additive to, not a filter over, the main feed.
   getPriorityFeed(accountId?: string | null): Promise<FeedVideoDto[]>

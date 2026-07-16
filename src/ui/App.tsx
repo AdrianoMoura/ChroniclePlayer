@@ -240,7 +240,8 @@ export function App() {
     autoStart: false,
     backgroundMode: false,
     notifyNewVideos: false,
-    notifyScope: 'all'
+    notifyScope: 'all',
+    autoNotifyFavorites: false
   })
   const [appVersion, setAppVersion] = useState('')
 
@@ -1478,6 +1479,7 @@ export function App() {
           onUnsubscribe={unsubscribeChannel}
           onToggleFavorite={toggleChannelFavorite}
           onToggleNotify={toggleChannelNotify}
+          showNotifyControl={settings.notifyNewVideos && settings.notifyScope === 'selected'}
           accounts={accounts}
           accountFilter={accountFilter}
           onSelectAccount={selectAccount}
@@ -1515,6 +1517,7 @@ export function App() {
                 })
               }}
               onBanner={(text) => setBanner({ text })}
+              onChannelsChanged={loadChannels}
             />
           </>
         ) : (
@@ -1633,6 +1636,8 @@ export function App() {
                     onUnsubscribe={handleTopbarUnsubscribe}
                     onSubscribe={() => subscribeToChannel(channelFilter)}
                     onToggleFavorite={() => toggleChannelFavorite(channelFilter)}
+                    onToggleNotify={() => toggleChannelNotify(channelFilter)}
+                    showNotifyControl={settings.notifyNewVideos && settings.notifyScope === 'selected'}
                     onOpenInBrowser={() =>
                       void window.chronicle.openExternalUrl(
                         `https://www.youtube.com/channel/${channelFilter}`

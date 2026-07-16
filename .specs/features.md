@@ -212,14 +212,30 @@ independent Settings toggles, **all default off** — none gates any other:
   *when* that's true, it isn't a prerequisite. Settings shows an informational note
   near the toggle when "Run in background" is off, never a disabled control (a
   corrected assumption from this decision's first, spec-only pass — the product owner
-  caught that the original design wrongly disabled the toggle). Scope is one segmented
-  choice, not three settings: **All channels** · **Favorites only** (reuses the
-  existing favorite-channel flag, zero new schema) · **Custom** — a **new per-channel
-  `notify` flag** (`account_channels.notify`, schema v9), toggled from the sidebar
-  channel's own "⋯" context menu exactly like Favorite/Unfavorite already is, per the
-  product owner's standing preference for inline per-item controls over a Settings
-  checklist. Settings only shows the scope picker plus a one-line hint pointing at that
-  menu when Custom is selected.
+  caught that the original design wrongly disabled the toggle).
+
+**Notification scope, redesigned same day (2026-07-16, owner's own written spec) —
+see `decisions.md` D-050's revision for the full rationale.** One segmented choice:
+**All Channels** (ignores the per-channel notify flag — everyone notifies) ·
+**Selected Channels** (respects it). "Favorites only" is gone as a distinct scope;
+in its place, a separate convenience toggle, **"Automatically notify for channels I
+favorite,"** syncs the per-channel `notify` flag to match a channel's favorite state
+at the moment either is toggled — a one-shot nudge, not a live binding, so a later
+manual per-channel change always sticks until the next favorite/unfavorite. Enabling
+the convenience toggle immediately bulk-applies it to every current favorite (no
+confirmation); disabling it always takes effect immediately but asks whether to also
+bulk-clear notify from current favorites, via a confirm dialog reusing the existing
+write-scope-gate visual pattern. **Configuration is never destroyed by mode
+switches:** neither `notifyScope` nor the global on/off ever writes to the per-channel
+flag — both are pure read-side filters, so a "Selected Channels" configuration
+survives being temporarily ignored (global off, or scope set to "All") and reappears
+exactly as left. Favorite and Notify are independent per-channel properties exposed
+identically in two places, always in sync: a **directly clickable, always-visible
+icon** (`●` filled / `○` outline — plain glyph matching the existing `★`/`☆` favorite
+convention, no emoji) placed immediately before the sidebar row's "⋯" button (shown
+only when the icon would actually mean something: `notifyNewVideos && notifyScope ===
+'selected'`), and an identical control on the channel details page next to the
+existing Favorite button.
 
 Real architectural addition — lands in the `platform/` layer (`architecture.md`'s
 existing reservation for tray/window-mgmt): `src/platform/tray.ts` (Electron `Tray`,
@@ -228,7 +244,14 @@ autostart entry — Electron's `app.setLoginItemSettings()` only covers Windows/
 no native module either way, D-034). Windows/macOS auto-start and notification
 behavior are unverified — the product owner's hands-on testing is Linux-only (see
 D-050's own risk note in `decisions.md`); each capability feature-detects and disables
-itself silently rather than throwing if unsupported on a given platform.
+itself silently rather than throwing if unsupported on a given platform. **Also fixed
+same day:** a missing `app.requestSingleInstanceLock()` was the root cause of
+duplicate/stuck tray icons the owner hit on first live use — relaunching the app while
+a prior tray-resident instance was still alive (impossible before this feature, since
+closing the window used to always quit) spawned an independent second process with
+its own icon; a second, narrower bug in the tray-destroy ordering was fixed alongside
+it. The like button's pre-existing 👍 emoji was also dropped to plain text in the same
+pass, per the owner's no-emoji direction, unrelated to D-050 itself.
 
 ### In-feed local search
 `/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search

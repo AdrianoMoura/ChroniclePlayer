@@ -88,6 +88,11 @@ interface SidebarProps {
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
   onToggleNotify: (channelId: string) => void
+  // D-050 redesign: only meaningful (and shown) when notifications are on
+  // globally and the scope is "Selected Channels" — with "All Channels" or
+  // notifications off, every/no channel notifies regardless of this flag,
+  // so there'd be nothing to configure.
+  showNotifyControl: boolean
   // B-003
   accounts: AccountDto[]
   accountFilter: string | null
@@ -112,6 +117,7 @@ export function Sidebar({
   onUnsubscribe,
   onToggleFavorite,
   onToggleNotify,
+  showNotifyControl,
   accounts,
   accountFilter,
   onSelectAccount,
@@ -259,6 +265,22 @@ export function Sidebar({
                   <span className="view-count">{channel.unreadCount}</span>
                 )}
               </button>
+              {showNotifyControl && (
+                <button
+                  className={`channel-notify-btn${channel.notify ? ' notifying' : ''}`}
+                  title={
+                    channel.notify
+                      ? t('sidebar.channelMenu.unnotify')
+                      : t('sidebar.channelMenu.notify')
+                  }
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onToggleNotify(channel.channelId)
+                  }}
+                >
+                  {channel.notify ? '●' : '○'}
+                </button>
+              )}
               <button
                 className="channel-menu-btn"
                 title={t('sidebar.channelMenu.title')}
@@ -285,16 +307,6 @@ export function Sidebar({
                     {channel.favorite
                       ? t('sidebar.channelMenu.unfavorite')
                       : t('sidebar.channelMenu.favorite')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      onToggleNotify(channel.channelId)
-                      setMenuChannelId(null)
-                    }}
-                  >
-                    {channel.notify
-                      ? t('sidebar.channelMenu.unnotify')
-                      : t('sidebar.channelMenu.notify')}
                   </button>
                   <button
                     className={confirmingUnsub === channel.channelId ? 'danger' : ''}

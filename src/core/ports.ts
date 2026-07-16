@@ -64,9 +64,15 @@ export interface FeedRepository {
   // B-042: toggles a channel's priority-feed membership for one account;
   // returns the new state.
   toggleChannelFavorite(accountId: string, channelId: string): boolean
-  // D-050: toggles a channel's membership in the "Custom" new-video
-  // notification scope for one account; returns the new state.
+  // D-050: toggles a channel's per-channel notify flag (the "Selected
+  // Channels" scope membership) for one account; returns the new state.
   toggleChannelNotify(accountId: string, channelId: string): boolean
+  // D-050 redesign: direct set (not toggle) — syncs notify to a channel's
+  // new favorite state when autoNotifyFavorites is on.
+  setChannelNotify(accountId: string, channelId: string, notify: boolean): void
+  // D-050 redesign: bulk-applies notify to every currently-favorited channel
+  // (any account) — used by the autoNotifyFavorites enable/disable flow.
+  bulkSetNotifyForFavorites(enable: boolean): void
   // B-042: unread videos from favorited channels, most recent first — a
   // separate capped list (like listWatchLaterQueue), not merged into the
   // main keyset-paginated feed (D-039: also stays in its normal bucket).

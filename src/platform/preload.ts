@@ -66,6 +66,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.toggleChannelFavorite, channelId),
   toggleChannelNotify: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.toggleChannelNotify, channelId),
+  bulkSetChannelNotifyForFavorites: (enable: boolean) =>
+    ipcRenderer.invoke(IpcChannel.bulkSetChannelNotifyForFavorites, enable),
   getPriorityFeed: (accountId?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getPriorityFeed, accountId ?? null),
   backfillChannelArchive: (channelId: string) =>

@@ -10,6 +10,11 @@ interface ChannelHeaderProps {
   onUnsubscribe: () => void
   onSubscribe: () => void
   onToggleFavorite: () => void
+  onToggleNotify: () => void
+  // D-050 redesign: same gating as the sidebar's inline icon (Sidebar.tsx)
+  // — hidden when it wouldn't do anything (notifications off globally, or
+  // scope is "All Channels" where every channel already notifies).
+  showNotifyControl: boolean
   onOpenInBrowser: () => void
 }
 
@@ -29,6 +34,8 @@ export function ChannelHeader({
   onUnsubscribe,
   onSubscribe,
   onToggleFavorite,
+  onToggleNotify,
+  showNotifyControl,
   onOpenInBrowser
 }: ChannelHeaderProps) {
   const [bannerUrl, setBannerUrl] = useState<string | null>(null)
@@ -85,6 +92,19 @@ export function ChannelHeader({
               >
                 {channel.favorite ? '★' : '☆'}
               </button>
+              {showNotifyControl && (
+                <button
+                  className={`notify-channel-btn${channel.notify ? ' notifying' : ''}`}
+                  title={
+                    channel.notify
+                      ? t('sidebar.channelMenu.unnotify')
+                      : t('sidebar.channelMenu.notify')
+                  }
+                  onClick={onToggleNotify}
+                >
+                  {channel.notify ? '●' : '○'}
+                </button>
+              )}
               <button
                 className={`unsubscribe-btn${confirmingUnsubscribe ? ' danger' : ''}`}
                 onClick={onUnsubscribe}

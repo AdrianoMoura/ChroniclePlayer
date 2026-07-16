@@ -270,6 +270,28 @@ describe('SqliteFeedRepository', () => {
     )
   })
 
+  it('setChannelNotify sets (not toggles) the notify flag (D-050 redesign)', () => {
+    feed.setChannelNotify(ACCOUNT, 'UCa', true)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.notify).toBe(true)
+    feed.setChannelNotify(ACCOUNT, 'UCa', true) // idempotent — setting true again stays true
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.notify).toBe(true)
+    feed.setChannelNotify(ACCOUNT, 'UCa', false)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.notify).toBe(false)
+  })
+
+  it('bulkSetNotifyForFavorites only touches favorited channels (D-050 redesign)', () => {
+    feed.toggleChannelFavorite(ACCOUNT, 'UCa') // UCa favorited, UCb not
+    feed.bulkSetNotifyForFavorites(true)
+    const afterEnable = feed.listFollowedChannels()
+    expect(afterEnable.find((c) => c.channel.channelId === 'UCa')?.notify).toBe(true)
+    expect(afterEnable.find((c) => c.channel.channelId === 'UCb')?.notify).toBe(false)
+
+    feed.bulkSetNotifyForFavorites(false)
+    const afterDisable = feed.listFollowedChannels()
+    expect(afterDisable.find((c) => c.channel.channelId === 'UCa')?.notify).toBe(false)
+    expect(afterDisable.find((c) => c.channel.channelId === 'UCb')?.notify).toBe(false)
+  })
+
   it('listPriorityVideos surfaces unread videos from favorited channels only (B-042, D-039)', () => {
     addVideo('a-old', '2026-07-01T10:00:00Z', 'UCa')
     addVideo('a-new', '2026-07-08T10:00:00Z', 'UCa')

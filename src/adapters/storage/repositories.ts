@@ -364,6 +364,22 @@ export class SqliteFeedRepository implements FeedRepository {
     return next === 1
   }
 
+  // D-050 redesign: a direct set (not toggle) — used to sync the notify flag
+  // to a channel's new favorite state when autoNotifyFavorites is on.
+  setChannelNotify(accountId: string, channelId: string, notify: boolean): void {
+    this.db
+      .prepare(`UPDATE account_channels SET notify = ? WHERE account_id = ? AND channel_id = ?`)
+      .run(notify ? 1 : 0, accountId, channelId)
+  }
+
+  // D-050 redesign: bulk-applies the notify flag to every row (any account)
+  // currently marked favorite — used when "auto-enable on favorite" is
+  // turned on (enable=true, immediate) or turned off with the user
+  // confirming the cleanup (enable=false).
+  bulkSetNotifyForFavorites(enable: boolean): void {
+    this.db.prepare(`UPDATE account_channels SET notify = ? WHERE favorite = 1`).run(enable ? 1 : 0)
+  }
+
   // B-009: cross-references search-result channels against local state so
   // the UI can show "Subscribed" instead of a live Subscribe button —
   // subscribed by any connected account (B-003).

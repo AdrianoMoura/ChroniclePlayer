@@ -38,7 +38,15 @@ export interface AppSettings {
   autoStart: boolean
   backgroundMode: boolean
   notifyNewVideos: boolean
-  notifyScope: 'all' | 'favorites' | 'custom'
+  // 'all' ignores the per-channel notify flag entirely (everyone notifies);
+  // 'selected' respects it. Switching between the two never touches the
+  // flag itself (ChannelDto.notify) — it's just ignored while inactive, so
+  // the per-channel configuration survives round-trips between modes.
+  notifyScope: 'all' | 'selected'
+  // Convenience: favoriting/unfavoriting a channel also sets its notify flag
+  // to match, unless the user has manually changed it since. A one-shot
+  // nudge at the moment of the favorite toggle, not a persistent binding.
+  autoNotifyFavorites: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -54,7 +62,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoStart: false,
   backgroundMode: false,
   notifyNewVideos: false,
-  notifyScope: 'all'
+  notifyScope: 'all',
+  autoNotifyFavorites: false
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -73,6 +82,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const backgroundMode = source['backgroundMode']
   const notifyNewVideos = source['notifyNewVideos']
   const notifyScope = source['notifyScope']
+  const autoNotifyFavorites = source['autoNotifyFavorites']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -110,9 +120,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
     notifyNewVideos:
       typeof notifyNewVideos === 'boolean' ? notifyNewVideos : DEFAULT_SETTINGS.notifyNewVideos,
     notifyScope:
-      notifyScope === 'all' || notifyScope === 'favorites' || notifyScope === 'custom'
-        ? notifyScope
-        : DEFAULT_SETTINGS.notifyScope
+      notifyScope === 'all' || notifyScope === 'selected' ? notifyScope : DEFAULT_SETTINGS.notifyScope,
+    autoNotifyFavorites:
+      typeof autoNotifyFavorites === 'boolean'
+        ? autoNotifyFavorites
+        : DEFAULT_SETTINGS.autoNotifyFavorites
   }
 }
 

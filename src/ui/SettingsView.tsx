@@ -19,6 +19,10 @@ interface SettingsViewProps {
   onFixWeeklyLogout: () => void
   onSignOut: () => void
   onBanner: (text: string) => void
+  // D-050 redesign: the bulk favorite<->notify sync (below) changes
+  // per-channel DB state SettingsView doesn't itself display — the sidebar/
+  // channel-header icons that do need to pick up the change.
+  onChannelsChanged: () => void
 }
 
 export function SettingsView({
@@ -31,13 +35,36 @@ export function SettingsView({
   onReplaceKey,
   onFixWeeklyLogout,
   onSignOut,
-  onBanner
+  onBanner,
+  onChannelsChanged
 }: SettingsViewProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const confirmTimer = useRef<number | null>(null)
+  // D-050 redesign: turning "auto-enable on favorite" off always takes
+  // effect immediately — this only gates the separate question of whether
+  // to *also* bulk-clear notify from currently-favorited channels.
+  const [confirmingAutoNotifyDisable, setConfirmingAutoNotifyDisable] = useState(false)
 
   const set = <K extends keyof SettingsDto>(key: K, value: SettingsDto[K]): void =>
     onSettingsChange({ ...settings, [key]: value })
+
+  function setAutoNotifyFavorites(enable: boolean): void {
+    set('autoNotifyFavorites', enable)
+    if (enable) {
+      // Immediate, no confirmation — spec: "notifications should immediately
+      // be enabled for all channels that are already marked as Favorites."
+      void window.chronicle.bulkSetChannelNotifyForFavorites(true).then(onChannelsChanged)
+    } else {
+      setConfirmingAutoNotifyDisable(true)
+    }
+  }
+
+  function resolveAutoNotifyDisableConfirm(clearFavorites: boolean): void {
+    setConfirmingAutoNotifyDisable(false)
+    if (clearFavorites) {
+      void window.chronicle.bulkSetChannelNotifyForFavorites(false).then(onChannelsChanged)
+    }
+  }
 
   async function exportData(): Promise<void> {
     const result = await window.chronicle.exportData()
@@ -246,15 +273,23 @@ export function SettingsView({
                 }
               >
                 <option value="all">{t('settings.notifications.scopeAll')}</option>
-                <option value="favorites">{t('settings.notifications.scopeFavorites')}</option>
-                <option value="custom">{t('settings.notifications.scopeCustom')}</option>
+                <option value="selected">{t('settings.notifications.scopeSelected')}</option>
               </select>
             </label>
-            {settings.notifyScope === 'custom' && (
-              <p className="settings-line dim">{t('settings.notifications.scopeCustomHint')}</p>
+            {settings.notifyScope === 'selected' && (
+              <p className="settings-line dim">{t('settings.notifications.scopeSelectedHint')}</p>
             )}
           </>
         )}
+        <label className="settings-row">
+          <span>{t('settings.notifications.autoFavorite')}</span>
+          <input
+            type="checkbox"
+            checked={settings.autoNotifyFavorites}
+            onChange={(event) => setAutoNotifyFavorites(event.target.checked)}
+          />
+        </label>
+        <p className="settings-line dim">{t('settings.notifications.autoFavoriteNote')}</p>
       </section>
 
       <section>
@@ -271,6 +306,25 @@ export function SettingsView({
           </button>
         </div>
       </section>
+
+      {confirmingAutoNotifyDisable && (
+        <div
+          className="overlay-backdrop"
+          onClick={() => resolveAutoNotifyDisableConfirm(false)}
+        >
+          <div className="overlay write-scope-dialog" onClick={(event) => event.stopPropagation()}>
+            <p>{t('settings.notifications.autoFavoriteDisableConfirm')}</p>
+            <div className="write-scope-dialog-actions">
+              <button onClick={() => resolveAutoNotifyDisableConfirm(false)}>
+                {t('settings.notifications.autoFavoriteDisableKeep')}
+              </button>
+              <button className="primary" onClick={() => resolveAutoNotifyDisableConfirm(true)}>
+                {t('settings.notifications.autoFavoriteDisableClear')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

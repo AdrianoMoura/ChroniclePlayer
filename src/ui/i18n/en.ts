@@ -140,10 +140,16 @@ export const en = {
     "Notifications only fire while Chronicle is running. Turn on \"Run in background\" above to keep them going after you close the window.",
   'settings.notifications.scope': 'Notify me about',
   'settings.notifications.scopeAll': 'All channels',
-  'settings.notifications.scopeFavorites': 'Favorites only',
-  'settings.notifications.scopeCustom': 'Custom',
-  'settings.notifications.scopeCustomHint':
-    'Toggle notifications per channel from its ⋯ menu in the sidebar.',
+  'settings.notifications.scopeSelected': 'Selected channels',
+  'settings.notifications.scopeSelectedHint':
+    'Toggle notifications per channel from the icon next to it in the sidebar, or from its channel page.',
+  'settings.notifications.autoFavorite': 'Automatically notify for channels I favorite',
+  'settings.notifications.autoFavoriteNote':
+    'Favoriting a channel turns notifications on for it; unfavoriting turns them back off — unless you change that channel\'s notification state yourself afterward, which is always respected.',
+  'settings.notifications.autoFavoriteDisableConfirm':
+    'Also turn off notifications for your currently-favorited channels?',
+  'settings.notifications.autoFavoriteDisableKeep': 'Leave as-is',
+  'settings.notifications.autoFavoriteDisableClear': 'Turn off for favorites',
   'settings.data.heading': 'Data',
   'settings.data.note':
     'Everything Chronicle knows lives on this computer. The export is a single documented JSON file (see FORMAT.md in the repository) — you can leave with everything, anytime. The SQLite file itself is also a legitimate backup.',
@@ -407,8 +413,8 @@ export const en = {
   'player.action.subscribed': 'Subscribed (s)',
   'player.action.ignore': 'Ignore (i)',
   'player.action.openInBrowser': 'Open in browser (b)',
-  'player.action.like': '👍 Like (l)',
-  'player.action.liked': '👍 Liked (l)',
+  'player.action.like': 'Like (l)',
+  'player.action.liked': 'Liked (l)',
   'player.description.showMore': 'Show more',
   'player.description.showLess': 'Show less',
   'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
@@ -443,8 +449,8 @@ export const en = {
   'sidebar.channelMenu.favorite': '☆ Favorite',
   'sidebar.channelMenu.unfavorite': '★ Unfavorite',
   'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed',
-  'sidebar.channelMenu.notify': '🔔 Notify me about new videos',
-  'sidebar.channelMenu.unnotify': '🔕 Stop notifying me',
+  'sidebar.channelMenu.notify': 'Notify me about new videos from this channel',
+  'sidebar.channelMenu.unnotify': 'Stop notifying me about this channel',
 
   // YouTube search (B-009)
   'search.empty': 'No results.',
