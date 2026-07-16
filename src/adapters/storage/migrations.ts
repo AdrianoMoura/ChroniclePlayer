@@ -155,6 +155,13 @@ const SCHEMA_V8 = `
 ALTER TABLE channels DROP COLUMN available;
 `
 
+// v9 (D-050): per-account, per-channel opt-in flag for the "Custom" new-video
+// notification scope — same table/shape as the existing favorite column,
+// toggled the same way (sidebar channel context menu).
+const SCHEMA_V9 = `
+ALTER TABLE account_channels ADD COLUMN notify INTEGER NOT NULL DEFAULT 0;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -163,7 +170,8 @@ const migrations: readonly string[] = [
   SCHEMA_V5,
   SCHEMA_V6,
   SCHEMA_V7,
-  SCHEMA_V8
+  SCHEMA_V8,
+  SCHEMA_V9
 ]
 
 export function migrate(db: DatabaseSync): void {

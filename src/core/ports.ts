@@ -32,6 +32,8 @@ export interface FollowedChannel {
   // B-042: channel-level priority marker (distinct from a video's own
   // favorite, D-010) — does not affect sidebar sort order (still B-008).
   favorite: boolean
+  // D-050: opt-in for the "Custom" new-video notification scope.
+  notify: boolean
 }
 
 export interface FeedRepository {
@@ -62,6 +64,9 @@ export interface FeedRepository {
   // B-042: toggles a channel's priority-feed membership for one account;
   // returns the new state.
   toggleChannelFavorite(accountId: string, channelId: string): boolean
+  // D-050: toggles a channel's membership in the "Custom" new-video
+  // notification scope for one account; returns the new state.
+  toggleChannelNotify(accountId: string, channelId: string): boolean
   // B-042: unread videos from favorited channels, most recent first — a
   // separate capped list (like listWatchLaterQueue), not merged into the
   // main keyset-paginated feed (D-039: also stays in its normal bucket).

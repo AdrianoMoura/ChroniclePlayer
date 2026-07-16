@@ -10,6 +10,14 @@ files:
   - out/**/*
   - package.json
 
+# D-050: build/icon.png is only consumed by electron-builder at package time
+# for the app's own OS icon (below) — it isn't otherwise copied into the app
+# bundle. The tray icon (src/platform/tray.ts) needs it available at runtime
+# too, hence this extra copy into resources/.
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+
 icon: build/icon.png
 
 linux:

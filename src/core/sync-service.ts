@@ -41,6 +41,9 @@ export interface SyncReport {
   channelsFailed: number
   failures: SyncFailureDetail[]
   videosNew: number
+  // D-050: same information as videosNew, broken down per channel — only
+  // channels with at least one newly discovered video are listed.
+  newVideosByChannel: { channelId: string; channelTitle: string; count: number }[]
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
   // The subscription-list diff for this run (B-021: every sync re-lists —
@@ -119,6 +122,10 @@ export class SyncService {
     let channelsFailed = 0
     let channelsPolled = 0
     let videosNew = 0
+    // D-050: per-channel new-video counts, free information already known at
+    // this point in the discovery loop below — used by the (main-process,
+    // not core) opt-in notification feature to resolve its channel scope.
+    const newVideosByChannel: SyncReport['newVideosByChannel'] = []
     let subscriptions: { added: number; removed: number } | null = null
     const failures: SyncFailureDetail[] = []
     const firstSyncMetaKey = `${META_SUBSCRIPTIONS_SYNCED_AT}:${accountId}`
@@ -154,6 +161,14 @@ export class SyncService {
       results.forEach((result, index) => {
         if (result.ok) {
           toHydrate.push(...result.value)
+          if (result.value.length > 0) {
+            const channel = channels[index]
+            newVideosByChannel.push({
+              channelId: channel.channelId,
+              channelTitle: channel.title,
+              count: result.value.length
+            })
+          }
         } else if (isDomainError(result.error, 'quota-exceeded')) {
           ctx.quotaHit = true
         } else if (isDomainError(result.error, 'auth-expired')) {
@@ -225,6 +240,7 @@ export class SyncService {
         channelsFailed,
         failures,
         videosNew,
+        newVideosByChannel,
         quotaBefore,
         outcome,
         subscriptions,
@@ -239,6 +255,7 @@ export class SyncService {
           channelsFailed,
           failures,
           videosNew,
+          newVideosByChannel,
           quotaBefore,
           'failed',
           subscriptions,
@@ -256,6 +273,7 @@ export class SyncService {
     channelsFailed: number,
     failures: SyncFailureDetail[],
     videosNew: number,
+    newVideosByChannel: SyncReport['newVideosByChannel'],
     quotaBefore: number,
     outcome: SyncReport['outcome'],
     subscriptions: { added: number; removed: number } | null,
@@ -270,6 +288,7 @@ export class SyncService {
       channelsFailed,
       failures,
       videosNew,
+      newVideosByChannel,
       quotaSpent: this.deps.quota.spent - quotaBefore,
       outcome,
       subscriptions,

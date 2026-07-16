@@ -202,6 +202,62 @@ export function SettingsView({
       </section>
 
       <section>
+        <h2>{t('settings.startup.heading')}</h2>
+        <label className="settings-row">
+          <span>{t('settings.startup.autoStart')}</span>
+          <input
+            type="checkbox"
+            checked={settings.autoStart}
+            onChange={(event) => set('autoStart', event.target.checked)}
+          />
+        </label>
+        <label className="settings-row">
+          <span>{t('settings.startup.backgroundMode')}</span>
+          <input
+            type="checkbox"
+            checked={settings.backgroundMode}
+            onChange={(event) => set('backgroundMode', event.target.checked)}
+          />
+        </label>
+        <p className="settings-line dim">{t('settings.startup.backgroundModeNote')}</p>
+      </section>
+
+      <section>
+        <h2>{t('settings.notifications.heading')}</h2>
+        <label className="settings-row">
+          <span>{t('settings.notifications.enabled')}</span>
+          <input
+            type="checkbox"
+            checked={settings.notifyNewVideos}
+            onChange={(event) => set('notifyNewVideos', event.target.checked)}
+          />
+        </label>
+        {!settings.backgroundMode && (
+          <p className="settings-line dim">{t('settings.notifications.backgroundModeHint')}</p>
+        )}
+        {settings.notifyNewVideos && (
+          <>
+            <label className="settings-row">
+              <span>{t('settings.notifications.scope')}</span>
+              <select
+                value={settings.notifyScope}
+                onChange={(event) =>
+                  set('notifyScope', event.target.value as SettingsDto['notifyScope'])
+                }
+              >
+                <option value="all">{t('settings.notifications.scopeAll')}</option>
+                <option value="favorites">{t('settings.notifications.scopeFavorites')}</option>
+                <option value="custom">{t('settings.notifications.scopeCustom')}</option>
+              </select>
+            </label>
+            {settings.notifyScope === 'custom' && (
+              <p className="settings-line dim">{t('settings.notifications.scopeCustomHint')}</p>
+            )}
+          </>
+        )}
+      </section>
+
+      <section>
         <h2>{t('settings.data.heading')}</h2>
         <p className="settings-line dim">{t('settings.data.note')}</p>
         <div className="settings-actions">

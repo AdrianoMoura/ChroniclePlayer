@@ -52,6 +52,7 @@ CREATE TABLE account_channels (
   channel_id          TEXT NOT NULL REFERENCES channels(channel_id),
   subscribed          INTEGER NOT NULL DEFAULT 1,  -- 0 = unsubscribed on YT, data retained
   favorite            INTEGER NOT NULL DEFAULT 0,  -- B-042 priority marker, per account
+  notify              INTEGER NOT NULL DEFAULT 0,  -- D-050 v9: opt-in for the "Custom" notification scope
   subscription_id     TEXT,                 -- B-010: YouTube's subscription resource id
   added_at            TEXT NOT NULL,
   backfill_page_token TEXT,                 -- B-002: on-demand back-catalog continuation

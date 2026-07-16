@@ -87,6 +87,7 @@ interface SidebarProps {
   onToggleCollapse: () => void
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
+  onToggleNotify: (channelId: string) => void
   // B-003
   accounts: AccountDto[]
   accountFilter: string | null
@@ -110,6 +111,7 @@ export function Sidebar({
   onToggleCollapse,
   onUnsubscribe,
   onToggleFavorite,
+  onToggleNotify,
   accounts,
   accountFilter,
   onSelectAccount,
@@ -283,6 +285,16 @@ export function Sidebar({
                     {channel.favorite
                       ? t('sidebar.channelMenu.unfavorite')
                       : t('sidebar.channelMenu.favorite')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      onToggleNotify(channel.channelId)
+                      setMenuChannelId(null)
+                    }}
+                  >
+                    {channel.notify
+                      ? t('sidebar.channelMenu.unnotify')
+                      : t('sidebar.channelMenu.notify')}
                   </button>
                   <button
                     className={confirmingUnsub === channel.channelId ? 'danger' : ''}

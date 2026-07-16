@@ -281,6 +281,30 @@ describe('SyncService.refresh', () => {
     expect(report.outcome).toBe('partial')
   })
 
+  it('breaks new-video counts down per channel (D-050)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { title: 'Alpha' })
+    repo.addChannel('UCb', { title: 'Beta' })
+    repo.addChannel('UCc', { title: 'Gamma' }) // nothing new here — must be omitted
+    const source = fakeVideoSource({
+      feeds: {
+        UCa: { kind: 'ok', entries: [discovered('a1'), discovered('a2')], etag: null, lastModified: null },
+        UCb: { kind: 'ok', entries: [discovered('b1')], etag: null, lastModified: null },
+        UCc: { kind: 'ok', entries: [], etag: null, lastModified: null }
+      }
+    })
+
+    const report = await service(repo, source).refresh('manual', 'acc1')
+
+    expect(report.newVideosByChannel).toEqual(
+      expect.arrayContaining([
+        { channelId: 'UCa', channelTitle: 'Alpha', count: 2 },
+        { channelId: 'UCb', channelTitle: 'Beta', count: 1 }
+      ])
+    )
+    expect(report.newVideosByChannel).toHaveLength(2)
+  })
+
   it('attributes a per-channel failure to its channel in the report (B-097)', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCbad', { title: 'Bad Channel' })

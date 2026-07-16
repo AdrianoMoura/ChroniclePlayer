@@ -27,7 +27,11 @@ describe('settings store', () => {
       showShorts: false,
       defaultPlaybackRate: 1.5,
       checkForUpdates: false,
-      miniplayerWidth: 420
+      miniplayerWidth: 420,
+      autoStart: true,
+      backgroundMode: true,
+      notifyNewVideos: true,
+      notifyScope: 'favorites'
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -50,7 +54,11 @@ describe('settings store', () => {
         showShorts: false,
         defaultPlaybackRate: 3,
         checkForUpdates: 'yes',
-        miniplayerWidth: 10000
+        miniplayerWidth: 10000,
+        autoStart: 'yes',
+        backgroundMode: 1,
+        notifyNewVideos: null,
+        notifyScope: 'everything'
       })
     ).toEqual({
       theme: 'light',
@@ -61,8 +69,25 @@ describe('settings store', () => {
       showShorts: false,
       defaultPlaybackRate: 1,
       checkForUpdates: true,
-      miniplayerWidth: 360
+      miniplayerWidth: 360,
+      autoStart: false,
+      backgroundMode: false,
+      notifyNewVideos: false,
+      notifyScope: 'all'
     })
+  })
+
+  it('accepts the three D-050 toggles + notify scope', () => {
+    expect(
+      normalizeSettings({ autoStart: true, backgroundMode: true, notifyNewVideos: true, notifyScope: 'custom' })
+    ).toEqual(
+      expect.objectContaining({
+        autoStart: true,
+        backgroundMode: true,
+        notifyNewVideos: true,
+        notifyScope: 'custom'
+      })
+    )
   })
 
   it('accepts checkForUpdates=false (D-026)', () => {

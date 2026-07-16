@@ -29,6 +29,16 @@ export interface AppSettings {
   // B-045: the docked miniplayer's width, drag-resized from its own corner
   // handle (MiniPlayerBar) and persisted rather than reset every launch.
   miniplayerWidth: number
+  // D-050: three independent toggles, all default off — none gates any
+  // other. autoStart launches on OS login; backgroundMode keeps the app
+  // alive in the tray after the window closes (which extends *when* a sync
+  // can happen, not whether notifications are allowed); notifyNewVideos
+  // fires an OS notification from any sync, whenever the process happens to
+  // be running at all (open window or tray-resident).
+  autoStart: boolean
+  backgroundMode: boolean
+  notifyNewVideos: boolean
+  notifyScope: 'all' | 'favorites' | 'custom'
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -40,7 +50,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showShorts: true,
   defaultPlaybackRate: 1,
   checkForUpdates: true,
-  miniplayerWidth: 360
+  miniplayerWidth: 360,
+  autoStart: false,
+  backgroundMode: false,
+  notifyNewVideos: false,
+  notifyScope: 'all'
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -55,6 +69,10 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const rate = source['defaultPlaybackRate']
   const checkForUpdates = source['checkForUpdates']
   const miniplayerWidth = source['miniplayerWidth']
+  const autoStart = source['autoStart']
+  const backgroundMode = source['backgroundMode']
+  const notifyNewVideos = source['notifyNewVideos']
+  const notifyScope = source['notifyScope']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -85,7 +103,16 @@ export function normalizeSettings(raw: unknown): AppSettings {
       miniplayerWidth >= MINIPLAYER_MIN_WIDTH &&
       miniplayerWidth <= MINIPLAYER_MAX_WIDTH
         ? miniplayerWidth
-        : DEFAULT_SETTINGS.miniplayerWidth
+        : DEFAULT_SETTINGS.miniplayerWidth,
+    autoStart: typeof autoStart === 'boolean' ? autoStart : DEFAULT_SETTINGS.autoStart,
+    backgroundMode:
+      typeof backgroundMode === 'boolean' ? backgroundMode : DEFAULT_SETTINGS.backgroundMode,
+    notifyNewVideos:
+      typeof notifyNewVideos === 'boolean' ? notifyNewVideos : DEFAULT_SETTINGS.notifyNewVideos,
+    notifyScope:
+      notifyScope === 'all' || notifyScope === 'favorites' || notifyScope === 'custom'
+        ? notifyScope
+        : DEFAULT_SETTINGS.notifyScope
   }
 }
 

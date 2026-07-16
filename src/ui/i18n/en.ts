@@ -129,6 +129,21 @@ export const en = {
   'settings.appearance.themeLight': 'Light',
   'settings.appearance.showViewCounts': 'Show view counts',
   'settings.appearance.showShorts': 'Show Shorts',
+  'settings.startup.heading': 'Startup & Background',
+  'settings.startup.autoStart': 'Start Chronicle automatically when you log in',
+  'settings.startup.backgroundMode': 'Keep running in the background when the window is closed',
+  'settings.startup.backgroundModeNote':
+    'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
+  'settings.notifications.heading': 'Notifications',
+  'settings.notifications.enabled': 'Notify me about new videos',
+  'settings.notifications.backgroundModeHint':
+    "Notifications only fire while Chronicle is running. Turn on \"Run in background\" above to keep them going after you close the window.",
+  'settings.notifications.scope': 'Notify me about',
+  'settings.notifications.scopeAll': 'All channels',
+  'settings.notifications.scopeFavorites': 'Favorites only',
+  'settings.notifications.scopeCustom': 'Custom',
+  'settings.notifications.scopeCustomHint':
+    'Toggle notifications per channel from its ⋯ menu in the sidebar.',
   'settings.data.heading': 'Data',
   'settings.data.note':
     'Everything Chronicle knows lives on this computer. The export is a single documented JSON file (see FORMAT.md in the repository) — you can leave with everything, anytime. The SQLite file itself is also a legitimate backup.',
@@ -428,6 +443,8 @@ export const en = {
   'sidebar.channelMenu.favorite': '☆ Favorite',
   'sidebar.channelMenu.unfavorite': '★ Unfavorite',
   'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed',
+  'sidebar.channelMenu.notify': '🔔 Notify me about new videos',
+  'sidebar.channelMenu.unnotify': '🔕 Stop notifying me',
 
   // YouTube search (B-009)
   'search.empty': 'No results.',

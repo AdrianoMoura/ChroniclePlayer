@@ -236,7 +236,11 @@ export function App() {
     showShorts: true,
     defaultPlaybackRate: 1,
     checkForUpdates: true,
-    miniplayerWidth: 360
+    miniplayerWidth: 360,
+    autoStart: false,
+    backgroundMode: false,
+    notifyNewVideos: false,
+    notifyScope: 'all'
   })
   const [appVersion, setAppVersion] = useState('')
 
@@ -677,6 +681,17 @@ export function App() {
       })
     },
     [loadChannels, syncMeta]
+  )
+
+  // D-050: local-only "Custom" notification-scope membership — never touches
+  // YouTube, same shape as toggleChannelFavorite above.
+  const toggleChannelNotify = useCallback(
+    (channelId: string) => {
+      void window.chronicle.toggleChannelNotify(channelId).then(() => {
+        loadChannels()
+      })
+    },
+    [loadChannels]
   )
 
   // B-003: selecting an account is a second, independent filter dimension —
@@ -1462,6 +1477,7 @@ export function App() {
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}
           onToggleFavorite={toggleChannelFavorite}
+          onToggleNotify={toggleChannelNotify}
           accounts={accounts}
           accountFilter={accountFilter}
           onSelectAccount={selectAccount}
@@ -1605,7 +1621,8 @@ export function App() {
                         title: preview.title,
                         thumbnailUrl: preview.thumbnailUrl,
                         unreadCount: 0,
-                        favorite: false
+                        favorite: false,
+                        notify: false
                       }
                     : undefined)
                 return headerChannel !== undefined ? (

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, Notification, Tray, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -50,9 +50,11 @@ import type {
 import { IpcChannel, PLAYBACK_RATES } from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
+import { setLinuxAutostart } from './linux-autostart'
 import { startRendererServer } from './renderer-server'
 import { loadSettings, normalizeSettings, saveSettings, type AppSettings } from './settings-store'
 import { ThumbnailCache, chronicleCacheDir } from './thumbnail-cache'
+import { createAppTray } from './tray'
 
 const clock: Clock = { now: () => new Date() }
 
@@ -243,6 +245,16 @@ function loadRenderer(window: BrowserWindow, query?: Record<string, string>): vo
   }
 }
 
+// D-050: build/icon.png isn't part of electron-builder's `files` (only
+// consumed at package time for the app's own OS icon) — extraResources
+// copies it to resources/icon.png for the packaged app; in dev it's just the
+// project's own build/icon.png.
+function trayIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'icon.png')
+    : join(app.getAppPath(), 'build', 'icon.png')
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1200,
@@ -261,6 +273,19 @@ function createWindow(): BrowserWindow {
     }
   })
   loadRenderer(window)
+  mainWindow = window
+  // D-050: while "Run in background" is on, closing the window hides it to
+  // the tray instead of quitting — the tray's own Quit item (or any other
+  // real quit path) sets isQuitting first so this doesn't also intercept that.
+  window.on('close', (event) => {
+    if (backgroundModeEnabled && !isQuitting) {
+      event.preventDefault()
+      window.hide()
+    }
+  })
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = null
+  })
   return window
 }
 
@@ -326,6 +351,27 @@ let closeRendererServer: (() => void) | null = null
 // currently live regardless of how many times boot() has run.
 let timer: ReturnType<typeof setInterval> | null = null
 let updateTimer: ReturnType<typeof setInterval> | null = null
+// D-050: tray-resident mode. mainWindow is tracked so the tray's "Open" item
+// and a notification click can re-show it instead of only being able to spawn
+// a fresh one; isQuitting distinguishes a real quit (let the window close) from
+// the user just clicking the window's close button while backgroundMode is on
+// (hide instead).
+let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
+// Mirrors settings.backgroundMode (boot()-local) so the module-level
+// createWindow()'s close handler can read it without needing boot()'s whole
+// closure — kept in sync by applyBackgroundMode() every time it runs.
+let backgroundModeEnabled = false
+
+function showOrCreateMainWindow(): void {
+  if (mainWindow !== null && !mainWindow.isDestroyed()) {
+    mainWindow.show()
+    mainWindow.focus()
+  } else {
+    createWindow()
+  }
+}
 
 // Composition root + IPC registration. Callable more than once: "delete all
 // data" (IpcChannel.deleteAllData below) tears everything down and calls
@@ -469,6 +515,7 @@ async function boot(): Promise<void> {
       channelsFailed: acc.channelsFailed + r.channelsFailed,
       failures: [...acc.failures, ...r.failures],
       videosNew: acc.videosNew + r.videosNew,
+      newVideosByChannel: [...acc.newVideosByChannel, ...r.newVideosByChannel],
       quotaSpent: acc.quotaSpent + r.quotaSpent,
       outcome: outcomeRank[r.outcome] > outcomeRank[acc.outcome] ? r.outcome : acc.outcome,
       subscriptions:
@@ -588,6 +635,7 @@ async function boot(): Promise<void> {
     const merged = mergeReports(reports)
     const dto = toReportDto(merged)
     broadcast({ type: 'refresh:done', report: dto })
+    maybeNotifyNewVideos(merged)
     if (merged.outcome === 'quota') broadcast({ type: 'quota:exceeded' })
     return { ok: true, value: dto }
   }
@@ -656,7 +704,8 @@ async function boot(): Promise<void> {
         title: followed.channel.title,
         thumbnailUrl: followed.channel.thumbnailUrl,
         unreadCount: followed.unreadCount,
-        favorite: followed.favorite
+        favorite: followed.favorite,
+        notify: followed.notify
       }))
   )
   ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) => {
@@ -664,6 +713,12 @@ async function boot(): Promise<void> {
     const accountId = resolveOwningAccountId(id)
     if (accountId === undefined) return false
     return feedRepository.toggleChannelFavorite(accountId, id)
+  })
+  ipcMain.handle(IpcChannel.toggleChannelNotify, (_event, channelId: unknown) => {
+    const id = parseChannelIdRequired(channelId)
+    const accountId = resolveOwningAccountId(id)
+    if (accountId === undefined) return false
+    return feedRepository.toggleChannelNotify(accountId, id)
   })
   ipcMain.handle(IpcChannel.getPriorityFeed, (_event, accountId: unknown): FeedVideoDto[] =>
     feedService.getPriorityVideos(settings.showShorts, parseAccountId(accountId)).map(toVideoDto)
@@ -1330,12 +1385,96 @@ async function boot(): Promise<void> {
   }
   applyUpdateCheckTimer()
 
+  // D-050: three independent toggles (none gates any other — see
+  // AppSettings' own comment). Both apply* functions below feature-detect
+  // and swallow errors rather than throw, per the decision's own risk note
+  // that Windows/macOS auto-start and Linux's hand-rolled autostart file are
+  // unverified here (only Linux is hands-on tested) — a platform that
+  // doesn't support one of these should silently no-op, not crash the app.
+  function applyAutoStart(): void {
+    try {
+      if (process.platform === 'linux') {
+        setLinuxAutostart(settings.autoStart, process.execPath)
+      } else {
+        app.setLoginItemSettings({ openAtLogin: settings.autoStart })
+      }
+    } catch (error) {
+      console.error('D-050: applyAutoStart failed', error)
+    }
+  }
+  applyAutoStart()
+
+  function applyBackgroundMode(): void {
+    backgroundModeEnabled = settings.backgroundMode
+    try {
+      if (settings.backgroundMode) {
+        if (tray === null) {
+          tray = createAppTray(trayIconPath(), {
+            onOpen: showOrCreateMainWindow,
+            onRefreshNow: () => void runRefresh('manual'),
+            onQuit: () => {
+              isQuitting = true
+              app.quit()
+            }
+          })
+        }
+      } else {
+        tray?.destroy()
+        tray = null
+        // Turning the toggle off shouldn't leave the app invisible in the
+        // background with no way back in beyond relaunching it.
+        if (mainWindow !== null && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+          mainWindow.show()
+        }
+      }
+    } catch (error) {
+      console.error('D-050: applyBackgroundMode failed', error)
+    }
+  }
+  applyBackgroundMode()
+
+  // D-050: never fires on an account's first sync (that's backlog, not
+  // something that happened while backgrounded — mirrors D-047's reasoning),
+  // and resolves notifyScope against whichever channels are actually
+  // followed right now (favorite/notify flags OR'd across every connected
+  // account, same semantics listFollowedChannels already uses elsewhere).
+  function maybeNotifyNewVideos(report: SyncReport): void {
+    if (!settings.notifyNewVideos || report.firstSync || report.newVideosByChannel.length === 0) {
+      return
+    }
+    try {
+      if (!Notification.isSupported()) return
+      let matched = report.newVideosByChannel
+      if (settings.notifyScope !== 'all') {
+        const followed = feedRepository.listFollowedChannels(true)
+        const scopedIds = new Set(
+          followed
+            .filter((c) => (settings.notifyScope === 'favorites' ? c.favorite : c.notify))
+            .map((c) => c.channel.channelId)
+        )
+        matched = matched.filter((entry) => scopedIds.has(entry.channelId))
+      }
+      if (matched.length === 0) return
+      const body =
+        matched.length === 1
+          ? `${matched[0].count} new video${matched[0].count === 1 ? '' : 's'} from ${matched[0].channelTitle}`
+          : `${matched.reduce((sum, entry) => sum + entry.count, 0)} new videos across ${matched.length} channels`
+      const notification = new Notification({ title: 'Chronicle', body })
+      notification.on('click', showOrCreateMainWindow)
+      notification.show()
+    } catch (error) {
+      console.error('D-050: maybeNotifyNewVideos failed', error)
+    }
+  }
+
   ipcMain.handle(IpcChannel.getSettings, () => ({ settings, warning: settingsWarning }))
   ipcMain.handle(IpcChannel.setSettings, (_event, raw: unknown) => {
     settings = normalizeSettings(raw)
     saveSettings(settingsFile, settings)
     applyRefreshTimer()
     applyUpdateCheckTimer()
+    applyAutoStart()
+    applyBackgroundMode()
   })
   ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
 
@@ -1422,6 +1561,12 @@ async function boot(): Promise<void> {
       clearInterval(updateTimer)
       updateTimer = null
     }
+    // D-050: the tray's own click callbacks close over this boot()
+    // generation's runRefresh/settings — stale once boot() reruns below, so
+    // it's destroyed here and freshly recreated by the new generation's own
+    // applyBackgroundMode() rather than left pointing at torn-down state.
+    tray?.destroy()
+    tray = null
     // Every handler this boot() generation registered must go before the
     // next boot() re-registers them — ipcMain.handle throws if a channel
     // already has one.
@@ -1471,6 +1616,15 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   if (timer !== null) clearInterval(timer)
   if (updateTimer !== null) clearInterval(updateTimer)
+  tray?.destroy()
+  tray = null
   closeRendererServer?.()
   db?.close()
+})
+
+// D-050: falls back to isQuitting = true on any other route to a real quit
+// (e.g. Cmd+Q on macOS, or an OS session logout) so backgroundMode's close
+// intercept doesn't fight the app actually trying to exit.
+app.on('before-quit', () => {
+  isQuitting = true
 })

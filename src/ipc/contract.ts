@@ -75,6 +75,8 @@ export interface ChannelDto {
   // Channel-level priority marker (B-042) — distinct from a video's own
   // favorite (VideoStateDto.favorite).
   favorite: boolean
+  // D-050: membership in the "Custom" new-video notification scope.
+  notify: boolean
 }
 
 // Channel-screen-only extras (B-056) — fetched live via getChannelDetail,
@@ -154,6 +156,12 @@ export interface SettingsDto {
   defaultPlaybackRate: number // D-038, default 1 — player loads already at this speed
   checkForUpdates: boolean // D-026, default true — GitHub Releases API check, notice only
   miniplayerWidth: number // B-045, default 360 — corner drag-handle sets this, persisted
+  // D-050, all default off/'all': tray-resident/auto-start/notifications are
+  // three independent toggles, not gated on one another.
+  autoStart: boolean
+  backgroundMode: boolean
+  notifyNewVideos: boolean
+  notifyScope: 'all' | 'favorites' | 'custom'
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -279,6 +287,7 @@ export const IpcChannel = {
   windowControl: 'window:control',
   unsubscribeChannel: 'channel:unsubscribe',
   toggleChannelFavorite: 'channel:toggleFavorite',
+  toggleChannelNotify: 'channel:toggleNotify',
   getPriorityFeed: 'feed:priority',
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
@@ -396,6 +405,9 @@ export interface ChronicleApi {
   // B-042: local-only channel priority marker — never touches YouTube.
   // Returns the new favorite state.
   toggleChannelFavorite(channelId: string): Promise<boolean>
+  // D-050: local-only "Custom" notification-scope membership — never touches
+  // YouTube. Returns the new notify state.
+  toggleChannelNotify(channelId: string): Promise<boolean>
   // B-042: unread videos from favorited channels, capped and bucket-less
   // (D-039) — additive to, not a filter over, the main feed.
   getPriorityFeed(accountId?: string | null): Promise<FeedVideoDto[]>

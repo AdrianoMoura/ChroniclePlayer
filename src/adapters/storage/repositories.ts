@@ -302,6 +302,7 @@ export class SqliteFeedRepository implements FeedRepository {
            c.title,
            c.thumbnail_url,
            MAX(ac.favorite) AS favorite,
+           MAX(ac.notify) AS notify,
            (SELECT MAX(v.published_at) FROM videos v
              WHERE v.channel_id = c.channel_id ${filter}) AS latest_published_at,
            (SELECT COUNT(*) FROM videos v
@@ -320,6 +321,7 @@ export class SqliteFeedRepository implements FeedRepository {
       title: string
       thumbnail_url: string | null
       favorite: number | bigint
+      notify: number | bigint
       latest_published_at: string | null
       unread_count: number | bigint
     }[]
@@ -331,7 +333,8 @@ export class SqliteFeedRepository implements FeedRepository {
       },
       latestPublishedAt: row.latest_published_at,
       unreadCount: Number(row.unread_count),
-      favorite: Number(row.favorite) === 1
+      favorite: Number(row.favorite) === 1,
+      notify: Number(row.notify) === 1
     }))
   }
 
@@ -344,6 +347,19 @@ export class SqliteFeedRepository implements FeedRepository {
     const next = row && Number(row.favorite) === 1 ? 0 : 1
     this.db
       .prepare(`UPDATE account_channels SET favorite = ? WHERE account_id = ? AND channel_id = ?`)
+      .run(next, accountId, channelId)
+    return next === 1
+  }
+
+  // D-050: returns the new notify state (the "Custom" notification-scope
+  // membership toggle) — same shape as toggleChannelFavorite above.
+  toggleChannelNotify(accountId: string, channelId: string): boolean {
+    const row = this.db
+      .prepare(`SELECT notify FROM account_channels WHERE account_id = ? AND channel_id = ?`)
+      .get(accountId, channelId) as { notify: number | bigint } | undefined
+    const next = row && Number(row.notify) === 1 ? 0 : 1
+    this.db
+      .prepare(`UPDATE account_channels SET notify = ? WHERE account_id = ? AND channel_id = ?`)
       .run(next, accountId, channelId)
     return next === 1
   }

@@ -198,26 +198,37 @@ offline-first polish (thumbnail pre-caching policies, TOS-compliant retention wi
 see the storage-policy note in `youtube-api.md`).
 
 ### Tray-resident mode, auto-start, and opt-in mechanical notifications (D-050)
-Full design/rationale: `decisions.md` D-050. Three independent Settings toggles, **all
-default off**:
+**Implemented 2026-07-16.** Full design/rationale: `decisions.md` D-050. Three fully
+independent Settings toggles, **all default off** — none gates any other:
 - **Auto-start** — launch Chronicle on OS login.
 - **Run in background** — closing the window hides it instead of quitting; a tray icon
-  offers Open / Refresh now / Quit. This keeps the existing 30-min sync timer (D-016)
-  running with no window open, and is a prerequisite for notifications below (their
-  control is disabled, with an explanation, whenever this is off).
+  offers Open Chronicle / Refresh now / Quit. This keeps the existing 30-min sync timer
+  (D-016) running with no window open.
 - **New-video notifications** — mechanical only ("N new video(s) from {channel}",
-  click-through opens the video/channel; no re-engagement copy, no
-  streaks/badges — `non-goals.md`). Scope is one segmented choice, not three settings:
-  **All channels** · **Favorites only** (reuses the existing favorite-channel flag,
-  zero new schema) · **Custom** (checklist of followed channels). All three populate
-  one internal `notify_channels` channel-id set; only "Custom" needs new persisted
-  per-channel state.
+  click-through opens Chronicle; no re-engagement copy, no streaks/badges —
+  `non-goals.md`). **Not gated on "Run in background"**: the only real requirement for
+  a notification to fire is that the app process is running at all, which is already
+  true any time the window is open (even minimized) — "Run in background" just extends
+  *when* that's true, it isn't a prerequisite. Settings shows an informational note
+  near the toggle when "Run in background" is off, never a disabled control (a
+  corrected assumption from this decision's first, spec-only pass — the product owner
+  caught that the original design wrongly disabled the toggle). Scope is one segmented
+  choice, not three settings: **All channels** · **Favorites only** (reuses the
+  existing favorite-channel flag, zero new schema) · **Custom** — a **new per-channel
+  `notify` flag** (`account_channels.notify`, schema v9), toggled from the sidebar
+  channel's own "⋯" context menu exactly like Favorite/Unfavorite already is, per the
+  product owner's standing preference for inline per-item controls over a Settings
+  checklist. Settings only shows the scope picker plus a one-line hint pointing at that
+  menu when Custom is selected.
 
 Real architectural addition — lands in the `platform/` layer (`architecture.md`'s
-existing reservation for tray/window-mgmt). Auto-start and notifications need
-different native mechanisms per OS (Electron's built-in APIs cover Windows/macOS
-auto-start and cross-platform notifications; Linux auto-start needs a hand-written
-XDG `.desktop` autostart entry, no native module). Do not underestimate.
+existing reservation for tray/window-mgmt): `src/platform/tray.ts` (Electron `Tray`,
+cross-platform), `src/platform/linux-autostart.ts` (hand-written XDG `.desktop`
+autostart entry — Electron's `app.setLoginItemSettings()` only covers Windows/macOS,
+no native module either way, D-034). Windows/macOS auto-start and notification
+behavior are unverified — the product owner's hands-on testing is Linux-only (see
+D-050's own risk note in `decisions.md`); each capability feature-detects and disables
+itself silently rather than throwing if unsupported on a given platform.
 
 ### In-feed local search
 `/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search

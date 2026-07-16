@@ -70,7 +70,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(8)
+    expect(Number(row.user_version)).toBe(9)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -255,6 +255,17 @@ describe('SqliteFeedRepository', () => {
     )
     expect(feed.toggleChannelFavorite(ACCOUNT, 'UCa')).toBe(false)
     expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.favorite).toBe(
+      false
+    )
+  })
+
+  it('toggleChannelNotify flips the channel-level notify flag (D-050)', () => {
+    expect(feed.toggleChannelNotify(ACCOUNT, 'UCa')).toBe(true)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.notify).toBe(
+      true
+    )
+    expect(feed.toggleChannelNotify(ACCOUNT, 'UCa')).toBe(false)
+    expect(feed.listFollowedChannels().find((c) => c.channel.channelId === 'UCa')?.notify).toBe(
       false
     )
   })
