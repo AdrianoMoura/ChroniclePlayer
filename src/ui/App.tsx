@@ -248,6 +248,8 @@ export function App() {
   const lastG = useRef(0)
   const filterInputRef = useRef<HTMLInputElement>(null)
   const channelQueryRef = useRef<HTMLInputElement>(null)
+  const searchResultsRef = useRef<HTMLDivElement>(null)
+  const channelPreviewRef = useRef<HTMLDivElement>(null)
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
@@ -557,6 +559,19 @@ export function App() {
     })
   }, [searchQuery, searchNextPageToken, searchLoadingMore])
 
+  // B-107 follow-up: search results only page via the `.search-results`
+  // container's own onScroll handler, same as the near-end check this
+  // fixed in FeedList.tsx — a small result count, a small grid item size,
+  // or a tall window can all mean the first page never actually overflows,
+  // so that scroll handler never fires and pagination silently stalls
+  // exactly like the original report. `loadMoreSearchResults` itself
+  // already no-ops without a `searchNextPageToken`/while already loading,
+  // so this can't loop.
+  useEffect(() => {
+    const el = searchResultsRef.current
+    if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreSearchResults()
+  }, [searchResults, settings.itemSize, settings.layout, settings.showShorts, loadMoreSearchResults])
+
   // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
   // may open the system browser once for incremental write-scope consent.
   const subscribeToChannel = useCallback(
@@ -644,6 +659,14 @@ export function App() {
       return { ...current, loadingMore: true }
     })
   }, [])
+
+  // B-107 follow-up: same "no overflow, so the onScroll near-end check
+  // never fires" gap as search results above, for the channel-preview list
+  // (browsing a not-yet-subscribed channel's uploads from a search result).
+  useEffect(() => {
+    const el = channelPreviewRef.current
+    if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreChannelPreview()
+  }, [channelPreview, settings.itemSize, settings.layout, loadMoreChannelPreview])
 
   // B-042: local-only priority marker — never touches YouTube.
   const toggleChannelFavorite = useCallback(
@@ -1606,6 +1629,7 @@ export function App() {
                 )}
                 {searchResults !== null ? (
                   <div
+                    ref={searchResultsRef}
                     className={`search-results size-${settings.itemSize}`}
                     onScroll={(event) => {
                       const el = event.currentTarget
@@ -1687,6 +1711,7 @@ export function App() {
                   </div>
                 ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
                   <div
+                    ref={channelPreviewRef}
                     className={`search-results size-${settings.itemSize}`}
                     onScroll={(event) => {
                       const el = event.currentTarget

@@ -309,7 +309,31 @@ Resolved entries add:
   `CLAUDE.md`; UI relies on the owner's own live check). Checked via
   `npm run typecheck && npm run lint && npm test` (200/200); **not run live this
   session** (per [[no-live-app-verification]]).
-- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 · **Outcome:** Fixed
+- **Follow-up (2026-07-16):** the owner tested by typing into the topbar search box —
+  which turned out to be a completely different code path than the one just fixed
+  (`FeedList.tsx`'s virtualizer): a YouTube search's results render through a plain,
+  non-virtualized `.search-results` `<div>` in `App.tsx`, paged via that div's own
+  `onScroll` handler (`if (scrollHeight - scrollTop - clientHeight < 300)
+  loadMoreSearchResults()`) — the exact same "depends on a scroll event that may never
+  come" shape, just implemented differently, and entirely missed by the first pass since
+  it isn't `FeedList` at all. Fixed the same way: a `useEffect` (keyed on `searchResults`/
+  `settings.itemSize`/`settings.layout`/`settings.showShorts`) checks
+  `searchResultsRef.current`'s `scrollHeight`/`clientHeight` after each render and calls
+  `loadMoreSearchResults()` directly if there's no overflow — safe against loops the same
+  way, since `loadMoreSearchResults` already no-ops without a `searchNextPageToken` or
+  while already loading. While fixing this, found and fixed a **third** instance of the
+  identical pattern that wasn't part of any report yet: `channelPreview` (browsing a
+  not-yet-subscribed channel's uploads, opened from a search channel result) renders
+  through the same `.search-results` markup with its own separate `onScroll` handler
+  calling `loadMoreChannelPreview()` — same fix, a second `useEffect` keyed on
+  `channelPreview`/`settings.itemSize`/`settings.layout` checking a new
+  `channelPreviewRef`. `src/ui/App.tsx` gained both refs (`searchResultsRef`,
+  `channelPreviewRef`), wired onto their respective `.search-results` divs. Checked via
+  `npm run typecheck && npm run lint && npm test` (200/200); **not run live** — needs the
+  owner's own check (search with a small item size / narrow window so the first page
+  doesn't overflow, confirm more results load automatically; same for opening an
+  unsubscribed channel's preview).
+- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 (follow-up: pending) · **Outcome:** Fixed
 
 ### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
 - **Type:** bug · **Severity:** major · **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.3.0
