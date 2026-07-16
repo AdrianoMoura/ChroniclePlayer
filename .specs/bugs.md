@@ -358,7 +358,7 @@ Resolved entries add:
   changes needed — `ui.md`/`playback.md` don't describe stacking order at this level of
   detail. Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
   live-app check this session (per [[no-live-app-verification]]).
-- **Resolved:** 2026-07-16 · **Outcome:** Fixed
+- **Resolved:** 2026-07-16 · **Commit:** efc9d6b · **Outcome:** Fixed
 
 ### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.3.0
