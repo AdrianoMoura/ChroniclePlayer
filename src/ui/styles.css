@@ -351,6 +351,29 @@ input:focus-visible,
   opacity: 0;
 }
 
+/* Moved out of the "⋯" menu into a direct row button (the owner's request,
+   mirroring the D-050 notify icon below) — always visible (opacity 1),
+   same reasoning as .channel-notify-btn: the glyph *is* the current state. */
+.channel-favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.channel-favorite-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.channel-favorite-btn.favorited {
+  color: var(--accent);
+}
+
 /* D-050 redesign: unlike .channel-menu-btn, always visible (opacity 1) —
    its filled/outline glyph *is* the current state, not just an action
    trigger, so hiding it until hover would hide information, not just a
@@ -689,7 +712,7 @@ input:focus-visible,
   align-items: center;
   justify-content: center;
   color: var(--text-dim);
-  padding: 4px 8px;
+  padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   flex-shrink: 0;

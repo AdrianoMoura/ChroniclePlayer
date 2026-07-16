@@ -383,6 +383,12 @@ let backgroundModeEnabled = false
 // a tray still exists and skip creating a fresh one.
 function destroyTray(): void {
   try {
+    // Dropping the context menu first, before destroy(), gives flaky Linux
+    // StatusNotifierItem hosts (AppIndicator/SNI watchers with their own
+    // caching bugs) a cleaner two-step teardown to react to than a single
+    // destroy() call — some are known to leave a stale icon behind on the
+    // single-call sequence.
+    tray?.setContextMenu(null)
     tray?.destroy()
   } catch (error) {
     console.error('D-050: tray destroy failed', error)

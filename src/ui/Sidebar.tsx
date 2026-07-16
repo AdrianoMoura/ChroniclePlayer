@@ -257,14 +257,23 @@ export function Sidebar({
                 }
               >
                 <span className="view-label ellipsis">{channel.title}</span>
-                {channel.favorite && (
-                  <span className="glyph" title={t('sidebar.channelMenu.favorited')}>
-                    ★
-                  </span>
-                )}
                 {channel.unreadCount > 0 && (
                   <span className="view-count">{channel.unreadCount}</span>
                 )}
+              </button>
+              <button
+                className={`channel-favorite-btn${channel.favorite ? ' favorited' : ''}`}
+                title={
+                  channel.favorite
+                    ? t('sidebar.channelMenu.unfavorite')
+                    : t('sidebar.channelMenu.favorite')
+                }
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleFavorite(channel.channelId)
+                }}
+              >
+                {channel.favorite ? '★' : '☆'}
               </button>
               {showNotifyControl && (
                 <button
@@ -299,16 +308,6 @@ export function Sidebar({
                   anchorRect={channelMenuAnchor}
                   onMenuClick={(event) => event.stopPropagation()}
                 >
-                  <button
-                    onClick={() => {
-                      onToggleFavorite(channel.channelId)
-                      setMenuChannelId(null)
-                    }}
-                  >
-                    {channel.favorite
-                      ? t('sidebar.channelMenu.unfavorite')
-                      : t('sidebar.channelMenu.favorite')}
-                  </button>
                   <button
                     className={confirmingUnsub === channel.channelId ? 'danger' : ''}
                     onClick={() => {

@@ -446,9 +446,8 @@ export const en = {
   'sidebar.channelMenu.title': 'More',
   'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
   'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',
-  'sidebar.channelMenu.favorite': '☆ Favorite',
-  'sidebar.channelMenu.unfavorite': '★ Unfavorite',
-  'sidebar.channelMenu.favorited': 'Favorited — prioritized at the top of the main feed',
+  'sidebar.channelMenu.favorite': 'Favorite — prioritize at the top of the main feed',
+  'sidebar.channelMenu.unfavorite': 'Unfavorite',
   'sidebar.channelMenu.notify': 'Notify me about new videos from this channel',
   'sidebar.channelMenu.unnotify': 'Stop notifying me about this channel',
 
