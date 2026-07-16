@@ -920,10 +920,20 @@ export function App() {
           } else {
             loadView()
           }
-          if (event.report.outcome === 'partial') {
+          // B-110/D-048: YouTube's own RSS backend is flaky enough in
+          // ordinary operation that a handful of per-cycle channel failures
+          // is now expected background noise (retried automatically next
+          // cycle) rather than something the owner can act on — surfacing
+          // it every cycle regardless would just be a banner nobody can
+          // ever make go away, working against a calm/predictable UI. Only
+          // surface a *systemic* failure: every polled channel failing at
+          // once, on a poll wide enough that random per-channel noise
+          // couldn't plausibly explain it (a real network/connectivity
+          // problem, unlike an ordinary transient 404/500 spread).
+          if (event.report.outcome === 'failed' && event.report.channelsPolled > 1) {
             setFailureDetailsOpen(false)
             setBanner({
-              text: t('app.banner.refreshPartial', { count: event.report.channelsFailed }),
+              text: t('app.banner.refreshAllFailed', { count: event.report.channelsFailed }),
               failureDetails: event.report.failures
             })
           }

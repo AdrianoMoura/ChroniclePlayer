@@ -286,8 +286,8 @@ export const en = {
   'app.banner.offline': 'You appear to be offline — showing local data. Refresh will retry.',
   'app.banner.refreshFailed': 'Refresh failed: {message}',
   'app.banner.openVideoFailed': 'Could not open the video: {message}',
-  'app.banner.refreshPartial':
-    'Refresh finished, but {count} channel(s) failed — they will be retried next cycle.',
+  'app.banner.refreshAllFailed':
+    "Refresh couldn't reach any channel ({count} failed) — check your connection. Will retry next cycle.",
   'app.banner.showDetails': 'Details',
   'app.banner.hideDetails': 'Hide details',
   'app.banner.showDetailsTitle': 'Show which channels failed and why',

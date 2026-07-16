@@ -260,6 +260,22 @@ Resolved entries add:
   hit zero — this is YouTube's own backend being flaky, not something Chronicle can
   fully eliminate — but most transient failures should now resolve within the same
   cycle instead of waiting 30 minutes).
+- **Owner re-test (2026-07-16):** ran a real sync post-retry — 51 of 227 failed (down
+  from 133/228 pre-retry), roughly the reduction expected from a ~50% single-attempt
+  failure rate surviving 3 independent tries. The owner then raised a further point:
+  since every cycle re-rolls this noise independently across ~230 channels, the
+  per-cycle failure *count* will never converge to zero even though individual
+  channels do eventually succeed — meaning the existing partial-failure banner
+  (`app.banner.refreshPartial`, shown whenever `outcome === 'partial'`) would now fire
+  on essentially *every* cycle forever, a persistent, un-dismissable, non-actionable
+  warning. **Resolution: D-049** — stopped showing a banner for ordinary partial
+  failures; reserved it for a systemic signal instead (every polled channel failing at
+  once on a wide poll, `outcome === 'failed' && channelsPolled > 1` — see D-049 for why
+  that combination is a reliable "real problem" proxy random RSS noise can't produce on
+  its own). `youtube-api.md` and `decisions.md` (new **D-049**) updated in the same
+  change. Checked via `npm run typecheck && npm run lint && npm test` (201/201); **not
+  run live** — needs the owner to confirm the routine partial-failure banner no longer
+  appears, and that a genuine connectivity problem (if one ever occurs) still shows one.
 
 ### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
 - **Type:** bug · **Severity:** major

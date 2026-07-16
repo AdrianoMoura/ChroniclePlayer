@@ -142,10 +142,13 @@ units becomes, worst case, roughly one unit per active channel per cycle — for
 | Auth expired/revoked | 401 / `invalid_grant` | `AuthExpired` banner; local browsing unaffected (see `authentication.md`) |
 | Testing-mode 7-day expiry | `invalid_grant` + testing-mode flag | Targeted explanation + deep link to onboarding Step 4b |
 | Network down | transport errors | Silent skip of refresh; subtle "offline" indicator; next trigger retries |
-| RSS 404 / malformed / blocked | 404, parse errors, other 4xx | Ordinary per-channel failure for that cycle (logged, retried next cycle) — **not** treated as proof the channel is gone (D-048): a single RSS 404 isn't reliable evidence of permanent deletion, and RSS calls are free, so there's no cost reason to ever stop asking. |
+| RSS 404 / malformed / blocked | 404, parse errors, other 4xx / 5xx | Retried in-cycle (below), then an ordinary per-channel failure for that cycle if still failing (logged, retried next cycle) — **not** treated as proof the channel is gone (D-048): a single RSS 404 isn't reliable evidence of permanent deletion, and RSS calls are free, so there's no cost reason to ever stop asking. **No banner** for this on its own (D-049) — confirmed live (`bugs.md` [[B-110]]) that YouTube's own RSS backend returns transient 404/500 for genuinely active channels under ordinary conditions, so some per-cycle failures are expected background noise, not something the owner can act on. |
 
-- Retries: exponential backoff, per-channel, max 3 per cycle; never across the quota
-  boundary. All refresh failures are per-channel — one bad channel never aborts a sync.
+- Retries: exponential backoff (300ms, doubling), per-channel, max 3 attempts per cycle
+  — implemented in `SyncService.discoverChannel`'s `discoverRecentWithRetry` (previously
+  documented here but never actually built, found and fixed alongside [[B-110]]); never
+  across the quota boundary. All refresh failures are per-channel — one bad channel
+  never aborts a sync.
 - **D-048:** there is deliberately no "channel unavailable / stop polling" state. An
   earlier version of this doc had one (mark `unavailable` on an RSS 404, exclude from
   all future sync, "show in a settings list") — that was never an actual product
