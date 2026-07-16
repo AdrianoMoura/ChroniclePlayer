@@ -346,6 +346,9 @@ describe('SyncService.refresh', () => {
 
   it('backfills a gap when the whole RSS window is new on a previously synced channel', async () => {
     const repo = new FakeRepo()
+    // Not a first sync (B-105 now marks everything read on a first sync,
+    // which this test isn't exercising — see the account-level meta).
+    repo.setMeta('subscriptions_synced_at:acc1', '2026-07-01T00:00:00Z')
     repo.addChannel('UCa', { lastSyncedAt: '2026-07-01T00:00:00Z', uploadsPlaylist: 'UUa' })
     repo.known.add('older-known')
     const rssEntries = Array.from({ length: 15 }, (_, i) => discovered(`rss-${i}`))
@@ -411,7 +414,7 @@ describe('SyncService.refresh', () => {
     expect(source.hydrateCalls).toEqual([])
   })
 
-  it('marks backlog videos read as soon as they hydrate on a first sync, not only once the whole sync finishes (B-069)', async () => {
+  it('marks every video read as soon as it hydrates on a first sync, backlog and same-day alike (B-069, amended by B-105)', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa')
     const source = fakeVideoSource({
@@ -419,14 +422,15 @@ describe('SyncService.refresh', () => {
         UCa: { kind: 'ok', entries: [discovered('old-1'), discovered('new-1')], etag: null, lastModified: null }
       },
       // clock is fixed at 2026-07-11T12:00:00Z — old-1 is yesterday (backlog),
-      // new-1 is later today (genuinely new, must stay unread).
+      // new-1 is later today. A first sync has no prior visit to judge
+      // "new" against, so both are marked read on arrival (B-105).
       publishedAt: { 'old-1': '2026-07-10T09:00:00Z', 'new-1': '2026-07-11T11:00:00Z' }
     })
 
     const report = await service(repo, source).refresh('launch', 'acc1')
 
     expect(report.firstSync).toBe(true)
-    expect(repo.markedRead).toEqual(['old-1'])
+    expect(repo.markedRead).toEqual(['old-1', 'new-1'])
   })
 
   it('does not mark backlog videos read once an account is past its first sync', async () => {

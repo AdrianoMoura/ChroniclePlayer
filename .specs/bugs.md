@@ -78,6 +78,32 @@ Resolved entries add:
 
 ## Open
 
+### B-107 — Pagination never triggers when a filtered/narrow view's content doesn't fill the viewport
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-16
+- **Area:** feed / ui-shell
+- **What happens:** the owner reported this happening when filtering the feed — depending
+  on the window size and the grid item size in effect, the number of matching items can
+  be short enough that they don't fill the visible viewport. With nothing to scroll, no
+  further page ever loads, even though there may be more matching content available
+  locally or via backfill.
+- **Expected (owner's suggestion):** if, after rendering the current results, no
+  scrollable overflow was actually produced (content height ≤ viewport height), the
+  system should proactively trigger pagination itself instead of waiting for a scroll
+  event that can never come.
+- **Code refs:** `src/ui/FeedList.tsx` (the `onNearEnd`-triggering `useEffect` — currently
+  keyed off `virtualizer.getVirtualItems()`'s last rendered index vs. `displayRows.length`,
+  which assumes the virtualizer has already produced a settled item list reflecting the
+  current viewport; `useVirtualizer`'s `getScrollElement`/`getTotalSize()`); `src/ui/App.tsx`
+  (`loadMore`, wired in as `onNearEnd`).
+- **Notes:** most likely triggered right after a row-count-shrinking change (a channel
+  filter, or a grid item-size/column-count change) where the virtualizer's own
+  measurement of the scroll container hasn't caught up yet, or where the container never
+  had genuine overflow at all — same general "the near-end signal depends on a scroll
+  environment that may not exist" shape as the owner's suggested fix implies. Not
+  investigated further or fixed here — per the bug-tracking workflow, staying Open until
+  the owner says to attack it.
+
 ### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
 - **Type:** bug · **Severity:** major
 - **Status:** Open · **Reported:** 2026-07-16
@@ -131,37 +157,6 @@ Resolved entries add:
   write-scope dialog out of `.player-view`'s subtree entirely so they're never subject to
   its local stacking context in the first place. Not investigated as a fix here — per
   the bug-tracking workflow, staying Open until the owner says to attack it.
-
-### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
-- **Area:** sync
-- **What happens:** on an account's very first sync, [[B-020]]/[[B-069]] already mark
-  every backlog video (published before today) read on arrival, so only *today's*
-  freshly-discovered videos land as unread. But hydration and the Shorts-confirmation
-  pass (`confirmShorts`) are separate steps — the Shorts pass runs after hydration and,
-  per `sync-service.ts`'s own comment, "first sync probes ~1k candidates," so it can take
-  a while. Until it finishes, today's videos (which is exactly the backlog-cutoff
-  boundary case most likely to contain same-day Shorts) show up unread with no Shorts
-  badge yet — the owner has to wait for the Shorts pass to complete before the unread
-  list/badge is actually representative of what's real content vs. Shorts.
-- **Expected (owner's suggestion):** on the very first sync only, mark *all* newly
-  discovered videos read on arrival — not just the ones published before today. A first
-  sync is establishing a starting baseline (there was no prior visit for "today's videos"
-  to be new relative to), not reporting "what's new since you were last here," so there's
-  no real unread-worthy content on that very first run either way; every subsequent sync
-  is unaffected and keeps marking new videos unread as normal. This removes the noisy
-  window entirely instead of racing the Shorts pass to close it.
-- **Code refs:** `src/core/sync-service.ts` (`refresh` — `backlogCutoff`, currently
-  `firstSync ? startOfToday(clock.now()).toISOString() : null`, and the
-  `repo.markVideosReadIfUnset(backlogIds, hydratedAt)` call it gates; `confirmShorts`,
-  which runs later in the same `refresh` and is what the owner is waiting on).
-- **Notes:** same rationale family as [[D-042]]/[[B-058]] (archive-backfilled videos
-  default read, since they predate the user following Chronicle) — this would extend
-  that same logic to cover first-sync's same-day videos too, rather than special-casing
-  around the Shorts pass's timing. Needs a spec update to `feed.md` §Backfill rules
-  ("First-ever sync") and probably a `decisions.md` entry if the owner confirms this
-  direction, since it changes a rule [[B-020]]/[[B-069]] recorded as settled behavior.
-  Per the bug-tracking workflow, staying Open until the owner says to attack it.
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
@@ -234,6 +229,48 @@ Resolved entries add:
   Staying Open until one of them does.
 
 ## In progress
+
+### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
+- **Type:** bug · **Severity:** minor
+- **Status:** In progress · **Reported:** 2026-07-16
+- **Area:** player
+- **What happens:** on the full-view player screen, scrolling the mouse wheel while the
+  cursor is positioned over the embedded YouTube video does nothing — the page doesn't
+  scroll. Moving the mouse off the video first is the only workaround.
+- **Expected:** the page scrolls normally regardless of where the cursor is over it,
+  video included.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (`.player-stage`'s `<iframe>`, and the new
+  `.player-scroll-catcher` sibling div added by this fix); `src/ui/styles.css`
+  (`.player-scroll-catcher`).
+- **Root cause:** the embed is a cross-origin `<iframe>` (`youtube.com/embed/...`) —
+  mouse/wheel input that physically lands on it is handled entirely within its own
+  document; it never reaches this app's event listeners at all, at any level (window,
+  document, or an ancestor DOM node), regardless of capture vs. bubble phase — a
+  structural limitation of iframes, not something addressable by listening
+  "differently." The only way to intercept input over that area is a real, same-origin
+  DOM element physically covering it, which then necessarily also blocks whatever the
+  embed's own controls needed from that area (play/pause, seek, its own buttons) — there
+  is no cross-origin-safe way to "catch wheel but pass through clicks" on the same
+  element (wheel and click are independent input streams with no shared signal to key
+  off of, and CSS `pointer-events` can't be selective per event type).
+- **First-round fix (2026-07-16), started in the same session it was reported:** rather
+  than cover the whole video (which would trade away the embed's own click/seek
+  interactivity — a bigger loss than the scroll gap itself), added a transparent
+  same-origin strip (`.player-scroll-catcher`, `height: 18%`) along the *top* of the
+  video only, above the iframe. Its `onWheel` handler manually scrolls `.player-view`
+  (found via `alignTarget.closest('.player-view')` — `alignTarget` is the existing slot
+  placeholder prop `PlayerSurface` already receives, so no new prop plumbing was
+  needed). Only rendered when `active` (full-view, not miniplayer — the reported
+  complaint was specifically "a tela do vídeo," the full-view screen) and
+  `surface === 'playing'` (the `'ended'`/`'embed-blocked'` states already show a full,
+  same-origin `.player-overlay` on top, which has no cross-origin scroll problem of its
+  own). This only fixes the top ~18% of the video, not the whole thing — the owner's
+  actual reported case (mouse anywhere over the video) is only partially addressed.
+  Checked via `npm run typecheck && npm run lint && npm test` (200/200); **not run
+  live** (per [[no-live-app-verification]]) — needs the owner's hands-on check (does
+  scrolling now work in the top strip; does clicking/seeking anywhere on the video still
+  work exactly as before) before deciding whether a further round (e.g. widening the
+  strip, or a different area) is warranted, same iterative approach as [[B-045]].
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
@@ -321,6 +358,45 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.3.0
+- **Area:** sync
+- **What happens:** on an account's very first sync, [[B-020]]/[[B-069]] already marked
+  every backlog video (published before today) read on arrival, so only *today's*
+  freshly-discovered videos landed as unread. But hydration and the Shorts-confirmation
+  pass (`confirmShorts`) are separate steps — the Shorts pass runs after hydration and,
+  per `sync-service.ts`'s own comment, "first sync probes ~1k candidates," so it can take
+  a while. Until it finished, today's videos (exactly the old backlog-cutoff boundary
+  case most likely to contain same-day Shorts) showed up unread with no Shorts badge
+  yet — the owner had to wait for the Shorts pass to complete before the unread
+  list/badge was actually representative of what's real content vs. Shorts.
+- **Expected:** on the very first sync only, every newly discovered video is marked read
+  on arrival — not just the ones published before today.
+- **Code refs:** `src/core/sync-service.ts` (`refresh`, the `firstSync` branch inside the
+  hydration loop).
+- **Resolution: D-047**, per the owner's own follow-up direction (2026-07-16), which went
+  further than this entry's original ask: rather than racing the Shorts pass to close the
+  same-day window, the owner decided a first sync should never assume *any* discovered
+  video is unread-worthy, today's included — there's no prior visit to judge "new since
+  you were last here" against on the very first run, so guessing is unjustified either
+  way. Removed the `backlogCutoff`/`startOfToday` date filter entirely rather than
+  widening it: the `firstSync` branch in `SyncService.refresh` now calls
+  `repo.markVideosReadIfUnset` on every video in each hydrated batch, unconditionally.
+  The now-unused `startOfToday` import was dropped. `feed.md` §Backfill rules
+  ("First-ever sync") and `decisions.md` (new **D-047**, superseding the B-020/B-069
+  rule) updated in the same change. Every subsequent sync (routine or backfill) is
+  unaffected. Updated the existing B-069 coverage test
+  (`sync-service.test.ts` — "marks every video read as soon as it hydrates on a first
+  sync, backlog and same-day alike") to assert both a backlog and a same-day video are
+  marked read; one unrelated gap-backfill test ("backfills a gap when the whole RSS
+  window is new on a previously synced channel") had never set the account-level
+  `subscriptions_synced_at` meta and was incidentally exercising the `firstSync` branch
+  by accident — fixed by setting that meta explicitly, matching its actual intent (a
+  channel that was previously synced, which implies the account isn't in its first sync
+  either). Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
+  live-app check this session (per [[no-live-app-verification]]).
+- **Resolved:** 2026-07-16 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-104 — Miniplayer's maximize/close buttons had no keyboard path
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0

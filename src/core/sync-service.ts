@@ -1,6 +1,5 @@
 import { mapPool } from './concurrency'
 import { isDomainError } from './errors'
-import { startOfToday } from './feed'
 import type {
   ChannelSyncInfo,
   Clock,
@@ -149,23 +148,27 @@ export class SyncService {
 
       const newIds = [...new Set(toHydrate)]
       videosNew = newIds.length
-      // B-020/B-069: on an account's very first sync, backlog videos (already
-      // published before today) must never render as unread even transiently —
-      // applied here, per hydrated batch, rather than only once in a
+      // B-020/B-069, amended by B-105 (2026-07-16, owner's call): on an
+      // account's very first sync there is no prior visit for "today's
+      // videos" to be new relative to — every video discovered is an
+      // equally uninformed guess about relevance, so none of it should
+      // render as unread, not just the backlog published before today.
+      // Applied here, per hydrated batch, rather than only once in a
       // retroactive pass after every channel finishes (which left a long
       // window where a feed reload mid-sync showed them as unread).
-      const backlogCutoff = firstSync ? startOfToday(clock.now()).toISOString() : null
+      // Every subsequent sync (routine or backfill) is unaffected and
+      // marks newly discovered videos unread as normal.
       if (!ctx.quotaHit && newIds.length > 0) {
         try {
           for (let i = 0; i < newIds.length; i += HYDRATE_BATCH) {
             const hydrated = await this.deps.videoSource.hydrate(newIds.slice(i, i + HYDRATE_BATCH))
             const hydratedAt = clock.now().toISOString()
             repo.applyHydration(hydrated, hydratedAt)
-            if (backlogCutoff !== null) {
-              const backlogIds = hydrated
-                .filter((video) => video.publishedAt < backlogCutoff)
-                .map((video) => video.videoId)
-              if (backlogIds.length > 0) repo.markVideosReadIfUnset(backlogIds, hydratedAt)
+            if (firstSync) {
+              repo.markVideosReadIfUnset(
+                hydrated.map((video) => video.videoId),
+                hydratedAt
+              )
             }
           }
         } catch (error) {

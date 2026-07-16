@@ -1344,6 +1344,19 @@ button.primary:disabled {
   overflow: hidden;
 }
 
+/* B-108: same-origin strip on top of the iframe that forwards wheel scroll
+   to .player-view (see PlayerSurface.tsx for why it can't cover the whole
+   video). Sits above the iframe (no z-index needed — a positioned sibling
+   painting after it in DOM order already wins), transparent, no cursor
+   change so it doesn't look like a control. */
+.player-scroll-catcher {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 18%;
+}
+
 /* The full view's placeholder — occupies the exact space PlayerSurface's
    fixed box aligns itself to (B-004: full available width; on wide/short
    viewports the height cap wins and YouTube letterboxes inside the

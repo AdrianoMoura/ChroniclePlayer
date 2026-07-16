@@ -187,6 +187,13 @@ appear. (Predictability over liveliness.)
   videos discovered free, hydrated for ~60 units, well within quota (see `youtube-api.md`).
   Runs in the background as soon as the account connects — no dedicated blocking wizard
   step anymore (D-044).
+  - **Read-state default (D-047, 2026-07-16, B-105):** every video discovered on an
+    account's very first sync defaults to **read**, not unread — including videos
+    published the same day, not only backlog from before today. A first sync has no
+    prior visit to judge "new since you were last here" against, so none of what it
+    finds is unread-worthy; only videos discovered on every *subsequent* sync (routine
+    or backfill) default to unread as normal. Supersedes the original B-020/B-069 rule,
+    which only covered backlog published before today and left same-day videos unread.
 - **Gap detection:** any newly discovered video for a channel is enough to page
   `playlistItems.list` for that channel, stopping at the first page whose videos overlap
   the real known set (bounded at 200 videos/channel per cycle). **Revised 2026-07-15

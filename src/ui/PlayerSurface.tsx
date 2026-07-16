@@ -500,6 +500,25 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           />
         )}
 
+        {/* B-108: the embed is a cross-origin iframe — wheel/mouse events
+            physically over it never reach this document's listeners at all,
+            so the full-view page can't be scrolled while hovering the video.
+            A same-origin strip along the top forwards wheel scroll to
+            .player-view manually. Deliberately not the whole video: that
+            would also swallow every click the embed itself needs (play/
+            pause, seek, its own controls) with no way to pass those through
+            a cross-origin boundary — this trades full coverage for leaving
+            the embed's own interactive area untouched. */}
+        {active && surface === 'playing' && (
+          <div
+            className="player-scroll-catcher"
+            onWheel={(event) => {
+              const scrollParent = alignTarget?.closest<HTMLElement>('.player-view')
+              if (scrollParent) scrollParent.scrollTop += event.deltaY
+            }}
+          />
+        )}
+
         {active && surface === 'ended' && (
           <div className="player-overlay">
             <p className="overlay-title">{t('player.overlay.ended.title')}</p>
