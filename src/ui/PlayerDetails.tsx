@@ -131,109 +131,111 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     }))
 
     return (
-      <div className="player-view" style={hidden ? { display: 'none' } : undefined}>
-        <div className="player-topbar">
-          <button className="player-back" onClick={onClose}>
-            {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')}{' '}
-            <kbd>Esc</kbd>
-          </button>
-          <button
-            className="player-topbar-extract"
-            title={t('player.extractTitle')}
-            onClick={onExtract}
-          >
-            ⧉
-          </button>
-        </div>
-        <div ref={slotRef} className="player-stage-slot" />
-
-        <div className="player-info">
-          <h1 className="player-title">{video.title}</h1>
-          <div className="player-meta">
+      <>
+        <div className="player-view" style={hidden ? { display: 'none' } : undefined}>
+          <div className="player-topbar">
+            <button className="player-back" onClick={onClose}>
+              {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')}{' '}
+              <kbd>Esc</kbd>
+            </button>
             <button
-              type="button"
-              className="channel-link"
-              onClick={() => onOpenChannel(video.channelId, video.channelTitle)}
+              className="player-topbar-extract"
+              title={t('player.extractTitle')}
+              onClick={onExtract}
             >
-              {video.channelTitle}
-            </button>{' '}
-            · {publishedLabel(video.publishedAt)}
-            {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
+              ⧉
+            </button>
           </div>
+          <div ref={slotRef} className="player-stage-slot" />
 
-          <div className="player-actions">
-            <ActionButton
-              label={
-                state.readStatus === 'read'
-                  ? t('player.action.markUnread')
-                  : t('player.action.markRead')
-              }
-              onClick={() =>
-                void window.chronicle
-                  .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
-                  .then(patch)
-              }
-            />
-            <ActionButton
-              label={state.favorite ? t('player.action.favorited') : t('player.action.favorite')}
-              active={state.favorite}
-              onClick={() => void window.chronicle.toggleFavorite(video.videoId).then(patch)}
-            />
-            <ActionButton
-              label={
-                state.watchLater ? t('player.action.inWatchLater') : t('player.action.watchLater')
-              }
-              active={state.watchLater}
-              onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
-            />
-            <ActionButton
-              label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
-              active={rating === 'like'}
-              onClick={toggleLike}
-            />
-            <ActionButton
-              label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
-              active={subscribed}
-              onClick={toggleSubscribe}
-            />
-            <ActionButton
-              label={t('player.action.ignore')}
-              onClick={() =>
-                void window.chronicle.setReadStatus(video.videoId, 'ignored').then((next) => {
-                  patch(next)
-                  onClose()
-                })
-              }
-            />
-            <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
-          </div>
-          {actionError !== null && <p className="player-action-error">{actionError}</p>}
-
-          {video.description !== null && video.description.length > 0 && (
-            <div className="player-description">
-              <Description
-                text={video.description}
-                onOpenVideo={onOpenVideo}
-                clamped={!descriptionOpen}
-                onOverflowChange={setDescriptionOverflows}
-              />
-              {(descriptionOverflows || descriptionOpen) && (
-                <button
-                  className="description-toggle"
-                  onClick={() => setDescriptionOpen((o) => !o)}
-                >
-                  {descriptionOpen
-                    ? t('player.description.showLess')
-                    : t('player.description.showMore')}
-                </button>
-              )}
+          <div className="player-info">
+            <h1 className="player-title">{video.title}</h1>
+            <div className="player-meta">
+              <button
+                type="button"
+                className="channel-link"
+                onClick={() => onOpenChannel(video.channelId, video.channelTitle)}
+              >
+                {video.channelTitle}
+              </button>{' '}
+              · {publishedLabel(video.publishedAt)}
+              {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
             </div>
-          )}
 
-          <CommentsSection ref={commentsRef} key={video.videoId} videoId={video.videoId} />
+            <div className="player-actions">
+              <ActionButton
+                label={
+                  state.readStatus === 'read'
+                    ? t('player.action.markUnread')
+                    : t('player.action.markRead')
+                }
+                onClick={() =>
+                  void window.chronicle
+                    .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
+                    .then(patch)
+                }
+              />
+              <ActionButton
+                label={state.favorite ? t('player.action.favorited') : t('player.action.favorite')}
+                active={state.favorite}
+                onClick={() => void window.chronicle.toggleFavorite(video.videoId).then(patch)}
+              />
+              <ActionButton
+                label={
+                  state.watchLater ? t('player.action.inWatchLater') : t('player.action.watchLater')
+                }
+                active={state.watchLater}
+                onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
+              />
+              <ActionButton
+                label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
+                active={rating === 'like'}
+                onClick={toggleLike}
+              />
+              <ActionButton
+                label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
+                active={subscribed}
+                onClick={toggleSubscribe}
+              />
+              <ActionButton
+                label={t('player.action.ignore')}
+                onClick={() =>
+                  void window.chronicle.setReadStatus(video.videoId, 'ignored').then((next) => {
+                    patch(next)
+                    onClose()
+                  })
+                }
+              />
+              <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
+            </div>
+            {actionError !== null && <p className="player-action-error">{actionError}</p>}
+
+            {video.description !== null && video.description.length > 0 && (
+              <div className="player-description">
+                <Description
+                  text={video.description}
+                  onOpenVideo={onOpenVideo}
+                  clamped={!descriptionOpen}
+                  onOverflowChange={setDescriptionOverflows}
+                />
+                {(descriptionOverflows || descriptionOpen) && (
+                  <button
+                    className="description-toggle"
+                    onClick={() => setDescriptionOpen((o) => !o)}
+                  >
+                    {descriptionOpen
+                      ? t('player.description.showLess')
+                      : t('player.description.showMore')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            <CommentsSection ref={commentsRef} key={video.videoId} videoId={video.videoId} />
+          </div>
         </div>
         {writeScopeGate.dialog}
-      </div>
+      </>
     )
   }
 )

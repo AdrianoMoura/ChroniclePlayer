@@ -126,6 +126,13 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       left: number
       width: number
       height: number
+      // How much of the stage's own box to clip off its top/bottom edge so
+      // it disappears behind `.player-view`'s visible bounds when scrolled,
+      // instead of the fixed-position wrapper (which escapes that
+      // container's `overflow-y: auto` clipping entirely) painting over the
+      // topbar above it.
+      clipTop: number
+      clipBottom: number
     } | null>(null)
 
     useEffect(() => {
@@ -146,7 +153,24 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       let frame: number | null = null
       const measure = () => {
         const box = alignTarget.getBoundingClientRect()
-        setRect({ top: box.top, left: box.left, width: box.width, height: box.height })
+        // Only the full-view slot sits inside a scrolling container — the
+        // miniplayer's slot doesn't scroll, so there's nothing to clip
+        // against there.
+        const scrollParent = alignTarget.closest<HTMLElement>('.player-view')
+        const containerBox = scrollParent?.getBoundingClientRect() ?? null
+        const clipTop = containerBox === null ? 0 : Math.max(0, containerBox.top - box.top)
+        const clipBottom =
+          containerBox === null
+            ? 0
+            : Math.max(0, box.top + box.height - containerBox.bottom)
+        setRect({
+          top: box.top,
+          left: box.left,
+          width: box.width,
+          height: box.height,
+          clipTop,
+          clipBottom
+        })
       }
       const scheduleMeasure = () => {
         if (frame !== null) return
@@ -483,7 +507,11 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
                 top: rect.top,
                 left: rect.left,
                 width: rect.width,
-                height: rect.height
+                height: rect.height,
+                clipPath:
+                  rect.clipTop === 0 && rect.clipBottom === 0
+                    ? undefined
+                    : `inset(${rect.clipTop}px 0 ${rect.clipBottom}px 0)`
               }
         }
       >
