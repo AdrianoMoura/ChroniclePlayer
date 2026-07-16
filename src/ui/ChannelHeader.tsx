@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ChannelDto } from '../ipc/contract'
 import { formatSubscriberCount } from './format'
 import { t } from './i18n'
+import { BellIcon } from './icons'
 
 interface ChannelHeaderProps {
   channel: ChannelDto
@@ -102,7 +103,7 @@ export function ChannelHeader({
                   }
                   onClick={onToggleNotify}
                 >
-                  {channel.notify ? '●' : '○'}
+                  <BellIcon filled={channel.notify} />
                 </button>
               )}
               <button

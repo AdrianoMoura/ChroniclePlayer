@@ -356,11 +356,13 @@ input:focus-visible,
    trigger, so hiding it until hover would hide information, not just a
    control. */
 .channel-notify-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   padding: 4px 6px;
   border-radius: 6px;
   color: var(--text-dim);
-  font-size: 10px;
 }
 
 .channel-notify-btn:hover {
@@ -683,11 +685,13 @@ input:focus-visible,
 /* D-050 redesign: same pattern as .favorite-channel-btn, for the channel
    details page's notify toggle next to Favorite. */
 .notify-channel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-dim);
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 13px;
   flex-shrink: 0;
 }
 

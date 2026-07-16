@@ -12,6 +12,7 @@ import {
 import { createPortal } from 'react-dom'
 import type { AccountDto, ChannelDto, FeedViewDto } from '../ipc/contract'
 import { t } from './i18n'
+import { BellIcon } from './icons'
 
 // The channel/account "…" menus live inside a scrollable list (overflow:
 // auto) — an in-flow absolutely positioned menu gets clipped whenever it
@@ -278,7 +279,7 @@ export function Sidebar({
                     onToggleNotify(channel.channelId)
                   }}
                 >
-                  {channel.notify ? '●' : '○'}
+                  <BellIcon filled={channel.notify} />
                 </button>
               )}
               <button
