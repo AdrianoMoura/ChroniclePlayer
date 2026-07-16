@@ -309,7 +309,7 @@ Resolved entries add:
   `CLAUDE.md`; UI relies on the owner's own live check). Checked via
   `npm run typecheck && npm run lint && npm test` (200/200); **not run live this
   session** (per [[no-live-app-verification]]).
-- **Resolved:** 2026-07-16 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 · **Outcome:** Fixed
 
 ### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
 - **Type:** bug · **Severity:** major · **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.3.0
