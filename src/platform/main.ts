@@ -1439,6 +1439,20 @@ async function boot(): Promise<void> {
   }
   applyAutoStart()
 
+  // D-050 (revised, live-tested workaround): once created, the tray is never
+  // destroyed mid-session — only at real app quit (will-quit) or a
+  // deleteAllData reset (new boot() generation, see its own comment). Live
+  // testing (D-Bus introspection: zero live Chronicle registrations under
+  // org.kde.StatusNotifierWatcher while a ghost icon stayed stuck and
+  // unresponsive) narrowed this to the tray host — at least the owner's
+  // QuickShell setup — not reliably processing destroy() while the process
+  // stays alive, even though the exact same destroy()-then-recreate pattern
+  // is the documented-correct one and reliably works on real quit (which
+  // drops the whole D-Bus connection instead of sending an explicit
+  // unregister). Trade-off accepted (owner's call): turning "Run in
+  // background" off no longer removes an already-shown icon immediately —
+  // it still fully restores window-close-quits-the-app behavior via
+  // backgroundModeEnabled below, the icon just lingers until the app quits.
   function applyBackgroundMode(): void {
     backgroundModeEnabled = settings.backgroundMode
     try {
@@ -1454,13 +1468,10 @@ async function boot(): Promise<void> {
             }
           })
         }
-      } else {
-        destroyTray()
+      } else if (mainWindow !== null && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
         // Turning the toggle off shouldn't leave the app invisible in the
         // background with no way back in beyond relaunching it.
-        if (mainWindow !== null && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-          mainWindow.show()
-        }
+        mainWindow.show()
       }
     } catch (error) {
       console.error('D-050: applyBackgroundMode failed', error)
