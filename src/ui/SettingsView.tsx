@@ -104,7 +104,6 @@ export function SettingsView({
             ? t('settings.connection.keychainOk')
             : t('settings.connection.keychainFallback')}
         </p>
-        <p className="settings-line dim">{t('settings.connection.playerSessionNote')}</p>
         <div className="settings-actions">
           <button className="primary" onClick={onReconnect}>
             {t('settings.connection.reconnectButton', { account: primaryAccountLabel })}
@@ -118,6 +117,9 @@ export function SettingsView({
           <button className="primary" onClick={onSignOut}>
             {t('settings.connection.signOutButton')}
           </button>
+        </div>
+        <p className="settings-line dim">{t('settings.connection.playerSessionNote')}</p>
+        <div className="settings-actions">
           <button className="primary" onClick={() => void window.chronicle.openYouTubeSignIn()}>
             {t('settings.connection.signInToYouTubeButton')}
           </button>
