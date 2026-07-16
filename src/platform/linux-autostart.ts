@@ -10,7 +10,10 @@ export function autostartDesktopFilePath(): string {
   return join(homedir(), '.config', 'autostart', 'chronicle-player.desktop')
 }
 
-export function setLinuxAutostart(enabled: boolean, execPath: string): void {
+// execCommand is a full, already-quoted command line (binary plus any
+// arguments, e.g. a dev-mode project path — see main.ts's applyAutoStart),
+// not just a bare executable path.
+export function setLinuxAutostart(enabled: boolean, execCommand: string): void {
   const file = autostartDesktopFilePath()
   if (!enabled) {
     if (existsSync(file)) rmSync(file, { force: true })
@@ -20,7 +23,7 @@ export function setLinuxAutostart(enabled: boolean, execPath: string): void {
   const contents = `[Desktop Entry]
 Type=Application
 Name=Chronicle
-Exec=${execPath}
+Exec=${execCommand}
 Terminal=false
 X-GNOME-Autostart-enabled=true
 `

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Notification, Tray, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { openDatabase } from '../adapters/storage/database'
 import { migrate } from '../adapters/storage/migrations'
@@ -1428,10 +1428,24 @@ async function boot(): Promise<void> {
   // doesn't support one of these should silently no-op, not crash the app.
   function applyAutoStart(): void {
     try {
+      // In a packaged app, process.execPath *is* Chronicle — no arguments
+      // needed. Running from source (electron-vite dev), it's the bare
+      // Electron binary from node_modules instead; launched alone at login
+      // it has no app to load at all. The standard fix (Electron's own
+      // "Launch at startup" recipe): pass the project entry point
+      // (process.argv[1], what electron-vite invoked electron with) as an
+      // argument so a dev-mode autostart actually opens Chronicle too.
+      const devArgs = app.isPackaged ? [] : [resolve(process.argv[1] ?? '.')]
       if (process.platform === 'linux') {
-        setLinuxAutostart(settings.autoStart, process.execPath)
+        const execCommand = [process.execPath, ...devArgs]
+          .map((part) => JSON.stringify(part))
+          .join(' ')
+        setLinuxAutostart(settings.autoStart, execCommand)
       } else {
-        app.setLoginItemSettings({ openAtLogin: settings.autoStart })
+        app.setLoginItemSettings({
+          openAtLogin: settings.autoStart,
+          ...(app.isPackaged ? {} : { path: process.execPath, args: devArgs })
+        })
       }
     } catch (error) {
       console.error('D-050: applyAutoStart failed', error)
