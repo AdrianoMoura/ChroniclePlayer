@@ -219,6 +219,19 @@ Resolved entries add:
   (does a continuous wheel gesture starting near the video's top edge now keep scrolling
   instead of stopping after one tick; do the video's own controls near the top stay
   clickable) before this can move past "In progress," same iterative shape as [[B-045]].
+- **Owner feedback on round 2 (2026-07-16):** not what they wanted — the catcher only
+  covers a small fixed band, so hovering the *middle* of the video (a very common resting
+  spot, not just near the top edge) still doesn't catch scroll at all. Round 2 fixed the
+  "escapes after one tick" defect but didn't address that the catcher's coverage is still
+  small relative to where the cursor actually tends to be. **Owner's call: pause here,
+  they'll come back to adjust it themselves** — no further rounds attempted this session.
+  Left as-is in code (not reverted) rather than rolling back to round 1, since round 2 is
+  a strict improvement (no regression on real controls that round 1 introduced, and the
+  frozen-position mechanism itself works as designed — it's just too small an area).
+  Next round, whenever picked back up, needs to reconsider coverage more fundamentally
+  (per this entry's own root-cause notes: full coverage trades away the embed's own
+  click/seek interactivity, and there's no cross-origin-safe middle ground CSS alone can
+  express) rather than just resizing the same small-band approach again.
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
