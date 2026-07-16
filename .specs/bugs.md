@@ -333,7 +333,7 @@ Resolved entries add:
   owner's own check (search with a small item size / narrow window so the first page
   doesn't overflow, confirm more results load automatically; same for opening an
   unsubscribed channel's preview).
-- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 (follow-up: pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 (follow-up: 1720dc4) · **Outcome:** Fixed
 
 ### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
 - **Type:** bug · **Severity:** major · **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.3.0
