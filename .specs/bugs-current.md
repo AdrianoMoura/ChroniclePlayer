@@ -169,6 +169,53 @@ Resolved entries add:
 
 ## In progress
 
+### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
+- **Area:** feed / sync
+- **What happens:** the owner opened a subscribed channel's screen and scrolling to the
+  end never loaded more videos — neither automatically (the [[B-107]] no-overflow case)
+  nor by manually scrolling to the bottom. YouTube search results paginate fine; this is
+  specific to a subscribed channel's own video list.
+- **Expected:** scrolling to the end of a channel's list keeps loading older videos
+  (local archive, then on-demand YouTube backfill) until the channel's whole archive is
+  genuinely exhausted.
+- **Code refs:** `src/ui/App.tsx` (`loadMore`'s channel-backfill branch); `src/core/
+  sync-service.ts` (`backfillArchive`, `ARCHIVE_BACKFILL_PAGE_LIMIT`).
+- **Root cause:** `backfillArchive` (B-002) deliberately caps itself at
+  `ARCHIVE_BACKFILL_PAGE_LIMIT` (4) `playlistItems.list` pages per call — a pacing
+  device, per its own comment "resumable across calls" and `youtube-api.md`'s "bounded
+  at 4 pages/call, resumable" — and saves a resume `pageToken` server-side
+  (`setBackfillState`) so the *next* call continues from where this one stopped. If
+  all 4 pages in a batch turn out to be videos Chronicle already knows about (plausible
+  for any channel where routine sync has already caught a lot of the recent upload
+  history, so the next deeper slice is mostly overlap before reaching genuinely older,
+  unseen videos), the call returns `{ videosNew: 0, exhausted: false }` — correctly
+  *not* exhausted, but with nothing to show yet either. `App.tsx`'s `loadMore` only
+  acted on `result.value.exhausted` (mark done) or `result.value.videosNew > 0` (append)
+  — the third, entirely valid outcome (neither) fell through both branches silently.
+  Since nothing changed (`videos`/`nextCursor` untouched), `FeedList.tsx`'s two
+  onNearEnd triggers ([[B-107]]'s no-overflow check and the virtualizer's normal
+  scroll-position check) both stayed quiet too, since their dependencies are keyed off
+  row count/columns, not "did the last fetch attempt come back empty." Nothing was left
+  to prompt a further attempt — the channel was stuck until the owner navigated away
+  and back (which restarts the whole `loadView` cycle and gets one more 4-page batch,
+  possibly landing on the same dead stretch again).
+- **Resolution (not yet live-verified):** `loadMore`'s channel-backfill branch now
+  loops (`runBackfill`, self-invoking on the `videosNew === 0 && !exhausted` outcome)
+  instead of stopping after one call, continuing to walk `backfillArchive` — which
+  keeps resuming from its own saved `pageToken` — until it either finds new videos to
+  append or the channel is genuinely exhausted. Bounded by the channel's own finite
+  upload count either way; the existing `backfillingRef`/generation guards are
+  unchanged, so concurrency/stale-response safety carries over as before. Per
+  [[product-frictionless-over-quota]] this loop is deliberately not gated behind any
+  manual "load more" affordance — quota isn't the scarce resource here
+  (`youtube-api.md`'s own budget math leaves ample headroom), a silently stuck channel
+  is a worse experience. Checked via `npm run typecheck && npm run lint && npm test`
+  (200/200); **not run live** (per [[no-live-app-verification]]) — needs the owner's
+  hands-on check scrolling to the bottom of a channel with enough history to have hit
+  this stall before.
+
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
 - **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3

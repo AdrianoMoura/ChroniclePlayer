@@ -1014,39 +1014,59 @@ export function App() {
           videoId: lastVideo.videoId
         }
       : null
-    void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
-      if (requestGenerationRef.current !== generation) {
-        backfillingRef.current = false
-        return
-      }
-      backfillingRef.current = false
-      setLoadingMore(false)
-      if (!result.ok) {
-        if (result.errorKind === 'auth-expired') {
-          setBanner({
-            text: t('app.banner.reconnectRequired'),
-            action: { label: t('app.banner.reconnectAction'), run: connect }
-          })
-        } else if (result.errorKind === 'network-unavailable') {
-          setBanner({ text: t('app.banner.offline') })
-        } else if (result.errorKind === 'quota-exceeded') {
-          setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+    // B-002's own page cap (youtube-api.md: "bounded at 4 pages/call,
+    // resumable") is a per-call pacing device, not a give-up point — a
+    // channel whose next uploads-playlist stretch is entirely
+    // already-known videos comes back `{ videosNew: 0, exhausted: false }`
+    // with a resume token saved server-side. Nothing else re-triggers
+    // FeedList's onNearEnd checks in that case (row count didn't change),
+    // so without this loop the channel silently stalls forever once that
+    // batch happens to land on an all-duplicates stretch.
+    const runBackfill = (): void => {
+      void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
+        if (requestGenerationRef.current !== generation) {
+          backfillingRef.current = false
+          return
         }
-        return
-      }
-      if (result.value.exhausted) {
-        setArchiveExhausted((set) => new Set(set).add(targetChannel))
-      }
-      if (result.value.videosNew > 0) {
-        void window.chronicle
-          .getFeed(targetView, cursorToRetry, targetChannel, targetAccount)
-          .then((slice) => {
-            if (requestGenerationRef.current !== generation) return
-            setVideos((current) => [...current, ...slice.videos])
-            setNextCursor(slice.nextCursor)
-          })
-      }
-    })
+        if (!result.ok) {
+          backfillingRef.current = false
+          setLoadingMore(false)
+          if (result.errorKind === 'auth-expired') {
+            setBanner({
+              text: t('app.banner.reconnectRequired'),
+              action: { label: t('app.banner.reconnectAction'), run: connect }
+            })
+          } else if (result.errorKind === 'network-unavailable') {
+            setBanner({ text: t('app.banner.offline') })
+          } else if (result.errorKind === 'quota-exceeded') {
+            setBanner({ text: t('app.banner.quotaExceeded', { time: quotaResetLocalTime() }) })
+          }
+          return
+        }
+        if (result.value.exhausted) {
+          setArchiveExhausted((set) => new Set(set).add(targetChannel))
+        }
+        if (result.value.videosNew > 0) {
+          backfillingRef.current = false
+          setLoadingMore(false)
+          void window.chronicle
+            .getFeed(targetView, cursorToRetry, targetChannel, targetAccount)
+            .then((slice) => {
+              if (requestGenerationRef.current !== generation) return
+              setVideos((current) => [...current, ...slice.videos])
+              setNextCursor(slice.nextCursor)
+            })
+          return
+        }
+        if (!result.value.exhausted) {
+          runBackfill()
+          return
+        }
+        backfillingRef.current = false
+        setLoadingMore(false)
+      })
+    }
+    runBackfill()
   }, [nextCursor, archiveExhausted, connect, videos])
 
   // The `/` filter is a YouTube-search trigger only — it never re-filters
