@@ -222,6 +222,44 @@ Resolved entries add:
   migration dropping the column is itself the fix for that specific channel; needs the
   owner's hands-on confirmation that Veritasium (and any other channel that hit this)
   resumes syncing/backfilling normally after upgrading.
+- **Follow-up (2026-07-16):** after upgrading, the owner ran a real sync and saw 133 of
+  228 channels fail with 404/500 — asked whether that's a real external problem or
+  something Chronicle-side. Investigated directly against YouTube (`curl`, entirely
+  outside Chronicle's code, same 8-way concurrency `RSS_CONCURRENCY` uses): a random
+  sample of 40 real channel IDs from the owner's own DB, hit twice a few seconds apart,
+  came back ~55-60% failing both times — but **not the same channels each time**, and
+  not only under concurrency: a fully sequential (one-at-a-time) pass over 10 channels
+  still had a 40% failure rate. `Cinemassacre` (a large, obviously-active channel) 404'd
+  once under concurrent load, then returned 200 five times straight when retried alone —
+  and `/channel/{id}` (the ordinary channel page) loaded fine for channels whose
+  `/feeds/videos.xml` request 500'd, with the 500 response's own `server:` header
+  identifying itself as `"YouTube RSS Feeds server"`. Conclusion: this is a real,
+  external reliability problem in YouTube's own RSS-serving backend — not a Chronicle
+  bug, not about any particular channel, and not purely a concurrency artifact — the
+  same channel can 404, 500, or 200 from one request to the next with nothing on
+  Chronicle's side changing. Exactly the situation D-048 already reasons about (a
+  failure proves nothing permanent), but it also exposed a second, separate
+  spec-vs-implementation gap: `youtube-api.md` has documented "Retries: exponential
+  backoff, per-channel, max 3 per cycle" since before this investigation, and it had
+  **never actually been implemented** — every RSS failure went straight to the
+  once-per-cycle failure log with no in-cycle retry at all.
+- **Resolution, part 2 (2026-07-16):** implemented the documented retry.
+  `SyncService.discoverChannel` now calls a new `discoverRecentWithRetry` wrapper (up
+  to `RSS_RETRY_ATTEMPTS = 3` attempts, `RSS_RETRY_BASE_MS = 300` doubling between
+  attempts) instead of calling `videoSource.discoverRecent` directly — any failure from
+  that specific call is retried in-cycle before counting against `channelsFailed` at
+  all; a channel still failing after 3 attempts falls through to the exact same
+  per-channel failure handling as before (logged, retried again next cycle, never
+  permanently excluded — D-048). The backoff delay is injected (`SyncDeps.sleep`,
+  optional, defaults to a real `setTimeout`-based wait) so tests don't block on real
+  wall-clock time — `sync-service.test.ts`'s `service()` helper passes an instant
+  no-op. Two new tests cover both outcomes: recovers within the cycle after 2 failures,
+  and gives up after 3 straight failures without being marked unavailable. Checked via
+  `npm run typecheck && npm run lint && npm test` (201/201); **not run live** — needs
+  the owner to re-run a sync and confirm the 404/500 count drops meaningfully (it won't
+  hit zero — this is YouTube's own backend being flaky, not something Chronicle can
+  fully eliminate — but most transient failures should now resolve within the same
+  cycle instead of waiting 30 minutes).
 
 ### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
 - **Type:** bug · **Severity:** major

@@ -65,6 +65,15 @@ const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
 // playlistItems.list pages (1 unit each) before giving up for this call,
 // so a single scroll-triggered fetch can't run away.
 const ARCHIVE_BACKFILL_PAGE_LIMIT = 4
+// youtube-api.md §Failure handling: exponential backoff, per-channel, max 3
+// attempts per cycle. YouTube's RSS backend (a distinct, less reliable
+// service from the main site — confirmed live: valid, active channels
+// return transient 404/500 from it under ordinary conditions, no special
+// load required, and a plain retry moments later often succeeds) is flaky
+// enough that most of these resolve within the same cycle rather than
+// waiting for the next one.
+const RSS_RETRY_ATTEMPTS = 3
+const RSS_RETRY_BASE_MS = 300
 
 interface SyncDeps {
   subscriptions: SubscriptionSource
@@ -74,7 +83,11 @@ interface SyncDeps {
   quota: QuotaCounter
   clock: Clock
   onProgress?: (progress: SyncProgress) => void
+  // Injectable so tests don't wait on real timers; defaults to a real one.
+  sleep?: (ms: number) => Promise<void>
 }
+
+const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 interface RefreshContext {
   quotaHit: boolean
@@ -293,12 +306,26 @@ export class SyncService {
     return diff
   }
 
+  // youtube-api.md §Failure handling: retry the RSS fetch itself, per
+  // channel, before letting a failure count against this cycle at all.
+  private async discoverRecentWithRetry(channel: ChannelSyncInfo): ReturnType<VideoSource['discoverRecent']> {
+    const sleep = this.deps.sleep ?? defaultSleep
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.deps.videoSource.discoverRecent(channel)
+      } catch (error) {
+        if (attempt >= RSS_RETRY_ATTEMPTS) throw error
+        await sleep(RSS_RETRY_BASE_MS * 2 ** (attempt - 1))
+      }
+    }
+  }
+
   // Returns the channel's new videoIds (RSS window + gap backfill).
   private async discoverChannel(channel: ChannelSyncInfo, ctx: RefreshContext): Promise<string[]> {
-    const { repo, videoSource, clock } = this.deps
+    const { repo, clock } = this.deps
     const now = clock.now().toISOString()
 
-    const feed = await videoSource.discoverRecent(channel)
+    const feed = await this.discoverRecentWithRetry(channel)
 
     if (feed.kind === 'not-modified') {
       repo.updateChannelSyncMeta(channel.channelId, {

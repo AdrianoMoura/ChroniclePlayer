@@ -211,7 +211,9 @@ function service(
     shortsProber: options.prober ?? noShorts,
     quota: options.quota ?? new QuotaCounter(),
     clock,
-    onProgress: options.onProgress
+    onProgress: options.onProgress,
+    // Instant — tests shouldn't wait on the real RSS-retry backoff delay.
+    sleep: () => Promise.resolve()
   })
 }
 
@@ -316,6 +318,48 @@ describe('SyncService.refresh', () => {
     expect(report.channelsFailed).toBe(1)
     expect(report.outcome).toBe('failed')
     expect(repo.listSubscribedChannels('acc1').map((c) => c.channelId)).toContain('UCgone')
+  })
+
+  // D-048/B-110: YouTube's RSS backend was confirmed live to return
+  // transient 404/500 for genuinely active channels under ordinary
+  // conditions — retrying within the same cycle (youtube-api.md's own
+  // documented, previously-unimplemented "max 3 per cycle" rule) recovers
+  // most of these instead of waiting for the next 30-minute cycle.
+  it('retries a failing RSS fetch up to 3 times before giving up on the channel this cycle', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCflaky')
+    let calls = 0
+    const source = fakeVideoSource({
+      feeds: {
+        UCflaky: () => {
+          calls += 1
+          if (calls < 3) throw internal('RSS fetch failed with 500')
+          return { kind: 'ok', entries: [discovered('v1')], etag: null, lastModified: null }
+        }
+      }
+    })
+    const report = await service(repo, source).refresh('manual', 'acc1')
+    expect(calls).toBe(3)
+    expect(repo.inserted).toContain('v1')
+    expect(report.channelsFailed).toBe(0)
+  })
+
+  it('gives up on the channel this cycle after 3 straight RSS failures (retried again next cycle)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCdown')
+    let calls = 0
+    const source = fakeVideoSource({
+      feeds: {
+        UCdown: () => {
+          calls += 1
+          throw internal('RSS fetch failed with 500')
+        }
+      }
+    })
+    const report = await service(repo, source).refresh('manual', 'acc1')
+    expect(calls).toBe(3)
+    expect(report.channelsFailed).toBe(1)
+    expect(repo.listSubscribedChannels('acc1').map((c) => c.channelId)).toContain('UCdown')
   })
 
   it('re-checks locally upcoming videos every refresh, so a broadcast that went live can update (B-085)', async () => {
