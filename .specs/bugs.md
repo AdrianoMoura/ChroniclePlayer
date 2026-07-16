@@ -78,6 +78,60 @@ Resolved entries add:
 
 ## Open
 
+### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-16
+- **Area:** player / ui-shell
+- **What happens:** two symptoms, one root-cause family — `.player-stage` (the
+  `position: fixed` box `PlayerSurface.tsx` mirrors onto whichever slot placeholder is
+  active, `src/ui/styles.css`) sits at `z-index: 21`, deliberately above the miniplayer
+  box so the video renders over it. That same fixed, high z-index box now also wins
+  against UI it was never meant to cover: (1) scrolling the full-view player page (which
+  scrolls as one block since [[B-045]]'s "Seventh round") moves the video's mirrored rect
+  upward: once it scrolls far enough, its top edge sits inside the always-present app
+  `.topbar`'s on-screen region (the topbar itself stays rendered — only some of its child
+  controls hide via `{(!playerOpen || miniplayer) && ...}`, `App.tsx`), and since
+  `.topbar` has no explicit `position`/`z-index` of its own, the video wins the
+  comparison and paints over it. (2) opening the write-scope consent dialog (the "sign in
+  to like/comment" `.overlay-backdrop`, `src/ui/useWriteScopeGate.tsx`) from inside the
+  player — e.g. liking or commenting — renders it invisible and unclickable behind the
+  video: `PlayerDetails.tsx` renders `{writeScopeGate.dialog}` *inside* `.player-view`
+  (`src/ui/PlayerDetails.tsx`), and `.player-view` is `position: absolute; z-index: 5`
+  (`src/ui/styles.css`) — a positioned element with an explicit z-index establishes its
+  own stacking context, so the dialog's own `z-index: 30` (normally enough to win against
+  everything, per the `.overlay-backdrop` comment referencing [[B-045]]'s miniplayer)
+  only competes *inside* that local context; from the outside, the whole `.player-view`
+  subtree — dialog included — is capped at effective z-index 5, well below
+  `.player-stage`'s 21. The consent dialog is not just visually hidden but genuinely
+  unclickable, since the iframe on top intercepts the click — liking/commenting from the
+  player cannot complete the consent step at all when this triggers.
+- **Expected:** the video never renders above app chrome that's supposed to sit above it
+  — the topbar should stay visible/on top regardless of scroll position, and any modal
+  (help, write-scope consent, add-account, URL prompt) must always be clickable above the
+  video, exactly like the miniplayer case `.overlay-backdrop`'s own comment already
+  documents as a required invariant.
+- **Code refs:** `src/ui/styles.css` (`.player-stage` z-index 21; `.player-view`
+  `position: absolute; inset: 0; z-index: 5` — note its containing block is `.app`, not
+  `.feed`, since `.feed` itself sets no `position`; `.topbar`, no `position`/`z-index` at
+  all; `.overlay-backdrop` z-index 30); `src/ui/PlayerDetails.tsx` (`{writeScopeGate.dialog}`
+  nested inside `.player-view`'s `return`); `src/ui/useWriteScopeGate.tsx` (the dialog
+  itself); `src/ui/PlayerSurface.tsx` (the `alignTarget.getBoundingClientRect()` mirroring
+  effect — re-measures on scroll, which is what moves symptom (1) into view); `src/ui/App.tsx`
+  (`.topbar` and `PlayerSurface`/`PlayerDetails` are siblings under the same
+  `<main className="feed">`, confirming nothing currently scopes the video's stacking
+  below the topbar).
+- **Notes:** symptom (2)'s root cause is confirmed by direct code inspection (the nesting
+  and the stacking-context rule that traps a child's z-index inside its positioned
+  parent's own). Symptom (1) is a strong, code-consistent hypothesis, not yet live-tested
+  by scrolling and watching for the exact overlap — same "player-stage's fixed box now
+  outranks something it shouldn't" shape, just triggered by scroll position instead of
+  DOM nesting. A fix likely needs `.player-stage` to stop being a single global
+  z-index-21 box regardless of context — e.g. a lower z-index while in full-view mode
+  (only the miniplayer case needs to beat anything), and/or moving modals like the
+  write-scope dialog out of `.player-view`'s subtree entirely so they're never subject to
+  its local stacking context in the first place. Not investigated as a fix here — per
+  the bug-tracking workflow, staying Open until the owner says to attack it.
+
 ### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
 - **Area:** sync
