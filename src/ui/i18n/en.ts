@@ -344,7 +344,7 @@ export const en = {
   'app.status.checkingChannelsInfo':
     "Checking each subscribed channel's uploads for videos published since the last sync.",
   'app.status.filteringShortsInfo':
-    'Confirming which of the newly found videos are YouTube Shorts, so they can be badged in the feed. Shorts are shown alongside regular videos, never hidden.',
+    'Confirming which of the newly found videos are YouTube Shorts.',
   'app.status.refreshingInfo':
     'Re-listing your subscriptions, then checking every channel for new videos.',
 
