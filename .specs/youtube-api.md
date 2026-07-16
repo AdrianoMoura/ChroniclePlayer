@@ -46,8 +46,11 @@ Every channel has a public feed: `https://www.youtube.com/feeds/videos.xml?chann
 - Returns the **~15 most recent entries**: videoId, title, published, updated, thumbnail,
   description, view count. **No duration, no live/short/premiere flags.**
 - No authentication, no quota. Politeness rules still apply: conditional GET
-  (`ETag`/`If-Modified-Since`), reasonable concurrency (≤ 8 parallel), no more than one
-  poll per channel per refresh cycle.
+  (`ETag`/`If-Modified-Since`), reasonable concurrency (≤ 12 parallel — raised from ≤ 8,
+  product owner's call, 2026-07-16, `bugs.md` [[B-110]]: live testing found the RSS
+  failure rate about the same concurrent or sequential, so the only real trade-off is a
+  shorter first-sync wait against a bit less conservative "politeness" headroom), no
+  more than one poll per channel per refresh cycle.
 - **Assumption:** feed availability and shape are stable (they have been for ~15 years)
   but this is not a contractual API; the `VideoSource` port isolates us if it changes.
 

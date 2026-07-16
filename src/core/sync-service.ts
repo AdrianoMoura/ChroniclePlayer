@@ -56,7 +56,12 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-const RSS_CONCURRENCY = 8 // youtube-api.md politeness rule
+// youtube-api.md politeness rule (raised from 8 to 12, product owner's call,
+// 2026-07-16: live testing showed the RSS failure rate is roughly the same
+// concurrent or sequential, so this only trades a bit of "politeness"
+// headroom for a shorter wait before the first sync's channel-discovery
+// phase — and therefore hydration/the feed itself — finishes).
+const RSS_CONCURRENCY = 12
 const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle

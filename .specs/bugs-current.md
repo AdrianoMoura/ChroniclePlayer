@@ -283,6 +283,20 @@ Resolved entries add:
   2400ms between the 5 attempts). Both retry tests updated to assert 5 instead of 3.
   `youtube-api.md`'s retry line updated to match. Checked via `npm run typecheck &&
   npm run lint && npm test` (201/201); **not run live**.
+- **Follow-up (2026-07-16):** owner confirmed the retry bump helped, then asked about
+  raising `RSS_CONCURRENCY` too, specifically to shorten the wait before a first sync's
+  channel-discovery phase (and therefore hydration, and therefore the feed itself —
+  nothing shows on "All" until every subscribed channel's RSS attempt, retries
+  included, has settled) finishes. Flagged the actual trade-off before changing it:
+  the earlier concurrent-vs-sequential `curl` testing found the RSS failure rate about
+  the same either way, so raising concurrency mainly buys wall-clock speed (fewer
+  sequential batches through ~230 channels), not fewer failures — and
+  `RSS_CONCURRENCY` was originally set as a deliberate "politeness" ceiling
+  (`youtube-api.md`), not a technical limit, so raising it is a real trade-off (a bit
+  less conservative against YouTube's free, unauthenticated RSS service) rather than a
+  free win. Per the owner's choice: raised from 8 to 12 (a moderate step, not doubling
+  to 16). `youtube-api.md`'s concurrency line updated to match. Checked via
+  `npm run typecheck && npm run lint && npm test` (201/201); **not run live**.
 
 ### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
 - **Type:** bug · **Severity:** major
