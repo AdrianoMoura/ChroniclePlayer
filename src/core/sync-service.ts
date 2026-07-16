@@ -65,14 +65,19 @@ const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
 // playlistItems.list pages (1 unit each) before giving up for this call,
 // so a single scroll-triggered fetch can't run away.
 const ARCHIVE_BACKFILL_PAGE_LIMIT = 4
-// youtube-api.md §Failure handling: exponential backoff, per-channel, max 3
-// attempts per cycle. YouTube's RSS backend (a distinct, less reliable
-// service from the main site — confirmed live: valid, active channels
-// return transient 404/500 from it under ordinary conditions, no special
-// load required, and a plain retry moments later often succeeds) is flaky
-// enough that most of these resolve within the same cycle rather than
-// waiting for the next one.
-const RSS_RETRY_ATTEMPTS = 3
+// youtube-api.md §Failure handling: exponential backoff, per-channel, up to
+// RSS_RETRY_ATTEMPTS attempts per cycle. YouTube's RSS backend (a distinct,
+// less reliable service from the main site — confirmed live: valid, active
+// channels return transient 404/500 from it under ordinary conditions, no
+// special load required, and a plain retry moments later often succeeds) is
+// flaky enough that most of these resolve within the same cycle rather than
+// waiting for the next one. Since B-110's fix made these failures silent by
+// default (D-049 — no banner for an ordinary partial failure), a higher
+// attempt count is pure upside for cutting the residual failure rate
+// further, bounded only by how long a fully-failing channel holds its
+// RSS_CONCURRENCY worker slot (worst case here: sum of the backoff delays
+// below, a few seconds).
+const RSS_RETRY_ATTEMPTS = 5
 const RSS_RETRY_BASE_MS = 300
 
 interface SyncDeps {

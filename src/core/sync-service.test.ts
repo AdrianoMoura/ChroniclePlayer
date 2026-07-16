@@ -325,7 +325,7 @@ describe('SyncService.refresh', () => {
   // conditions — retrying within the same cycle (youtube-api.md's own
   // documented, previously-unimplemented "max 3 per cycle" rule) recovers
   // most of these instead of waiting for the next 30-minute cycle.
-  it('retries a failing RSS fetch up to 3 times before giving up on the channel this cycle', async () => {
+  it('retries a failing RSS fetch up to 5 times before giving up on the channel this cycle', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCflaky')
     let calls = 0
@@ -333,18 +333,18 @@ describe('SyncService.refresh', () => {
       feeds: {
         UCflaky: () => {
           calls += 1
-          if (calls < 3) throw internal('RSS fetch failed with 500')
+          if (calls < 5) throw internal('RSS fetch failed with 500')
           return { kind: 'ok', entries: [discovered('v1')], etag: null, lastModified: null }
         }
       }
     })
     const report = await service(repo, source).refresh('manual', 'acc1')
-    expect(calls).toBe(3)
+    expect(calls).toBe(5)
     expect(repo.inserted).toContain('v1')
     expect(report.channelsFailed).toBe(0)
   })
 
-  it('gives up on the channel this cycle after 3 straight RSS failures (retried again next cycle)', async () => {
+  it('gives up on the channel this cycle after 5 straight RSS failures (retried again next cycle)', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCdown')
     let calls = 0
@@ -357,7 +357,7 @@ describe('SyncService.refresh', () => {
       }
     })
     const report = await service(repo, source).refresh('manual', 'acc1')
-    expect(calls).toBe(3)
+    expect(calls).toBe(5)
     expect(report.channelsFailed).toBe(1)
     expect(repo.listSubscribedChannels('acc1').map((c) => c.channelId)).toContain('UCdown')
   })

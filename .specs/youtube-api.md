@@ -144,9 +144,11 @@ units becomes, worst case, roughly one unit per active channel per cycle — for
 | Network down | transport errors | Silent skip of refresh; subtle "offline" indicator; next trigger retries |
 | RSS 404 / malformed / blocked | 404, parse errors, other 4xx / 5xx | Retried in-cycle (below), then an ordinary per-channel failure for that cycle if still failing (logged, retried next cycle) — **not** treated as proof the channel is gone (D-048): a single RSS 404 isn't reliable evidence of permanent deletion, and RSS calls are free, so there's no cost reason to ever stop asking. **No banner** for this on its own (D-049) — confirmed live (`bugs.md` [[B-110]]) that YouTube's own RSS backend returns transient 404/500 for genuinely active channels under ordinary conditions, so some per-cycle failures are expected background noise, not something the owner can act on. |
 
-- Retries: exponential backoff (300ms, doubling), per-channel, max 3 attempts per cycle
+- Retries: exponential backoff (300ms, doubling), per-channel, max 5 attempts per cycle
   — implemented in `SyncService.discoverChannel`'s `discoverRecentWithRetry` (previously
-  documented here but never actually built, found and fixed alongside [[B-110]]); never
+  documented here but never actually built, found and fixed alongside [[B-110]]; raised
+  from an initial 3 to 5 once D-049 made ordinary per-cycle failures silent, removing
+  any downside to trying harder before giving up on a channel for the cycle); never
   across the quota boundary. All refresh failures are per-channel — one bad channel
   never aborts a sync.
 - **D-048:** there is deliberately no "channel unavailable / stop polling" state. An

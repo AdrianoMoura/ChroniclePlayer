@@ -276,6 +276,13 @@ Resolved entries add:
   change. Checked via `npm run typecheck && npm run lint && npm test` (201/201); **not
   run live** — needs the owner to confirm the routine partial-failure banner no longer
   appears, and that a genuine connectivity problem (if one ever occurs) still shows one.
+- **Follow-up (2026-07-16):** since D-049 made ordinary per-cycle failures silent,
+  the owner pointed out there's no longer a downside to trying harder before giving up
+  on a channel for the cycle — raised `RSS_RETRY_ATTEMPTS` from 3 to 5 (still the same
+  `RSS_RETRY_BASE_MS = 300`-doubling backoff shape, just two more rounds: 300/600/1200/
+  2400ms between the 5 attempts). Both retry tests updated to assert 5 instead of 3.
+  `youtube-api.md`'s retry line updated to match. Checked via `npm run typecheck &&
+  npm run lint && npm test` (201/201); **not run live**.
 
 ### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
 - **Type:** bug · **Severity:** major
