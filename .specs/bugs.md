@@ -396,7 +396,7 @@ Resolved entries add:
   channel that was previously synced, which implies the account isn't in its first sync
   either). Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
   live-app check this session (per [[no-live-app-verification]]).
-- **Resolved:** 2026-07-16 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-16 · **Commit:** d63e02a · **Outcome:** Fixed
 
 ### B-104 — Miniplayer's maximize/close buttons had no keyboard path
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.2.0
