@@ -10,9 +10,16 @@ export interface TrayCallbacks {
   onQuit: () => void
 }
 
+// A fixed, stable guid: Electron docs describe this as a Windows-only
+// identity mechanism (getGUID() is @platform darwin,win32), so this is
+// unlikely to change anything on Linux — but it's a harmless, free addition
+// in case a given Linux backend does use it to distinguish/dedupe icons
+// across create/destroy cycles within the same process.
+const TRAY_GUID = 'dev.chronicleplayer.desktop.tray'
+
 export function createAppTray(iconPath: string, callbacks: TrayCallbacks): Tray {
   const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
-  const tray = new Tray(icon)
+  const tray = new Tray(icon, TRAY_GUID)
   tray.setToolTip('Chronicle')
   tray.setContextMenu(
     Menu.buildFromTemplate([
