@@ -358,6 +358,21 @@ Resolved entries add:
   changes needed — `ui.md`/`playback.md` don't describe stacking order at this level of
   detail. Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
   live-app check this session (per [[no-live-app-verification]]).
+- **Follow-up (2026-07-16):** the owner live-tested and confirmed scroll and the like
+  dialog both fixed, but the comment consent dialog was still hidden. Root cause:
+  `CommentsSection` (`src/ui/Comments.tsx`) held its *own* separate `useWriteScopeGate()`
+  instance and rendered its own `{writeScopeGate.dialog}` inside `.comments-section`,
+  itself nested inside `.player-view` — the exact same trap fixed above for the
+  like/subscribe dialog, just in a second, independent instance the first pass missed.
+  Rather than lift a second dialog out to another `.player-view` sibling (which would let
+  two different consent dialogs pop up for one player), `CommentsSection` now takes
+  `runWithWriteScope` as a prop instead of owning a gate — `PlayerDetails` passes its own
+  `writeScopeGate.run` (the same instance already backing like/subscribe, whose dialog
+  already renders correctly outside `.player-view`), so the whole player shares one gate
+  and one dialog. `CommentItem`/`ReplyItem` already took `runWithWriteScope` as a prop one
+  level down, so this just extends that existing pattern up one level rather than
+  introducing a new one. Re-checked via `npm run typecheck && npm run lint && npm test`
+  (200/200).
 - **Resolved:** 2026-07-16 · **Commit:** efc9d6b · **Outcome:** Fixed
 
 ### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up

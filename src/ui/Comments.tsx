@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import type { CommentDto } from '../ipc/contract'
 import { publishedLabel } from './format'
 import { t } from './i18n'
-import { useWriteScopeGate } from './useWriteScopeGate'
+import type { useWriteScopeGate } from './useWriteScopeGate'
 
 function commentsErrorMessage(errorKind: string, message: string): string {
   // Not the raw API error text — auth-expired specifically means the
@@ -23,13 +23,20 @@ export interface CommentsSectionHandle {
   toggle: () => void
 }
 
+export type RunWithWriteScope = ReturnType<typeof useWriteScopeGate>['run']
+
 interface CommentsSectionProps {
   videoId: string
+  // The write-scope consent dialog lives once in PlayerDetails (rendered as
+  // a sibling of `.player-view`, not nested inside it — a modal nested
+  // inside `.player-view`'s own z-index stacking context loses to the video
+  // regardless of its own z-index, same bug as the like/subscribe actions
+  // had) rather than one per action-owning component.
+  runWithWriteScope: RunWithWriteScope
 }
 
 export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSectionProps>(
-  function CommentsSection({ videoId }, ref) {
-    const writeScopeGate = useWriteScopeGate()
+  function CommentsSection({ videoId, runWithWriteScope }, ref) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -42,8 +49,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     function load(): void {
       setLoading(true)
       setError(null)
-      void writeScopeGate
-        .run(() => window.chronicle.getComments(videoId))
+      void runWithWriteScope(() => window.chronicle.getComments(videoId))
         .then((result) => {
           setLoading(false)
           if (!result.ok) {
@@ -59,9 +65,8 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     const loadMore = useCallback(() => {
       if (nextPageToken === null || loadingMore) return
       setLoadingMore(true)
-      void writeScopeGate
-        .run(() => window.chronicle.getComments(videoId, nextPageToken))
-        .then((result) => {
+      void runWithWriteScope(() => window.chronicle.getComments(videoId, nextPageToken)).then(
+        (result) => {
           setLoadingMore(false)
           if (!result.ok) {
             if (result.errorKind !== 'cancelled')
@@ -70,8 +75,9 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
           }
           setComments((current) => [...(current ?? []), ...result.value.comments])
           setNextPageToken(result.value.nextPageToken)
-        })
-    }, [videoId, nextPageToken, loadingMore, writeScopeGate])
+        }
+      )
+    }, [videoId, nextPageToken, loadingMore, runWithWriteScope])
 
     function toggle(): void {
       const next = !open
@@ -102,8 +108,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
       const text = newComment.trim()
       if (text === '') return
       setPosting(true)
-      void writeScopeGate
-        .run(() => window.chronicle.postComment(videoId, text))
+      void runWithWriteScope(() => window.chronicle.postComment(videoId, text))
         .then((result) => {
           setPosting(false)
           if (!result.ok) {
@@ -146,7 +151,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
               <CommentItem
                 key={comment.commentId}
                 comment={comment}
-                runWithWriteScope={writeScopeGate.run}
+                runWithWriteScope={runWithWriteScope}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
                     (current ?? []).map((c) =>
@@ -162,13 +167,10 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
             {loadingMore && <p className="comments-loading">{t('comments.loadingMore')}</p>}
           </div>
         )}
-        {writeScopeGate.dialog}
       </div>
     )
   }
 )
-
-type RunWithWriteScope = ReturnType<typeof useWriteScopeGate>['run']
 
 function CommentItem({
   comment,

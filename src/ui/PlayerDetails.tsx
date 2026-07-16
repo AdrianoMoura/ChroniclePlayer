@@ -231,7 +231,12 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               </div>
             )}
 
-            <CommentsSection ref={commentsRef} key={video.videoId} videoId={video.videoId} />
+            <CommentsSection
+              ref={commentsRef}
+              key={video.videoId}
+              videoId={video.videoId}
+              runWithWriteScope={writeScopeGate.run}
+            />
           </div>
         </div>
         {writeScopeGate.dialog}
