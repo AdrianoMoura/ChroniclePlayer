@@ -134,14 +134,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       clipTop: number
       clipBottom: number
     } | null>(null)
-    // B-108: a separate, deliberately *not* scroll-synced rect for the
-    // wheel-scroll catcher (below) — see that effect's own comment for why
-    // tracking the video's live position defeats the catcher's purpose.
-    const [catcherRect, setCatcherRect] = useState<{
-      top: number
-      left: number
-      width: number
-    } | null>(null)
 
     useEffect(() => {
       setSurface('playing')
@@ -156,15 +148,10 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     useEffect(() => {
       if (alignTarget === null) {
         setRect(null)
-        setCatcherRect(null)
         return
       }
       let frame: number | null = null
-      // updateCatcher: false for scroll-triggered calls — B-108's
-      // wheel-scroll catcher deliberately does *not* track the video's live
-      // (scroll-following) position, only its position at rest/on resize.
-      // See the catcher's own comment below for why.
-      const measure = (updateCatcher: boolean) => {
+      const measure = () => {
         const box = alignTarget.getBoundingClientRect()
         // Only the full-view slot sits inside a scrolling container — the
         // miniplayer's slot doesn't scroll, so there's nothing to clip
@@ -182,43 +169,29 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           clipTop,
           clipBottom
         })
-        if (updateCatcher) {
-          setCatcherRect(
-            scrollParent === null ? null : { top: box.top, left: box.left, width: box.width }
-          )
-        }
       }
-      // Pending-frame catcher intent is OR'd rather than overwritten, so a
-      // scroll tick that coalesces with a same-frame resize doesn't
-      // accidentally suppress the resize's catcher update.
-      let pendingUpdateCatcher = false
-      const scheduleMeasure = (updateCatcher: boolean) => {
-        pendingUpdateCatcher ||= updateCatcher
+      const scheduleMeasure = () => {
         if (frame !== null) return
         frame = requestAnimationFrame(() => {
           frame = null
-          const shouldUpdateCatcher = pendingUpdateCatcher
-          pendingUpdateCatcher = false
-          measure(shouldUpdateCatcher)
+          measure()
         })
       }
-      const scheduleFullMeasure = () => scheduleMeasure(true)
-      measure(true)
-      const observer = new ResizeObserver(scheduleFullMeasure)
+      measure()
+      const observer = new ResizeObserver(scheduleMeasure)
       observer.observe(alignTarget)
-      window.addEventListener('resize', scheduleFullMeasure)
+      window.addEventListener('resize', scheduleMeasure)
       // `capture: true`: scroll events don't bubble, but do fire in the
       // capture phase on ancestors (including window) as they travel down to
       // whichever element actually scrolled — this is what lets one listener
       // here catch the page scrolling without needing a reference to
       // `.player-view` itself.
-      const onScroll = () => scheduleMeasure(false)
-      window.addEventListener('scroll', onScroll, { capture: true, passive: true })
+      window.addEventListener('scroll', scheduleMeasure, { capture: true, passive: true })
       return () => {
         if (frame !== null) cancelAnimationFrame(frame)
         observer.disconnect()
-        window.removeEventListener('resize', scheduleFullMeasure)
-        window.removeEventListener('scroll', onScroll, { capture: true })
+        window.removeEventListener('resize', scheduleMeasure)
+        window.removeEventListener('scroll', scheduleMeasure, { capture: true })
       }
     }, [alignTarget])
 
@@ -599,34 +572,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
             </div>
           )}
         </div>
-
-        {/* B-108: the embed is a cross-origin iframe — wheel/mouse events
-          physically over it never reach this document's listeners at all,
-          so the full-view page can't be scrolled while hovering the video.
-          A same-origin catcher forwards wheel scroll to .player-view
-          manually. Deliberately *not* nested inside .player-stage / keyed to
-          `rect` (the video's live, scroll-following position): round 1 tried
-          that and the owner's live test found it broke almost immediately —
-          the cursor doesn't move during a wheel gesture, but the video (and
-          therefore a catcher glued to it) does, so after just the first
-          scroll tick the cursor already lands back on bare iframe with
-          nothing catching it. This one uses `catcherRect`, which only
-          updates on resize/layout changes, not scroll — so once a gesture
-          starts, neither the cursor nor the catcher moves, and the whole
-          gesture stays caught. Sized to a small fixed band (not the video's
-          full height) and positioned at the video's own on-screen top edge
-          at rest, which round 1 also got wrong: 18% of the video's height
-          reached into real embed controls near the top. */}
-        {active && surface === 'playing' && catcherRect !== null && (
-          <div
-            className="player-scroll-catcher"
-            style={{ top: catcherRect.top, left: catcherRect.left, width: catcherRect.width }}
-            onWheel={(event) => {
-              const scrollParent = alignTarget?.closest<HTMLElement>('.player-view')
-              if (scrollParent) scrollParent.scrollTop += event.deltaY
-            }}
-          />
-        )}
       </>
     )
   }

@@ -182,11 +182,9 @@ Resolved entries add:
   none of the owner's membership channels has published anything since this was written.
   Staying Open until one of them does.
 
-## In progress
-
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.4.1
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.1
   (carried over — 0.2.2, 0.3.0, and 0.4.0 all shipped without this)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -194,9 +192,7 @@ Resolved entries add:
   scroll. Moving the mouse off the video first is the only workaround.
 - **Expected:** the page scrolls normally regardless of where the cursor is over it,
   video included.
-- **Code refs:** `src/ui/PlayerSurface.tsx` (`.player-stage`'s `<iframe>`, and the new
-  `.player-scroll-catcher` sibling div added by this fix); `src/ui/styles.css`
-  (`.player-scroll-catcher`).
+- **Code refs:** `src/ui/PlayerSurface.tsx` (`.player-stage`'s `<iframe>`).
 - **Root cause:** the embed is a cross-origin `<iframe>` (`youtube.com/embed/...`) —
   mouse/wheel input that physically lands on it is handled entirely within its own
   document; it never reaches this app's event listeners at all, at any level (window,
@@ -267,6 +263,23 @@ Resolved entries add:
   (per this entry's own root-cause notes: full coverage trades away the embed's own
   click/seek interactivity, and there's no cross-origin-safe middle ground CSS alone can
   express) rather than just resizing the same small-band approach again.
+- **Round 2 reverted (2026-07-16):** the owner came back and reported the catcher was now
+  interfering with the app's own top-of-screen controls, not just real embed controls —
+  a `position: fixed` strip spanning the full slot width, sitting above everything else
+  (`z-index: 22`) and frozen in place mid-scroll, is more than enough to end up parked
+  over the topbar during or after a scroll gesture, silently swallowing clicks there.
+  Given that and round 2's already-known undersized-coverage complaint, removed the whole
+  scroll-catcher mechanism on request: `catcherRect` state, its measure/scheduleMeasure
+  split, the `.player-scroll-catcher` JSX, and its CSS rule in `styles.css`. `rect` (the
+  video's own live-scroll-following position, used for the actual video box and clipping)
+  is untouched. This restores the original bug — the page still can't be scrolled while
+  the cursor is over the embedded video — with no interim workaround in place. Checked via
+  `npm run typecheck && npm run lint && npm test` (208/208); not run live (per
+  [[no-live-app-verification]]). **Status reset to Open** — back to square one on a fix;
+  any next attempt should start from this entry's root-cause notes rather than resuming
+  from round 2's approach.
+
+## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
