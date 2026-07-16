@@ -73,11 +73,18 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   subsystem removed outright, a new retry mechanism actually implemented, a UX
   decision on failure visibility) — shipped as a **minor** version instead, `0.3.0`,
   skipping the `0.2.3` number entirely. Shipped 2026-07-16.
+- **v0.4.0** — no bug-tracker batch of its own, same pattern as `v0.2.1`: driven
+  entirely by D-050 (tray-resident mode, auto-start, opt-in notifications), a whole new
+  feature the product owner asked for directly rather than an item reported here. Full
+  history is in `decisions.md` D-050, not a `bug-history/` file. Shipped as a **minor**
+  version (real new scope, not a bug-fix batch). Shipped 2026-07-16. Since this landed
+  ahead of this file's own batch, its `0.3.1` target is renumbered to `0.4.1` below.
 
-**Current target: 0.3.1** (in progress). Carries [[B-108]], [[B-022]], [[B-086]],
-[[B-101]] forward from 0.3.0 (none of the four made it into that release — see
-`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.3.1 ships, this file's
-content moves to `bug-history/v0.3.1.md` and a new `bugs-current.md` starts targeting
+**Current target: 0.4.1** (in progress; renumbered from `0.3.1` — v0.4.0 shipped ahead
+of this batch, see above). Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward
+from 0.3.0 (none of the four made it into that release — see
+`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.4.1 ships, this file's
+content moves to `bug-history/v0.4.1.md` and a new `bugs-current.md` starts targeting
 whatever comes after it.
 
 ## Entry template
@@ -106,8 +113,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.1
-  (carried over — 0.2.2 and 0.3.0 both shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.1
+  (carried over — 0.2.2, 0.3.0, and 0.4.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -134,7 +141,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.3.1 (carried over — 0.2.2 and 0.3.0 both shipped without this)
+  0.4.1 (carried over — 0.2.2, 0.3.0, and 0.4.0 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -179,8 +186,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.3.1
-  (carried over — 0.2.2 and 0.3.0 both shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.4.1
+  (carried over — 0.2.2, 0.3.0, and 0.4.0 all shipped without this)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
   cursor is positioned over the embedded YouTube video does nothing — the page doesn't
@@ -263,8 +270,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.3.1 (carried over —
-  0.2.2 and 0.3.0 both shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.1 (carried over —
+  0.2.2, 0.3.0, and 0.4.0 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh

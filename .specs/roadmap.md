@@ -95,8 +95,30 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   ("Adjust text settings," Settings' Connection section layout) shipped alongside with
   no B-NNN of its own, same pattern as `0.2.1`. B-108, B-022, B-086, B-101 still didn't
   make it in and carry forward again to `0.3.1`.
-- **0.3.1 — in progress.** Carries B-108, B-022, B-086, B-101 forward from 0.3.0 (see
-  above). No batch of its own yet — new items reported after 0.3.0 shipped land here.
+- **0.4.0 — delivered, 2026-07-16.** Not a bug-tracker batch — driven entirely by D-050
+  (tray-resident mode, OS auto-start, opt-in per-channel new-video notifications, "Start
+  minimized to tray"), a whole new post-MVP feature the product owner asked for directly,
+  same pattern as `0.2.1`/`0.3.0` (a scope-driven release bypasses whatever
+  `bugs-current.md` batch happens to be in flight — none of its items are touched by
+  this version). Full design history lives in `decisions.md` D-050 rather than a
+  `bug-history/` file: three independent Settings toggles (none gates another),
+  per-channel notify as its own property (All Channels/Selected Channels scope,
+  auto-sync-on-favorite convenience with a confirm-on-disable dialog), and a run of
+  live-tested fixes the owner's own hands-on testing caught — a missing
+  `app.requestSingleInstanceLock()` (root cause of duplicate tray icons across
+  relaunches), a tray-host staleness bug on the owner's QuickShell setup worked around
+  by never destroying the tray mid-session, and three real auto-start bugs (dev mode's
+  bare-Electron-binary launch, an AppImage's temporary-mount `process.execPath`, and the
+  platform-split "was this launch from autostart" detection needed for "Start
+  minimized"). All checked via `npm run typecheck && npm run lint && npm test`
+  (208/208); an AppImage build was produced and handed to the owner for their own live
+  test before this shipped. **Shipped 2026-07-16** — `package.json` bumped to `0.4.0`
+  (minor: real new scope, not a bug-fix batch — per the owner's own call). B-108, B-022,
+  B-086, B-101 are untouched by this release and carry forward to `0.4.1`, renumbered
+  from the `0.3.1` placeholder since this version shipped ahead of that batch.
+- **0.4.1 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
+  0.3.0 (renumbered past 0.4.0 — see above, that version shipped without touching this
+  batch). No batch of its own yet — new items reported after 0.4.0 shipped land here.
 
 ## M0 — Walking skeleton
 

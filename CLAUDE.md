@@ -152,6 +152,26 @@ screenshots, and cutting a real tag to exercise the release workflow end-to-end 
 GitHub Actions. Run `npm run typecheck && npm run lint && npm test` locally before
 committing.
 
+**D-050 (tray-resident mode, OS auto-start, opt-in per-channel notifications, "Start
+minimized to tray") shipped in `0.4.0`, 2026-07-16** — a post-MVP feature the product
+owner asked for directly, not sourced from `bugs-current.md`. Three independent
+Settings toggles (none gates another); per-channel `notify` is its own property (schema
+v9), scoped All Channels/Selected Channels, with an auto-sync-on-favorite convenience
+(confirm-on-disable dialog) rather than a separate "Favorites" scope. Landed in
+`platform/` (`tray.ts`, `linux-autostart.ts`) per `architecture.md`'s own reservation.
+Several real bugs were caught and fixed only once the product owner live-tested an
+actual build: a missing `app.requestSingleInstanceLock()` (root cause of duplicate tray
+icons across relaunches once closing the window stopped always quitting the app); a
+tray-host staleness bug (confirmed via live D-Bus introspection, not guesswork) worked
+around by never destroying the tray mid-session, only at real quit; and three
+auto-start bugs — dev mode's bare-Electron-binary launch, an AppImage's
+temporary-mount `process.execPath` (would have silently broken on the very next login),
+and the platform-split "was this launch from autostart" detection (`wasOpenedAtLogin`
+on macOS, a `--hidden` arg on Windows/Linux) needed for "Start minimized." Full
+narrative in `decisions.md` D-050 — no `bug-history/` file, since this didn't come
+through the bug tracker. See `.specs/roadmap.md` §Release status for the exact shipped
+scope.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, and `0.3.0` have
@@ -164,7 +184,10 @@ previously-documented-but-never-built per-channel RSS retry-with-backoff was act
 implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
-entirely. `bugs-current.md` now targets **0.3.1** (carries B-108, B-022, B-086, B-101
-forward from 0.3.0). Version bumps aren't always minor — a pure bug-fix batch ships as
-a patch release, a minor bump is reserved for batches that land real new scope. See
-`.specs/roadmap.md` §Release status for the summary.
+entirely. `0.4.0` (D-050, above) shipped the same way — real new scope, not a
+bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`).
+`bugs-current.md` now targets **0.4.1**, renumbered from `0.3.1` since `0.4.0` shipped
+ahead of it (carries B-108, B-022, B-086, B-101 forward, untouched, from 0.3.0).
+Version bumps aren't always minor — a pure bug-fix batch ships as a patch release, a
+minor bump is reserved for batches that land real new scope. See `.specs/roadmap.md`
+§Release status for the summary.
