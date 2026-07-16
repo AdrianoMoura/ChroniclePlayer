@@ -243,8 +243,20 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           if (payload.info === 101 || payload.info === 150) setSurface('embed-blocked')
         }
         if (payload.event === 'infoDelivery') {
-          const info = payload.info as { currentTime?: number } | undefined
+          const info = payload.info as { currentTime?: number; playerState?: number } | undefined
           if (typeof info?.currentTime === 'number') currentTimeRef.current = info.currentTime
+          // B-111: infoDelivery also carries playerState, and (like the D-038
+          // rate-reissue fix) is a steady heartbeat rather than a one-shot
+          // transition event — a state change triggered by clicking the
+          // embed's own native controls (as opposed to one of our own
+          // command() calls) isn't guaranteed to produce an onStateChange
+          // round trip we actually observe, the same unreliability already
+          // documented above for isStillGoing(). This keeps playerStateRef
+          // correct even when that specific onStateChange is missed, without
+          // touching the transition-only side effects (ended overlay, resume
+          // checkpoint, quality/rate reissue) below, which must still fire
+          // exactly once per real transition, not once per heartbeat tick.
+          if (typeof info?.playerState === 'number') playerStateRef.current = info.playerState
         }
       }
       window.addEventListener('message', onMessage)
