@@ -373,7 +373,7 @@ Resolved entries add:
   level down, so this just extends that existing pattern up one level rather than
   introducing a new one. Re-checked via `npm run typecheck && npm run lint && npm test`
   (200/200).
-- **Resolved:** 2026-07-16 · **Commit:** efc9d6b · **Outcome:** Fixed
+- **Resolved:** 2026-07-16 · **Commit:** efc9d6b (follow-up: d8561e3) · **Outcome:** Fixed
 
 ### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.3.0
