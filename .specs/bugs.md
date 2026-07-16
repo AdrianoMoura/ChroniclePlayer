@@ -78,32 +78,6 @@ Resolved entries add:
 
 ## Open
 
-### B-107 — Pagination never triggers when a filtered/narrow view's content doesn't fill the viewport
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16
-- **Area:** feed / ui-shell
-- **What happens:** the owner reported this happening when filtering the feed — depending
-  on the window size and the grid item size in effect, the number of matching items can
-  be short enough that they don't fill the visible viewport. With nothing to scroll, no
-  further page ever loads, even though there may be more matching content available
-  locally or via backfill.
-- **Expected (owner's suggestion):** if, after rendering the current results, no
-  scrollable overflow was actually produced (content height ≤ viewport height), the
-  system should proactively trigger pagination itself instead of waiting for a scroll
-  event that can never come.
-- **Code refs:** `src/ui/FeedList.tsx` (the `onNearEnd`-triggering `useEffect` — currently
-  keyed off `virtualizer.getVirtualItems()`'s last rendered index vs. `displayRows.length`,
-  which assumes the virtualizer has already produced a settled item list reflecting the
-  current viewport; `useVirtualizer`'s `getScrollElement`/`getTotalSize()`); `src/ui/App.tsx`
-  (`loadMore`, wired in as `onNearEnd`).
-- **Notes:** most likely triggered right after a row-count-shrinking change (a channel
-  filter, or a grid item-size/column-count change) where the virtualizer's own
-  measurement of the scroll container hasn't caught up yet, or where the container never
-  had genuine overflow at all — same general "the near-end signal depends on a scroll
-  environment that may not exist" shape as the owner's suggested fix implies. Not
-  investigated further or fixed here — per the bug-tracking workflow, staying Open until
-  the owner says to attack it.
-
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
   (carried over — 0.2.0 shipped 2026-07-15 without this)
@@ -304,6 +278,38 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-107 — Pagination never triggers when a filtered/narrow view's content doesn't fill the viewport
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-16
+- **Area:** feed / ui-shell
+- **What happens:** the owner reported this happening when filtering the feed — depending
+  on the window size and the grid item size in effect, the number of matching items could
+  be short enough that they didn't fill the visible viewport. With nothing to scroll, no
+  further page ever loaded, even if more matching content was available locally or via
+  backfill.
+- **Expected:** if, after rendering the current results, no scrollable overflow was
+  actually produced (content height ≤ viewport height), the system triggers pagination
+  itself instead of waiting for a scroll event that can never come.
+- **Code refs:** `src/ui/FeedList.tsx` (the existing `onNearEnd`-triggering `useEffect`,
+  keyed off `virtualizer.getVirtualItems()`'s last rendered index vs. `displayRows.length`
+  — relies on the virtualizer having already produced a settled item list matching the
+  current viewport, which can lag a render behind a row-count-shrinking change); `src/ui/App.tsx`
+  (`loadMore`, wired in as `onNearEnd`).
+- **Resolution:** per the owner's own suggested fix, added a second `useEffect` in
+  `FeedList.tsx` that checks the scroll container directly after each render where the
+  row count, columns, or row height changed (`el.scrollHeight <= el.clientHeight`, guarded
+  on `el.clientHeight > 0` so it doesn't fire before the container has been laid out at
+  all) and calls `onNearEnd()` if there's no scrollable overflow. Safe against loops:
+  `onNearEnd` (`loadMore`) already no-ops once there's genuinely nothing more to fetch
+  (`nextCursor === null` and either no channel filter or `archiveExhausted` already has
+  it), and against concurrent calls (`loadingRef`/`backfillingRef` guards), both
+  pre-existing. No new test file — this codebase has no existing UI component test
+  harness for `FeedList.tsx` to extend (domain/adapters get unit/contract tests per
+  `CLAUDE.md`; UI relies on the owner's own live check). Checked via
+  `npm run typecheck && npm run lint && npm test` (200/200); **not run live this
+  session** (per [[no-live-app-verification]]).
+- **Resolved:** 2026-07-16 · **Commit:** (pending) · **Outcome:** Fixed
 
 ### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
 - **Type:** bug · **Severity:** major · **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.3.0

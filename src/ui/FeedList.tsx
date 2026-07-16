@@ -52,7 +52,7 @@ export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: numbe
   small: { minWidth: 160, height: 176 },
   medium: { minWidth: 220, height: 214 },
   large: { minWidth: 300, height: 290 },
-  xl: { minWidth: 420, height: 400 },
+  xl: { minWidth: 420, height: 320 },
   xxl: { minWidth: 560, height: 420 }
 }
 
@@ -184,6 +184,20 @@ export function FeedList({
     if (lastIndex >= 0 && lastIndex >= displayRows.length - Math.max(2, Math.ceil(10 / columns)))
       onNearEnd()
   }, [lastIndex, displayRows.length, columns, onNearEnd])
+
+  // B-107: the check above only ever fires from a scroll position — a
+  // narrow channel filter, a large item size, or a wide/short window can
+  // all produce a page of results short enough that the container never
+  // actually overflows, so no scroll (and therefore no near-end check)
+  // ever happens, silently stranding pagination. If there's no scrollable
+  // overflow after the current results render, trigger it directly instead
+  // of waiting for a scroll event that can't come; `onNearEnd` itself
+  // (`loadMore`) already no-ops when there's genuinely nothing more to
+  // fetch, so this can't loop.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) onNearEnd()
+  }, [displayRows.length, columns, rowHeight, cardRowHeight, onNearEnd])
 
   // Keep the keyboard cursor visible.
   const cursorRowIndex = displayRows.findIndex(
