@@ -154,10 +154,17 @@ committing.
 
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
-each shipped release's closed-out batch. `0.1.0`, `0.2.0`, and `0.2.2` have shipped and
-are archived in `bug-history/` (`0.2.1` was a single one-off patch with no batch of its
-own — see `bug-history/v0.2.0.md`'s B-045 notes); `bugs-current.md` now targets
-**0.2.3** (carries B-108, B-022, B-086, B-101 forward from 0.2.2). Version bumps aren't
-always minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved
-for batches that land real new scope. See `.specs/roadmap.md` §Release status for the
-summary.
+each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, and `0.3.0` have
+shipped and are archived in `bug-history/` (`0.2.1` was a single one-off patch with no
+batch of its own — see `bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110,
+both Fixed) was originally tracked toward a `0.2.3` patch but grew into real new scope
+along the way — D-048 removed a whole failure-handling subsystem (channels no longer
+get permanently marked "unavailable" off a single transient RSS 404), a
+previously-documented-but-never-built per-channel RSS retry-with-backoff was actually
+implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
+how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
+systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
+entirely. `bugs-current.md` now targets **0.3.1** (carries B-108, B-022, B-086, B-101
+forward from 0.3.0). Version bumps aren't always minor — a pure bug-fix batch ships as
+a patch release, a minor bump is reserved for batches that land real new scope. See
+`.specs/roadmap.md` §Release status for the summary.

@@ -71,8 +71,32 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   it in and carry forward again; B-108 (new this cycle — mouse-wheel scroll doesn't
   work while hovering the embedded player — two rounds landed but the owner's own call
   was to pause and rethink the coverage approach, not ship what exists) joins them.
-- **0.2.3 — in progress.** Carries B-108, B-022, B-086, B-101 forward from 0.2.2 (see
-  above). No batch of its own yet — new items reported after 0.2.2 shipped land here.
+- **0.3.0 — delivered, 2026-07-16.** Two Fixed entries, `bug-history/v0.3.0.md`: B-109
+  (channel-list scroll-to-load-more could stall permanently on an all-duplicates
+  `backfillArchive` batch — fixed with a self-continuing loop) and B-110 (a single
+  transient RSS 404 permanently and silently froze a channel's sync forever, with no
+  retry and no UI ever surfacing it). B-110 grew into several same-day follow-ups: a
+  live investigation (direct `curl` testing against YouTube, outside Chronicle's code)
+  confirmed a meaningful fraction of RSS 404/500s are a real, external reliability
+  problem in YouTube's own RSS backend, not a Chronicle bug; found and implemented a
+  per-channel retry-with-backoff that `youtube-api.md` had documented for a while but
+  that was never actually built; then, once live-tested, the owner pointed out the
+  resulting per-cycle partial-failure banner would now fire essentially forever (the
+  noise never fully converges to zero), so D-049 stopped surfacing ordinary partial
+  failures and reserved the banner for a systemic one instead; two more tuning
+  follow-ups raised the retry count (3→5) and `RSS_CONCURRENCY` (8→12) once the owner
+  confirmed the banner change removed any downside to trying harder. All checked via
+  `npm run typecheck && npm run lint && npm test`; both bugs' original symptoms
+  live-confirmed fixed by the owner. **Originally tracked toward `0.2.3`** (a patch),
+  but the D-048 failure-handling removal, the new retry mechanism, and the D-049 UX
+  change amounted to real new scope, not just bug fixes — shipped as a **minor**
+  version instead per the owner's call, skipping `0.2.3` entirely. **Shipped
+  2026-07-16** — `package.json` bumped to `0.3.0`. A small standalone same-day UI tweak
+  ("Adjust text settings," Settings' Connection section layout) shipped alongside with
+  no B-NNN of its own, same pattern as `0.2.1`. B-108, B-022, B-086, B-101 still didn't
+  make it in and carry forward again to `0.3.1`.
+- **0.3.1 — in progress.** Carries B-108, B-022, B-086, B-101 forward from 0.3.0 (see
+  above). No batch of its own yet — new items reported after 0.3.0 shipped land here.
 
 ## M0 — Walking skeleton
 

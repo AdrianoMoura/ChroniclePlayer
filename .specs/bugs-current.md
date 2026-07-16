@@ -65,12 +65,20 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
 - [`bug-history/v0.2.2.md`](bug-history/v0.2.2.md) — B-105, B-106, B-107 (all Fixed,
   each needing a same-day follow-up once the owner's live test caught a second instance
   of the same bug). Shipped 2026-07-16.
+- [`bug-history/v0.3.0.md`](bug-history/v0.3.0.md) — B-109, B-110 (both Fixed; B-110
+  needed several same-day follow-ups: a live investigation into a high RSS failure
+  rate, implementing a previously-documented-but-missing retry, a UX change to how
+  sync failures are surfaced, and two tuning follow-ups). Originally tracked toward a
+  `0.2.3` patch, but grew into real new scope along the way (a failure-handling
+  subsystem removed outright, a new retry mechanism actually implemented, a UX
+  decision on failure visibility) — shipped as a **minor** version instead, `0.3.0`,
+  skipping the `0.2.3` number entirely. Shipped 2026-07-16.
 
-**Current target: 0.2.3** (in progress). Carries [[B-108]], [[B-022]], [[B-086]],
-[[B-101]] forward from 0.2.2 (none of the four made it into that release — see
-`bug-history/v0.2.2.md` for why). When 0.2.3 ships, this file's content moves to
-`bug-history/v0.2.3.md` and a new `bugs-current.md` starts targeting whatever comes
-after it.
+**Current target: 0.3.1** (in progress). Carries [[B-108]], [[B-022]], [[B-086]],
+[[B-101]] forward from 0.3.0 (none of the four made it into that release — see
+`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.3.1 ships, this file's
+content moves to `bug-history/v0.3.1.md` and a new `bugs-current.md` starts targeting
+whatever comes after it.
 
 ## Entry template
 
@@ -98,8 +106,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.3
-  (carried over — 0.2.2 shipped 2026-07-16 without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.1
+  (carried over — 0.2.2 and 0.3.0 both shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -126,7 +134,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.2.3 (carried over — 0.2.2 shipped 2026-07-16 without this)
+  0.3.1 (carried over — 0.2.2 and 0.3.0 both shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -169,189 +177,10 @@ Resolved entries add:
 
 ## In progress
 
-### B-110 — A channel that hit a single transient RSS 404 silently stops syncing forever
-- **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
-- **Area:** sync
-- **What happens:** the owner reported that scrolling to the end of Veritasium's
-  channel screen never even attempted to fetch older videos — no network activity, no
-  spinner, no console error, nothing (confirmed via temporary diagnostic logging added
-  during this investigation, see [[B-109]] below for the unrelated stall that logging
-  was originally chasing). Traced to the local DB directly: `channels.available = 0`
-  for that channel, despite Veritasium obviously being an active, very much
-  un-terminated channel.
-- **Expected:** a channel that's actually still active keeps syncing normally forever;
-  nothing about it should ever require the owner to notice, let alone manually fix.
-- **Code refs:** `src/adapters/rss/rss-client.ts` (`discoverRecent`'s 404 handling);
-  `src/core/sync-service.ts` (`discoverChannel`); `src/adapters/storage/sync-repository.ts`
-  (`listSubscribedChannels`'s `available = 1` filter, `markChannelUnavailable`).
-- **Root cause:** `youtube-api.md`'s failure-handling table had a "Channel
-  deleted/terminated" row — an RSS 404 was treated as definitive, permanent proof of
-  deletion: `markChannelUnavailable` flips `channels.available` to 0, and
-  `listSubscribedChannels` (used by both routine sync and the on-demand scroll-triggered
-  backfill, [[B-002]]) filters on `available = 1`. Once flipped, the channel is excluded
-  from the very query that would ever check it again — there was no self-healing path
-  at all, so a single transient 404 (YouTube's RSS edge can return one for reasons
-  unrelated to the channel actually being gone) froze that channel's sync permanently.
-  The spec's own promised mitigation ("show in a settings list") was never actually
-  built, so the state was completely invisible — nothing in the UI ever indicated a
-  channel had stopped updating. Turned out, on inspection, this row was never a real,
-  owner-confirmed product decision either — just an assumption from earlier
-  development that had slipped into the spec without a `decisions.md` entry.
-- **Resolution: D-048.** Per the owner's own framing (2026-07-16) — Chronicle's
-  experience should work like YouTube's own pagination: keep trying until a result
-  genuinely comes back empty, a single failed attempt proves nothing permanent, and RSS
-  calls are free so there's no cost reason to ever stop asking — the whole mechanism is
-  removed outright rather than patched: `rss-client.ts` no longer special-cases 404
-  (falls through to the same `internal(...)` failure every other non-2xx response
-  already threw); `channel-unavailable` is gone from `DomainErrorKind`;
-  `markChannelUnavailable` and the `available` column/filter are gone from
-  `SyncRepository`/`sync-repository.ts` (schema v8 drops the column outright — nothing
-  reads or writes it anymore, so leaving it dead wasn't an option). A 404 now falls
-  through to `discoverChannel`'s pre-existing generic per-channel failure handling
-  (logged, retried next cycle, exactly like a network hiccup) — no new retry logic was
-  needed, only removing the special case that pre-empted the one already there. The
-  owner also declined building the "settings list for unavailable channels" UI the old
-  spec row promised (never actually discussed, and no longer needed since there's no
-  "unavailable" state left to surface). `youtube-api.md`'s failure table and
-  `decisions.md` (new **D-048**) updated in the same change. Checked via
-  `npm run typecheck && npm run lint && npm test` (199/199, one test rewritten for the
-  new "just an ordinary failure" behavior, one dropped since the feature it covered no
-  longer exists); **not run live** (per [[no-live-app-verification]]) — the owner's own
-  local DB is what surfaced this (Veritasium's `available` row), so the schema-v8
-  migration dropping the column is itself the fix for that specific channel; needs the
-  owner's hands-on confirmation that Veritasium (and any other channel that hit this)
-  resumes syncing/backfilling normally after upgrading.
-- **Follow-up (2026-07-16):** after upgrading, the owner ran a real sync and saw 133 of
-  228 channels fail with 404/500 — asked whether that's a real external problem or
-  something Chronicle-side. Investigated directly against YouTube (`curl`, entirely
-  outside Chronicle's code, same 8-way concurrency `RSS_CONCURRENCY` uses): a random
-  sample of 40 real channel IDs from the owner's own DB, hit twice a few seconds apart,
-  came back ~55-60% failing both times — but **not the same channels each time**, and
-  not only under concurrency: a fully sequential (one-at-a-time) pass over 10 channels
-  still had a 40% failure rate. `Cinemassacre` (a large, obviously-active channel) 404'd
-  once under concurrent load, then returned 200 five times straight when retried alone —
-  and `/channel/{id}` (the ordinary channel page) loaded fine for channels whose
-  `/feeds/videos.xml` request 500'd, with the 500 response's own `server:` header
-  identifying itself as `"YouTube RSS Feeds server"`. Conclusion: this is a real,
-  external reliability problem in YouTube's own RSS-serving backend — not a Chronicle
-  bug, not about any particular channel, and not purely a concurrency artifact — the
-  same channel can 404, 500, or 200 from one request to the next with nothing on
-  Chronicle's side changing. Exactly the situation D-048 already reasons about (a
-  failure proves nothing permanent), but it also exposed a second, separate
-  spec-vs-implementation gap: `youtube-api.md` has documented "Retries: exponential
-  backoff, per-channel, max 3 per cycle" since before this investigation, and it had
-  **never actually been implemented** — every RSS failure went straight to the
-  once-per-cycle failure log with no in-cycle retry at all.
-- **Resolution, part 2 (2026-07-16):** implemented the documented retry.
-  `SyncService.discoverChannel` now calls a new `discoverRecentWithRetry` wrapper (up
-  to `RSS_RETRY_ATTEMPTS = 3` attempts, `RSS_RETRY_BASE_MS = 300` doubling between
-  attempts) instead of calling `videoSource.discoverRecent` directly — any failure from
-  that specific call is retried in-cycle before counting against `channelsFailed` at
-  all; a channel still failing after 3 attempts falls through to the exact same
-  per-channel failure handling as before (logged, retried again next cycle, never
-  permanently excluded — D-048). The backoff delay is injected (`SyncDeps.sleep`,
-  optional, defaults to a real `setTimeout`-based wait) so tests don't block on real
-  wall-clock time — `sync-service.test.ts`'s `service()` helper passes an instant
-  no-op. Two new tests cover both outcomes: recovers within the cycle after 2 failures,
-  and gives up after 3 straight failures without being marked unavailable. Checked via
-  `npm run typecheck && npm run lint && npm test` (201/201); **not run live** — needs
-  the owner to re-run a sync and confirm the 404/500 count drops meaningfully (it won't
-  hit zero — this is YouTube's own backend being flaky, not something Chronicle can
-  fully eliminate — but most transient failures should now resolve within the same
-  cycle instead of waiting 30 minutes).
-- **Owner re-test (2026-07-16):** ran a real sync post-retry — 51 of 227 failed (down
-  from 133/228 pre-retry), roughly the reduction expected from a ~50% single-attempt
-  failure rate surviving 3 independent tries. The owner then raised a further point:
-  since every cycle re-rolls this noise independently across ~230 channels, the
-  per-cycle failure *count* will never converge to zero even though individual
-  channels do eventually succeed — meaning the existing partial-failure banner
-  (`app.banner.refreshPartial`, shown whenever `outcome === 'partial'`) would now fire
-  on essentially *every* cycle forever, a persistent, un-dismissable, non-actionable
-  warning. **Resolution: D-049** — stopped showing a banner for ordinary partial
-  failures; reserved it for a systemic signal instead (every polled channel failing at
-  once on a wide poll, `outcome === 'failed' && channelsPolled > 1` — see D-049 for why
-  that combination is a reliable "real problem" proxy random RSS noise can't produce on
-  its own). `youtube-api.md` and `decisions.md` (new **D-049**) updated in the same
-  change. Checked via `npm run typecheck && npm run lint && npm test` (201/201); **not
-  run live** — needs the owner to confirm the routine partial-failure banner no longer
-  appears, and that a genuine connectivity problem (if one ever occurs) still shows one.
-- **Follow-up (2026-07-16):** since D-049 made ordinary per-cycle failures silent,
-  the owner pointed out there's no longer a downside to trying harder before giving up
-  on a channel for the cycle — raised `RSS_RETRY_ATTEMPTS` from 3 to 5 (still the same
-  `RSS_RETRY_BASE_MS = 300`-doubling backoff shape, just two more rounds: 300/600/1200/
-  2400ms between the 5 attempts). Both retry tests updated to assert 5 instead of 3.
-  `youtube-api.md`'s retry line updated to match. Checked via `npm run typecheck &&
-  npm run lint && npm test` (201/201); **not run live**.
-- **Follow-up (2026-07-16):** owner confirmed the retry bump helped, then asked about
-  raising `RSS_CONCURRENCY` too, specifically to shorten the wait before a first sync's
-  channel-discovery phase (and therefore hydration, and therefore the feed itself —
-  nothing shows on "All" until every subscribed channel's RSS attempt, retries
-  included, has settled) finishes. Flagged the actual trade-off before changing it:
-  the earlier concurrent-vs-sequential `curl` testing found the RSS failure rate about
-  the same either way, so raising concurrency mainly buys wall-clock speed (fewer
-  sequential batches through ~230 channels), not fewer failures — and
-  `RSS_CONCURRENCY` was originally set as a deliberate "politeness" ceiling
-  (`youtube-api.md`), not a technical limit, so raising it is a real trade-off (a bit
-  less conservative against YouTube's free, unauthenticated RSS service) rather than a
-  free win. Per the owner's choice: raised from 8 to 12 (a moderate step, not doubling
-  to 16). `youtube-api.md`'s concurrency line updated to match. Checked via
-  `npm run typecheck && npm run lint && npm test` (201/201); **not run live**.
-
-### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
-- **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
-- **Area:** feed / sync
-- **What happens:** the owner opened a subscribed channel's screen and scrolling to the
-  end never loaded more videos — neither automatically (the [[B-107]] no-overflow case)
-  nor by manually scrolling to the bottom. YouTube search results paginate fine; this is
-  specific to a subscribed channel's own video list.
-- **Expected:** scrolling to the end of a channel's list keeps loading older videos
-  (local archive, then on-demand YouTube backfill) until the channel's whole archive is
-  genuinely exhausted.
-- **Code refs:** `src/ui/App.tsx` (`loadMore`'s channel-backfill branch); `src/core/
-  sync-service.ts` (`backfillArchive`, `ARCHIVE_BACKFILL_PAGE_LIMIT`).
-- **Root cause:** `backfillArchive` (B-002) deliberately caps itself at
-  `ARCHIVE_BACKFILL_PAGE_LIMIT` (4) `playlistItems.list` pages per call — a pacing
-  device, per its own comment "resumable across calls" and `youtube-api.md`'s "bounded
-  at 4 pages/call, resumable" — and saves a resume `pageToken` server-side
-  (`setBackfillState`) so the *next* call continues from where this one stopped. If
-  all 4 pages in a batch turn out to be videos Chronicle already knows about (plausible
-  for any channel where routine sync has already caught a lot of the recent upload
-  history, so the next deeper slice is mostly overlap before reaching genuinely older,
-  unseen videos), the call returns `{ videosNew: 0, exhausted: false }` — correctly
-  *not* exhausted, but with nothing to show yet either. `App.tsx`'s `loadMore` only
-  acted on `result.value.exhausted` (mark done) or `result.value.videosNew > 0` (append)
-  — the third, entirely valid outcome (neither) fell through both branches silently.
-  Since nothing changed (`videos`/`nextCursor` untouched), `FeedList.tsx`'s two
-  onNearEnd triggers ([[B-107]]'s no-overflow check and the virtualizer's normal
-  scroll-position check) both stayed quiet too, since their dependencies are keyed off
-  row count/columns, not "did the last fetch attempt come back empty." Nothing was left
-  to prompt a further attempt — the channel was stuck until the owner navigated away
-  and back (which restarts the whole `loadView` cycle and gets one more 4-page batch,
-  possibly landing on the same dead stretch again).
-- **Resolution (not yet live-verified):** `loadMore`'s channel-backfill branch now
-  loops (`runBackfill`, self-invoking on the `videosNew === 0 && !exhausted` outcome)
-  instead of stopping after one call, continuing to walk `backfillArchive` — which
-  keeps resuming from its own saved `pageToken` — until it either finds new videos to
-  append or the channel is genuinely exhausted. Bounded by the channel's own finite
-  upload count either way; the existing `backfillingRef`/generation guards are
-  unchanged, so concurrency/stale-response safety carries over as before. Per
-  [[product-frictionless-over-quota]] this loop is deliberately not gated behind any
-  manual "load more" affordance — quota isn't the scarce resource here
-  (`youtube-api.md`'s own budget math leaves ample headroom), a silently stuck channel
-  is a worse experience. Checked via `npm run typecheck && npm run lint && npm test`
-  (200/200); **not run live** (per [[no-live-app-verification]]) — needs the owner's
-  hands-on check scrolling to the bottom of a channel with enough history to have hit
-  this stall before.
-- **Note:** live-testing this fix is what surfaced [[B-110]] — a channel-freezing bug
-  entirely unrelated to this one (it short-circuits before `backfillArchive` ever runs
-  a real API call, so this loop never even gets a chance to matter for an affected
-  channel). Both are real, independent bugs; fixing one doesn't fix the other.
-
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
+- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.3.1
+  (carried over — 0.2.2 and 0.3.0 both shipped without this)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
   cursor is positioned over the embedded YouTube video does nothing — the page doesn't
@@ -434,8 +263,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.3 (carried over —
-  0.2.2 shipped 2026-07-16 without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.3.1 (carried over —
+  0.2.2 and 0.3.0 both shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
