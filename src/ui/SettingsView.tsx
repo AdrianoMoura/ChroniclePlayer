@@ -247,15 +247,19 @@ export function SettingsView({
           />
         </label>
         <p className="settings-line dim">{t('settings.startup.backgroundModeNote')}</p>
-        <label className="settings-row">
-          <span>{t('settings.startup.startMinimized')}</span>
-          <input
-            type="checkbox"
-            checked={settings.startMinimized}
-            onChange={(event) => set('startMinimized', event.target.checked)}
-          />
-        </label>
-        <p className="settings-line dim">{t('settings.startup.startMinimizedNote')}</p>
+        {settings.autoStart && settings.backgroundMode && (
+          <>
+            <label className="settings-row">
+              <span>{t('settings.startup.startMinimized')}</span>
+              <input
+                type="checkbox"
+                checked={settings.startMinimized}
+                onChange={(event) => set('startMinimized', event.target.checked)}
+              />
+            </label>
+            <p className="settings-line dim">{t('settings.startup.startMinimizedNote')}</p>
+          </>
+        )}
       </section>
 
       <section>

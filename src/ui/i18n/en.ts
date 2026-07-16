@@ -136,7 +136,7 @@ export const en = {
     'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
   'settings.startup.startMinimized': 'Start minimized to tray (don’t open the window)',
   'settings.startup.startMinimizedNote':
-    'Only applies when launched automatically at login, with both settings above also on — opening Chronicle yourself always shows the window.',
+    'Opening Chronicle yourself always shows the window — this only applies to the automatic launch at login.',
   'settings.notifications.heading': 'Notifications',
   'settings.notifications.enabled': 'Notify me about new videos',
   'settings.notifications.backgroundModeHint':
