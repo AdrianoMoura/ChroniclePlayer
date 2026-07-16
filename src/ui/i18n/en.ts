@@ -134,6 +134,9 @@ export const en = {
   'settings.startup.backgroundMode': 'Keep running in the background when the window is closed',
   'settings.startup.backgroundModeNote':
     'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
+  'settings.startup.startMinimized': 'Start minimized to tray (don’t open the window)',
+  'settings.startup.startMinimizedNote':
+    'Only applies when launched automatically at login, with both settings above also on — opening Chronicle yourself always shows the window.',
   'settings.notifications.heading': 'Notifications',
   'settings.notifications.enabled': 'Notify me about new videos',
   'settings.notifications.backgroundModeHint':

@@ -239,6 +239,7 @@ export function App() {
     miniplayerWidth: 360,
     autoStart: false,
     backgroundMode: false,
+    startMinimized: false,
     notifyNewVideos: false,
     notifyScope: 'all',
     autoNotifyFavorites: false

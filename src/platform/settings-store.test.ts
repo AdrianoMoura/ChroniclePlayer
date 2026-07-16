@@ -30,6 +30,7 @@ describe('settings store', () => {
       miniplayerWidth: 420,
       autoStart: true,
       backgroundMode: true,
+      startMinimized: true,
       notifyNewVideos: true,
       notifyScope: 'selected',
       autoNotifyFavorites: true
@@ -58,6 +59,7 @@ describe('settings store', () => {
         miniplayerWidth: 10000,
         autoStart: 'yes',
         backgroundMode: 1,
+        startMinimized: 'yes',
         notifyNewVideos: null,
         notifyScope: 'everything',
         autoNotifyFavorites: 'yes'
@@ -74,6 +76,7 @@ describe('settings store', () => {
       miniplayerWidth: 360,
       autoStart: false,
       backgroundMode: false,
+      startMinimized: false,
       notifyNewVideos: false,
       notifyScope: 'all',
       autoNotifyFavorites: false
@@ -85,6 +88,7 @@ describe('settings store', () => {
       normalizeSettings({
         autoStart: true,
         backgroundMode: true,
+        startMinimized: true,
         notifyNewVideos: true,
         notifyScope: 'selected',
         autoNotifyFavorites: true
@@ -93,6 +97,7 @@ describe('settings store', () => {
       expect.objectContaining({
         autoStart: true,
         backgroundMode: true,
+        startMinimized: true,
         notifyNewVideos: true,
         notifyScope: 'selected',
         autoNotifyFavorites: true

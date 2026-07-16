@@ -37,6 +37,10 @@ export interface AppSettings {
   // be running at all (open window or tray-resident).
   autoStart: boolean
   backgroundMode: boolean
+  // Only takes effect when autoStart and backgroundMode are both also on —
+  // an autostart launch with nowhere to go back to (no tray) would leave a
+  // fully unreachable process. Has no effect on a manual launch regardless.
+  startMinimized: boolean
   notifyNewVideos: boolean
   // 'all' ignores the per-channel notify flag entirely (everyone notifies);
   // 'selected' respects it. Switching between the two never touches the
@@ -61,6 +65,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   miniplayerWidth: 360,
   autoStart: false,
   backgroundMode: false,
+  startMinimized: false,
   notifyNewVideos: false,
   notifyScope: 'all',
   autoNotifyFavorites: false
@@ -80,6 +85,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const miniplayerWidth = source['miniplayerWidth']
   const autoStart = source['autoStart']
   const backgroundMode = source['backgroundMode']
+  const startMinimized = source['startMinimized']
   const notifyNewVideos = source['notifyNewVideos']
   const notifyScope = source['notifyScope']
   const autoNotifyFavorites = source['autoNotifyFavorites']
@@ -117,6 +123,8 @@ export function normalizeSettings(raw: unknown): AppSettings {
     autoStart: typeof autoStart === 'boolean' ? autoStart : DEFAULT_SETTINGS.autoStart,
     backgroundMode:
       typeof backgroundMode === 'boolean' ? backgroundMode : DEFAULT_SETTINGS.backgroundMode,
+    startMinimized:
+      typeof startMinimized === 'boolean' ? startMinimized : DEFAULT_SETTINGS.startMinimized,
     notifyNewVideos:
       typeof notifyNewVideos === 'boolean' ? notifyNewVideos : DEFAULT_SETTINGS.notifyNewVideos,
     notifyScope:

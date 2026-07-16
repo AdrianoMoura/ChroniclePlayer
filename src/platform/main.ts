@@ -71,6 +71,20 @@ if (!gotSingleInstanceLock) {
   app.quit()
 }
 
+// D-050: "start minimized" needs to know a given launch was actually
+// triggered by the OS autostart entry, not a manual open — a manual launch
+// should always show the window regardless of this setting. macOS reports
+// this natively (wasOpenedAtLogin); Windows has no such per-launch signal,
+// so applyAutoStart() below bakes this flag into the login item's own args
+// (Electron's Settings.args is win32-only) — read back here at boot.
+// Linux has no Electron-level login-item API at all (linux-autostart.ts's
+// own .desktop Exec= line), so the same flag doubles as its detection too.
+const AUTOSTART_HIDDEN_FLAG = '--hidden'
+function wasLaunchedViaAutostart(): boolean {
+  if (process.platform === 'darwin') return app.getLoginItemSettings().wasOpenedAtLogin
+  return process.argv.includes(AUTOSTART_HIDDEN_FLAG)
+}
+
 // Chromium only auto-detects the keychain on desktops it knows (GNOME, KDE…).
 // On anything else (niri, sway, headless) it silently picks basic_text even
 // when org.freedesktop.secrets is live on D-Bus. Requesting gnome-libsecret
@@ -376,6 +390,12 @@ let isQuitting = false
 // createWindow()'s close handler can read it without needing boot()'s whole
 // closure — kept in sync by applyBackgroundMode() every time it runs.
 let backgroundModeEnabled = false
+// D-050: startMinimized only ever applies to the actual app launch — a
+// deleteAllData reset re-runs boot() while the window is already open and
+// visible (the user just clicked a button in it), and process.argv/
+// getLoginItemSettings() don't change mid-process, so without this guard
+// wasLaunchedViaAutostart() would still read true on that later re-boot too.
+let hasBootedBefore = false
 
 // Isolated try/catch so a throwing destroy() (unlikely, but seen with flaky
 // Linux tray hosts) can never skip resetting the reference — leaving `tray`
@@ -1445,16 +1465,27 @@ async function boot(): Promise<void> {
         // the next login. The AppImage runtime sets $APPIMAGE to the
         // actual, stable .AppImage file path on disk; use that instead
         // whenever present (unset outside an AppImage — e.g. dev mode).
+        // AUTOSTART_HIDDEN_FLAG is always included regardless of the
+        // current startMinimized value — wasLaunchedViaAutostart() only
+        // means "this launch came from autostart"; whether to actually
+        // start hidden is decided at boot from the live setting, not baked
+        // in here (so changing startMinimized alone, without retoggling
+        // autoStart, still takes effect on the next login).
         const linuxExecPath = process.env.APPIMAGE ?? process.execPath
-        const execCommand = [linuxExecPath, ...devArgs]
+        const execCommand = [linuxExecPath, ...devArgs, AUTOSTART_HIDDEN_FLAG]
           .map((part) => JSON.stringify(part))
           .join(' ')
         setLinuxAutostart(settings.autoStart, execCommand)
-      } else {
+      } else if (process.platform === 'win32') {
+        // path/args are win32-only (Electron's Settings type) — macOS has
+        // no equivalent, but doesn't need one; see wasLaunchedViaAutostart.
         app.setLoginItemSettings({
           openAtLogin: settings.autoStart,
-          ...(app.isPackaged ? {} : { path: process.execPath, args: devArgs })
+          path: process.execPath,
+          args: [...devArgs, AUTOSTART_HIDDEN_FLAG]
         })
+      } else {
+        app.setLoginItemSettings({ openAtLogin: settings.autoStart })
       }
     } catch (error) {
       console.error('D-050: applyAutoStart failed', error)
@@ -1652,10 +1683,25 @@ async function boot(): Promise<void> {
     for (const window of staleWindows) window.destroy()
   })
 
-  const window = createWindow()
-  window.webContents.once('did-finish-load', () => {
+  // D-050: skip the initial window only for the real launch (not a
+  // deleteAllData re-boot — see hasBootedBefore's own comment), only when
+  // it actually came from the OS autostart entry, and only when there's a
+  // tray to fall back to (backgroundMode) — otherwise the process would be
+  // fully unreachable with no window and no tray.
+  const skipInitialWindow =
+    !hasBootedBefore &&
+    wasLaunchedViaAutostart() &&
+    settings.startMinimized &&
+    settings.backgroundMode
+  hasBootedBefore = true
+  if (skipInitialWindow) {
     void validateConnectionAndCatchUp()
-  })
+  } else {
+    const window = createWindow()
+    window.webContents.once('did-finish-load', () => {
+      void validateConnectionAndCatchUp()
+    })
+  }
 }
 
 void app.whenReady().then(async () => {

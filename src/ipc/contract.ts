@@ -160,6 +160,8 @@ export interface SettingsDto {
   // three independent toggles, not gated on one another.
   autoStart: boolean
   backgroundMode: boolean
+  // Only takes effect when autoStart and backgroundMode are both also on.
+  startMinimized: boolean
   notifyNewVideos: boolean
   // 'all' ignores the per-channel notify flag (everyone notifies); 'selected'
   // respects it — switching between the two never touches the flag itself.

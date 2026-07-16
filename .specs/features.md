@@ -253,6 +253,40 @@ its own icon; a second, narrower bug in the tray-destroy ordering was fixed alon
 it. The like button's pre-existing 👍 emoji was also dropped to plain text in the same
 pass, per the owner's no-emoji direction, unrelated to D-050 itself.
 
+**Further same-day polish and a live-tested tray fix.** The ●/○ dot glyphs were
+replaced with a small inline monochrome SVG bell (`src/ui/icons.tsx`) once emoji were
+ruled out for the shape too (Unicode has no non-emoji bell character). Favorite also
+moved out of the sidebar's "⋯" menu into its own always-visible ★/☆ row button
+(same pattern as the notify icon), leaving only Unsubscribe in the menu. The tray
+duplication bug persisted even after the single-instance-lock fix, within one running
+process — live D-Bus introspection during a stuck-icon state showed **zero** live
+Chronicle tray registrations while ghost icons stayed visible and unresponsive,
+narrowing the fault to the tray host (the owner's QuickShell setup) not reliably
+processing `destroy()` while the process stays alive, though it does clean up
+correctly on full process/connection death. Rather than keep fighting a host-side
+limitation with unproven workarounds, **the tray is now created once and never
+destroyed until real app quit** — the setting still fully controls whether closing
+the window quits the app or just hides it, the one accepted trade-off being that an
+already-shown icon lingers until Chronicle actually quits rather than disappearing
+the instant the toggle goes off mid-session.
+
+**"Start minimized to tray"** was added as a fourth toggle — relevant when
+auto-start and "Run in background" are both also on, so the app can launch straight
+to the tray with no window, rather than opening one just to be immediately usable
+from the tray anyway. Detecting *why* a launch happened turned out platform-split:
+macOS reports it natively (`wasOpenedAtLogin`); Windows has no equivalent per-launch
+signal, so a `--hidden` flag is baked into the login item's own arguments (Electron's
+`path`/`args` are Windows-only — no equivalent exists for macOS); Linux reuses the
+same flag on its hand-written `.desktop` entry. Two more real auto-start bugs were
+caught and fixed in the same pass, both found by checking rather than assuming:
+`process.execPath` alone only identifies Chronicle in a packaged build — running from
+source it's the bare Electron binary with nothing to load, fixed by passing the
+project entry point as an argument in dev; and an AppImage's `process.execPath`
+resolves *inside its own temporary mount*, which vanishes the moment that run exits —
+autostart would have silently broken on the very next login despite working during
+the session that enabled it, fixed by preferring `$APPIMAGE` (the runtime's own stable
+path to the actual file) whenever present.
+
 ### In-feed local search
 `/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search
 (SQLite FTS across titles/descriptions/notes). Never touches YouTube search
