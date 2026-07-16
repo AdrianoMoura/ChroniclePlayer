@@ -172,6 +172,14 @@ narrative in `decisions.md` D-050 — no `bug-history/` file, since this didn't 
 through the bug tracker. See `.specs/roadmap.md` §Release status for the exact shipped
 scope.
 
+**`0.4.1` shipped 2026-07-16 as a same-day revert, no `bug-history/` file of its own**
+(same pattern as `0.4.0`/`0.2.1`): B-108's round 2 fix (a frozen-position
+`.player-scroll-catcher` strip added to forward wheel scroll into the embedded video)
+turned out to sit over the app's own top-of-screen controls during/after a scroll
+gesture, silently swallowing clicks meant for them. Removed the whole mechanism on the
+owner's request — B-108 reverts to Open, the original cross-origin-iframe scroll gap
+unaddressed again. Full narrative in `bugs-current.md`'s B-108 entry.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, and `0.3.0` have
@@ -185,9 +193,10 @@ implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-04
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050, above) shipped the same way — real new scope, not a
-bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`).
-`bugs-current.md` now targets **0.4.1**, renumbered from `0.3.1` since `0.4.0` shipped
-ahead of it (carries B-108, B-022, B-086, B-101 forward, untouched, from 0.3.0).
-Version bumps aren't always minor — a pure bug-fix batch ships as a patch release, a
-minor bump is reserved for batches that land real new scope. See `.specs/roadmap.md`
-§Release status for the summary.
+bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`). `0.4.1`
+(the B-108 revert, above) shipped as a **patch** instead — a revert, not new scope, and
+not a fix for anything in the batch below. `bugs-current.md` now targets **0.4.2**,
+renumbered from `0.4.1` since that version shipped ahead of it (carries B-108, B-022,
+B-086, B-101 forward, untouched, from 0.3.0). Version bumps aren't always minor — a pure
+bug-fix batch ships as a patch release, a minor bump is reserved for batches that land
+real new scope. See `.specs/roadmap.md` §Release status for the summary.

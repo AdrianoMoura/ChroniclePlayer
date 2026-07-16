@@ -116,9 +116,25 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   (minor: real new scope, not a bug-fix batch — per the owner's own call). B-108, B-022,
   B-086, B-101 are untouched by this release and carry forward to `0.4.1`, renumbered
   from the `0.3.1` placeholder since this version shipped ahead of that batch.
-- **0.4.1 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
-  0.3.0 (renumbered past 0.4.0 — see above, that version shipped without touching this
-  batch). No batch of its own yet — new items reported after 0.4.0 shipped land here.
+- **0.4.1 — delivered, 2026-07-16.** Not a bug-tracker batch — a same-day revert, same
+  pattern as `0.2.1`/`0.4.0`, not a fix for any item in the `bugs-current.md` batch that
+  was in flight. [[B-108]]'s round 2 fix (the frozen-position `.player-scroll-catcher`
+  strip added to forward wheel scroll into the embedded video) turned out to sit over
+  the app's own top-of-screen controls during/after a scroll gesture, silently
+  swallowing clicks meant for them — the owner caught this live and asked for it to be
+  removed outright rather than adjusted further. Removed `catcherRect` state and its
+  measure/scheduleMeasure split, the `.player-scroll-catcher` JSX, and its CSS rule;
+  `rect` (the video's own live-scroll-following position) untouched. B-108 reverts to
+  **Open** — the original cross-origin-iframe scroll gap is unaddressed again, with the
+  scroll-catcher approach now ruled out rather than just paused. Checked via `npm run
+  typecheck && npm run lint && npm test` (208/208); not run live, per
+  [[no-live-app-verification]]. **Shipped 2026-07-16** — `package.json` bumped to
+  `0.4.1` (patch: a revert, not new scope). B-108, B-022, B-086, B-101 are untouched by
+  this release and carry forward to `0.4.2`, renumbered from the `0.4.1` placeholder
+  since this version shipped ahead of that batch.
+- **0.4.2 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
+  0.3.0 (renumbered past 0.4.0 and 0.4.1 — see above, neither version touched this
+  batch). No batch of its own yet — new items reported after 0.4.1 shipped land here.
 
 ## M0 — Walking skeleton
 
