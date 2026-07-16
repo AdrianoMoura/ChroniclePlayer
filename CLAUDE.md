@@ -124,7 +124,7 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 **M0–M5 implemented on 2026-07-11** (M2 exit verified with the product owner's real
 account: 229 subs, 76 quota units, 937 Shorts excluded; M3 in dogfooding; M4 awaiting
 console screenshots + external acid-testers; M5 done — the MVP is feature-complete
-from source). Bugs found while dogfooding go to `.specs/bugs.md` as B-NNN entries and
+from source). Bugs found while dogfooding go to `.specs/bugs-current.md` as B-NNN entries and
 are only fixed when the product owner says so — stack: Electron (D-005) +
 React/TypeScript (D-009) via electron-vite, **node:sqlite** (D-034 as amended — no
 native modules), npm (D-034 — the product owner uses npm, never pnpm). Layers per
@@ -152,7 +152,9 @@ screenshots, and cutting a real tag to exercise the release workflow end-to-end 
 GitHub Actions. Run `npm run typecheck && npm run lint && npm test` locally before
 committing.
 
-**Bugs/adjustments are now tracked by target release** in `.specs/bugs.md` §Versions —
-everything through the two dogfooding batches shipped as **0.1.0**; the current open
-batch (B-085–B-097 plus a handful carried over) targets **0.2.0**. See
-`.specs/roadmap.md` §Release status for the summary.
+**Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
+the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
+each shipped release's closed-out batch. `0.1.0` and `0.2.0` have both shipped and are
+archived in `bug-history/`; `bugs-current.md` now targets **0.3.0** (carries B-022,
+B-086, B-101 forward from 0.2.0). See `.specs/roadmap.md` §Release status for the
+summary.

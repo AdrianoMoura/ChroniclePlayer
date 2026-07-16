@@ -11,14 +11,15 @@ Dates are deliberately absent — this is sequencing, not scheduling.
 - **0.1.0 — delivered.** M0 through M5 are fully implemented and dogfooded, and M6's
   packaging/CI plumbing is built and working (`package.json` carries `0.1.0`). This is
   everything documented as done in the milestones below, plus the two dogfooding
-  batches (`bugs.md` B-001–B-017 and B-054–B-066), all of which are Resolved. Two M6
+  batches (`bug-history/v0.1.0.md` B-001–B-017 and B-054–B-066), all of which are
+  Resolved. Two M6
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — delivered.** Driven by the third dogfooding batch, `bugs.md` B-085–B-104
-  (reported 2026-07-15), plus everything carried over from before 0.1.0 that never got
-  fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See `bugs.md` §Versions and
-  §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
+- **0.2.0 — delivered.** Driven by the third dogfooding batch, `bug-history/v0.2.0.md`
+  B-085–B-104 (reported 2026-07-15), plus everything carried over from before 0.1.0
+  that never got fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See
+  `bug-history/v0.2.0.md` and §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
   passes.** First pass: B-098 (Fixed same day it was reported), then B-085, B-087,
   B-088, B-089, B-090, B-091, B-092, B-094, B-095, B-096, B-097, and B-051 (carried
   over from before 0.1.0) — all Fixed. **Second pass**, once the owner reviewed what
@@ -47,8 +48,8 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   both Fixed. The owner caught one more right after: the docked miniplayer's own
   maximize/close buttons — B-104, Fixed same day (`e`/`x`, a third "Miniplayer" overlay
   section). All checked via `npm run typecheck && npm run lint && npm test`. **Shipped
-  2026-07-15** — `package.json` bumped to `0.2.0`; `bugs.md` §Versions closed out with
-  the final commit hashes. Three entries didn't make it in and carried over to 0.3.0
+  2026-07-15** — `package.json` bumped to `0.2.0`; the batch was archived to
+  `bug-history/v0.2.0.md` with the final commit hashes. Three entries didn't make it in and carried over to 0.3.0
   with their Target bumped: B-022 (In progress, needs the owner's live confirmation),
   B-086 (Open, blocked on one of the owner's membership channels publishing something
   to test against), B-101 (Open, the fullscreen-widget-protocol research spike, not
@@ -236,7 +237,8 @@ which is the off state; the optional setting can ship post-MVP.
 *(Re-sequenced 2026-07-11 by the product owner: M6 moves to the **end**, after the
 dogfooding batches below — release prep only starts once the application is functional
 and the owner is happy with it. The MVP-from-source milestone (M5) already holds; the
-bugs.md batches are the path to "happy with it".)*
+bug-tracker batches (`bugs-current.md` / `bug-history/`) are the path to "happy with
+it".)*
 
 - Packaging for Linux (AppImage — D-024, resolved 2026-07-13: AppImage only, Flatpak
   deferred), macOS (dmg, D-043: unsigned), Windows (nsis installer, D-025: unsigned).
@@ -289,13 +291,13 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 ## Dogfooding backlog
 
 **Status: the first two batches below are complete** — every item in B-001–B-017 and
-B-054–B-066 is Resolved in `bugs.md` (shipped as part of 0.1.0), except B-022 which is
+B-054–B-066 is Resolved in `bug-history/v0.1.0.md` (shipped as part of 0.1.0), except B-022 which is
 still In progress. B-046 was carried over too but is now Resolved (Won't fix, researched
 2026-07-15); B-045 was carried over and is now Resolved (implemented and owner-confirmed
 live 2026-07-15); B-051 was carried over and is now Resolved (Fixed
 2026-07-15). Kept here for history.
 
-**First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bugs.md` (reported 2026-07-11;
+**First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bug-history/v0.1.0.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
 (all batches precede M6, per the re-sequencing note there): batch 1 = local polish
 (B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was closed by M5 during
@@ -323,7 +325,7 @@ Roadmap-relevant signals from the list:
 - The remainder are UI/UX polish and small bugs (B-001, B-002, B-004, B-005, B-007,
   B-008, B-011–B-014, B-016) — batchable independently of the above.
 
-**Second dogfooding batch, B-054–B-066 (reported 2026-07-12), added to `bugs.md`.**
+**Second dogfooding batch, B-054–B-066 (reported 2026-07-12), added to `bug-history/v0.1.0.md`.**
 Reported after using the search (B-009) and multi-account (B-003) features shipped in
 the first batch — this batch is largely about tightening those two surfaces plus a
 handful of standalone UX gaps, not new scope:
@@ -351,7 +353,7 @@ handful of standalone UX gaps, not new scope:
 All of the above shipped as part of 0.1.0, except B-058 which needed the Pending
 decision it called for (resolved as D-042) before it could be fixed — also shipped.
 
-**Third dogfooding batch, B-085–B-097 (reported 2026-07-15), added to `bugs.md`,
+**Third dogfooding batch, B-085–B-097 (reported 2026-07-15), added to `bug-history/v0.2.0.md`,
 targeting 0.2.0.** Reported from continued daily use post-0.1.0 — no single theme,
 mostly correctness gaps and interaction polish surfaced by living with the app:
 - **Live/discovery gaps rooted in the RSS design** (B-085, B-086): `upcoming` videos
