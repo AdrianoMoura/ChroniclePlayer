@@ -33,7 +33,8 @@ describe('settings store', () => {
       startMinimized: true,
       notifyNewVideos: true,
       notifyScope: 'selected',
-      autoNotifyFavorites: true
+      autoNotifyFavorites: true,
+      popOutOnClose: false
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -62,7 +63,8 @@ describe('settings store', () => {
         startMinimized: 'yes',
         notifyNewVideos: null,
         notifyScope: 'everything',
-        autoNotifyFavorites: 'yes'
+        autoNotifyFavorites: 'yes',
+        popOutOnClose: 'yes'
       })
     ).toEqual({
       theme: 'light',
@@ -79,8 +81,14 @@ describe('settings store', () => {
       startMinimized: false,
       notifyNewVideos: false,
       notifyScope: 'all',
-      autoNotifyFavorites: false
+      autoNotifyFavorites: false,
+      popOutOnClose: true
     })
+  })
+
+  it('accepts popOutOnClose=false (D-051)', () => {
+    expect(normalizeSettings({ popOutOnClose: false }).popOutOnClose).toBe(false)
+    expect(normalizeSettings({}).popOutOnClose).toBe(true)
   })
 
   it('accepts the D-050 toggles + notify scope (all|selected only, D-050 redesign)', () => {

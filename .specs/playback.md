@@ -392,6 +392,61 @@ scroll with the video scrolling smoothly alongside the description/comments, and
 modal-stacking behavior above) before
 considering this closed — not something verifiable without actually driving the app.
 
+## Closing to the tray while playing — D-051 (Final, 2026-07-16)
+
+D-050's "Run in background" makes closing the window hide it to the tray instead of
+quitting — but hiding alone doesn't touch playback: a video left playing keeps playing,
+silently, behind a hidden window with no visible player and no obvious way to stop it
+short of reopening from the tray. Settings gained **`popOutOnClose`** (default **true**,
+shown only when `backgroundMode` is on, same conditional-visibility pattern as
+`startMinimized` above): if a video `isStillGoing()` when the window closes to the tray,
+Chronicle pops it into the always-on-top extract window — the exact same mechanism as
+pressing `p` (see Miniplayer above) — so it stays audible/visible and closing *that*
+window is what actually stops it. Turning the setting off pauses the video on close
+instead of popping it out.
+
+One behavioral difference from a manual `p` extraction, which is why this couldn't just
+reuse `extractToWindow()` unchanged: normally, closing the extract window restores the
+video docked into the main window (`player:restoreFromExtract`). That's correct when the
+user is sitting right there having pressed `p` — but here the main window is still
+hidden behind the tray at that moment, and restoring into it would silently resume
+exactly the bug this decision fixes. `extractPlayer` (`ChronicleApi`) gained a fifth
+parameter, `auto: boolean`, true only for this close-triggered path;
+`createExtractWindow` (`main.ts`) closes over it and skips the restore broadcast when
+`auto` is true, so the video just stops for good once its window closes.
+
+The main process doesn't own playback state, so it doesn't decide extract-vs-pause
+itself — consistent with every other player-state decision living in the renderer. The
+window's `close` handler (already intercepting close to hide instead of quit, per
+D-050) broadcasts a new `app:closedToTray` event; `App.tsx`'s `handleClosedToTray`
+(which already has `playerSurfaceRef`, `playerStack`, and `settings` at hand) makes the
+actual call. `PlayerSurfaceHandle` gained a `pause()` method (issues
+`command('pauseVideo')`, guarded on `isStillGoing()`) for the popOutOnClose-off path.
+
+**Regression found and fixed live, same session:** giving `extractToWindow` an `auto`
+parameter broke the on-screen Extract button (it just closed the player instead of
+popping it out) while the `p` shortcut kept working — `onClick={onExtract}` always hands
+React's `MouseEvent` to the handler regardless of the prop's declared type, and that
+event isn't structured-cloneable over IPC, so the `extractPlayer` call silently failed
+after the player had already closed. Fixed by splitting the logic into
+`extractToWindowInternal(auto: boolean)` plus a permanent zero-arg `extractToWindow`
+wrapper safe to bind to any click/key handler; `handleClosedToTray` calls
+`extractToWindowInternal(true)` directly. See D-051's own entry for the full writeup.
+
+**Distinct window title, same session:** the extract window loads the same
+`index.html` as the main window, so its static `<title>Chronicle</title>` made both
+windows report an identical OS-level title — indistinguishable in a taskbar/alt-tab/
+compositor context regardless of either window's visible titlebar. `extractPlayer` now
+carries the video's own title through to the extract window, which sets
+`document.title` to `` `${title} — Chronicle` `` on mount (Electron mirrors
+`document.title` into the real window title automatically).
+
+Needs the owner's own live validation (close with a video playing and `popOutOnClose`
+on — video keeps going in a floating window, closing that window actually stops it;
+same with the setting off — video pauses in place; closing with nothing playing is a
+no-op either way) before considering this closed — not something verifiable without
+actually driving the app.
+
 ## Default playback speed — D-038 (Final, 2026-07-12)
 
 Settings → Playback offers a **default speed** dropdown over the IFrame API's fixed rate

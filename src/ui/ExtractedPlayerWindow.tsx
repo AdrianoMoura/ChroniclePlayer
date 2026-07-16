@@ -39,17 +39,29 @@ const RATE_RETRY_WINDOW_MS = 3000
 
 export function ExtractedPlayerWindow({
   videoId,
+  title,
   startSeconds,
   autoplay,
   defaultPlaybackRate
 }: {
   videoId: string
+  title: string
   startSeconds: number
   autoplay: boolean
   defaultPlaybackRate: number
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const currentTimeRef = useRef(startSeconds)
+
+  // D-051: index.html's static <title>Chronicle</title> would otherwise
+  // apply here too (this window loads the exact same renderer bundle),
+  // making this window indistinguishable from the main one at the OS level
+  // (taskbar/alt-tab/window-switcher/compositor window rules) even though
+  // neither shows its own visible titlebar. Electron mirrors a page's
+  // document.title into the native window title by default.
+  useEffect(() => {
+    document.title = title ? `${title} - Chronicle` : 'Chronicle'
+  }, [title])
   // Wall-clock, not video position: most extractions hand off mid-video (not
   // near 0:00), so gating the retry window on currentTime would never fire
   // for anything but a video extracted in its first few seconds.

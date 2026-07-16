@@ -247,6 +247,19 @@ export function SettingsView({
           />
         </label>
         <p className="settings-line dim">{t('settings.startup.backgroundModeNote')}</p>
+        {settings.backgroundMode && (
+          <>
+            <label className="settings-row">
+              <span>{t('settings.startup.popOutOnClose')}</span>
+              <input
+                type="checkbox"
+                checked={settings.popOutOnClose}
+                onChange={(event) => set('popOutOnClose', event.target.checked)}
+              />
+            </label>
+            <p className="settings-line dim">{t('settings.startup.popOutOnCloseNote')}</p>
+          </>
+        )}
         {settings.autoStart && settings.backgroundMode && (
           <>
             <label className="settings-row">

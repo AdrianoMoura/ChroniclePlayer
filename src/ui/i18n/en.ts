@@ -134,6 +134,9 @@ export const en = {
   'settings.startup.backgroundMode': 'Keep running in the background when the window is closed',
   'settings.startup.backgroundModeNote':
     'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
+  'settings.startup.popOutOnClose': 'Pop out the video when closing the window',
+  'settings.startup.popOutOnCloseNote':
+    "If a video is playing, closing the window pops it into the always-on-top floating player (same as pressing p) instead of leaving it playing silently behind the tray icon — closing that floating player then actually stops it. Turn this off and closing the window pauses the video instead.",
   'settings.startup.startMinimized': 'Start minimized to tray (don’t open the window)',
   'settings.startup.startMinimizedNote':
     'Opening Chronicle yourself always shows the window — this only applies to the automatic launch at login.',

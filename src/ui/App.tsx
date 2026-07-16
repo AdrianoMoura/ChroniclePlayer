@@ -242,7 +242,8 @@ export function App() {
     startMinimized: false,
     notifyNewVideos: false,
     notifyScope: 'all',
-    autoNotifyFavorites: false
+    autoNotifyFavorites: false,
+    popOutOnClose: true
   })
   const [appVersion, setAppVersion] = useState('')
 
@@ -842,20 +843,52 @@ export function App() {
   // B-045: hands off a playback snapshot to a brand-new always-on-top
   // window rather than moving the live iframe there (impossible across
   // renderer processes) — then fully closes the in-app player, since the
-  // video now lives in that window instead.
-  const extractToWindow = useCallback(() => {
-    const video = playerStack.at(-1)
-    if (video === undefined) return
-    const snapshot = playerSurfaceRef.current?.getPlaybackSnapshot()
-    void window.chronicle.extractPlayer(
-      video.videoId,
-      snapshot?.currentTimeSeconds ?? 0,
-      snapshot?.playing ?? false,
-      settings.defaultPlaybackRate
-    )
-    setPlayerStack([])
-    setMiniplayer(false)
-  }, [playerStack, settings.defaultPlaybackRate])
+  // video now lives in that window instead. `auto` (D-051) marks an
+  // extraction triggered by closing the window to the tray rather than the
+  // user pressing `p` — see extractPlayer's own doc comment for what that
+  // changes about the extract window's close behavior.
+  const extractToWindowInternal = useCallback(
+    (auto: boolean) => {
+      const video = playerStack.at(-1)
+      if (video === undefined) return
+      const snapshot = playerSurfaceRef.current?.getPlaybackSnapshot()
+      void window.chronicle.extractPlayer(
+        video.videoId,
+        video.title,
+        snapshot?.currentTimeSeconds ?? 0,
+        snapshot?.playing ?? false,
+        settings.defaultPlaybackRate,
+        auto
+      )
+      setPlayerStack([])
+      setMiniplayer(false)
+    },
+    [playerStack, settings.defaultPlaybackRate]
+  )
+
+  // Kept zero-arg on purpose, unlike extractToWindowInternal above: this is
+  // handed straight to onClick/onKeyDown props elsewhere (PlayerDetails'
+  // and MiniPlayerBar's Extract buttons, PlayerSurface's `p` handler), and a
+  // raw `onClick={extractToWindow}` binding would otherwise forward the
+  // click's MouseEvent as the first argument — exactly what broke live once
+  // extractToWindowInternal grew an `auto` parameter for D-051: the event
+  // object isn't structured-cloneable, so the IPC call silently failed while
+  // the player had already closed, leaving no extract window at all.
+  const extractToWindow = useCallback(() => extractToWindowInternal(false), [extractToWindowInternal])
+
+  // D-051: the main window just closed to the tray (backgroundMode on) —
+  // without this, a still-playing video would keep running silently behind
+  // the tray icon with no easy way to stop it. popOutOnClose true (default)
+  // pops it into the always-on-top extract window instead, same as `p`;
+  // false just pauses it. No-op if nothing was playing.
+  const handleClosedToTray = useCallback(() => {
+    if (!(playerSurfaceRef.current?.isStillGoing() ?? false)) return
+    if (settings.popOutOnClose) {
+      extractToWindowInternal(true)
+    } else {
+      playerSurfaceRef.current?.pause()
+    }
+  }, [settings.popOutOnClose, extractToWindowInternal])
 
   // A channel name (in the feed, or from the player's video info) is its own
   // navigation target, distinct from opening the video/leaving the player. A
@@ -987,9 +1020,12 @@ export function App() {
           queueRef.current = null
           openVideo(event.videoId, 'replace', true)
           break
+        case 'app:closedToTray':
+          handleClosedToTray()
+          break
       }
     })
-  }, [loadView, loadChannels, connect, syncMeta, openVideo])
+  }, [loadView, loadChannels, connect, syncMeta, openVideo, handleClosedToTray])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current) return

@@ -169,6 +169,14 @@ export interface SettingsDto {
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless manually changed since.
   autoNotifyFavorites: boolean
+  // D-051. Only meaningful when backgroundMode is on: closing the window
+  // while a video is playing normally just hides it, leaving the video
+  // playing silently behind the tray icon with no easy way to stop it. When
+  // true (the default), closing instead pops the video into the always-
+  // on-top extract window (same as pressing `p`) so it stays audible/visible
+  // and closing *that* window actually stops it. When false, closing pauses
+  // the video instead of popping it out.
+  popOutOnClose: boolean
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -264,6 +272,10 @@ export type ChronicleEventDto =
   // the video back up as a docked miniplayer, resuming from wherever
   // ExtractedPlayerWindow's own beforeunload last saved.
   | { type: 'player:restoreFromExtract'; videoId: string }
+  // D-051: the main window just closed to the tray (backgroundMode on) — the
+  // renderer decides whether to pop the current video out or pause it, per
+  // SettingsDto.popOutOnClose.
+  | { type: 'app:closedToTray' }
 
 export const IpcChannel = {
   getFeed: 'feed:get',
@@ -385,11 +397,20 @@ export interface ChronicleApi {
   // way to move the live iframe's DOM node into a different renderer
   // process, so this hands off a snapshot (current position, playing or
   // paused) to a fresh instance in the new window rather than the same one.
+  // D-051: `auto` marks an extraction triggered by closing the window to the
+  // tray rather than the user pressing `p` — the extract window's own close
+  // then stops the video for good instead of restoring it docked into the
+  // (possibly still-hidden) main window. `title` sets that window's OS-level
+  // title (the video's own title) so it's distinguishable from the main
+  // window in a taskbar/window-switcher/compositor context even though
+  // neither window shows a visible custom titlebar there.
   extractPlayer(
     videoId: string,
+    title: string,
     currentTimeSeconds: number,
     playing: boolean,
-    defaultPlaybackRate: number
+    defaultPlaybackRate: number,
+    auto: boolean
   ): Promise<void>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.

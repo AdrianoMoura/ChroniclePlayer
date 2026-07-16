@@ -132,9 +132,44 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `0.4.1` (patch: a revert, not new scope). B-108, B-022, B-086, B-101 are untouched by
   this release and carry forward to `0.4.2`, renumbered from the `0.4.1` placeholder
   since this version shipped ahead of that batch.
-- **0.4.2 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
-  0.3.0 (renumbered past 0.4.0 and 0.4.1 — see above, neither version touched this
-  batch). No batch of its own yet — new items reported after 0.4.1 shipped land here.
+- **0.4.2 — delivered, 2026-07-16.** Not a bug-tracker batch — driven by D-051, a
+  direct product-owner request prompted by a real bug they hit live: closing the window
+  to the tray (D-050's `backgroundMode`) just hid it, leaving a still-playing video
+  running silently with no easy way to stop it short of reopening from the tray. New
+  `SettingsDto.popOutOnClose` (default true, shown only when `backgroundMode` is on):
+  true pops the current video into the always-on-top extract window — the same
+  mechanism as pressing `p` — so it stays audible/visible and closing *that* window
+  actually stops it; false pauses it in place instead
+  (`PlayerSurfaceHandle.pause()`, new). `extractPlayer` gained an `auto` flag so an
+  auto-popped window's own close doesn't restore playback into the still-hidden main
+  window (it would silently resume the exact bug this fixes), and, per the owner's own
+  same-session follow-up, a `title` parameter so the extract window's OS-level window
+  title differs from the main window's instead of both reporting "Chronicle" — relevant
+  since niri (the owner's compositor) and similar Wayland setups distinguish `title`
+  from the app-wide `app_id`, and only the former is per-window. One regression was
+  caught by the owner's own live test and fixed the same session: the on-screen Extract
+  button (`onClick={onExtract}` in `PlayerDetails.tsx`/`MiniPlayerBar.tsx`) briefly
+  stopped popping the video out — it just closed the player — once `extractToWindow`
+  gained a parameter, because React always forwards a click's `MouseEvent` to a raw
+  `onClick` handler regardless of the prop's declared type, and that event isn't
+  structured-cloneable over IPC; the `p` shortcut was unaffected since it calls
+  `onExtract()` explicitly with no argument. Fixed by splitting the logic into a
+  parameterized `extractToWindowInternal(auto)` plus a permanent zero-arg
+  `extractToWindow` wrapper safe to bind to any click/key handler. Full narrative in
+  `decisions.md` D-051 — no `bug-history/` file, since this didn't come through the bug
+  tracker (same pattern as `0.4.0`/`0.4.1`). All checked via `npm run typecheck && npm
+  run lint && npm test` (209/209); not run live, per [[no-live-app-verification]] — the
+  window-title fix in particular still needs the owner's own check (whether niri's
+  actual UI surface reads `title` or `app_id`, which the fix can't influence). **Shipped
+  2026-07-16** — `package.json` bumped to `0.4.2` (patch, per the owner's own explicit
+  direction, even though this lands a new Settings toggle rather than being a pure
+  bug-fix batch). B-108, B-022, B-086, B-101 are untouched by this release and carry
+  forward to `0.4.3`, renumbered from the `0.4.2` placeholder since this version shipped
+  ahead of that batch.
+- **0.4.3 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
+  0.3.0 (renumbered past 0.4.0, 0.4.1, and 0.4.2 — see above, none of the three touched
+  this batch). No batch of its own yet — new items reported after 0.4.2 shipped land
+  here.
 
 ## M0 — Walking skeleton
 

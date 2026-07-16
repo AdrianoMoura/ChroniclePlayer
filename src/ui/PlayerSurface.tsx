@@ -63,6 +63,9 @@ export interface PlayerSurfaceHandle {
   // comment for why this is deliberately lenient rather than a strict
   // `=== 1` (playing) check.
   isStillGoing: () => boolean
+  // D-051: closing the window to the tray with SettingsDto.popOutOnClose off
+  // pauses whatever's playing instead of popping it into the extract window.
+  pause: () => void
 }
 
 interface PlayerSurfaceProps {
@@ -303,9 +306,12 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           playing: isStillGoing()
         }),
         requestClose: () => closeOrDock(),
-        isStillGoing
+        isStillGoing,
+        pause: () => {
+          if (isStillGoing()) command('pauseVideo')
+        }
       }),
-      [closeOrDock, isStillGoing]
+      [closeOrDock, isStillGoing, command]
     )
 
     // Player keyboard map (playback.md): keys are proxied through the widget

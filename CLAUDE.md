@@ -180,6 +180,29 @@ gesture, silently swallowing clicks meant for them. Removed the whole mechanism 
 owner's request — B-108 reverts to Open, the original cross-origin-iframe scroll gap
 unaddressed again. Full narrative in `bugs-current.md`'s B-108 entry.
 
+**D-051 (pop-out-or-pause on tray-close) shipped in `0.4.2`, 2026-07-16** — another
+direct product-owner request, not sourced from `bugs-current.md`, same pattern as
+D-050. Prompted by a real bug the owner hit live: closing the window to the tray
+(`backgroundMode`, D-050) just hides it, so a still-playing video kept playing silently
+with no easy way to stop it short of reopening from the tray. New
+`SettingsDto.popOutOnClose` (default true, shown only when `backgroundMode` is on):
+true pops the current video into the always-on-top extract window (same as `p`) so
+closing *that* window actually stops it; false pauses it in place. `extractPlayer`
+gained an `auto` flag (so an auto-popped window's close doesn't restore playback into
+the still-hidden main window) and, per the owner's own same-session follow-up, a
+`title` parameter so the extract window's OS-level window title differs from the main
+window's instead of both reporting "Chronicle" (relevant on Wayland compositors like
+the owner's niri, which track per-window `title` separately from the app-wide
+`app_id`). One regression was caught by the owner's own live test and fixed the same
+session: the on-screen Extract button briefly stopped popping the video out (it just
+closed the player) once `extractToWindow` gained a parameter — a raw `onClick={onExtract}`
+binding forwards React's `MouseEvent` to the handler regardless of its declared type,
+and that event isn't structured-cloneable over IPC. Fixed by splitting the logic into a
+parameterized `extractToWindowInternal` plus a permanent zero-arg `extractToWindow`
+wrapper safe to bind to any click/key handler. Full narrative in `decisions.md` D-051 —
+no `bug-history/` file, since this didn't come through the bug tracker. See
+`.specs/roadmap.md` §Release status for the exact shipped scope.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, and `0.3.0` have
@@ -195,8 +218,11 @@ systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3
 entirely. `0.4.0` (D-050, above) shipped the same way — real new scope, not a
 bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`). `0.4.1`
 (the B-108 revert, above) shipped as a **patch** instead — a revert, not new scope, and
-not a fix for anything in the batch below. `bugs-current.md` now targets **0.4.2**,
-renumbered from `0.4.1` since that version shipped ahead of it (carries B-108, B-022,
-B-086, B-101 forward, untouched, from 0.3.0). Version bumps aren't always minor — a pure
-bug-fix batch ships as a patch release, a minor bump is reserved for batches that land
-real new scope. See `.specs/roadmap.md` §Release status for the summary.
+not a fix for anything in the batch below. `0.4.2` (D-051, above) also shipped as a
+**patch**, per the owner's own explicit direction this time, even though it lands a new
+Settings toggle rather than being a pure bug-fix batch. `bugs-current.md` now targets
+**0.4.3**, renumbered from `0.4.2` since that version shipped ahead of it (carries
+B-108, B-022, B-086, B-101 forward, untouched, from 0.3.0). Version bumps aren't always
+minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for
+batches that land real new scope, but the owner's own explicit call on a given release
+always wins. See `.specs/roadmap.md` §Release status for the summary.

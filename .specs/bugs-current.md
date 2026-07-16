@@ -89,12 +89,28 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   Shipped as a **patch** version (a revert, not new scope). Shipped 2026-07-16. Since
   this landed ahead of this file's own batch, its `0.4.1` target is renumbered to
   `0.4.2` below.
+- **v0.4.2** — no bug-tracker batch of its own, same pattern as `v0.2.1`/`v0.4.0`/
+  `v0.4.1`: driven by D-051, a direct product-owner request prompted by a real bug they
+  hit live (closing the window to the tray left a still-playing video running silently,
+  with no easy way to stop it). New `SettingsDto.popOutOnClose` pops the video into the
+  always-on-top extract window on tray-close (default) or pauses it, per the toggle;
+  `extractPlayer` gained an `auto` flag and a `title` parameter (distinct OS-level
+  window title for the extract window, a same-session owner follow-up). Also fixed the
+  same session: a live-tested regression where the on-screen Extract button stopped
+  popping the video out once `extractToWindow` gained a parameter (a raw
+  `onClick={onExtract}` binding forwards React's `MouseEvent` into it, which isn't
+  IPC-cloneable) — split into `extractToWindowInternal(auto)` plus a permanent zero-arg
+  `extractToWindow` wrapper. Full history is in `decisions.md` D-051, not a
+  `bug-history/` file. Shipped as a **patch** version, per the owner's own explicit
+  direction (even though it lands a new Settings toggle, not a pure bug-fix batch).
+  Shipped 2026-07-16. Since this landed ahead of this file's own batch, its `0.4.2`
+  target is renumbered to `0.4.3` below.
 
-**Current target: 0.4.2** (in progress; renumbered from `0.4.1` — v0.4.1 shipped ahead
+**Current target: 0.4.3** (in progress; renumbered from `0.4.2` — v0.4.2 shipped ahead
 of this batch, see above). Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward
 from 0.3.0 (none of the four made it into that release — see
-`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.4.2 ships, this file's
-content moves to `bug-history/v0.4.2.md` and a new `bugs-current.md` starts targeting
+`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.4.3 ships, this file's
+content moves to `bug-history/v0.4.3.md` and a new `bugs-current.md` starts targeting
 whatever comes after it.
 
 ## Entry template
@@ -123,8 +139,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, and 0.4.1 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.3
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -151,7 +167,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.4.2 (carried over — 0.2.2, 0.3.0, 0.4.0, and 0.4.1 all shipped without this)
+  0.4.3 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -194,8 +210,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, and 0.4.1 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.3
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -294,8 +310,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.2 (carried over —
-  0.2.2, 0.3.0, 0.4.0, and 0.4.1 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.3 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh

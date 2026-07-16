@@ -97,16 +97,20 @@ const api: ChronicleApi = {
   openYouTubeSignIn: () => ipcRenderer.invoke(IpcChannel.openYouTubeSignIn),
   extractPlayer: (
     videoId: string,
+    title: string,
     currentTimeSeconds: number,
     playing: boolean,
-    defaultPlaybackRate: number
+    defaultPlaybackRate: number,
+    auto: boolean
   ) =>
     ipcRenderer.invoke(
       IpcChannel.extractPlayer,
       videoId,
+      title,
       currentTimeSeconds,
       playing,
-      defaultPlaybackRate
+      defaultPlaybackRate,
+      auto
     ),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)

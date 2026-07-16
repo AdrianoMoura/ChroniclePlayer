@@ -308,6 +308,12 @@ function createWindow(): BrowserWindow {
     if (backgroundModeEnabled && !isQuitting) {
       event.preventDefault()
       window.hide()
+      // D-051: hiding alone used to leave a still-playing video running
+      // silently behind the tray icon — the renderer decides whether to pop
+      // it out to the always-on-top window or pause it, per
+      // settings.popOutOnClose (it owns the live playback state; this
+      // process doesn't).
+      broadcast({ type: 'app:closedToTray' })
     }
   })
   window.on('closed', () => {
@@ -323,9 +329,15 @@ function createWindow(): BrowserWindow {
 // floating video that stays above other windows while the user works.
 function createExtractWindow(
   videoId: string,
+  title: string,
   startSeconds: number,
   playing: boolean,
-  defaultPlaybackRate: number
+  defaultPlaybackRate: number,
+  // D-051: true when this extraction was triggered by closing the window to
+  // the tray rather than the user pressing `p` — closing this window then
+  // should stop the video for good, not hand it back to the (possibly still
+  // hidden) main window.
+  auto: boolean
 ): void {
   const window = new BrowserWindow({
     width: 480,
@@ -351,6 +363,7 @@ function createExtractWindow(
   window.setAspectRatio(16 / 9)
   loadRenderer(window, {
     extract: videoId,
+    title,
     t: String(Math.max(0, Math.floor(startSeconds))),
     autoplay: playing ? '1' : '0',
     rate: String(defaultPlaybackRate)
@@ -360,7 +373,9 @@ function createExtractWindow(
   // beforeunload last saved (best-effort — if that write raced the window
   // actually tearing down, this falls back to the extraction-time position
   // already persisted when extraction started).
-  window.on('closed', () => broadcast({ type: 'player:restoreFromExtract', videoId }))
+  window.on('closed', () => {
+    if (!auto) broadcast({ type: 'player:restoreFromExtract', videoId })
+  })
 }
 
 function broadcast(event: ChronicleEventDto): void {
@@ -1592,18 +1607,21 @@ async function boot(): Promise<void> {
     (
       _event,
       videoId: unknown,
+      title: unknown,
       currentTimeSeconds: unknown,
       playing: unknown,
-      defaultPlaybackRate: unknown
+      defaultPlaybackRate: unknown,
+      auto: unknown
     ) => {
       const id = parseVideoId(videoId)
+      const label = typeof title === 'string' ? title : ''
       const t = typeof currentTimeSeconds === 'number' ? currentTimeSeconds : 0
       const rate =
         typeof defaultPlaybackRate === 'number' &&
         (PLAYBACK_RATES as readonly number[]).includes(defaultPlaybackRate)
           ? defaultPlaybackRate
           : 1
-      createExtractWindow(id, t, playing === true, rate)
+      createExtractWindow(id, label, t, playing === true, rate, auto === true)
     }
   )
 

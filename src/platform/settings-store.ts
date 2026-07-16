@@ -51,6 +51,13 @@ export interface AppSettings {
   // to match, unless the user has manually changed it since. A one-shot
   // nudge at the moment of the favorite toggle, not a persistent binding.
   autoNotifyFavorites: boolean
+  // D-051: only meaningful when backgroundMode is on. Closing the window
+  // used to just hide it, leaving a still-playing video running silently
+  // behind the tray icon with no easy way to stop it. True (default) pops
+  // the video into the always-on-top extract window instead (same as `p`),
+  // so closing *that* window is what actually stops it; false pauses the
+  // video on close instead of popping it out.
+  popOutOnClose: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -68,7 +75,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startMinimized: false,
   notifyNewVideos: false,
   notifyScope: 'all',
-  autoNotifyFavorites: false
+  autoNotifyFavorites: false,
+  popOutOnClose: true
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -89,6 +97,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const notifyNewVideos = source['notifyNewVideos']
   const notifyScope = source['notifyScope']
   const autoNotifyFavorites = source['autoNotifyFavorites']
+  const popOutOnClose = source['popOutOnClose']
   return {
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
@@ -132,7 +141,9 @@ export function normalizeSettings(raw: unknown): AppSettings {
     autoNotifyFavorites:
       typeof autoNotifyFavorites === 'boolean'
         ? autoNotifyFavorites
-        : DEFAULT_SETTINGS.autoNotifyFavorites
+        : DEFAULT_SETTINGS.autoNotifyFavorites,
+    popOutOnClose:
+      typeof popOutOnClose === 'boolean' ? popOutOnClose : DEFAULT_SETTINGS.popOutOnClose
   }
 }
 
