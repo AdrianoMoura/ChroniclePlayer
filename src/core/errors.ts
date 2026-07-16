@@ -6,7 +6,6 @@ export type DomainErrorKind =
   | 'auth-expired'
   | 'quota-exceeded'
   | 'network-unavailable'
-  | 'channel-unavailable'
   | 'invalid-client-secret'
   | 'api-not-enabled'
   | 'internal'
@@ -30,9 +29,6 @@ export const quotaExceeded = (message = 'daily API quota exceeded'): DomainError
 
 export const networkUnavailable = (cause?: unknown): DomainError =>
   new DomainError('network-unavailable', 'network unavailable', cause)
-
-export const channelUnavailable = (channelId: string): DomainError =>
-  new DomainError('channel-unavailable', `channel unavailable: ${channelId}`)
 
 export const invalidClientSecret = (message: string): DomainError =>
   new DomainError('invalid-client-secret', message)

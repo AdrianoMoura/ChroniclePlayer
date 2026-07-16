@@ -29,12 +29,12 @@ export class SqliteSyncRepository implements SyncRepository {
         ? this.db.prepare(
             `SELECT c.channel_id, c.title, c.uploads_playlist, c.rss_etag, c.rss_last_modified, c.last_synced_at
              FROM channels c JOIN account_channels ac ON ac.channel_id = c.channel_id
-             WHERE ac.account_id = :accountId AND ac.subscribed = 1 AND c.available = 1`
+             WHERE ac.account_id = :accountId AND ac.subscribed = 1`
           )
         : this.db.prepare(
             `SELECT c.channel_id, c.title, c.uploads_playlist, c.rss_etag, c.rss_last_modified, c.last_synced_at
              FROM channels c JOIN account_channels ac ON ac.channel_id = c.channel_id
-             WHERE ac.account_id = :accountId AND ac.subscribed = 1 AND c.available = 1
+             WHERE ac.account_id = :accountId AND ac.subscribed = 1
                AND c.channel_id = :channelId`
           )
     ).all({ accountId, ...(channelId === undefined ? {} : { channelId }) }) as unknown as {
@@ -291,27 +291,20 @@ export class SqliteSyncRepository implements SyncRepository {
       rssEtag: string | null
       rssLastModified: string | null
       lastSyncedAt: string
-      available: boolean
     }
   ): void {
     this.db
       .prepare(
         `UPDATE channels
-         SET rss_etag = :etag, rss_last_modified = :lastModified,
-             last_synced_at = :syncedAt, available = :available
+         SET rss_etag = :etag, rss_last_modified = :lastModified, last_synced_at = :syncedAt
          WHERE channel_id = :id`
       )
       .run({
         etag: meta.rssEtag,
         lastModified: meta.rssLastModified,
         syncedAt: meta.lastSyncedAt,
-        available: meta.available ? 1 : 0,
         id: channelId
       })
-  }
-
-  markChannelUnavailable(channelId: string): void {
-    this.db.prepare(`UPDATE channels SET available = 0 WHERE channel_id = ?`).run(channelId)
   }
 
   getBackfillState(

@@ -298,24 +298,13 @@ export class SyncService {
     const { repo, videoSource, clock } = this.deps
     const now = clock.now().toISOString()
 
-    let feed
-    try {
-      feed = await videoSource.discoverRecent(channel)
-    } catch (error) {
-      if (isDomainError(error, 'channel-unavailable')) {
-        // Deleted/terminated: keep local data, stop polling (youtube-api.md).
-        repo.markChannelUnavailable(channel.channelId)
-        return []
-      }
-      throw error
-    }
+    const feed = await videoSource.discoverRecent(channel)
 
     if (feed.kind === 'not-modified') {
       repo.updateChannelSyncMeta(channel.channelId, {
         rssEtag: channel.rssEtag,
         rssLastModified: channel.rssLastModified,
-        lastSyncedAt: now,
-        available: true
+        lastSyncedAt: now
       })
       return []
     }
@@ -354,8 +343,7 @@ export class SyncService {
     repo.updateChannelSyncMeta(channel.channelId, {
       rssEtag: feed.etag,
       rssLastModified: feed.lastModified,
-      lastSyncedAt: now,
-      available: true
+      lastSyncedAt: now
     })
     return newIds
   }

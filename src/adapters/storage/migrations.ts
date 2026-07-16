@@ -143,6 +143,18 @@ const SCHEMA_V7 = `
 ALTER TABLE video_state ADD COLUMN resume_position_seconds INTEGER;
 `
 
+// v8 (D-048, bugs.md B-110): a single RSS 404 used to permanently flip a
+// channel's `available` off and silently exclude it from every future sync
+// and on-demand backfill — with no retry and no UI ever surfacing the state
+// (the "show in a settings list" plan in youtube-api.md was never built and
+// is dropped, per the product owner: this was never actually a discussed
+// decision, just an assumption from earlier development). A transient 404
+// isn't reliable proof of deletion; the column is gone outright rather than
+// just unused, since nothing sets or reads it anymore.
+const SCHEMA_V8 = `
+ALTER TABLE channels DROP COLUMN available;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -150,7 +162,8 @@ const migrations: readonly string[] = [
   SCHEMA_V4,
   SCHEMA_V5,
   SCHEMA_V6,
-  SCHEMA_V7
+  SCHEMA_V7,
+  SCHEMA_V8
 ]
 
 export function migrate(db: DatabaseSync): void {

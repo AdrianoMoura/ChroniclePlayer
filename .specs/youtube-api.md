@@ -141,12 +141,20 @@ units becomes, worst case, roughly one unit per active channel per cycle — for
 | API not enabled | 403 `accessNotConfigured` | Route to onboarding Step 2 (see `onboarding.md`) |
 | Auth expired/revoked | 401 / `invalid_grant` | `AuthExpired` banner; local browsing unaffected (see `authentication.md`) |
 | Testing-mode 7-day expiry | `invalid_grant` + testing-mode flag | Targeted explanation + deep link to onboarding Step 4b |
-| Channel deleted/terminated | RSS 404 / empty API results | Mark channel `unavailable`, keep local data, stop polling, show in a settings list |
 | Network down | transport errors | Silent skip of refresh; subtle "offline" indicator; next trigger retries |
-| RSS malformed/blocked | parse errors / 4xx | Per-channel fallback to API path (Option A) for that cycle; log locally |
+| RSS 404 / malformed / blocked | 404, parse errors, other 4xx | Ordinary per-channel failure for that cycle (logged, retried next cycle) — **not** treated as proof the channel is gone (D-048): a single RSS 404 isn't reliable evidence of permanent deletion, and RSS calls are free, so there's no cost reason to ever stop asking. |
 
 - Retries: exponential backoff, per-channel, max 3 per cycle; never across the quota
   boundary. All refresh failures are per-channel — one bad channel never aborts a sync.
+- **D-048:** there is deliberately no "channel unavailable / stop polling" state. An
+  earlier version of this doc had one (mark `unavailable` on an RSS 404, exclude from
+  all future sync, "show in a settings list") — that was never an actual product
+  decision, just an assumption from earlier development, and it caused a real bug
+  (`bugs.md` [[B-110]]): a single transient 404 permanently and silently froze sync for
+  a channel with no retry and no UI ever surfacing it (the settings list was never
+  built either). Removed outright, per the product owner's own framing: Chronicle's
+  experience should work like YouTube's own pagination — keep trying until the result
+  actually comes back empty, not give up on one failed attempt.
 - All HTTP goes through one client in `adapters/` with: descriptive User-Agent, sane
   timeouts (10 s connect / 30 s total), and structured local logging (no tokens in logs).
 

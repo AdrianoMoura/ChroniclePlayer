@@ -169,6 +169,60 @@ Resolved entries add:
 
 ## In progress
 
+### B-110 — A channel that hit a single transient RSS 404 silently stops syncing forever
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
+- **Area:** sync
+- **What happens:** the owner reported that scrolling to the end of Veritasium's
+  channel screen never even attempted to fetch older videos — no network activity, no
+  spinner, no console error, nothing (confirmed via temporary diagnostic logging added
+  during this investigation, see [[B-109]] below for the unrelated stall that logging
+  was originally chasing). Traced to the local DB directly: `channels.available = 0`
+  for that channel, despite Veritasium obviously being an active, very much
+  un-terminated channel.
+- **Expected:** a channel that's actually still active keeps syncing normally forever;
+  nothing about it should ever require the owner to notice, let alone manually fix.
+- **Code refs:** `src/adapters/rss/rss-client.ts` (`discoverRecent`'s 404 handling);
+  `src/core/sync-service.ts` (`discoverChannel`); `src/adapters/storage/sync-repository.ts`
+  (`listSubscribedChannels`'s `available = 1` filter, `markChannelUnavailable`).
+- **Root cause:** `youtube-api.md`'s failure-handling table had a "Channel
+  deleted/terminated" row — an RSS 404 was treated as definitive, permanent proof of
+  deletion: `markChannelUnavailable` flips `channels.available` to 0, and
+  `listSubscribedChannels` (used by both routine sync and the on-demand scroll-triggered
+  backfill, [[B-002]]) filters on `available = 1`. Once flipped, the channel is excluded
+  from the very query that would ever check it again — there was no self-healing path
+  at all, so a single transient 404 (YouTube's RSS edge can return one for reasons
+  unrelated to the channel actually being gone) froze that channel's sync permanently.
+  The spec's own promised mitigation ("show in a settings list") was never actually
+  built, so the state was completely invisible — nothing in the UI ever indicated a
+  channel had stopped updating. Turned out, on inspection, this row was never a real,
+  owner-confirmed product decision either — just an assumption from earlier
+  development that had slipped into the spec without a `decisions.md` entry.
+- **Resolution: D-048.** Per the owner's own framing (2026-07-16) — Chronicle's
+  experience should work like YouTube's own pagination: keep trying until a result
+  genuinely comes back empty, a single failed attempt proves nothing permanent, and RSS
+  calls are free so there's no cost reason to ever stop asking — the whole mechanism is
+  removed outright rather than patched: `rss-client.ts` no longer special-cases 404
+  (falls through to the same `internal(...)` failure every other non-2xx response
+  already threw); `channel-unavailable` is gone from `DomainErrorKind`;
+  `markChannelUnavailable` and the `available` column/filter are gone from
+  `SyncRepository`/`sync-repository.ts` (schema v8 drops the column outright — nothing
+  reads or writes it anymore, so leaving it dead wasn't an option). A 404 now falls
+  through to `discoverChannel`'s pre-existing generic per-channel failure handling
+  (logged, retried next cycle, exactly like a network hiccup) — no new retry logic was
+  needed, only removing the special case that pre-empted the one already there. The
+  owner also declined building the "settings list for unavailable channels" UI the old
+  spec row promised (never actually discussed, and no longer needed since there's no
+  "unavailable" state left to surface). `youtube-api.md`'s failure table and
+  `decisions.md` (new **D-048**) updated in the same change. Checked via
+  `npm run typecheck && npm run lint && npm test` (199/199, one test rewritten for the
+  new "just an ordinary failure" behavior, one dropped since the feature it covered no
+  longer exists); **not run live** (per [[no-live-app-verification]]) — the owner's own
+  local DB is what surfaced this (Veritasium's `available` row), so the schema-v8
+  migration dropping the column is itself the fix for that specific channel; needs the
+  owner's hands-on confirmation that Veritasium (and any other channel that hit this)
+  resumes syncing/backfilling normally after upgrading.
+
 ### B-109 — Scrolling to the end of a channel's video list can permanently stall (no more videos ever load)
 - **Type:** bug · **Severity:** major
 - **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
@@ -215,6 +269,10 @@ Resolved entries add:
   (200/200); **not run live** (per [[no-live-app-verification]]) — needs the owner's
   hands-on check scrolling to the bottom of a channel with enough history to have hit
   this stall before.
+- **Note:** live-testing this fix is what surfaced [[B-110]] — a channel-freezing bug
+  entirely unrelated to this one (it short-circuits before `backfillArchive` ever runs
+  a real API call, so this loop never even gets a chance to matter for an affected
+  channel). Both are real, independent bugs; fixing one doesn't fix the other.
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor

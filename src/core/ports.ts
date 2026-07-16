@@ -252,9 +252,8 @@ export interface SyncRepository {
   markVideosReadIfUnset(videoIds: readonly string[], now: string): void
   updateChannelSyncMeta(
     channelId: string,
-    meta: { rssEtag: string | null; rssLastModified: string | null; lastSyncedAt: string; available: boolean }
+    meta: { rssEtag: string | null; rssLastModified: string | null; lastSyncedAt: string }
   ): void
-  markChannelUnavailable(channelId: string): void
   // B-002: continuation state for on-demand back-catalog backfill, distinct
   // from the routine-sync gap-backfill path (which doesn't persist a cursor).
   // B-003: per (account, channel) — each account walks its own cursor.

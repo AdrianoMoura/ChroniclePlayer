@@ -95,10 +95,10 @@ describe('YouTubeRssClient', () => {
     })
   })
 
-  it('maps 404 to channel-unavailable', async () => {
+  it('maps 404 to an ordinary internal fetch failure, not a permanent verdict', async () => {
     const fetchFn: FetchFn = () => Promise.resolve(new Response('gone', { status: 404 }))
     await expect(new YouTubeRssClient(fetchFn).discoverRecent(channel)).rejects.toMatchObject({
-      kind: 'channel-unavailable'
+      kind: 'internal'
     })
   })
 })

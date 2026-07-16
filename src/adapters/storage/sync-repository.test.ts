@@ -277,25 +277,12 @@ describe('shorts pipeline storage (D-028)', () => {
 })
 
 describe('channel sync meta', () => {
-  it('unavailable channels stop being polled but stay out of the way', () => {
-    sync.applySubscriptions('acc1', 
-      [
-        { channelId: 'UCa', title: 'Alpha', thumbnailUrl: null },
-        { channelId: 'UCgone', title: 'Gone', thumbnailUrl: null }
-      ],
-      NOW
-    )
-    sync.markChannelUnavailable('UCgone')
-    expect(sync.listSubscribedChannels('acc1').map((c) => c.channelId)).toEqual(['UCa'])
-  })
-
   it('stores RSS validators for conditional GET', () => {
     sync.applySubscriptions('acc1', [{ channelId: 'UCa', title: 'Alpha', thumbnailUrl: null }], NOW)
     sync.updateChannelSyncMeta('UCa', {
       rssEtag: 'e1',
       rssLastModified: 'Fri, 11 Jul 2026 08:00:00 GMT',
-      lastSyncedAt: NOW,
-      available: true
+      lastSyncedAt: NOW
     })
     expect(sync.listSubscribedChannels('acc1')[0]).toMatchObject({ rssEtag: 'e1', lastSyncedAt: NOW })
   })

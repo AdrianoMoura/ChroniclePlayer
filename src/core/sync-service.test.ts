@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SyncService, type SyncProgress } from './sync-service'
-import { authExpired, channelUnavailable, networkUnavailable, quotaExceeded } from './errors'
+import { authExpired, internal, networkUnavailable, quotaExceeded } from './errors'
 import {
   QuotaCounter,
   type ChannelSyncInfo,
@@ -27,7 +27,6 @@ class FakeRepo implements SyncRepository {
   known = new Set<string>()
   inserted: string[] = []
   hydrated: string[] = []
-  unavailable: string[] = []
   syncMeta = new Map<string, { lastSyncedAt: string }>()
   logs: SyncLogEntry[] = []
   meta = new Map<string, string>()
@@ -89,9 +88,6 @@ class FakeRepo implements SyncRepository {
   }
   updateChannelSyncMeta(channelId: string, meta: { lastSyncedAt: string }): void {
     this.syncMeta.set(channelId, { lastSyncedAt: meta.lastSyncedAt })
-  }
-  markChannelUnavailable(channelId: string): void {
-    this.unavailable.push(channelId)
   }
   getBackfillState(_accountId: string, channelId: string): { pageToken: string | null; exhausted: boolean } {
     return this.backfillState.get(channelId) ?? { pageToken: null, exhausted: false }
@@ -301,19 +297,25 @@ describe('SyncService.refresh', () => {
     ])
   })
 
-  it('marks deleted channels unavailable without failing the sync', async () => {
+  // D-048 (bugs.md B-110): an RSS 404 used to be treated as permanent proof
+  // of channel deletion, excluding the channel from every future sync with
+  // no retry — a single transient 404 shouldn't be able to do that, so it's
+  // now just an ordinary per-channel failure like any other, retried next
+  // cycle.
+  it('treats an RSS 404 as an ordinary per-channel failure, not a permanent exclusion', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCgone')
     const source = fakeVideoSource({
       feeds: {
         UCgone: () => {
-          throw channelUnavailable('UCgone')
+          throw internal('RSS fetch failed with 404')
         }
       }
     })
     const report = await service(repo, source).refresh('manual', 'acc1')
-    expect(repo.unavailable).toEqual(['UCgone'])
-    expect(report.outcome).toBe('ok')
+    expect(report.channelsFailed).toBe(1)
+    expect(report.outcome).toBe('failed')
+    expect(repo.listSubscribedChannels('acc1').map((c) => c.channelId)).toContain('UCgone')
   })
 
   it('re-checks locally upcoming videos every refresh, so a broadcast that went live can update (B-085)', async () => {

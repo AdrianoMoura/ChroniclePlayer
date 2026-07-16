@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { channelUnavailable, internal } from '../../core/errors'
+import { internal } from '../../core/errors'
 import type { ChannelSyncInfo, DiscoveredVideo, RssFeedResult } from '../../core/ports'
 import { request, type FetchFn } from '../http'
 
@@ -29,7 +29,10 @@ export class YouTubeRssClient {
     )
 
     if (response.status === 304) return { kind: 'not-modified' }
-    if (response.status === 404) throw channelUnavailable(channel.channelId)
+    // A 404 here isn't reliable proof a channel is gone for good — YouTube's
+    // RSS edge can return one transiently. Treated as an ordinary fetch
+    // failure (retried next cycle, like any other), not a permanent,
+    // un-retried "channel deleted" verdict (see decisions.md D-048).
     if (!response.ok) throw internal(`RSS fetch failed with ${response.status}`)
 
     return {
