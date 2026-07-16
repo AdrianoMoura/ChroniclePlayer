@@ -1437,7 +1437,16 @@ async function boot(): Promise<void> {
       // argument so a dev-mode autostart actually opens Chronicle too.
       const devArgs = app.isPackaged ? [] : [resolve(process.argv[1] ?? '.')]
       if (process.platform === 'linux') {
-        const execCommand = [process.execPath, ...devArgs]
+        // D-024: the Linux target is AppImage-only. An AppImage's
+        // process.execPath resolves to a path *inside its own temporary
+        // SquashFS mount* (e.g. /tmp/.mount_XXXXXX/chronicle) — that mount
+        // is torn down as soon as this run exits, so writing it into the
+        // autostart entry would point at a path that no longer exists by
+        // the next login. The AppImage runtime sets $APPIMAGE to the
+        // actual, stable .AppImage file path on disk; use that instead
+        // whenever present (unset outside an AppImage — e.g. dev mode).
+        const linuxExecPath = process.env.APPIMAGE ?? process.execPath
+        const execCommand = [linuxExecPath, ...devArgs]
           .map((part) => JSON.stringify(part))
           .join(' ')
         setLinuxAutostart(settings.autoStart, execCommand)
