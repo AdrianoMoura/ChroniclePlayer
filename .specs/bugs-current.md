@@ -40,6 +40,11 @@ substantive, in `decisions.md`.
 - An item that doesn't make it into this release simply stays *Open*/*In progress* when
   the file is archived — its Target is bumped to the next version number and it carries
   forward into the new `bugs-current.md` untouched, noted as "carried over."
+- Version numbers aren't always a minor bump: a batch that's pure bug fixes/adjustments
+  (no new milestone-sized feature) ships as a **patch** release (0.2.0 → 0.2.1 → 0.2.2
+  → …); a minor bump is reserved for batches that land real new scope. This file's own
+  **Target** always states the actual next version, whichever kind it is — don't assume
+  a minor bump by default.
 
 ## History
 
@@ -53,11 +58,19 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   shipped (B-051, B-046, B-045): 20 entries Fixed, 1 Won't fix (B-046 — hover-preview
   would require exactly the undocumented-endpoint use `youtube-api.md` bans). Shipped
   2026-07-15.
+- **v0.2.1** — no bug-tracker batch of its own: a single same-day product-owner request
+  (raise the miniplayer's max resizable width from 640px to 1024px) tagged on its own
+  right after 0.2.0, folded into [[B-045]]'s "eighth round" narrative in
+  `bug-history/v0.2.0.md` rather than getting a new B-NNN entry. Shipped 2026-07-15.
+- [`bug-history/v0.2.2.md`](bug-history/v0.2.2.md) — B-105, B-106, B-107 (all Fixed,
+  each needing a same-day follow-up once the owner's live test caught a second instance
+  of the same bug). Shipped 2026-07-16.
 
-**Current target: 0.3.0** (in progress). Carries [[B-022]], [[B-086]], [[B-101]]
-forward from 0.2.0 (none of the three made it into that release — see
-`bug-history/v0.2.0.md` for why). When 0.3.0 ships, this file's content moves to
-`bug-history/v0.3.0.md` and a new `bugs-current.md` starts targeting 0.4.0.
+**Current target: 0.2.3** (in progress). Carries [[B-108]], [[B-022]], [[B-086]],
+[[B-101]] forward from 0.2.2 (none of the four made it into that release — see
+`bug-history/v0.2.2.md` for why). When 0.2.3 ships, this file's content moves to
+`bug-history/v0.2.3.md` and a new `bugs-current.md` starts targeting whatever comes
+after it.
 
 ## Entry template
 
@@ -85,8 +98,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
-  (carried over — 0.2.0 shipped 2026-07-15 without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.2.3
+  (carried over — 0.2.2 shipped 2026-07-16 without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -113,7 +126,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.3.0 (carried over — 0.2.0 shipped 2026-07-15 without this)
+  0.2.3 (carried over — 0.2.2 shipped 2026-07-16 without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -158,7 +171,7 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-07-16
+- **Status:** In progress · **Reported:** 2026-07-16 · **Target:** 0.2.3
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
   cursor is positioned over the embedded YouTube video does nothing — the page doesn't
@@ -241,8 +254,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.3.0 (carried over —
-  0.2.0 shipped 2026-07-15 without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.2.3 (carried over —
+  0.2.2 shipped 2026-07-16 without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -326,170 +339,4 @@ Resolved entries add:
 
 ## Resolved
 
-### B-107 — Pagination never triggers when a filtered/narrow view's content doesn't fill the viewport
-- **Type:** bug · **Severity:** minor
-- **Status:** Fixed · **Reported:** 2026-07-16
-- **Area:** feed / ui-shell
-- **What happens:** the owner reported this happening when filtering the feed — depending
-  on the window size and the grid item size in effect, the number of matching items could
-  be short enough that they didn't fill the visible viewport. With nothing to scroll, no
-  further page ever loaded, even if more matching content was available locally or via
-  backfill.
-- **Expected:** if, after rendering the current results, no scrollable overflow was
-  actually produced (content height ≤ viewport height), the system triggers pagination
-  itself instead of waiting for a scroll event that can never come.
-- **Code refs:** `src/ui/FeedList.tsx` (the existing `onNearEnd`-triggering `useEffect`,
-  keyed off `virtualizer.getVirtualItems()`'s last rendered index vs. `displayRows.length`
-  — relies on the virtualizer having already produced a settled item list matching the
-  current viewport, which can lag a render behind a row-count-shrinking change); `src/ui/App.tsx`
-  (`loadMore`, wired in as `onNearEnd`).
-- **Resolution:** per the owner's own suggested fix, added a second `useEffect` in
-  `FeedList.tsx` that checks the scroll container directly after each render where the
-  row count, columns, or row height changed (`el.scrollHeight <= el.clientHeight`, guarded
-  on `el.clientHeight > 0` so it doesn't fire before the container has been laid out at
-  all) and calls `onNearEnd()` if there's no scrollable overflow. Safe against loops:
-  `onNearEnd` (`loadMore`) already no-ops once there's genuinely nothing more to fetch
-  (`nextCursor === null` and either no channel filter or `archiveExhausted` already has
-  it), and against concurrent calls (`loadingRef`/`backfillingRef` guards), both
-  pre-existing. No new test file — this codebase has no existing UI component test
-  harness for `FeedList.tsx` to extend (domain/adapters get unit/contract tests per
-  `CLAUDE.md`; UI relies on the owner's own live check). Checked via
-  `npm run typecheck && npm run lint && npm test` (200/200); **not run live this
-  session** (per [[no-live-app-verification]]).
-- **Follow-up (2026-07-16):** the owner tested by typing into the topbar search box —
-  which turned out to be a completely different code path than the one just fixed
-  (`FeedList.tsx`'s virtualizer): a YouTube search's results render through a plain,
-  non-virtualized `.search-results` `<div>` in `App.tsx`, paged via that div's own
-  `onScroll` handler (`if (scrollHeight - scrollTop - clientHeight < 300)
-  loadMoreSearchResults()`) — the exact same "depends on a scroll event that may never
-  come" shape, just implemented differently, and entirely missed by the first pass since
-  it isn't `FeedList` at all. Fixed the same way: a `useEffect` (keyed on `searchResults`/
-  `settings.itemSize`/`settings.layout`/`settings.showShorts`) checks
-  `searchResultsRef.current`'s `scrollHeight`/`clientHeight` after each render and calls
-  `loadMoreSearchResults()` directly if there's no overflow — safe against loops the same
-  way, since `loadMoreSearchResults` already no-ops without a `searchNextPageToken` or
-  while already loading. While fixing this, found and fixed a **third** instance of the
-  identical pattern that wasn't part of any report yet: `channelPreview` (browsing a
-  not-yet-subscribed channel's uploads, opened from a search channel result) renders
-  through the same `.search-results` markup with its own separate `onScroll` handler
-  calling `loadMoreChannelPreview()` — same fix, a second `useEffect` keyed on
-  `channelPreview`/`settings.itemSize`/`settings.layout` checking a new
-  `channelPreviewRef`. `src/ui/App.tsx` gained both refs (`searchResultsRef`,
-  `channelPreviewRef`), wired onto their respective `.search-results` divs. Checked via
-  `npm run typecheck && npm run lint && npm test` (200/200); **not run live** — needs the
-  owner's own check (search with a small item size / narrow window so the first page
-  doesn't overflow, confirm more results load automatically; same for opening an
-  unsubscribed channel's preview).
-- **Resolved:** 2026-07-16 · **Commit:** 4b05e62 (follow-up: 1720dc4) · **Outcome:** Fixed
-
-### B-106 — Full-view player's video renders on top of the app topbar (on scroll) and the write-scope consent dialog
-- **Type:** bug · **Severity:** major · **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.3.0
-- **Area:** player / ui-shell
-- **What happens:** two symptoms, one root-cause family — `.player-stage` (the
-  `position: fixed` box `PlayerSurface.tsx` mirrors onto whichever slot placeholder is
-  active, `src/ui/styles.css`) sits at `z-index: 21`, deliberately above the miniplayer
-  box so the video renders over it. That same fixed, high z-index box now also wins
-  against UI it was never meant to cover: (1) scrolling the full-view player page (which
-  scrolls as one block since [[B-045]]'s "Seventh round") moves the video's mirrored rect
-  upward: once it scrolls far enough, its top edge sits inside the always-present app
-  `.topbar`'s on-screen region (the topbar itself stays rendered — only some of its child
-  controls hide via `{(!playerOpen || miniplayer) && ...}`, `App.tsx`), and since
-  `.topbar` has no explicit `position`/`z-index` of its own, the video wins the
-  comparison and paints over it. (2) opening the write-scope consent dialog (the "sign in
-  to like/comment" `.overlay-backdrop`, `src/ui/useWriteScopeGate.tsx`) from inside the
-  player — e.g. liking or commenting — renders it invisible and unclickable behind the
-  video: `PlayerDetails.tsx` renders `{writeScopeGate.dialog}` *inside* `.player-view`
-  (`src/ui/PlayerDetails.tsx`), and `.player-view` is `position: absolute; z-index: 5`
-  (`src/ui/styles.css`) — a positioned element with an explicit z-index establishes its
-  own stacking context, so the dialog's own `z-index: 30` (normally enough to win against
-  everything, per the `.overlay-backdrop` comment referencing [[B-045]]'s miniplayer)
-  only competes *inside* that local context; from the outside, the whole `.player-view`
-  subtree — dialog included — is capped at effective z-index 5, well below
-  `.player-stage`'s 21. The consent dialog is not just visually hidden but genuinely
-  unclickable, since the iframe on top intercepts the click — liking/commenting from the
-  player cannot complete the consent step at all when this triggers.
-- **Expected:** the video never renders above app chrome that's supposed to sit above it
-  — the topbar should stay visible/on top regardless of scroll position, and any modal
-  (help, write-scope consent, add-account, URL prompt) must always be clickable above the
-  video, exactly like the miniplayer case `.overlay-backdrop`'s own comment already
-  documents as a required invariant.
-- **Code refs:** `src/ui/styles.css` (`.player-stage` z-index 21; `.player-view`
-  `position: absolute; inset: 0; z-index: 5`); `src/ui/PlayerDetails.tsx`
-  (`{writeScopeGate.dialog}` was nested inside `.player-view`'s `return`);
-  `src/ui/useWriteScopeGate.tsx` (the dialog itself); `src/ui/PlayerSurface.tsx` (the
-  `alignTarget.getBoundingClientRect()` mirroring effect).
-- **Resolution:** two independent fixes, one per symptom, both in the same change. (1)
-  `PlayerSurface.tsx`'s scroll-driven `measure()` effect now also measures
-  `alignTarget.closest('.player-view')` — the full-view slot's own scroll container,
-  which doesn't move on scroll (only its content does) — and computes how far the
-  mirrored video rect has scrolled past that container's stable top/bottom edge
-  (`clipTop`/`clipBottom`). The `.player-stage` box applies these as a `clip-path: inset()`
-  in its inline style, so the portion that would otherwise poke out above the topbar (or
-  below the container) is clipped away instead of painted over it — the miniplayer's
-  align target isn't nested in a `.player-view`, so it gets no clip-path and is
-  unaffected. (2) `PlayerDetails.tsx` no longer renders `{writeScopeGate.dialog}` inside
-  `.player-view`'s `return` — wrapped the component's return in a fragment and moved the
-  dialog to be a sibling *after* `.player-view` instead, so it's no longer captured by
-  `.player-view`'s `z-index: 5` stacking context and its own `z-index: 30` competes
-  directly against `.player-stage`'s 21, same as every other modal already does. No spec
-  changes needed — `ui.md`/`playback.md` don't describe stacking order at this level of
-  detail. Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
-  live-app check this session (per [[no-live-app-verification]]).
-- **Follow-up (2026-07-16):** the owner live-tested and confirmed scroll and the like
-  dialog both fixed, but the comment consent dialog was still hidden. Root cause:
-  `CommentsSection` (`src/ui/Comments.tsx`) held its *own* separate `useWriteScopeGate()`
-  instance and rendered its own `{writeScopeGate.dialog}` inside `.comments-section`,
-  itself nested inside `.player-view` — the exact same trap fixed above for the
-  like/subscribe dialog, just in a second, independent instance the first pass missed.
-  Rather than lift a second dialog out to another `.player-view` sibling (which would let
-  two different consent dialogs pop up for one player), `CommentsSection` now takes
-  `runWithWriteScope` as a prop instead of owning a gate — `PlayerDetails` passes its own
-  `writeScopeGate.run` (the same instance already backing like/subscribe, whose dialog
-  already renders correctly outside `.player-view`), so the whole player shares one gate
-  and one dialog. `CommentItem`/`ReplyItem` already took `runWithWriteScope` as a prop one
-  level down, so this just extends that existing pattern up one level rather than
-  introducing a new one. Re-checked via `npm run typecheck && npm run lint && npm test`
-  (200/200).
-- **Live-confirmed (2026-07-16):** the owner tested scroll, the like dialog, and the
-  comment dialog after the follow-up — all three fixed. Closing.
-- **Resolved:** 2026-07-16 · **Commit:** efc9d6b (follow-up: d8561e3) · **Outcome:** Fixed
-
-### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
-- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-15 · **Target:** 0.3.0
-- **Area:** sync
-- **What happens:** on an account's very first sync, [[B-020]]/[[B-069]] already marked
-  every backlog video (published before today) read on arrival, so only *today's*
-  freshly-discovered videos landed as unread. But hydration and the Shorts-confirmation
-  pass (`confirmShorts`) are separate steps — the Shorts pass runs after hydration and,
-  per `sync-service.ts`'s own comment, "first sync probes ~1k candidates," so it can take
-  a while. Until it finished, today's videos (exactly the old backlog-cutoff boundary
-  case most likely to contain same-day Shorts) showed up unread with no Shorts badge
-  yet — the owner had to wait for the Shorts pass to complete before the unread
-  list/badge was actually representative of what's real content vs. Shorts.
-- **Expected:** on the very first sync only, every newly discovered video is marked read
-  on arrival — not just the ones published before today.
-- **Code refs:** `src/core/sync-service.ts` (`refresh`, the `firstSync` branch inside the
-  hydration loop).
-- **Resolution: D-047**, per the owner's own follow-up direction (2026-07-16), which went
-  further than this entry's original ask: rather than racing the Shorts pass to close the
-  same-day window, the owner decided a first sync should never assume *any* discovered
-  video is unread-worthy, today's included — there's no prior visit to judge "new since
-  you were last here" against on the very first run, so guessing is unjustified either
-  way. Removed the `backlogCutoff`/`startOfToday` date filter entirely rather than
-  widening it: the `firstSync` branch in `SyncService.refresh` now calls
-  `repo.markVideosReadIfUnset` on every video in each hydrated batch, unconditionally.
-  The now-unused `startOfToday` import was dropped. `feed.md` §Backfill rules
-  ("First-ever sync") and `decisions.md` (new **D-047**, superseding the B-020/B-069
-  rule) updated in the same change. Every subsequent sync (routine or backfill) is
-  unaffected. Updated the existing B-069 coverage test
-  (`sync-service.test.ts` — "marks every video read as soon as it hydrates on a first
-  sync, backlog and same-day alike") to assert both a backlog and a same-day video are
-  marked read; one unrelated gap-backfill test ("backfills a gap when the whole RSS
-  window is new on a previously synced channel") had never set the account-level
-  `subscriptions_synced_at` meta and was incidentally exercising the `firstSync` branch
-  by accident — fixed by setting that meta explicitly, matching its actual intent (a
-  channel that was previously synced, which implies the account isn't in its first sync
-  either). Checked via `npm run typecheck && npm run lint && npm test` (200/200). No
-  live-app check this session (per [[no-live-app-verification]]).
-- **Resolved:** 2026-07-16 · **Commit:** d63e02a · **Outcome:** Fixed
-
+*(none yet this cycle)*

@@ -49,13 +49,30 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   maximize/close buttons — B-104, Fixed same day (`e`/`x`, a third "Miniplayer" overlay
   section). All checked via `npm run typecheck && npm run lint && npm test`. **Shipped
   2026-07-15** — `package.json` bumped to `0.2.0`; the batch was archived to
-  `bug-history/v0.2.0.md` with the final commit hashes. Three entries didn't make it in and carried over to 0.3.0
-  with their Target bumped: B-022 (In progress, needs the owner's live confirmation),
-  B-086 (Open, blocked on one of the owner's membership channels publishing something
-  to test against), B-101 (Open, the fullscreen-widget-protocol research spike, not
-  yet started).
-- **0.3.0 — in progress.** Carries B-022, B-086, B-101 forward from 0.2.0 (see above).
-  No batch of its own yet — new items reported after 0.2.0 shipped land here.
+  `bug-history/v0.2.0.md` with the final commit hashes. Three entries didn't make it in and carried their Target forward:
+  B-022 (In progress, needs the owner's live confirmation), B-086 (Open, blocked on one
+  of the owner's membership channels publishing something to test against), B-101
+  (Open, the fullscreen-widget-protocol research spike, not yet started).
+- **0.2.1 — delivered, 2026-07-15.** Not a bug-tracker batch — a single same-day
+  product-owner request (raise the miniplayer's max resizable width from 640px to
+  1024px) shipped as its own patch tag right after 0.2.0, rather than waiting for a
+  future batch. Folded into [[B-045]]'s "eighth round" narrative in
+  `bug-history/v0.2.0.md`; no new B-NNN entry, no `bugs-current.md` batch of its own.
+- **0.2.2 — delivered, 2026-07-16.** Three Fixed entries, `bug-history/v0.2.2.md`:
+  B-105 (first-sync unread videos), B-106 (full-view player video rendering over the
+  topbar and the write-scope consent dialog — needed a same-day follow-up once the
+  owner's live test caught a second, independent instance of the dialog bug in
+  `CommentsSection`), B-107 (pagination stall when a filtered view's results don't fill
+  the viewport — also needed a same-day follow-up once the owner's test surfaced two
+  more instances of the same pattern in search results and channel preview). All
+  checked via `npm run typecheck && npm run lint && npm test`; B-106 live-confirmed by
+  the owner. **Shipped 2026-07-16** — `package.json` bumped to `0.2.2` (a patch release:
+  pure bug fixes, no new scope, so no minor bump). B-022, B-086, B-101 still didn't make
+  it in and carry forward again; B-108 (new this cycle — mouse-wheel scroll doesn't
+  work while hovering the embedded player — two rounds landed but the owner's own call
+  was to pause and rethink the coverage approach, not ship what exists) joins them.
+- **0.2.3 — in progress.** Carries B-108, B-022, B-086, B-101 forward from 0.2.2 (see
+  above). No batch of its own yet — new items reported after 0.2.2 shipped land here.
 
 ## M0 — Walking skeleton
 

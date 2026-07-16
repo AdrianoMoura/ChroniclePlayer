@@ -154,7 +154,10 @@ committing.
 
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
-each shipped release's closed-out batch. `0.1.0` and `0.2.0` have both shipped and are
-archived in `bug-history/`; `bugs-current.md` now targets **0.3.0** (carries B-022,
-B-086, B-101 forward from 0.2.0). See `.specs/roadmap.md` §Release status for the
+each shipped release's closed-out batch. `0.1.0`, `0.2.0`, and `0.2.2` have shipped and
+are archived in `bug-history/` (`0.2.1` was a single one-off patch with no batch of its
+own — see `bug-history/v0.2.0.md`'s B-045 notes); `bugs-current.md` now targets
+**0.2.3** (carries B-108, B-022, B-086, B-101 forward from 0.2.2). Version bumps aren't
+always minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved
+for batches that land real new scope. See `.specs/roadmap.md` §Release status for the
 summary.
