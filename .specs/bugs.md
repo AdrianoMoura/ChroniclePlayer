@@ -78,6 +78,37 @@ Resolved entries add:
 
 ## Open
 
+### B-105 — First-ever sync: today's videos sit unread (and un-badged) until the Shorts pass catches up
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
+- **Area:** sync
+- **What happens:** on an account's very first sync, [[B-020]]/[[B-069]] already mark
+  every backlog video (published before today) read on arrival, so only *today's*
+  freshly-discovered videos land as unread. But hydration and the Shorts-confirmation
+  pass (`confirmShorts`) are separate steps — the Shorts pass runs after hydration and,
+  per `sync-service.ts`'s own comment, "first sync probes ~1k candidates," so it can take
+  a while. Until it finishes, today's videos (which is exactly the backlog-cutoff
+  boundary case most likely to contain same-day Shorts) show up unread with no Shorts
+  badge yet — the owner has to wait for the Shorts pass to complete before the unread
+  list/badge is actually representative of what's real content vs. Shorts.
+- **Expected (owner's suggestion):** on the very first sync only, mark *all* newly
+  discovered videos read on arrival — not just the ones published before today. A first
+  sync is establishing a starting baseline (there was no prior visit for "today's videos"
+  to be new relative to), not reporting "what's new since you were last here," so there's
+  no real unread-worthy content on that very first run either way; every subsequent sync
+  is unaffected and keeps marking new videos unread as normal. This removes the noisy
+  window entirely instead of racing the Shorts pass to close it.
+- **Code refs:** `src/core/sync-service.ts` (`refresh` — `backlogCutoff`, currently
+  `firstSync ? startOfToday(clock.now()).toISOString() : null`, and the
+  `repo.markVideosReadIfUnset(backlogIds, hydratedAt)` call it gates; `confirmShorts`,
+  which runs later in the same `refresh` and is what the owner is waiting on).
+- **Notes:** same rationale family as [[D-042]]/[[B-058]] (archive-backfilled videos
+  default read, since they predate the user following Chronicle) — this would extend
+  that same logic to cover first-sync's same-day videos too, rather than special-casing
+  around the Shorts pass's timing. Needs a spec update to `feed.md` §Backfill rules
+  ("First-ever sync") and probably a `decisions.md` entry if the owner confirms this
+  direction, since it changes a rule [[B-020]]/[[B-069]] recorded as settled behavior.
+  Per the bug-tracking workflow, staying Open until the owner says to attack it.
+
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.3.0
   (carried over — 0.2.0 shipped 2026-07-15 without this)

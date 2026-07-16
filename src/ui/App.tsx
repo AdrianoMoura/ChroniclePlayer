@@ -1350,6 +1350,16 @@ export function App() {
     : meta.caughtUp
       ? `${t('app.status.caughtUp')}${meta.lastRefreshAt ? t('app.status.lastRefreshSuffix', { time: formatClockTime(meta.lastRefreshAt) }) : ''}`
       : t('app.status.unreadCount', { count: currentUnreadCount })
+  // B-105: a hover tooltip on the (i) icon next to the status text explains
+  // what each sync phase actually does — only shown while a sync is running,
+  // since the caught-up/unread-count states are self-explanatory.
+  const statusInfoTitle = refreshing
+    ? progress !== null
+      ? progress.phase === 'shorts'
+        ? t('app.status.filteringShortsInfo')
+        : t('app.status.checkingChannelsInfo')
+      : t('app.status.refreshingInfo')
+    : null
 
   return (
     <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
@@ -1454,7 +1464,14 @@ export function App() {
                   </span>
                 )}
               </span>
-              <span className="status">{statusText}</span>
+              <span className="status">
+                {statusText}
+                {statusInfoTitle !== null && (
+                  <span className="status-info" title={statusInfoTitle}>
+                    ⓘ
+                  </span>
+                )}
+              </span>
               {showMarkAllRead && (
                 <button className="mark-all-read" onClick={markAllRead}>
                   {t('app.topbar.markAllRead')}

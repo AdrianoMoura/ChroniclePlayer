@@ -338,6 +338,15 @@ export const en = {
   'app.status.caughtUp': 'All caught up',
   'app.status.lastRefreshSuffix': ' · last refresh {time}',
   'app.status.unreadCount': '{count} unread',
+  // Tooltip copy behind the (i) icon shown next to the status text while a
+  // sync is running — one line, in plain language, explaining what that
+  // phase is actually doing (B-105).
+  'app.status.checkingChannelsInfo':
+    "Checking each subscribed channel's uploads for videos published since the last sync.",
+  'app.status.filteringShortsInfo':
+    'Confirming which of the newly found videos are YouTube Shorts, so they can be badged in the feed. Shorts are shown alongside regular videos, never hidden.',
+  'app.status.refreshingInfo':
+    'Re-listing your subscriptions, then checking every channel for new videos.',
 
   // App — feed
   'app.feed.emptyFiltered': 'Nothing matches the filter.',

@@ -574,6 +574,19 @@ input:focus-visible,
   flex: 1;
 }
 
+/* B-105: (i) icon next to the status text, shown only while a sync is
+   running — native title attribute for the tooltip, same pattern as every
+   other title-based tooltip in the app. */
+.status-info {
+  margin-left: 4px;
+  cursor: help;
+  opacity: 0.7;
+}
+
+.status-info:hover {
+  opacity: 1;
+}
+
 /* B-020 */
 .mark-all-read {
   color: var(--text-dim);
