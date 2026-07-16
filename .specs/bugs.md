@@ -191,6 +191,34 @@ Resolved entries add:
   scrolling now work in the top strip; does clicking/seeking anywhere on the video still
   work exactly as before) before deciding whether a further round (e.g. widening the
   strip, or a different area) is warranted, same iterative approach as [[B-045]].
+- **Owner feedback on round 1 (2026-07-16):** live-tested — confirmed both problems the
+  root-cause writeup above predicted but didn't fully spell out. (1) The strip barely
+  worked at all: it's nested inside `.player-stage`, so it moves exactly with the video's
+  live scroll position — but a wheel gesture doesn't move the cursor, only the content
+  under it, so after the very first scroll tick the video (and the strip glued to it) had
+  already moved out from under a stationary cursor, landing back on bare iframe with
+  nothing left to catch the rest of the gesture. (2) 18% of the video's height reached
+  into real embed controls near the top, which the strip then blocked — a straight
+  regression, not a partial win.
+- **Second-round fix (2026-07-16), same session:** the actual bug in round 1 wasn't the
+  strip's size or position — it was tracking the video's *live* position at all. Split
+  `PlayerSurface.tsx`'s existing scroll-tracking `measure()` effect into two update
+  paths: the video's own `rect` (clip-path, position) still updates on every scroll tick
+  as before ([[B-106]] depends on that), but a new `catcherRect` only updates on resize/
+  layout changes (`ResizeObserver`, `window resize`) — never on scroll. The catcher
+  (`.player-scroll-catcher`) moved out of `.player-stage` entirely, now an independent
+  `position: fixed` sibling positioned from `catcherRect` with its own `z-index: 22`
+  (above `.player-stage`'s 21, since it no longer inherits stacking from being nested).
+  Practical effect: once a wheel gesture starts, neither the stationary cursor nor the
+  now-frozen catcher moves, so the whole gesture stays caught instead of escaping after
+  one tick — the catcher only re-syncs to the video's true position between gestures (on
+  resize), not mid-gesture. Also shrunk it to a small fixed `40px` band instead of a
+  percentage of the video's height, to reduce (not eliminate — still not live-verified)
+  the risk of reaching into real controls. Checked via `npm run typecheck && npm run
+  lint && npm test` (200/200); **not run live** — needs the owner's hands-on check again
+  (does a continuous wheel gesture starting near the video's top edge now keep scrolling
+  instead of stopping after one tick; do the video's own controls near the top stay
+  clickable) before this can move past "In progress," same iterative shape as [[B-045]].
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major

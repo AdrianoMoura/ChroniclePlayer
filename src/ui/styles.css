@@ -1344,17 +1344,19 @@ button.primary:disabled {
   overflow: hidden;
 }
 
-/* B-108: same-origin strip on top of the iframe that forwards wheel scroll
-   to .player-view (see PlayerSurface.tsx for why it can't cover the whole
-   video). Sits above the iframe (no z-index needed — a positioned sibling
-   painting after it in DOM order already wins), transparent, no cursor
-   change so it doesn't look like a control. */
+/* B-108: same-origin strip that forwards wheel scroll to .player-view (see
+   PlayerSurface.tsx for why it can't cover the whole video, and why it's a
+   sibling of .player-stage rather than nested inside it — top/left/width
+   come from PlayerSurface's `catcherRect`, deliberately frozen during
+   scroll, not the video's own live position). `position: fixed` with an
+   explicit z-index above `.player-stage` (21), since it's no longer a
+   child relying on DOM-order stacking. Small fixed height, not a
+   percentage of the video's height — round 1's 18% reached into real
+   embed controls near the top. */
 .player-scroll-catcher {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 18%;
+  position: fixed;
+  height: 40px;
+  z-index: 22;
 }
 
 /* The full view's placeholder — occupies the exact space PlayerSurface's
