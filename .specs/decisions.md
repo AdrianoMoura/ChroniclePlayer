@@ -77,6 +77,44 @@ Ordered by how urgently they block work (see `roadmap.md`).
 | **D-019** | Backfill depth for new/first-sync channels | **RSS window (~15) + scroll-triggered deeper backfill** · fixed 50 · configurable | M2 | `feed.md` |
 | **D-020** | Auto-pruning of stateless old videos | **off by default** · on at 24 months | M5 | `local-data.md` |
 | **D-021** | Watch Later queue auto-advance | **off by default, opt-in setting** · on (it's the user's own queue) · never | M3 | `playback.md` |
+| **D-050** | Tray-resident mode, OS auto-start, opt-in new-video notifications | **three independent Settings toggles, all default off** (see below) · a single bundled "background mode" master switch | Future feature, no milestone yet | `features.md`, `architecture.md`, `non-goals.md` |
+
+**D-050 detail.** Three separate Settings toggles, not one bundled switch, since a user
+may want any one without the others: **(1) Auto-start** — launch Chronicle on OS login.
+**(2) Run in background / tray-resident** — closing the window hides it instead of
+quitting; a tray icon offers Open / Refresh now / Quit. This is what lets the existing
+30-min sync timer (D-016) keep running with no window open, and is the prerequisite for
+**(3) New-video notifications** (its Settings control is disabled with an explanation
+whenever (2) is off, since without it the app isn't alive to notice anything once the
+window closes). Notification scope is one segmented choice, not three settings: **All
+channels** · **Favorites only** (reuses the existing favorite-channel flag,
+`architecture.md`'s `FeedRepository`/`StateRepository` favorite queries — zero new
+schema) · **Custom** (checklist of followed channels, reusing the sidebar channel-list
+pattern). Internally all three are just presets that populate one `notify_channels`
+channel-id set — only "Custom" needs a new persisted per-channel flag. Notification
+content stays strictly mechanical per `non-goals.md`'s existing constraint: "N new
+video(s) from {channel}," click-through opens Chronicle to that video/channel — no
+re-engagement copy, no streak/badge language.
+Per-OS mechanism (same behavior, different plumbing): **tray icon** — Electron's `Tray`
+API, built-in and identical on all three OSes. **Auto-start** — Electron's
+`app.setLoginItemSettings()` covers Windows (Registry Run key) and macOS (LaunchAgent)
+natively; Electron does **not** support this on Linux, so it needs a hand-written/removed
+`~/.config/autostart/*.desktop` file (XDG Autostart spec) — plain `fs`, no native module,
+stays D-034-compliant. **OS notifications** — Electron's cross-platform `Notification`
+API everywhere; Windows needs the Start Menu shortcut + AppUserModelID that
+electron-builder's NSIS target already creates; Linux needs a notification daemon
+(libnotify/D-Bus — present on virtually every desktop environment) and proper
+AppImage desktop-integration metadata for the notification's name/icon to render right.
+**Rejected alternative:** an OS-level scheduled task (Task Scheduler/launchd/cron)
+launching Chronicle headlessly just to sync+notify, then exit — rejected as three
+separate per-OS scheduling implementations instead of reusing the sync machinery that
+already exists; tray-resident just needs that existing timer to survive with no window,
+strictly less new surface. **Verification risk (Assumption, not yet confirmed):** the
+product owner's hands-on verification is Linux-only (`roadmap.md`'s M0 exit criterion),
+so the Windows/macOS auto-start and notification paths — including whether D-043's
+unsigned/non-notarized macOS build degrades Notification Center registration — cannot be
+live-verified by the owner directly; each capability should feature-detect and disable
+itself silently rather than throw/crash if unavailable on a given platform.
 
 ## Key assumptions to verify (tracked; promote or correct on verification)
 
@@ -91,10 +129,11 @@ Ordered by how urgently they block work (see `roadmap.md`).
 | `feed.md` | No Shorts flag in the API; duration + `/shorts/{id}` HEAD heuristic discriminates reliably — **now MVP-blocking (D-028), verify early in M2** | M2 |
 | `local-data.md` | No runtime quota-remaining API exists (client-side accounting needed) | M2 |
 | `architecture.md` | SQLite WAL comfortably handles 1 writer + 1 reader at ≤100k rows | M1 |
+| `decisions.md` (D-050) | Windows/macOS auto-start (`setLoginItemSettings`) and OS notifications behave as expected on those platforms, incl. whether D-043's unsigned/non-notarized macOS build degrades Notification Center registration — owner's hands-on verification is Linux-only | when D-050 is implemented |
 
 ## How to add an entry
 
-Next free ID: **D-050**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-051**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.

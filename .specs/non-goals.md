@@ -48,7 +48,8 @@ supersedes the decision in `decisions.md`. All items in "Never" are **Final** de
 - **No engagement notifications** ("X uploaded!", streaks, badges, "you haven't visited in
   a while"). *Why:* Chronicle must never pull the user in; the user comes when they want.
   (A Future idea for opt-in, strictly mechanical new-video OS notifications exists in
-  `features.md`, but it defaults to off and is per-channel — it must never be promotional.)
+  `features.md`/D-050 in `decisions.md`, but it defaults to off and is scoped per-channel
+  — it must never be promotional.)
 - **No metrics designed to increase usage.** Chronicle keeps no watch-time analytics and
   sends no telemetry (D-011).
 

@@ -197,10 +197,27 @@ The app already works offline on local data; this feature is about deliberate
 offline-first polish (thumbnail pre-caching policies, TOS-compliant retention windows —
 see the storage-policy note in `youtube-api.md`).
 
-### Opt-in mechanical notifications
-Per-channel, default-off OS notifications for new uploads. Must remain mechanical
-(no batching "engagement" logic, no re-engagement copy). Requires tray-resident or
-scheduled background refresh — a real architectural addition; do not underestimate.
+### Tray-resident mode, auto-start, and opt-in mechanical notifications (D-050)
+Full design/rationale: `decisions.md` D-050. Three independent Settings toggles, **all
+default off**:
+- **Auto-start** — launch Chronicle on OS login.
+- **Run in background** — closing the window hides it instead of quitting; a tray icon
+  offers Open / Refresh now / Quit. This keeps the existing 30-min sync timer (D-016)
+  running with no window open, and is a prerequisite for notifications below (their
+  control is disabled, with an explanation, whenever this is off).
+- **New-video notifications** — mechanical only ("N new video(s) from {channel}",
+  click-through opens the video/channel; no re-engagement copy, no
+  streaks/badges — `non-goals.md`). Scope is one segmented choice, not three settings:
+  **All channels** · **Favorites only** (reuses the existing favorite-channel flag,
+  zero new schema) · **Custom** (checklist of followed channels). All three populate
+  one internal `notify_channels` channel-id set; only "Custom" needs new persisted
+  per-channel state.
+
+Real architectural addition — lands in the `platform/` layer (`architecture.md`'s
+existing reservation for tray/window-mgmt). Auto-start and notifications need
+different native mechanisms per OS (Electron's built-in APIs cover Windows/macOS
+auto-start and cross-platform notifications; Linux auto-start needs a hand-written
+XDG `.desktop` autostart entry, no native module). Do not underestimate.
 
 ### In-feed local search
 `/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search
