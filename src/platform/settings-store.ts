@@ -47,6 +47,12 @@ export interface AppSettings {
   // flag itself (ChannelDto.notify) — it's just ignored while inactive, so
   // the per-channel configuration survives round-trips between modes.
   notifyScope: 'all' | 'selected'
+  // D-052. A Short hidden from the feed (showShorts off) never notifies,
+  // regardless of this flag — this only decides whether Shorts that *are*
+  // shown in the feed also trigger a notification. Default true (matches
+  // the pre-D-052 behavior of notifying about every new video, Shorts
+  // included) — shown in Settings only while showShorts is also on.
+  notifyShorts: boolean
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless the user has manually changed it since. A one-shot
   // nudge at the moment of the favorite toggle, not a persistent binding.
@@ -75,6 +81,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   startMinimized: false,
   notifyNewVideos: false,
   notifyScope: 'all',
+  notifyShorts: true,
   autoNotifyFavorites: false,
   popOutOnClose: true
 }
@@ -96,6 +103,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const startMinimized = source['startMinimized']
   const notifyNewVideos = source['notifyNewVideos']
   const notifyScope = source['notifyScope']
+  const notifyShorts = source['notifyShorts']
   const autoNotifyFavorites = source['autoNotifyFavorites']
   const popOutOnClose = source['popOutOnClose']
   return {
@@ -138,6 +146,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
       typeof notifyNewVideos === 'boolean' ? notifyNewVideos : DEFAULT_SETTINGS.notifyNewVideos,
     notifyScope:
       notifyScope === 'all' || notifyScope === 'selected' ? notifyScope : DEFAULT_SETTINGS.notifyScope,
+    notifyShorts: typeof notifyShorts === 'boolean' ? notifyShorts : DEFAULT_SETTINGS.notifyShorts,
     autoNotifyFavorites:
       typeof autoNotifyFavorites === 'boolean'
         ? autoNotifyFavorites

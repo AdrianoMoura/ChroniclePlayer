@@ -166,6 +166,10 @@ export interface SettingsDto {
   // 'all' ignores the per-channel notify flag (everyone notifies); 'selected'
   // respects it — switching between the two never touches the flag itself.
   notifyScope: 'all' | 'selected'
+  // D-052, default true. A Short hidden from the feed (showShorts off) never
+  // notifies regardless of this flag; this only governs Shorts that *are*
+  // shown. Settings hides the toggle unless showShorts is also on.
+  notifyShorts: boolean
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless manually changed since.
   autoNotifyFavorites: boolean

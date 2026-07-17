@@ -305,6 +305,19 @@ export function SettingsView({
             {settings.notifyScope === 'selected' && (
               <p className="settings-line dim">{t('settings.notifications.scopeSelectedHint')}</p>
             )}
+            {settings.showShorts && (
+              <>
+                <label className="settings-row">
+                  <span>{t('settings.notifications.notifyShorts')}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.notifyShorts}
+                    onChange={(event) => set('notifyShorts', event.target.checked)}
+                  />
+                </label>
+                <p className="settings-line dim">{t('settings.notifications.notifyShortsNote')}</p>
+              </>
+            )}
           </>
         )}
         <label className="settings-row">

@@ -287,6 +287,16 @@ autostart would have silently broken on the very next login despite working duri
 the session that enabled it, fixed by preferring `$APPIMAGE` (the runtime's own stable
 path to the actual file) whenever present.
 
+**Shorts and notifications, fixed and extended (D-052).** New-video notifications
+originally counted Shorts identically to any other video, with no way to exclude
+them — turning off "Show Shorts" (`showShorts`, B-028) hid them from the feed but
+left them still triggering notifications. Fixed: a Short hidden from the feed now
+never notifies either, no matter what else is set. On top of the fix, a new
+**"Notify me about new Shorts"** toggle (`notifyShorts`, default on, shown only while
+`showShorts` is on) covers the remaining case — some channels post Shorts often
+enough that a user may want them in the feed but silent for notifications, without
+hiding them outright. Full rationale: `decisions.md` D-052.
+
 ### In-feed local search
 `/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search
 (SQLite FTS across titles/descriptions/notes). Never touches YouTube search

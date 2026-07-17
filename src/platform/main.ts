@@ -1560,7 +1560,13 @@ async function boot(): Promise<void> {
     }
     try {
       if (!Notification.isSupported()) return
+      // D-052: Shorts hidden from the feed (showShorts off) never notify,
+      // full stop — notifyShorts only decides whether they do when Shorts
+      // are otherwise shown.
+      const includeShorts = settings.showShorts && settings.notifyShorts
       let matched = report.newVideosByChannel
+        .map((entry) => ({ ...entry, count: includeShorts ? entry.count : entry.count - entry.shortsCount }))
+        .filter((entry) => entry.count > 0)
       if (settings.notifyScope === 'selected') {
         const followed = feedRepository.listFollowedChannels(true)
         const scopedIds = new Set(followed.filter((c) => c.notify).map((c) => c.channel.channelId))

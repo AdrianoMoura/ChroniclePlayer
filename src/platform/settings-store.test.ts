@@ -33,6 +33,7 @@ describe('settings store', () => {
       startMinimized: true,
       notifyNewVideos: true,
       notifyScope: 'selected',
+      notifyShorts: false,
       autoNotifyFavorites: true,
       popOutOnClose: false
     } as const
@@ -63,6 +64,7 @@ describe('settings store', () => {
         startMinimized: 'yes',
         notifyNewVideos: null,
         notifyScope: 'everything',
+        notifyShorts: 'yes',
         autoNotifyFavorites: 'yes',
         popOutOnClose: 'yes'
       })
@@ -81,6 +83,7 @@ describe('settings store', () => {
       startMinimized: false,
       notifyNewVideos: false,
       notifyScope: 'all',
+      notifyShorts: true,
       autoNotifyFavorites: false,
       popOutOnClose: true
     })
@@ -89,6 +92,11 @@ describe('settings store', () => {
   it('accepts popOutOnClose=false (D-051)', () => {
     expect(normalizeSettings({ popOutOnClose: false }).popOutOnClose).toBe(false)
     expect(normalizeSettings({}).popOutOnClose).toBe(true)
+  })
+
+  it('accepts notifyShorts=false (D-052)', () => {
+    expect(normalizeSettings({ notifyShorts: false }).notifyShorts).toBe(false)
+    expect(normalizeSettings({}).notifyShorts).toBe(true)
   })
 
   it('accepts the D-050 toggles + notify scope (all|selected only, D-050 redesign)', () => {

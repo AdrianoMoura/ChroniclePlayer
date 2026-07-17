@@ -363,6 +363,19 @@ export class SqliteSyncRepository implements SyncRepository {
       .run(isShort ? 1 : 0, videoId)
   }
 
+  countShorts(videoIds: readonly string[]): number {
+    let count = 0
+    for (let i = 0; i < videoIds.length; i += 500) {
+      const chunk = videoIds.slice(i, i + 500)
+      const placeholders = chunk.map(() => '?').join(',')
+      const row = this.db
+        .prepare(`SELECT COUNT(*) AS n FROM videos WHERE is_short = 1 AND video_id IN (${placeholders})`)
+        .get(...chunk) as unknown as { n: number | bigint }
+      count += Number(row.n)
+    }
+    return count
+  }
+
   upcomingVideoIds(channelId?: string): string[] {
     const rows = (
       channelId === undefined

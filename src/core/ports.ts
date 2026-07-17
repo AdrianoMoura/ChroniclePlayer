@@ -286,6 +286,10 @@ export interface SyncRepository {
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[]
   setShortStatus(videoId: string, isShort: boolean): void
+  // D-052: how many of the given (already-confirmed) videoIds are Shorts —
+  // used right after confirmShorts() to break a refresh's newVideosByChannel
+  // counts down into shorts vs. non-shorts, for the notify-shorts filter.
+  countShorts(videoIds: readonly string[]): number
   // liveContent is only ever captured at hydration time — a video hydrated
   // while the broadcast hadn't started yet stays 'upcoming' forever unless
   // something re-queries it. channelId scopes to a single channel (B-036).

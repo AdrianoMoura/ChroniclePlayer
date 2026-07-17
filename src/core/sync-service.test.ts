@@ -107,6 +107,9 @@ class FakeRepo implements SyncRepository {
   setShortStatus(videoId: string, isShort: boolean): void {
     this.shortStatuses.set(videoId, isShort)
   }
+  countShorts(videoIds: readonly string[]): number {
+    return videoIds.filter((id) => this.shortStatuses.get(id) === true).length
+  }
   upcomingVideoIds(channelId?: string): string[] {
     if (channelId === undefined) return this.upcoming
     return this.upcoming.filter((id) => this.upcomingChannel.get(id) === channelId)
@@ -298,11 +301,44 @@ describe('SyncService.refresh', () => {
 
     expect(report.newVideosByChannel).toEqual(
       expect.arrayContaining([
-        { channelId: 'UCa', channelTitle: 'Alpha', count: 2 },
-        { channelId: 'UCb', channelTitle: 'Beta', count: 1 }
+        { channelId: 'UCa', channelTitle: 'Alpha', count: 2, shortsCount: 0 },
+        { channelId: 'UCb', channelTitle: 'Beta', count: 1, shortsCount: 0 }
       ])
     )
     expect(report.newVideosByChannel).toHaveLength(2)
+  })
+
+  it('breaks each channel\'s new-video count down into shorts vs. non-shorts (D-052)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa', { title: 'Alpha' })
+    repo.addChannel('UCb', { title: 'Beta' })
+    const source = fakeVideoSource({
+      feeds: {
+        UCa: {
+          kind: 'ok',
+          entries: [discovered('a-short'), discovered('a-long')],
+          etag: null,
+          lastModified: null
+        },
+        UCb: { kind: 'ok', entries: [discovered('b-long')], etag: null, lastModified: null }
+      }
+    })
+    const prober: ShortsProber = { isShort: (videoId) => Promise.resolve(videoId === 'a-short') }
+    // Only videos with duration <= 180s become candidates in the real repo;
+    // the fake tracks confirmed status directly, so seed it as if
+    // shortCandidates() had already surfaced these two.
+    repo.candidates = ['a-short', 'a-long']
+    repo.candidateChannel.set('a-short', 'UCa')
+    repo.candidateChannel.set('a-long', 'UCa')
+
+    const report = await service(repo, source, { prober }).refresh('manual', 'acc1')
+
+    expect(report.newVideosByChannel).toEqual(
+      expect.arrayContaining([
+        { channelId: 'UCa', channelTitle: 'Alpha', count: 2, shortsCount: 1 },
+        { channelId: 'UCb', channelTitle: 'Beta', count: 1, shortsCount: 0 }
+      ])
+    )
   })
 
   it('attributes a per-channel failure to its channel in the report (B-097)', async () => {

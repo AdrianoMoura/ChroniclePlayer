@@ -242,6 +242,7 @@ export function App() {
     startMinimized: false,
     notifyNewVideos: false,
     notifyScope: 'all',
+    notifyShorts: true,
     autoNotifyFavorites: false,
     popOutOnClose: true
   })

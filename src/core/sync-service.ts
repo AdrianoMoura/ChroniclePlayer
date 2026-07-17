@@ -43,7 +43,9 @@ export interface SyncReport {
   videosNew: number
   // D-050: same information as videosNew, broken down per channel — only
   // channels with at least one newly discovered video are listed.
-  newVideosByChannel: { channelId: string; channelTitle: string; count: number }[]
+  // D-052: shortsCount (how many of count are confirmed Shorts) is filled in
+  // after confirmShorts() runs below, so it reflects that cycle's verdicts.
+  newVideosByChannel: { channelId: string; channelTitle: string; count: number; shortsCount: number }[]
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
   // The subscription-list diff for this run (B-021: every sync re-lists —
@@ -152,6 +154,10 @@ export class SyncService {
       this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
 
       const toHydrate: string[] = []
+      // D-052: kept alongside newVideosByChannel so shortsCount can be
+      // resolved once confirmShorts() below has settled this cycle's Shorts
+      // candidates — at discovery time isShort isn't known yet.
+      const newIdsByChannel = new Map<string, string[]>()
       const results = await mapPool(channels, RSS_CONCURRENCY, async (channel) => {
         const newIds = await this.discoverChannel(channel, ctx)
         checked += 1
@@ -163,10 +169,12 @@ export class SyncService {
           toHydrate.push(...result.value)
           if (result.value.length > 0) {
             const channel = channels[index]
+            newIdsByChannel.set(channel.channelId, result.value)
             newVideosByChannel.push({
               channelId: channel.channelId,
               channelTitle: channel.title,
-              count: result.value.length
+              count: result.value.length,
+              shortsCount: 0
             })
           }
         } else if (isDomainError(result.error, 'quota-exceeded')) {
@@ -225,6 +233,11 @@ export class SyncService {
 
       await this.refreshUpcomingLiveStatus(channelId, ctx)
       await this.confirmShorts(channelId)
+      // D-052: Shorts verdicts are settled now — resolve each channel's
+      // shortsCount for the notify-shorts filter (main.ts's maybeNotifyNewVideos).
+      for (const entry of newVideosByChannel) {
+        entry.shortsCount = this.deps.repo.countShorts(newIdsByChannel.get(entry.channelId) ?? [])
+      }
 
       const outcome = ctx.quotaHit
         ? 'quota'

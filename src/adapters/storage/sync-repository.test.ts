@@ -274,6 +274,20 @@ describe('shorts pipeline storage (D-028)', () => {
     ).toEqual(['fine'])
     expect(feed.countUnread(false)).toBe(1)
   })
+
+  it('countShorts counts only confirmed Shorts among the given ids (D-052)', () => {
+    sync.applyHydration(
+      [hydratedVideo('shorty-1', 30), hydratedVideo('shorty-2', 60), hydratedVideo('fine', 90)],
+      NOW
+    )
+    sync.setShortStatus('shorty-1', true)
+    sync.setShortStatus('shorty-2', true)
+    sync.setShortStatus('fine', false)
+    expect(sync.countShorts(['shorty-1', 'shorty-2', 'fine'])).toBe(2)
+    expect(sync.countShorts(['fine'])).toBe(0)
+    expect(sync.countShorts(['unknown-id'])).toBe(0)
+    expect(sync.countShorts([])).toBe(0)
+  })
 })
 
 describe('channel sync meta', () => {

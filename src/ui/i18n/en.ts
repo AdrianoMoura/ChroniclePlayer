@@ -149,6 +149,9 @@ export const en = {
   'settings.notifications.scopeSelected': 'Selected channels',
   'settings.notifications.scopeSelectedHint':
     'Toggle notifications per channel from the icon next to it in the sidebar, or from its channel page.',
+  'settings.notifications.notifyShorts': 'Notify me about new Shorts',
+  'settings.notifications.notifyShortsNote':
+    "Off means Shorts still show up in your feed, but never trigger a notification — handy for channels that post them often. Shorts hidden from the feed above never notify either way.",
   'settings.notifications.autoFavorite': 'Automatically notify for channels I favorite',
   'settings.notifications.autoFavoriteNote':
     'Favoriting a channel turns notifications on for it; unfavoriting turns them back off — unless you change that channel\'s notification state yourself afterward, which is always respected.',
