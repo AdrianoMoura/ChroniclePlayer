@@ -3,7 +3,7 @@ node_modules/
 .claude/worktrees/
 out/
 dist/
-release/
+/release/
 coverage/
 *.log
 .DS_Store
