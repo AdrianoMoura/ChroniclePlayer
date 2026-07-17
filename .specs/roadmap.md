@@ -166,10 +166,31 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   bug-fix batch). B-108, B-022, B-086, B-101 are untouched by this release and carry
   forward to `0.4.3`, renumbered from the `0.4.2` placeholder since this version shipped
   ahead of that batch.
-- **0.4.3 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
-  0.3.0 (renumbered past 0.4.0, 0.4.1, and 0.4.2 — see above, none of the three touched
-  this batch). No batch of its own yet — new items reported after 0.4.2 shipped land
-  here.
+- **0.4.3 — delivered, 2026-07-16.** One Fixed entry, `bug-history/v0.4.3.md`: B-111,
+  reported and fixed the same day. Leaving the full-view player or closing the window to
+  the tray while the video was genuinely paused still docked/popped it out as if it were
+  playing — the owner narrowed the repro live: it happened when pausing by clicking the
+  video itself, but not with the Space shortcut, which pointed straight at the cause.
+  `isStillGoing()`'s `playerStateRef` only updated from the `onStateChange` postMessage
+  event, which `playback.md` already documents (from D-038's rate-reissue fix) as
+  unreliable for state changes the embed initiates itself rather than ones Chronicle
+  triggers via `command()` — Space never hit the gap because it updates the ref
+  optimistically the instant it's pressed. Fixed the same way D-038's own reissue bug
+  was: `infoDelivery` also carries a `playerState` field and fires as a steady heartbeat
+  rather than a one-shot transition, so `playerStateRef` now also updates from it on
+  every tick, without touching the transition-only side effects (ended overlay, resume
+  checkpoint, quality/rate reissue) that must still fire exactly once per real
+  transition. Checked via `npm run typecheck && npm run lint && npm test` (209/209); not
+  run live, per [[no-live-app-verification]] — needs the owner's own confirmation that
+  clicking the video to pause and then leaving/closing no longer docks or pops out.
+  **Shipped 2026-07-16** — `package.json` bumped to `0.4.3` (patch: a single
+  minor-severity bug fix, no new scope). B-108, B-022, B-086, B-101 are untouched by this
+  release and carry forward to `0.4.4`, renumbered from the `0.4.3` placeholder since
+  this version shipped ahead of that batch.
+- **0.4.4 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
+  0.3.0 (renumbered past 0.4.0, 0.4.1, 0.4.2, and 0.4.3 — see above, none of the four
+  touched this batch). No batch of its own yet — new items reported after 0.4.3 shipped
+  land here.
 
 ## M0 — Walking skeleton
 

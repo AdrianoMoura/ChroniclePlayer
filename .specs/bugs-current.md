@@ -105,12 +105,23 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   direction (even though it lands a new Settings toggle, not a pure bug-fix batch).
   Shipped 2026-07-16. Since this landed ahead of this file's own batch, its `0.4.2`
   target is renumbered to `0.4.3` below.
+- [`bug-history/v0.4.3.md`](bug-history/v0.4.3.md) — a single entry, [[B-111]] (Fixed
+  same day it was reported): leaving the full-view player or closing the window to the
+  tray while the video was genuinely paused still docked/popped it out as if it were
+  playing, because `playerStateRef` only updated from the `onStateChange` postMessage
+  event — reliable for Chronicle's own `command()`-triggered pauses (and the Space
+  shortcut, which updates it optimistically anyway) but not for a pause the embed
+  initiates itself (clicking the video), the same round-trip unreliability
+  `playback.md` already documented for D-038's rate-reissue fix. Fixed the same way:
+  also read `playerState` off the `infoDelivery` heartbeat. B-108, B-022, B-086, B-101
+  didn't make it into this release either and carried their Target forward again.
+  Shipped as a **patch** version. Shipped 2026-07-16.
 
-**Current target: 0.4.3** (in progress; renumbered from `0.4.2` — v0.4.2 shipped ahead
+**Current target: 0.4.4** (in progress; renumbered from `0.4.3` — v0.4.3 shipped ahead
 of this batch, see above). Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward
 from 0.3.0 (none of the four made it into that release — see
-`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.4.3 ships, this file's
-content moves to `bug-history/v0.4.3.md` and a new `bugs-current.md` starts targeting
+`bug-history/v0.2.2.md`/`bug-history/v0.3.0.md` for why). When 0.4.4 ships, this file's
+content moves to `bug-history/v0.4.4.md` and a new `bugs-current.md` starts targeting
 whatever comes after it.
 
 ## Entry template
@@ -139,8 +150,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.3
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.4
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, and 0.4.3 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -167,7 +178,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.4.3 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
+  0.4.4 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, and 0.4.3 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -210,8 +221,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.3
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.4
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, and 0.4.3 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -310,8 +321,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.3 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.4 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, and 0.4.3 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -395,34 +406,4 @@ Resolved entries add:
 
 ## Resolved
 
-### B-111 — Dock/pop-out fires even when the video is actually paused
-- **Type:** bug · **Severity:** minor
-- **Status:** Fixed · **Reported:** 2026-07-16 · **Target:** 0.4.3
-- **Area:** player
-- **What happens:** the owner reported that leaving the full-view player while the video
-  is paused still docks the miniplayer *playing*; separately, closing the main window to
-  the tray (`backgroundMode`, [[D-050]]) while the video is paused still pops it out to
-  the always-on-top extract window ([[D-051]]) instead of just leaving it paused. Both
-  paths are meant to no-op (or actually stay paused) when the video isn't going, per
-  [[D-046]]'s `isStillGoing()` gate. Confirmed live by the owner: it reproduces when
-  pausing by clicking the video itself, not with the Space shortcut.
-- **Expected:** leaving/closing while genuinely paused should never dock or extract —
-  only an in-progress video should. Reference: `playback.md`, [[D-046]], [[D-051]].
-- **Code refs:** `src/ui/PlayerSurface.tsx` (`playerStateRef`, `isStillGoing()`, the
-  `onStateChange`/`infoDelivery` postMessage handler).
-- **Resolved:** 2026-07-16 · **Commit:** ca47aa4 · **Outcome:** Fixed
-- **Resolution:** root cause matched the leading hypothesis, refined once the owner's
-  live confirmation ruled out a wholesale postMessage failure: Space sets
-  `playerStateRef` optimistically the instant it's pressed, so it was never exposed —
-  but a pause via the embed's own native controls depends entirely on the
-  `onStateChange` postMessage round trip landing, and `playback.md` already documents
-  (from D-038's rate-reissue fix) that this specific event isn't reliably observed for
-  state changes the embed initiates itself, as opposed to ones triggered by Chronicle's
-  own `command()` calls. Same fix shape as that earlier one: `infoDelivery` also carries
-  a `playerState` field and fires as a steady heartbeat rather than a one-shot
-  transition, so `playerStateRef` now also updates from it on every tick, closing the
-  gap without touching the transition-only side effects (ended overlay, resume
-  checkpoint, quality/rate reissue) that must still fire exactly once per real
-  transition. Checked via `npm run typecheck && npm run lint && npm test` (209/209);
-  **not run live** — needs the owner's own live confirmation that clicking the video to
-  pause and then leaving/closing no longer docks or pops out.
+*(none yet this cycle)*

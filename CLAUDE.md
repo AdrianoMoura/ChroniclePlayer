@@ -203,11 +203,29 @@ wrapper safe to bind to any click/key handler. Full narrative in `decisions.md` 
 no `bug-history/` file, since this didn't come through the bug tracker. See
 `.specs/roadmap.md` §Release status for the exact shipped scope.
 
+**B-111 (dock/pop-out firing on a genuinely paused video) shipped in `0.4.3`,
+2026-07-16** — a normal bug-tracker fix, reported and Fixed the same day. Leaving the
+full-view player, or closing the window to the tray (D-050's `backgroundMode`), while
+the video was actually paused still docked the miniplayer or popped it into the
+always-on-top extract window (D-051) as if it were still playing. The owner's own live
+narrowing was the key clue: it reproduced when pausing by clicking the video itself, but
+not with the Space shortcut. Root cause: `isStillGoing()`'s `playerStateRef` only
+updated from the `onStateChange` postMessage event, which `playback.md` already
+documented (from D-038's playback-rate reissue fix) as unreliable for state changes the
+embed initiates on its own rather than ones Chronicle triggers via `command()` — Space
+never hit the gap because it updates the ref optimistically the instant it's pressed.
+Fixed the same way D-038's own bug was: `infoDelivery` also carries a `playerState`
+field and fires as a steady heartbeat rather than a one-shot transition, so
+`playerStateRef` (`src/ui/PlayerSurface.tsx`) now also updates from it on every tick,
+without touching the transition-only side effects (ended overlay, resume checkpoint,
+quality/rate reissue) that must still fire exactly once per real transition. Full
+narrative in `bug-history/v0.4.3.md`'s B-111 entry.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
-each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, and `0.3.0` have
-shipped and are archived in `bug-history/` (`0.2.1` was a single one-off patch with no
-batch of its own — see `bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110,
+each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, and `0.4.3`
+have shipped and are archived in `bug-history/` (`0.2.1` was a single one-off patch with
+no batch of its own — see `bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110,
 both Fixed) was originally tracked toward a `0.2.3` patch but grew into real new scope
 along the way — D-048 removed a whole failure-handling subsystem (channels no longer
 get permanently marked "unavailable" off a single transient RSS 404), a
@@ -217,12 +235,14 @@ how sync failures are surfaced (no more banner for ordinary per-cycle noise, onl
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050, above) shipped the same way — real new scope, not a
 bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`). `0.4.1`
-(the B-108 revert, above) shipped as a **patch** instead — a revert, not new scope, and
-not a fix for anything in the batch below. `0.4.2` (D-051, above) also shipped as a
-**patch**, per the owner's own explicit direction this time, even though it lands a new
-Settings toggle rather than being a pure bug-fix batch. `bugs-current.md` now targets
-**0.4.3**, renumbered from `0.4.2` since that version shipped ahead of it (carries
-B-108, B-022, B-086, B-101 forward, untouched, from 0.3.0). Version bumps aren't always
-minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for
-batches that land real new scope, but the owner's own explicit call on a given release
-always wins. See `.specs/roadmap.md` §Release status for the summary.
+(the B-108 revert) shipped as a **patch** instead — a revert, not new scope, and not a
+fix for anything in the batch below. `0.4.2` (D-051) also shipped as a **patch**, per
+the owner's own explicit direction, even though it lands a new Settings toggle rather
+than being a pure bug-fix batch. `0.4.3` (B-111, above) shipped as a **patch** too — a
+single minor-severity bug fix, the normal case this file's "pure bug-fix batch ships as
+a patch" rule describes. `bugs-current.md` now targets **0.4.4**, renumbered from
+`0.4.3` since that version shipped ahead of it (carries B-108, B-022, B-086, B-101
+forward, untouched, from 0.3.0). Version bumps aren't always minor — a pure bug-fix
+batch ships as a patch release, a minor bump is reserved for batches that land real new
+scope, but the owner's own explicit call on a given release always wins. See
+`.specs/roadmap.md` §Release status for the summary.
