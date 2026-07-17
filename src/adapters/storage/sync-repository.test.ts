@@ -35,6 +35,7 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     publishedAt: '2026-07-11T08:00:00Z',
     durationSeconds,
     liveContent: 'none',
+    isPremiere: false,
     thumbnailUrl: 'https://thumb.example/x.jpg',
     description: 'full description',
     viewCount: 12345
@@ -213,6 +214,23 @@ describe('discovery and hydration', () => {
     expect(sync.upcomingVideoIds()).toEqual([])
     const entries = feed.listPage('all', null, 10).entries
     expect(entries.find((e) => e.video.videoId === 'premiere-1')?.video.liveContent).toBe('live')
+  })
+
+  it('liveVideoIds finds videos still flagged live, and clears (with the real duration) once the broadcast ends (B-114)', () => {
+    sync.applyHydration(
+      [
+        { ...hydratedVideo('stream-1', 0), liveContent: 'live' },
+        { ...hydratedVideo('normal-1', 600), liveContent: 'none' }
+      ],
+      NOW
+    )
+    expect(sync.liveVideoIds()).toEqual(['stream-1'])
+    sync.applyHydration([{ ...hydratedVideo('stream-1', 5400), liveContent: 'none' }], NOW)
+    expect(sync.liveVideoIds()).toEqual([])
+    const entries = feed.listPage('all', null, 10).entries
+    const ended = entries.find((e) => e.video.videoId === 'stream-1')?.video
+    expect(ended?.liveContent).toBe('none')
+    expect(ended?.durationSeconds).toBe(5400)
   })
 
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {

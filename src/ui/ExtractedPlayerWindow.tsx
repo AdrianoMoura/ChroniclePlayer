@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // B-045 "extract to an always-on-top window": a second BrowserWindow is a
 // separate renderer process, so there's no way to move the main window's
@@ -38,10 +38,10 @@ const RESUME_MIN_SECONDS = 10
 const RATE_RETRY_WINDOW_MS = 3000
 
 export function ExtractedPlayerWindow({
-  videoId,
-  title,
+  videoId: initialVideoId,
+  title: initialTitle,
   startSeconds,
-  autoplay,
+  autoplay: initialAutoplay,
   defaultPlaybackRate
 }: {
   videoId: string
@@ -50,8 +50,27 @@ export function ExtractedPlayerWindow({
   autoplay: boolean
   defaultPlaybackRate: number
 }) {
+  // B-112: the window used to be handed one fixed video for its whole life
+  // (props straight from the URL query string main.ts built it with) — now
+  // the main window can swap in a new one (loadInExtractWindow) while this
+  // window stays open, so videoId/title/autoplay are local state instead.
+  const [videoId, setVideoId] = useState(initialVideoId)
+  const [title, setTitle] = useState(initialTitle)
+  const [autoplay, setAutoplay] = useState(initialAutoplay)
+  // Only meaningful for the very first load — a later swap always starts
+  // at 0 (there's no "resume position" for a video the user just picked
+  // from the main window's feed).
+  const [startAt, setStartAt] = useState(startSeconds)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const currentTimeRef = useRef(startSeconds)
+  // Kept in sync so the player:loadInExtract handler below can persist the
+  // *outgoing* video's position without it being a dependency of that
+  // effect (which must only be set up once, like PlayerSurface's onEvent
+  // subscriptions elsewhere).
+  const videoIdRef = useRef(initialVideoId)
+  useEffect(() => {
+    videoIdRef.current = videoId
+  }, [videoId])
 
   // D-051: index.html's static <title>Chronicle</title> would otherwise
   // apply here too (this window loads the exact same renderer bundle),
@@ -122,6 +141,29 @@ export function ExtractedPlayerWindow({
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [videoId])
 
+  // B-112: the main window had this window open when the user picked a
+  // different video — swap it in here instead of it (also) starting in the
+  // main window. Same resume-position handoff PlayerSurface does for a
+  // normal in-main-window video switch, just applied to whichever video is
+  // being replaced here.
+  useEffect(() => {
+    return window.chronicle.onEvent((event) => {
+      if (event.type !== 'player:loadInExtract') return
+      if (currentTimeRef.current >= RESUME_MIN_SECONDS) {
+        void window.chronicle.setResumePosition(
+          videoIdRef.current,
+          Math.floor(currentTimeRef.current)
+        )
+      }
+      currentTimeRef.current = 0
+      loadedAtRef.current = Date.now()
+      setStartAt(0)
+      setVideoId(event.videoId)
+      setTitle(event.title)
+      setAutoplay(true)
+    })
+  }, [])
+
   if (!VIDEO_ID_PATTERN.test(videoId)) return null
 
   const params = new URLSearchParams({
@@ -131,7 +173,7 @@ export function ExtractedPlayerWindow({
     controls: '1',
     enablejsapi: '1',
     autoplay: autoplay ? '1' : '0',
-    start: String(Math.max(0, Math.floor(startSeconds)))
+    start: String(Math.max(0, Math.floor(startAt)))
   })
 
   return (

@@ -1198,7 +1198,8 @@ button.primary:disabled {
   border-color: #a05252;
 }
 
-.live-badge-upcoming {
+.live-badge-upcoming,
+.live-badge-ended {
   color: var(--text-dim);
   border-color: var(--border);
 }
@@ -1731,6 +1732,15 @@ button.primary.active {
   margin: 6px 0 4px;
   font-size: 13.5px;
   white-space: pre-wrap;
+}
+
+.comment-text a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.comment-text a:hover {
+  text-decoration: underline;
 }
 
 .comment-reply-toggle {

@@ -35,6 +35,8 @@ class FakeRepo implements SyncRepository {
   shortStatuses = new Map<string, boolean>()
   upcoming: string[] = []
   upcomingChannel = new Map<string, string>() // videoId -> channelId, for scoped upcomingVideoIds tests
+  live: string[] = []
+  liveChannel = new Map<string, string>() // videoId -> channelId, for scoped liveVideoIds tests
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
@@ -114,6 +116,10 @@ class FakeRepo implements SyncRepository {
     if (channelId === undefined) return this.upcoming
     return this.upcoming.filter((id) => this.upcomingChannel.get(id) === channelId)
   }
+  liveVideoIds(channelId?: string): string[] {
+    if (channelId === undefined) return this.live
+    return this.live.filter((id) => this.liveChannel.get(id) === channelId)
+  }
   recordSync(entry: SyncLogEntry): void {
     this.logs.push(entry)
   }
@@ -177,6 +183,7 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           publishedAt: behavior.publishedAt?.[videoId] ?? '2026-07-11T10:00:00Z',
           durationSeconds: 600,
           liveContent: 'none' as const,
+          isPremiere: false,
           thumbnailUrl: null,
           description: null,
           viewCount: 1000
@@ -432,7 +439,17 @@ describe('SyncService.refresh', () => {
     expect(repo.hydrated).toContain('premiere-1')
   })
 
-  it('skips the upcoming re-check entirely when there is nothing flagged upcoming', async () => {
+  it('re-checks locally live videos every refresh too, so a broadcast that ended can update (B-114)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    repo.live = ['stream-1']
+    const source = fakeVideoSource()
+    await service(repo, source).refresh('timer', 'acc1')
+    expect(source.hydrateCalls.flat()).toContain('stream-1')
+    expect(repo.hydrated).toContain('stream-1')
+  })
+
+  it('skips the live/upcoming re-check entirely when nothing is flagged either way', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa')
     const source = fakeVideoSource()

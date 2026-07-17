@@ -153,7 +153,8 @@ export type RssFeedResult =
       lastModified: string | null
     }
 
-// Full facts from videos.list (snippet + contentDetails + liveBroadcastContent).
+// Full facts from videos.list (snippet + contentDetails + liveStreamingDetails
+// + liveBroadcastContent).
 export interface HydratedVideo {
   videoId: string
   channelId: string
@@ -162,6 +163,16 @@ export interface HydratedVideo {
   publishedAt: string
   durationSeconds: number
   liveContent: 'none' | 'live' | 'upcoming'
+  // B-115: liveBroadcastContent alone reports 'live' identically for a
+  // genuine live broadcast and a Premiere (a pre-recorded video played on a
+  // schedule) — there's no dedicated API flag for "this is a Premiere".
+  // Best-effort signal: liveStreamingDetails.concurrentViewers is only
+  // present while a genuine broadcast is actually live; a Premiere, not
+  // being a real broadcast, doesn't report it. Only meaningful while
+  // liveContent is 'live' — always false otherwise (there's no known way to
+  // tell a Premiere apart from a real scheduled livestream before either
+  // one starts). **Unverified against real Premiere data** — see B-115.
+  isPremiere: boolean
   thumbnailUrl: string | null
   description: string | null
   viewCount: number | null
@@ -294,6 +305,12 @@ export interface SyncRepository {
   // while the broadcast hadn't started yet stays 'upcoming' forever unless
   // something re-queries it. channelId scopes to a single channel (B-036).
   upcomingVideoIds(channelId?: string): string[]
+  // B-114: the mirror-image gap — a video hydrated while a stream was
+  // actually live stays 'live' forever once the broadcast ends unless
+  // something re-queries it too (duration_seconds also stays stuck at the
+  // 0 the API reports for an in-progress broadcast). channelId scopes to a
+  // single channel (B-036).
+  liveVideoIds(channelId?: string): string[]
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null
   getMeta(key: string): string | null

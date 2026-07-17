@@ -231,7 +231,7 @@ export class SyncService {
         }
       }
 
-      await this.refreshUpcomingLiveStatus(channelId, ctx)
+      await this.refreshLiveStatus(channelId, ctx)
       await this.confirmShorts(channelId)
       // D-052: Shorts verdicts are settled now — resolve each channel's
       // shortsCount for the notify-shorts filter (main.ts's maybeNotifyNewVideos).
@@ -492,15 +492,25 @@ export class SyncService {
     return collected.slice(0, GAP_BACKFILL_MAX)
   }
 
-  // B-085: liveContent is captured once, at hydration time — a video that
-  // was `upcoming` then stays `upcoming` forever unless something re-checks
-  // it. Bounded by however many local videos are actually still flagged
-  // upcoming (typically tiny), re-hydrated the same way newly discovered
-  // videos are. Tolerant of failure the same way confirmShorts is: a video
-  // left at `upcoming` just gets retried on the next cycle.
-  private async refreshUpcomingLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
+  // B-085/B-114: liveContent is captured once, at hydration time — a video
+  // that was `upcoming` then stays `upcoming` forever unless something
+  // re-checks it, and the mirror-image case (B-114) is just as stuck: a
+  // video hydrated while genuinely live stays `live` forever once the
+  // broadcast actually ends, badge and all, and its duration_seconds stays
+  // at the 0 the API reports for an in-progress broadcast — nothing else
+  // ever re-queries either case. Bounded by however many local videos are
+  // actually still flagged upcoming/live (typically tiny), re-hydrated the
+  // same way newly discovered videos are — re-hydrating both together costs
+  // nothing extra (videos.list is 1 unit per call regardless of how many of
+  // the up-to-50 ids in it are upcoming vs. live, youtube-api.md). Tolerant
+  // of failure the same way confirmShorts is: a video left at
+  // `upcoming`/`live` just gets retried on the next cycle.
+  private async refreshLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
     if (ctx.quotaHit) return
-    const ids = this.deps.repo.upcomingVideoIds(channelId)
+    const ids = [
+      ...this.deps.repo.upcomingVideoIds(channelId),
+      ...this.deps.repo.liveVideoIds(channelId)
+    ]
     if (ids.length === 0) return
     try {
       for (let i = 0; i < ids.length; i += HYDRATE_BATCH) {
@@ -510,7 +520,7 @@ export class SyncService {
     } catch (error) {
       if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
       else if (isDomainError(error, 'auth-expired')) throw error
-      // Other failures: leave these stuck at `upcoming`, retried next cycle.
+      // Other failures: leave these stuck at `upcoming`/`live`, retried next cycle.
     }
   }
 

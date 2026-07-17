@@ -162,6 +162,28 @@ const SCHEMA_V9 = `
 ALTER TABLE account_channels ADD COLUMN notify INTEGER NOT NULL DEFAULT 0;
 `
 
+// v10 (B-114): live_content flips back to 'none' once a broadcast ends
+// (same value a normal upload has) — sticky was_live is the only way to
+// still tell "this was a livestream" apart from a normal upload afterward,
+// which the feed badge needs (gray "Live" badge for an ended broadcast, vs.
+// no badge at all for a video that was never live). Backfills existing rows
+// already sitting at live_content = 'live' at migration time, so nothing
+// already-live loses its marker the next time it gets re-hydrated.
+const SCHEMA_V10 = `
+ALTER TABLE videos ADD COLUMN was_live INTEGER NOT NULL DEFAULT 0;
+UPDATE videos SET was_live = 1 WHERE live_content = 'live';
+`
+
+// v11 (B-115): liveStreamingDetails.concurrentViewers absence, while
+// liveContent = 'live' — best-effort Premiere signal (unverified against
+// real Premiere data, see HydratedVideo.isPremiere's own comment). Not
+// sticky like was_live (v10): only meaningful for as long as liveContent
+// itself says 'live' — re-derived fresh on every hydration, no CASE-based
+// preservation needed.
+const SCHEMA_V11 = `
+ALTER TABLE videos ADD COLUMN is_premiere INTEGER NOT NULL DEFAULT 0;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -171,7 +193,9 @@ const migrations: readonly string[] = [
   SCHEMA_V6,
   SCHEMA_V7,
   SCHEMA_V8,
-  SCHEMA_V9
+  SCHEMA_V9,
+  SCHEMA_V10,
+  SCHEMA_V11
 ]
 
 export function migrate(db: DatabaseSync): void {

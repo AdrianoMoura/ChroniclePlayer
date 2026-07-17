@@ -136,13 +136,19 @@ export class YouTubeApiClient implements SubscriptionSource {
     return { bannerUrl, subscriberCount }
   }
 
-  // videos.list batched — 1 unit per call (≤ 50 ids). The hydration half of
-  // the hybrid feed source (D-007).
+  // videos.list batched — 1 unit per call (≤ 50 ids) regardless of how many
+  // parts are requested — liveStreamingDetails (B-115) rides along on the
+  // same call at no extra quota cost. The hydration half of the hybrid feed
+  // source (D-007).
   async hydrate(videoIds: readonly string[]): Promise<HydratedVideo[]> {
     if (videoIds.length === 0) return []
     const page = await this.get(
       'videos',
-      { part: 'snippet,contentDetails,statistics', id: videoIds.join(','), maxResults: '50' },
+      {
+        part: 'snippet,contentDetails,statistics,liveStreamingDetails',
+        id: videoIds.join(','),
+        maxResults: '50'
+      },
       1
     )
     return page.items.map((item) => {
@@ -151,6 +157,11 @@ export class YouTubeApiClient implements SubscriptionSource {
       const statistics = item['statistics'] as Record<string, unknown> | undefined
       const rawViews = statistics?.['viewCount']
       const live = snippet['liveBroadcastContent']
+      const liveContent = live === 'live' || live === 'upcoming' ? live : 'none'
+      // B-115: see HydratedVideo.isPremiere's own comment — unverified
+      // heuristic, only evaluated while genuinely liveContent === 'live'.
+      const liveStreamingDetails = item['liveStreamingDetails'] as Record<string, unknown> | undefined
+      const isPremiere = liveContent === 'live' && liveStreamingDetails?.['concurrentViewers'] === undefined
       return {
         videoId: String(item['id']),
         channelId: String(snippet['channelId']),
@@ -158,7 +169,8 @@ export class YouTubeApiClient implements SubscriptionSource {
         title: String(snippet['title']),
         publishedAt: String(snippet['publishedAt']),
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),
-        liveContent: live === 'live' || live === 'upcoming' ? live : 'none',
+        liveContent,
+        isPremiere,
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
         description: typeof snippet['description'] === 'string' ? snippet['description'] : null,
         viewCount: typeof rawViews === 'string' ? Number(rawViews) : null

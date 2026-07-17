@@ -32,6 +32,29 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
   xxl: 208
 }
 const HEADER_HEIGHT = 38
+
+// B-114: liveContent alone can't tell "genuinely live right now" apart from
+// "was live, broadcast has since ended" — it reverts to 'none' once a
+// stream ends, same as a normal upload, so the sticky wasLive flag is what
+// keeps the ended case showing a (now gray, not red) badge instead of
+// disappearing outright.
+type LiveBadgeState = 'live' | 'upcoming' | 'ended'
+
+function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
+  if (video.liveContent === 'live') return 'live'
+  if (video.liveContent === 'upcoming') return 'upcoming'
+  if (video.wasLive) return 'ended'
+  return null
+}
+
+// B-115: only the 'live' state can currently distinguish a Premiere from a
+// genuine broadcast (see core/video.ts's Video.isPremiere) — 'upcoming' and
+// 'ended' both keep their existing generic label.
+function liveBadgeLabel(state: LiveBadgeState, video: FeedVideoDto): string {
+  if (state === 'upcoming') return t('feed.card.upcomingBadge')
+  if (state === 'live' && video.isPremiere) return t('feed.card.premiereBadge')
+  return t('feed.card.liveBadge')
+}
 // Must mirror `.grid-row`'s `gap` in styles.css — used below to derive the
 // actual per-card width from the container width, in sync with how the CSS
 // grid distributes space.
@@ -306,6 +329,7 @@ export function VideoRow({
 
   const { state } = video
   const dimmed = state.readStatus !== 'unread'
+  const liveBadge = liveBadgeState(video)
   return (
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
@@ -376,12 +400,12 @@ export function VideoRow({
         </button>
       </div>
       {video.isShort && <span className="short-badge">{t('feed.card.shortBadge')}</span>}
-      {video.liveContent !== 'none' && (
-        <span className={`live-badge live-badge-${video.liveContent}`}>
-          {video.liveContent === 'live' ? t('feed.card.liveBadge') : t('feed.card.upcomingBadge')}
+      {liveBadge !== null && (
+        <span className={`live-badge live-badge-${liveBadge}`}>
+          {liveBadgeLabel(liveBadge, video)}
         </span>
       )}
-      {video.durationSeconds !== null && (
+      {video.durationSeconds !== null && video.liveContent !== 'live' && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}
     </div>
@@ -418,6 +442,7 @@ export function VideoCard({
 
   const { state } = video
   const dimmed = state.readStatus !== 'unread'
+  const liveBadge = liveBadgeState(video)
   return (
     <div
       className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
@@ -443,12 +468,12 @@ export function VideoCard({
         )}
         <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
         {video.isShort && <span className="short-badge card-short-badge">{t('feed.card.shortBadge')}</span>}
-        {video.liveContent !== 'none' && (
-          <span className={`live-badge card-live-badge live-badge-${video.liveContent}`}>
-            {video.liveContent === 'live' ? t('feed.card.liveBadge') : t('feed.card.upcomingBadge')}
+        {liveBadge !== null && (
+          <span className={`live-badge card-live-badge live-badge-${liveBadge}`}>
+            {liveBadgeLabel(liveBadge, video)}
           </span>
         )}
-        {video.durationSeconds !== null && (
+        {video.durationSeconds !== null && video.liveContent !== 'live' && (
           <span className="duration card-duration">{formatDuration(video.durationSeconds)}</span>
         )}
         <div className="row-actions card-actions">

@@ -31,7 +31,9 @@ function entry(
       thumbnailUrl: null,
       viewCount: null,
       isShort: false,
-      liveContent: 'none'
+      liveContent: 'none',
+      wasLive: false,
+      isPremiere: false
     }
   }
 }

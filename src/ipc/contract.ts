@@ -28,8 +28,16 @@ export interface FeedVideoDto {
   // Confirmed Short (B-028, supersedes D-028's unconditional exclusion):
   // shown in the feed, tagged with a badge, hideable via SettingsDto.showShorts.
   isShort: boolean
-  // Captured at hydration from snippet.liveBroadcastContent; 'none' otherwise.
+  // Captured at hydration from snippet.liveBroadcastContent; 'none'
+  // otherwise, and again once a broadcast ends (same as a normal upload).
   liveContent: 'none' | 'live' | 'upcoming'
+  // B-114: sticky — true once this was ever seen live, even after
+  // liveContent reverts to 'none' post-broadcast. Distinguishes an ended
+  // livestream from a video that was never live for the feed badge.
+  wasLive: boolean
+  // B-115: best-effort, unverified signal (see core/video.ts) that a
+  // currently-live video is actually a Premiere, not a genuine broadcast.
+  isPremiere: boolean
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so
@@ -276,6 +284,15 @@ export type ChronicleEventDto =
   // the video back up as a docked miniplayer, resuming from wherever
   // ExtractedPlayerWindow's own beforeunload last saved.
   | { type: 'player:restoreFromExtract'; videoId: string }
+  // B-112: fired on every extract-window close, unlike restoreFromExtract
+  // above (which only fires when auto is false) — lets the main window
+  // reset its own "extract is open" tracking regardless of how the window
+  // closed, so a later openVideo() call knows to go to the main window again.
+  | { type: 'player:extractWindowClosed' }
+  // B-112: the main window already had the extract window open when the
+  // user picked a new video — sent to the extract window itself so it loads
+  // this video in place, instead of also starting it in the main window.
+  | { type: 'player:loadInExtract'; videoId: string; title: string }
   // D-051: the main window just closed to the tray (backgroundMode on) — the
   // renderer decides whether to pop the current video out or pause it, per
   // SettingsDto.popOutOnClose.
@@ -331,6 +348,7 @@ export const IpcChannel = {
   getAppVersion: 'app:getVersion',
   openYouTubeSignIn: 'auth:openYouTubeSignIn',
   extractPlayer: 'player:extract',
+  loadInExtractWindow: 'player:loadInExtract',
   events: 'chronicle:event'
 } as const
 
@@ -416,6 +434,12 @@ export interface ChronicleApi {
     defaultPlaybackRate: number,
     auto: boolean
   ): Promise<void>
+  // B-112: sends a newly-selected video to the already-open extract window
+  // instead of starting it (also) in the main window. Resolves false if no
+  // extract window is currently open (a race — it closed just before this
+  // call landed), so the caller can fall back to the normal in-main-window
+  // open instead of silently doing nothing.
+  loadInExtractWindow(videoId: string, title: string): Promise<boolean>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

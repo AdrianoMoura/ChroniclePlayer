@@ -44,6 +44,10 @@ interface PlayerDetailsProps {
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
+  // B-113: a comment's linkified timestamp (e.g. "12:34") seeks the player
+  // to that position — PlayerSurface owns the actual seek command, a
+  // sibling component, so this reaches it the same way onExtract/onClose do.
+  onSeekTo: (seconds: number) => void
 }
 
 export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>(
@@ -58,7 +62,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       onExtract,
       onOpenVideo,
       onOpenChannel,
-      onStatePatched
+      onStatePatched,
+      onSeekTo
     }: PlayerDetailsProps,
     ref
   ) {
@@ -236,6 +241,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               key={video.videoId}
               videoId={video.videoId}
               runWithWriteScope={writeScopeGate.run}
+              onSeekTo={onSeekTo}
             />
           </div>
         </div>

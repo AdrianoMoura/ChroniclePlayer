@@ -331,6 +331,145 @@ Resolved entries add:
 
 ## In progress
 
+### B-115 — Premieres are shown as regular "Live"/"Upcoming" — no distinction from an actual livestream
+- **Type:** adjustment · **Status:** In progress · **Reported:** 2026-07-17 · **Target:** 0.4.5
+- **Area:** feed / sync
+- **What happens:** a YouTube Premiere (a pre-recorded video played on a schedule with a
+  chat/countdown) reports `snippet.liveBroadcastContent` as `'upcoming'` then `'live'` —
+  the exact same values a genuine live broadcast reports, with nothing telling the two
+  apart.
+- **Expected:** premieres should read as a distinct case from a real livestream — at
+  minimum a visually different badge/label.
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`hydrate`); `src/core/video.ts`
+  (`Video.liveContent`/`isPremiere`); `src/ui/FeedList.tsx` (`liveBadgeLabel`).
+- **Implementation (2026-07-17), same session:** added `liveStreamingDetails` to the
+  `part` string on the existing `videos.list` hydration call (free — `videos.list` costs 1
+  unit per call regardless of `part` count) and parsed `concurrentViewers`'s presence:
+  `isPremiere = liveContent === 'live' && liveStreamingDetails.concurrentViewers ===
+  undefined` — a genuine broadcast reports `concurrentViewers` while live, a Premiere
+  (pre-recorded, not really "broadcasting") doesn't, per general knowledge of the API
+  rather than anything confirmed against Chronicle's own data. New non-sticky
+  `Video.isPremiere`/`FeedVideoDto.isPremiere` (`videos.is_premiere`, schema v11),
+  re-derived on every hydration alongside `liveContent` — B-114's re-hydration path
+  (`refreshLiveStatus`) already covers re-checking it for free, no separate mechanism
+  needed. `FeedList.tsx`'s live badge shows "Premiere" instead of "Live" when
+  `liveContent === 'live' && isPremiere` — same red badge element/tone as a real live,
+  per the owner's own "same badge" framing (carried over from B-114's ask), just
+  different text. `'upcoming'` and ended states are untouched: there's no known API
+  signal to tell an upcoming Premiere apart from a genuinely scheduled upcoming
+  livestream before either one starts, so that half of the original gap stays open.
+  **The heuristic itself is unverified against real Premiere data** — no live API access
+  this session, same long-standing caveat `feed.md`'s and `youtube-api.md`'s own
+  "premiere behavior unverified" notes already carried, now extended with this attempt.
+  Checked via `npm run typecheck && npm run lint && npm test` (215/215 — new
+  `api-client.test.ts` coverage exercises both branches of the heuristic against
+  synthetic fixture data, which confirms the *parsing* is correct, not that the
+  heuristic itself holds against real YouTube responses). Not run live, per
+  [[no-live-app-verification]] — needs the owner's own check against an actual Premiere
+  before this label can be trusted.
+
+### B-114 — Live badge and duration get stuck once a livestream ends
+- **Type:** bug · **Severity:** minor
+- **Status:** In progress · **Reported:** 2026-07-17 · **Target:** 0.4.5
+- **Area:** feed / sync
+- **What happens:** `live_content` was only ever captured once at hydration and never
+  re-checked — a video stayed flagged `'live'` (red badge, `0:00` duration) forever after
+  the broadcast actually ended and became a normal VOD.
+- **Expected:** duration badge suppressed while genuinely live; once ended, a gray
+  (not red) "Live" badge persists (so the card still shows it *was* a broadcast) and the
+  duration badge switches on with the real final duration.
+- **Code refs:** `src/core/sync-service.ts` (`refreshLiveStatus`, was
+  `refreshUpcomingLiveStatus`); `src/adapters/storage/sync-repository.ts`
+  (`liveVideoIds`, `applyHydration`); `src/ui/FeedList.tsx` (`liveBadgeState`);
+  `src/ui/styles.css` (`.live-badge-ended`); `.specs/local-data.md` (`videos.was_live`).
+- **Implementation (2026-07-17), same session:** added `SyncRepository.liveVideoIds`
+  (mirrors the existing `upcomingVideoIds`) and renamed `refreshUpcomingLiveStatus` to
+  `refreshLiveStatus`, now re-hydrating `'upcoming'` and `'live'`-flagged videos together
+  every cycle — free, same `videos.list` call, no extra quota units regardless of the mix.
+  A new sticky `was_live` column (schema v10, backfilled for any row already `'live'` at
+  migration time so nothing already-live loses the marker on its next re-hydration)
+  survives `live_content` reverting to `'none'` once a broadcast ends, so
+  `FeedList.tsx`'s `liveBadgeState` now returns `'ended'` (a new `.live-badge-ended` CSS
+  class, same gray tone as `.live-badge-upcoming`/the Shorts badge) instead of losing the
+  badge outright; the duration badge — now suppressed only while `liveContent ===
+  'live'` — switches on automatically once re-hydration picks up the real final
+  duration. Checked via `npm run typecheck && npm run lint && npm test` (215/215 — new
+  coverage in `sync-service.test.ts` for the live re-check itself and
+  `sync-repository.test.ts` for the `was_live`/duration transition on re-hydration). Not
+  run live, per [[no-live-app-verification]] — needs the owner's own check that an ended
+  stream's badge/duration actually update on the app's next real sync cycle.
+
+### B-112 — Opening a new video while the extract/pop-out window is open plays it in the main window instead of the pop-out
+- **Type:** adjustment · **Status:** In progress · **Reported:** 2026-07-17 · **Target:** 0.4.5
+- **Area:** player
+- **What happens:** with the always-on-top extract window open (D-051), clicking a
+  different video in the feed/list opened and played it in the main window's player
+  instead, leaving two videos playing at once in separate windows.
+- **Expected:** a newly selected video loads into the still-open extract window instead;
+  closing the extract window keeps working exactly as it did before (D-051's
+  restore/pause-in-place behavior).
+- **Code refs:** `src/ui/App.tsx` (`openVideo`, `extractToWindowInternal`);
+  `src/platform/main.ts` (`createExtractWindow`, `loadInExtractWindow` handler);
+  `src/ui/ExtractedPlayerWindow.tsx`.
+- **Implementation (2026-07-17), same session:** `App.tsx` tracks whether the extract
+  window is open (`extractWindowOpenRef`, set on `extractToWindowInternal`, cleared on a
+  new `player:extractWindowClosed` event that now fires on *every* close — including the
+  `auto`/D-051 tray-close path, which previously had no close signal to the main window
+  at all). `openVideo` checks the ref before touching the main window's own
+  `playerStack` and instead calls a new `loadInExtractWindow` IPC method; `main.ts`
+  forwards it to the extract `BrowserWindow` via a new `player:loadInExtract` event.
+  `ExtractedPlayerWindow.tsx` (previously fixed-props-for-life, sourced once from the
+  window's own URL query string) now holds `videoId`/`title`/`autoplay` as local state so
+  it can swap videos in place — persisting the *outgoing* video's resume position first,
+  the same handoff `PlayerSurface` already does for a normal in-main-window video switch.
+  `main.ts` also now tracks the extract window's *current* video
+  (`extractWindowVideoId`, updated on every swap, not just at creation) so the
+  close-time restore-to-miniplayer handoff hands back whichever video was actually
+  showing, not just whichever one the window was originally created with. Also added a
+  defensive guard (destroy any pre-existing extract window before creating a new one)
+  against the latent double-window gap this entry's own notes flagged, since it's no
+  longer purely theoretical once video-swapping exists. Checked via `npm run typecheck
+  && npm run lint && npm test` (215/215 — no existing UI test coverage in this codebase
+  to extend; `ui/` has none today, consistent with prior UI-touching fixes in this file).
+  Not run live, per [[no-live-app-verification]] — needs the owner's own check that
+  picking a new video with the pop-out open loads it there, and that closing the pop-out
+  still restores/pauses correctly afterward.
+
+### B-113 — Timestamps in comments (e.g. "12:34") aren't clickable seek links
+- **Type:** adjustment · **Status:** In progress · **Reported:** 2026-07-17 · **Target:** 0.4.5
+- **Area:** player
+- **What happens:** comment text (`CommentDto.textDisplay`) rendered as plain, inert
+  text — a timestamp a commenter typed like "12:34" was just text, not clickable.
+- **Expected:** a `mm:ss`/`h:mm:ss` pattern inside comment text renders as a link that
+  seeks the currently-playing video to that time when clicked.
+- **Code refs:** `src/ui/Comments.tsx` (`CommentText`); `src/ui/PlayerSurface.tsx`
+  (`PlayerSurfaceHandle.seekTo`); `src/ui/PlayerDetails.tsx` (`onSeekTo` prop);
+  `src/ui/App.tsx`.
+- **Implementation (2026-07-17), same session:** added a `CommentText` component
+  (`Comments.tsx`) that splits `textDisplay` on a `mm:ss`/`h:mm:ss`-shaped regex and
+  renders matches as clickable spans — plain React text nodes, not
+  `dangerouslySetInnerHTML`, the same approach `PlayerDetails.tsx`'s existing
+  `Description` component already uses for description URLs — calling a new
+  `PlayerSurfaceHandle.seekTo(seconds)` threaded down through a new `onSeekTo` prop
+  (`PlayerDetails` → `CommentsSection` → `CommentItem`/`ReplyItem`) bound in `App.tsx` to
+  `playerSurfaceRef.current?.seekTo(seconds)`. `seekTo` also resumes playback if paused,
+  matching YouTube's own comment-timestamp behavior (jump *and* play, not just a seek
+  left sitting on the paused frame). Treats `textDisplay` as plain text throughout, same
+  simplification level as the existing `Description` precedent — if it turns out to
+  contain literal HTML in some real comments (unconfirmed either way this session),
+  that's a pre-existing, separate rendering gap, not something this fix introduced or
+  is attempting to address. **Follow-up (2026-07-17), same session, per the owner's own
+  request:** a timestamp is typically clicked from well down in the (scrolled) comments
+  section, below the video itself — `seekTo` now also scrolls `.player-view` (the
+  scroll container B-108's own notes already identify) back to the top (`scrollTo({ top:
+  0, behavior: 'smooth' })`, found the same way B-108's scroll-catcher did:
+  `alignTarget.closest('.player-view')`) so the freshly-seeked video is actually back on
+  screen, not just playing off-screen below the fold. Checked via `npm run typecheck &&
+  npm run lint && npm test` (215/215 — no existing UI test coverage in this codebase to
+  extend). Not run live, per [[no-live-app-verification]] — needs the owner's own check
+  that a real comment's timestamp actually seeks/plays *and* scrolls back to the video
+  correctly.
+
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
 - **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.5 (carried over —

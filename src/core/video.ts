@@ -22,6 +22,18 @@ export interface Video {
   isShort: boolean
   // Captured at hydration from snippet.liveBroadcastContent; 'none' for a
   // normal upload. Not persisted until hydration runs, so it lags RSS
-  // discovery like duration/view count do.
+  // discovery like duration/view count do. Re-hydrated every cycle while
+  // 'upcoming' or 'live' (B-085/B-114) — reverts to 'none' once a broadcast
+  // ends, same as a normal upload.
   liveContent: 'none' | 'live' | 'upcoming'
+  // B-114: sticky — true forever once liveContent was ever observed as
+  // 'live', even after it reverts to 'none' post-broadcast. The only way to
+  // tell an ended livestream apart from a video that was never live, for the
+  // feed's "was Live" badge.
+  wasLive: boolean
+  // B-115: best-effort, unverified signal that a currently-'live' video is
+  // actually a Premiere (pre-recorded, played on a schedule) rather than a
+  // genuine live broadcast — see HydratedVideo.isPremiere for the heuristic.
+  // Not sticky: only meaningful while liveContent is still 'live'.
+  isPremiere: boolean
 }

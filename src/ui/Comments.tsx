@@ -33,10 +33,13 @@ interface CommentsSectionProps {
   // regardless of its own z-index, same bug as the like/subscribe actions
   // had) rather than one per action-owning component.
   runWithWriteScope: RunWithWriteScope
+  // B-113: threaded down to every CommentItem/ReplyItem so a linkified
+  // timestamp in any comment or reply can seek the player.
+  onSeekTo: (seconds: number) => void
 }
 
 export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSectionProps>(
-  function CommentsSection({ videoId, runWithWriteScope }, ref) {
+  function CommentsSection({ videoId, runWithWriteScope, onSeekTo }, ref) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -152,6 +155,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
                 key={comment.commentId}
                 comment={comment}
                 runWithWriteScope={runWithWriteScope}
+                onSeekTo={onSeekTo}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
                     (current ?? []).map((c) =>
@@ -175,10 +179,12 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
 function CommentItem({
   comment,
   runWithWriteScope,
+  onSeekTo,
   onReplyPosted
 }: {
   comment: CommentDto
   runWithWriteScope: RunWithWriteScope
+  onSeekTo: (seconds: number) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -208,7 +214,7 @@ function CommentItem({
   return (
     <div className="comment">
       <CommentAuthorRow comment={comment} />
-      <p className="comment-text">{comment.textDisplay}</p>
+      <CommentText text={comment.textDisplay} onSeekTo={onSeekTo} />
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
       </button>
@@ -237,6 +243,7 @@ function CommentItem({
               reply={reply}
               topLevelId={comment.commentId}
               runWithWriteScope={runWithWriteScope}
+              onSeekTo={onSeekTo}
               onReplyPosted={onReplyPosted}
             />
           ))}
@@ -254,11 +261,13 @@ function ReplyItem({
   reply,
   topLevelId,
   runWithWriteScope,
+  onSeekTo,
   onReplyPosted
 }: {
   reply: CommentDto
   topLevelId: string
   runWithWriteScope: RunWithWriteScope
+  onSeekTo: (seconds: number) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -288,7 +297,7 @@ function ReplyItem({
   return (
     <div className="comment reply">
       <CommentAuthorRow comment={reply} />
-      <p className="comment-text">{reply.textDisplay}</p>
+      <CommentText text={reply.textDisplay} onSeekTo={onSeekTo} />
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
       </button>
@@ -310,6 +319,51 @@ function ReplyItem({
         </div>
       )}
     </div>
+  )
+}
+
+// B-113: YouTube's own web client linkifies mm:ss/h:mm:ss-shaped substrings
+// in comment text into seek links client-side (this isn't something the API
+// itself marks up in textDisplay) — same approach here. `TIMESTAMP_PATTERN`
+// is kept in its own (non-global) form for the per-part exact-match test
+// below, separate from the global copy used for splitting, so the two never
+// share (and fight over) a stateful `lastIndex`.
+const TIMESTAMP_PATTERN = /\d{1,2}(?::[0-5]\d){1,2}/
+const TIMESTAMP_SPLIT_PATTERN = new RegExp(`(${TIMESTAMP_PATTERN.source})`, 'g')
+const TIMESTAMP_FULL_PATTERN = new RegExp(`^${TIMESTAMP_PATTERN.source}$`)
+
+function timestampToSeconds(text: string): number {
+  return text.split(':').reduce((total, part) => total * 60 + Number(part), 0)
+}
+
+function CommentText({
+  text,
+  onSeekTo
+}: {
+  text: string
+  onSeekTo: (seconds: number) => void
+}) {
+  const parts = text.split(TIMESTAMP_SPLIT_PATTERN)
+  return (
+    <p className="comment-text">
+      {parts.map((part, index) => {
+        if (!TIMESTAMP_FULL_PATTERN.test(part)) {
+          return <span key={index}>{part}</span>
+        }
+        return (
+          <a
+            key={index}
+            href="#"
+            onClick={(event) => {
+              event.preventDefault()
+              onSeekTo(timestampToSeconds(part))
+            }}
+          >
+            {part}
+          </a>
+        )
+      })}
+    </p>
   )
 }
 

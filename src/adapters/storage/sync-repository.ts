@@ -231,17 +231,23 @@ export class SqliteSyncRepository implements SyncRepository {
   // Hydration upserts full facts — it also creates rows for gap-backfilled
   // videos that never passed through RSS.
   applyHydration(videos: readonly HydratedVideo[], now: string): void {
+    // B-114: was_live is sticky (CASE ... ELSE was_live on conflict) — once
+    // a video is ever seen live, later re-hydrations (which flip
+    // live_content back to 'none' once the broadcast ends) never clear it.
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
-          live_content, thumbnail_url, view_count, hydrated_at, fetched_at)
-       VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live, :thumb, :views, :now, :now)
+          live_content, was_live, is_premiere, thumbnail_url, view_count, hydrated_at, fetched_at)
+       VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live,
+         CASE WHEN :live = 'live' THEN 1 ELSE 0 END, :isPremiere, :thumb, :views, :now, :now)
        ON CONFLICT(video_id) DO UPDATE SET
          title = :title,
          description = :description,
          published_at = :publishedAt,
          duration_seconds = :duration,
          live_content = :live,
+         was_live = CASE WHEN :live = 'live' THEN 1 ELSE was_live END,
+         is_premiere = :isPremiere,
          thumbnail_url = COALESCE(:thumb, thumbnail_url),
          view_count = :views,
          hydrated_at = :now`
@@ -255,6 +261,7 @@ export class SqliteSyncRepository implements SyncRepository {
         publishedAt: video.publishedAt,
         duration: video.durationSeconds,
         live: video.liveContent,
+        isPremiere: video.isPremiere ? 1 : 0,
         thumb: video.thumbnailUrl,
         views: video.viewCount,
         now
@@ -382,6 +389,18 @@ export class SqliteSyncRepository implements SyncRepository {
         ? this.db.prepare(`SELECT video_id FROM videos WHERE live_content = 'upcoming'`)
         : this.db.prepare(
             `SELECT video_id FROM videos WHERE live_content = 'upcoming' AND channel_id = ?`
+          )
+    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
+    return rows.map((row) => row.video_id)
+  }
+
+  // B-114: the 'live' counterpart to upcomingVideoIds above.
+  liveVideoIds(channelId?: string): string[] {
+    const rows = (
+      channelId === undefined
+        ? this.db.prepare(`SELECT video_id FROM videos WHERE live_content = 'live'`)
+        : this.db.prepare(
+            `SELECT video_id FROM videos WHERE live_content = 'live' AND channel_id = ?`
           )
     ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
     return rows.map((row) => row.video_id)

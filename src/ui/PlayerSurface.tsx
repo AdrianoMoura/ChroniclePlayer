@@ -66,6 +66,11 @@ export interface PlayerSurfaceHandle {
   // D-051: closing the window to the tray with SettingsDto.popOutOnClose off
   // pauses whatever's playing instead of popping it into the extract window.
   pause: () => void
+  // B-113: jumps to a specific position — used by a comment's linkified
+  // timestamp (e.g. "12:34"). Also resumes playback if paused, matching
+  // YouTube's own comment-timestamp behavior (jump *and* play), not just a
+  // seek left sitting on the paused frame.
+  seekTo: (seconds: number) => void
 }
 
 interface PlayerSurfaceProps {
@@ -320,9 +325,22 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         isStillGoing,
         pause: () => {
           if (isStillGoing()) command('pauseVideo')
+        },
+        seekTo: (seconds: number) => {
+          command('seekTo', [Math.max(0, seconds), true])
+          if (!isStillGoing()) {
+            command('playVideo')
+            playerStateRef.current = 1
+          }
+          // B-113: a comment timestamp is typically clicked from way down in
+          // the (scrolled) comments section, below the video itself — jump
+          // the scroll container (`.player-view`, same one B-108's own notes
+          // identify) back to the top so the now-seeked video is actually
+          // back on screen, not just playing off-screen.
+          alignTarget?.closest<HTMLElement>('.player-view')?.scrollTo({ top: 0, behavior: 'smooth' })
         }
       }),
-      [closeOrDock, isStillGoing, command]
+      [closeOrDock, isStillGoing, command, alignTarget]
     )
 
     // Player keyboard map (playback.md): keys are proxied through the widget

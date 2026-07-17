@@ -31,9 +31,18 @@ Later).
   (`snippet.liveBroadcastContent`, captured at hydration but previously dropped before
   reaching the feed) is now threaded through to a "Live"/"Upcoming" badge on the video
   row/card — so a premiere or active livestream is at least visually distinguishable from
-  a normal upload today. The ordering assumption above and the "Premieres {date}" label
-  are still open — they need verification against real premiere/livestream data this
-  session had no way to exercise.
+  a normal upload today. **Extended 2026-07-17 (B-114/B-115):** `liveContent` is now
+  re-hydrated every cycle instead of captured once (B-114 — a video no longer stays
+  stuck showing "Live" forever after the broadcast actually ends; a sticky `wasLive` flag
+  keeps a gray "Live" badge on an ended broadcast so it stays visible as *having been* one,
+  duration badge suppressed only while genuinely live). A live video is also now
+  best-effort flagged as a Premiere specifically (`isPremiere`, B-115) via
+  `liveStreamingDetails.concurrentViewers`'s absence — **unverified against real Premiere
+  data**, same caveat as this section's own ordering assumption below. The ordering
+  assumption above and the "Premieres {date}" label are still open — an *upcoming*
+  premiere still can't be told apart from a genuinely scheduled upcoming livestream (no
+  known API signal exists before either one starts) — they need verification against real
+  premiere/livestream data no session has had a way to exercise yet.
 - Ties (identical timestamps) break by channel title, then videoId — deterministic order
   is part of "predictable."
 

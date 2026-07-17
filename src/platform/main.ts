@@ -125,6 +125,8 @@ function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
     viewCount: entry.video.viewCount,
     isShort: entry.video.isShort,
     liveContent: entry.video.liveContent,
+    wasLive: entry.video.wasLive,
+    isPremiere: entry.video.isPremiere,
     state: toStateDto(entry.state),
     bucket
   }
@@ -339,6 +341,14 @@ function createExtractWindow(
   // hidden) main window.
   auto: boolean
 ): void {
+  // B-112: guards against ever having two extract windows open at once —
+  // nothing in the renderer currently offers a way to trigger a second
+  // extraction while one is already open (the main window's own player is
+  // empty for as long as the extract window is up), but this makes that
+  // invariant hold even if that ever changes, rather than assuming it.
+  if (extractWindow !== null && !extractWindow.isDestroyed()) {
+    extractWindow.destroy()
+  }
   const window = new BrowserWindow({
     width: 480,
     height: 270,
@@ -368,13 +378,25 @@ function createExtractWindow(
     autoplay: playing ? '1' : '0',
     rate: String(defaultPlaybackRate)
   })
+  extractWindow = window
+  // B-112: tracks whichever video is *currently* showing in the extract
+  // window, not just the one it was created with — loadInExtractWindow
+  // updates this whenever the user swaps videos while the window stays
+  // open, so the restore-on-close path below hands back the right one.
+  extractWindowVideoId = videoId
   // The main window's miniplayer picks the video back up once this window
   // closes, resuming from wherever ExtractedPlayerWindow's own
   // beforeunload last saved (best-effort — if that write raced the window
   // actually tearing down, this falls back to the extraction-time position
   // already persisted when extraction started).
   window.on('closed', () => {
-    if (!auto) broadcast({ type: 'player:restoreFromExtract', videoId })
+    const restoreVideoId = extractWindowVideoId ?? videoId
+    if (extractWindow === window) {
+      extractWindow = null
+      extractWindowVideoId = null
+    }
+    if (!auto) broadcast({ type: 'player:restoreFromExtract', videoId: restoreVideoId })
+    broadcast({ type: 'player:extractWindowClosed' })
   })
 }
 
@@ -401,6 +423,11 @@ let updateTimer: ReturnType<typeof setInterval> | null = null
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
+// B-112: tracks the single always-on-top extract window (if any) so a newly
+// selected video can be routed into it instead of the main window, and so
+// its close handler can look up whichever video is currently showing there.
+let extractWindow: BrowserWindow | null = null
+let extractWindowVideoId: string | null = null
 // Mirrors settings.backgroundMode (boot()-local) so the module-level
 // createWindow()'s close handler can read it without needing boot()'s whole
 // closure — kept in sync by applyBackgroundMode() every time it runs.
@@ -1630,6 +1657,24 @@ async function boot(): Promise<void> {
       createExtractWindow(id, label, t, playing === true, rate, auto === true)
     }
   )
+
+  // B-112: routes a newly-selected video into the already-open extract
+  // window rather than the main window. Returns false (not an error) if no
+  // extract window is open — the extractWindowVideoId bookkeeping
+  // createExtractWindow's own close handler relies on is only meaningful
+  // while a window actually exists.
+  ipcMain.handle(IpcChannel.loadInExtractWindow, (_event, videoId: unknown, title: unknown) => {
+    if (extractWindow === null || extractWindow.isDestroyed()) return false
+    const id = parseVideoId(videoId)
+    const label = typeof title === 'string' ? title : ''
+    extractWindowVideoId = id
+    extractWindow.webContents.send(IpcChannel.events, {
+      type: 'player:loadInExtract',
+      videoId: id,
+      title: label
+    })
+    return true
+  })
 
   ipcMain.handle(IpcChannel.exportData, async (): Promise<
     ResultDto<{ path: string; videos: number; states: number }>

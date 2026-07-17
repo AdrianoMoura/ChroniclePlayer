@@ -112,6 +112,8 @@ const api: ChronicleApi = {
       defaultPlaybackRate,
       auto
     ),
+  loadInExtractWindow: (videoId: string, title: string) =>
+    ipcRenderer.invoke(IpcChannel.loadInExtractWindow, videoId, title),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

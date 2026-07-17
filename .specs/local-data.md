@@ -80,11 +80,20 @@ CREATE TABLE videos (
   published_at      TEXT NOT NULL,           -- ISO-8601 UTC; feed sort key
   duration_seconds  INTEGER,                 -- NULL until hydrated
   is_short          INTEGER,                 -- NULL unknown | 0 confirmed not | 1 confirmed Short (D-028)
-  live_content      TEXT,                    -- none | live | upcoming (from liveBroadcastContent)
+  live_content      TEXT,                    -- none | live | upcoming (from liveBroadcastContent);
+                                              -- re-hydrated every cycle while 'upcoming' or 'live'
+                                              -- (B-085/B-114), not just captured once
   thumbnail_url     TEXT,
   hydrated_at       TEXT,                    -- NULL = RSS-only, awaiting videos.list
   fetched_at        TEXT NOT NULL,
-  view_count        INTEGER                  -- v2 (D-018): captured at hydration, NULL until then
+  view_count        INTEGER,                 -- v2 (D-018): captured at hydration, NULL until then
+  was_live          INTEGER NOT NULL DEFAULT 0, -- v10 (B-114): sticky once ever live_content='live' —
+                                              -- live_content itself reverts to 'none' once a broadcast
+                                              -- ends, same as a normal upload; this is the only record
+                                              -- that it was ever a livestream (feed's ended-broadcast badge)
+  is_premiere       INTEGER NOT NULL DEFAULT 0 -- v11 (B-115): best-effort, unverified Premiere signal
+                                              -- (liveStreamingDetails.concurrentViewers absence while
+                                              -- live_content='live') — not sticky, re-derived every hydration
 );
 CREATE INDEX idx_videos_feed ON videos (published_at DESC);
 CREATE INDEX idx_videos_channel ON videos (channel_id, published_at DESC);

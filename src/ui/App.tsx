@@ -260,6 +260,10 @@ export function App() {
   const channelPreviewRef = useRef<HTMLDivElement>(null)
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
+  // B-112: true while the always-on-top extract window is open — openVideo
+  // reads this to decide whether a newly selected video should load into
+  // that window instead of the main window's own player.
+  const extractWindowOpenRef = useRef(false)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
   const backfillingRef = useRef(false)
   // Bumped by every loadView call; loadMore/backfill capture the value in
@@ -797,6 +801,22 @@ export function App() {
         }
         const state = await window.chronicle.setReadStatus(videoId, 'read')
         patch(videoId, state)
+        // B-112: the extract window being open means the user already
+        // signaled they want playback separate from the main window — send
+        // a newly picked video there instead of (also) starting it here.
+        // startMini is excluded on purpose: it's only ever true for the
+        // extract-window-closed restore path itself (see
+        // 'player:restoreFromExtract' below), which by definition must land
+        // in the main window's miniplayer, not loop back into the window
+        // that just closed.
+        if (extractWindowOpenRef.current && !startMini) {
+          const sent = await window.chronicle.loadInExtractWindow(videoId, result.value.title)
+          if (sent) return
+          // Lost a race with the window closing right around this call —
+          // fall through to the normal main-window open below instead of
+          // silently dropping the video.
+          extractWindowOpenRef.current = false
+        }
         const entry = { ...result.value, state }
         setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
         // Normally starts in full view, even if a previous video was docked
@@ -863,6 +883,7 @@ export function App() {
       )
       setPlayerStack([])
       setMiniplayer(false)
+      extractWindowOpenRef.current = true
     },
     [playerStack, settings.defaultPlaybackRate]
   )
@@ -1018,8 +1039,15 @@ export function App() {
           })
           break
         case 'player:restoreFromExtract':
+          extractWindowOpenRef.current = false
           queueRef.current = null
           openVideo(event.videoId, 'replace', true)
+          break
+        case 'player:extractWindowClosed':
+          // B-112: fires on every close, including the auto (D-051) path
+          // where restoreFromExtract above never fires — this is the only
+          // signal that always resets the "extract is open" tracking.
+          extractWindowOpenRef.current = false
           break
         case 'app:closedToTray':
           handleClosedToTray()
@@ -1977,6 +2005,7 @@ export function App() {
                       onOpenVideo={(videoId) => openVideo(videoId)}
                       onOpenChannel={navigateToChannel}
                       onStatePatched={patch}
+                      onSeekTo={(seconds) => playerSurfaceRef.current?.seekTo(seconds)}
                     />
                     <MiniPlayerBar
                       video={currentPlayerVideo}

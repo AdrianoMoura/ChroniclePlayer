@@ -37,6 +37,8 @@ const FEED_SELECT = `
     v.view_count        AS view_count,
     v.is_short           AS is_short,
     v.live_content       AS live_content,
+    v.was_live           AS was_live,
+    v.is_premiere        AS is_premiere,
     c.title             AS channel_title,
     COALESCE(s.read_status, 'unread') AS read_status,
     COALESCE(s.favorite, 0)           AS favorite,
@@ -114,6 +116,8 @@ interface FeedRow {
   view_count: number | bigint | null
   is_short: number | bigint | null
   live_content: string | null
+  was_live: number | bigint
+  is_premiere: number | bigint
   channel_title: string
   read_status: string
   favorite: number | bigint
@@ -140,7 +144,9 @@ function toEntry(row: FeedRow): FeedEntry {
       thumbnailUrl: row.thumbnail_url,
       viewCount: row.view_count === null ? null : Number(row.view_count),
       isShort: Number(row.is_short) === 1,
-      liveContent: (row.live_content ?? 'none') as 'none' | 'live' | 'upcoming'
+      liveContent: (row.live_content ?? 'none') as 'none' | 'live' | 'upcoming',
+      wasLive: Number(row.was_live) === 1,
+      isPremiere: Number(row.is_premiere) === 1
     }
   }
 }
