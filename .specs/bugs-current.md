@@ -195,10 +195,9 @@ Resolved entries add:
   pass through whatever `items` the API gives back with no privacy/visibility filtering.
   Whether the API actually *includes* member content for an authenticated member's own
   request isn't confirmed by public documentation and isn't something to guess at by
-  writing speculative code against — it needs a live test against a real membership. Two
-  concrete things worth the owner testing directly, in order of cost: (1) scroll to the
-  bottom of that channel's screen to trigger `backfillArchive` (already-shipped, already
-  authenticated) and see if the members-only video appears; (2) if the channel also
+  writing speculative code against — it needs a live test against a real membership.
+  Originally two things looked worth the owner testing directly: (1) scroll to the
+  bottom of that channel's screen to trigger `backfillArchive`; (2) if the channel also
   publishes anything public, wait for the next regular sync — [[B-051]]'s fix (any new
   video now triggers a gap-backfill pass, not just an all-new RSS window) may already
   surface member content sitting in the same uploads-playlist window as a side effect,
@@ -212,36 +211,49 @@ Resolved entries add:
   **Owner update (2026-07-15):** neither of the two suggested checks can be run yet —
   none of the owner's membership channels has published anything since this was written.
   Staying Open until one of them does.
-  **Owner update (2026-07-17):** a real case arrived — Manual do Mundo (a channel the
-  owner is a paid member of, known for releasing videos to members ~1 day before making
-  them public) posted a members-only video; the owner ran a manual sync ~8 minutes later
-  and it was not synced, not notified, and did not appear in the list. **This confirms
-  the top-level symptom but does not resolve the open research question above** — traced
-  through `discoverChannel` (`src/core/sync-service.ts`): the authenticated backfill path
-  (`backfillGap`, which calls `listUploads`) is only reached when
-  `possibleGap = newIds.length > 0 && …`, i.e. only when RSS's diff already found at
+  **Owner update (2026-07-17):** a real case arrived — a channel the owner has an active
+  paid membership on posted a members-only video; the owner ran a manual sync a few
+  minutes later and it was not synced, not notified, and did not appear in the list.
+  **This confirms the top-level symptom but does not resolve the open research question
+  above** — traced through `discoverChannel` (`src/core/sync-service.ts`): the
+  authenticated backfill path (`backfillGap`, which calls `listUploads`) is only reached
+  when `possibleGap = newIds.length > 0 && …`, i.e. only when RSS's diff already found at
   least one *other* newly-known video for that channel this cycle (`newIds` comes from
   `discoverRecentWithRetry`'s RSS diff). Since the members-only video is invisible to RSS
   and nothing else new was published this cycle, `newIds` stayed empty, `possibleGap` was
   false, and the authenticated `listUploads` call was never made at all — the manual sync
-  never touched the code path in question. `backfillArchive` (the other `listUploads`
-  caller) is scroll-triggered only and wasn't exercised either. So this test still doesn't
-  tell us whether an authenticated `playlistItems.list` call, if it *had* been made, would
-  have returned the members-only video — it confirms sync missed it, for a reason already
-  predicted by the research notes above (member-only-only activity never triggers
-  gap-backfill), not a new finding about the API's own behavior.
-  **Action worth taking now, while the window is open:** per Manual do Mundo's own release
-  pattern this specific video should go public roughly a day after being posted
-  members-only — scrolling to the bottom of that channel's screen *right now*, before it
-  goes public, to force `backfillArchive` (already-shipped, already authenticated) is
-  still the cheapest way to get a real answer to research check (1) above, on this exact
-  video, before the window closes and the question becomes moot for this instance.
+  never touched the code path in question. So this test still doesn't tell us whether an
+  authenticated `playlistItems.list` call, if it *had* been made, would have returned the
+  members-only video — it confirms sync missed it, for a reason already predicted by the
+  research notes above (member-only-only activity never triggers gap-backfill), not a new
+  finding about the API's own behavior.
+  **Check (1) retracted — scrolling doesn't test this at all:** confirmed by reading
+  `backfillArchive` (`src/core/sync-service.ts`) directly — it pages *older*, never
+  newer. Its cursor (`account_channels.backfill_page_token`, in
+  `src/adapters/storage/sync-repository.ts`) only ever advances forward through the
+  playlist, deeper into the past, and is never reset to page 1; the scroll-to-bottom UI
+  trigger (`App.tsx`, `backfillChannelArchive`) is explicitly documented in its own code
+  comment as fetching older videos on demand. A channel's newest upload — exactly the
+  members-only case here — is never something `backfillArchive` would encounter, no
+  matter how far the owner scrolls. `backfillGap`, by contrast, *does* always start
+  fresh from page 1/newest (confirmed: plain local `pageToken` variable, no persisted
+  cursor) and would see a members-only newest upload — but there is currently no UI
+  action that triggers `backfillGap` on demand for an already-subscribed channel; it only
+  runs automatically, gated by `possibleGap`, as part of routine sync.
+  **Actual gap, restated:** the only way to get a real answer to the open research
+  question today is check (2) — waiting for a cycle where the same channel also
+  publishes something public, so routine sync's own `possibleGap` gate fires naturally.
+  There is no on-demand way to force it.
   **Adjustment flagged by the owner (2026-07-17):** independent of the open research
   question, the owner wants this tracked as something to actively improve, not just wait
-  on — worth reconsidering the "deliberately not implemented" per-cycle authenticated walk
-  above once (1) confirms whether the API can see member content at all; if it can, a
-  cheaper trigger than "every channel every cycle" (e.g. only for channels the owner has
-  an active membership on, which is a small subset of 229) may sidestep the quota
+  on. Two concrete directions once check (2) confirms whether the API can see member
+  content at all: (a) a manual "refresh this channel from newest" action for a
+  subscribed channel's screen (reusing `backfillGap`'s already-correct newest-first,
+  no-cursor walk, just exposed as an on-demand trigger instead of only running
+  RSS-gated) — cheap since it's user-initiated, one channel at a time; (b) if that's not
+  enough, reconsidering the "deliberately not implemented" per-cycle authenticated walk
+  above with a cheaper trigger than "every channel every cycle" (e.g. only for channels
+  with an active membership, a small subset of the total), which may sidestep the quota
   objection that ruled out the blanket version.
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
