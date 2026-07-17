@@ -50,9 +50,6 @@ The embed must not feel like a YouTube page inside the app. Concretely:
   annotations), `controls=1`. (**Assumption:** parameter behavior as of 2026 — re-verify
   exact effects at implementation; YouTube has deprecated/weakened some of these over the
   years.)
-- **End-of-video overlay**: on the IFrame API `ended` event, Chronicle immediately covers
-  the player with its own end panel (back to feed / next in Watch Later queue if
-  applicable) so YouTube's related-videos end screen is never seen.
 - **Pause overlay mitigation**: the paused embed can show related-video shelves; evaluate
   covering the lower third on pause vs. accepting it — decide at implementation with the
   real embed in hand (minor, but part of the clean mandate). *(M3 decision, 2026-07-11:
@@ -65,14 +62,13 @@ The embed must not feel like a YouTube page inside the app. Concretely:
 - **Embed-restricted videos** (owner disabled embedding — IFrame errors 101/150):
   detected and routed automatically to "open in browser" with a one-line explanation.
 - **Login quirk**: the embed is a plain `<iframe>` using Electron's own default session
-  (cookies), not the OAuth token — playback works logged-out either way. **Verified
-  2026-07-12 (`bugs.md` B-049):** no `partition` is set anywhere, so it's genuinely
-  Electron's own persistent, isolated session (not reusing an OS browser's) — but there
-  is no sign-in surface anywhere in the app that could authenticate it (OAuth uses the
-  *system* browser via the loopback flow, never this session). The Settings copy
-  previously promised "sign in once inside the player for ad-free playback," which
-  described a flow that doesn't exist — corrected to state plainly that there's currently
-  no way to sign into that session from inside Chronicle.
+  (cookies), not the OAuth token — playback works logged-out either way. No `partition`
+  is set anywhere, so it's genuinely Electron's own persistent, isolated session (not
+  reusing an OS browser's). Settings → Connection has a "Sign in to YouTube" button
+  (D-045) that opens a window at youtube.com in that same default session — the user
+  signs in there themselves (no automation, no scraping), and the embed picks up the
+  authenticated session from then on (e.g. unlocks a YouTube-Premium account's higher
+  playback speeds in the embed).
 
 ## Universal video opening — D-029 (Final, 2026-07-10)
 
@@ -89,8 +85,6 @@ Entry points:
   video or the feed — the trail is always escapable).
 - **Open by URL**: an "open video URL" action (Ctrl+O, see `ui.md`) accepts any pasted
   YouTube link.
-- **Future idea:** registering Chronicle as an OS-level handler for YouTube links
-  (opt-in).
 
 **Push vs. replace (bug fix, 2026-07-15, `bugs.md` [[B-045]] fourth round):** only the
 in-description-link entry point above should *push* onto the navigation stack — every
@@ -131,9 +125,9 @@ Data handling for externally opened videos (Final):
   duration, description (collapsed by default, links rendered per D-029 rules) +
   Chronicle's local action bar (read/unread toggle, favorite, watch later, ignore, open
   in browser).
-- On `ended`: Chronicle's end overlay — "Back to feed" and, if the video came from the
-  Watch Later queue, "Next in queue" (explicit button; auto-advance within the user's own
-  queue is **D-021, Final: off by default**, explicit button only — exercised at M3).
+- On `ended`, playback just stops — no overlay, no auto-advance into anything (D-021,
+  Final: off by default). If a video came from the Watch Later queue, jumping to the
+  next queued one is a deliberate action (`n`, below), never automatic.
 - Keyboard: space play/pause, ←/→ seek, esc back to feed/exit fullscreen, b open in
   browser, `/` focus search. **Extended in the B-102/B-103 audit (2026-07-15)** with the
   rest of the player's own action bar: `m` toggle read/unread, `i` ignore (closes/docks

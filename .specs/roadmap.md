@@ -440,12 +440,9 @@ exercise the release workflow end-to-end on GitHub Actions — the local
    video list) shipped too (B-056, resolved 2026-07-12). Still open: "Follow locally"
    (D-030 mechanism (b), RSS-only following with no YouTube-side subscription) and true
    accountless mode (D-033, using Chronicle with zero accounts at all).
-2. Hide live/premieres + duration filters (cheap once data flows) — partially
-   overlaps with the live-status accuracy work landed for B-085.
-3. Channel categories/folders
-4. Local notes (+ FTS local search)
-5. Import/restore of exports
-6. The rest of `features.md` by demonstrated demand
+2. Local notes (+ FTS local search)
+3. Import/restore of exports
+4. The rest of `features.md` by demonstrated demand
 
 (Shorts exclusion was promoted from this list into MVP — D-028.)
 

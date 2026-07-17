@@ -51,8 +51,6 @@ The feed is grouped under date headers, computed in the **user's local timezone*
 
 - Calendar-day boundaries, not rolling 24 h windows — "Today" must match the user's
   intuition of today. (Final)
-- Week start: **D-017 (Final): fixed Monday (ISO)**, not locale-dependent — predictable,
-  no locale complexity. Exercised at M1; revisit only if users ask.
 - Groups with zero videos are hidden entirely (no empty headers).
 - Group boundaries recompute on refresh and at local midnight if the app is open
   (a cheap timer; videos migrate from Today → Yesterday naturally).
@@ -239,8 +237,6 @@ wants to.
 ## Filters (MVP scope)
 
 MVP feed filters are limited to: All / Unread / Favorites / Watch Later / Ignored
-(as views, see `ui.md`), plus the Shorts visibility setting (above). Other content-based
-filters (hide live streams/premieres, duration rules, per-channel muting) are Future
-features specced in `features.md` — but the data to power them (duration,
-liveBroadcastContent) is captured from day one via hydration (D-007), so adding them
-later is a pure query/UI change.
+(as views, see `ui.md`), plus the Shorts visibility setting (above). Duration and
+`liveBroadcastContent` are captured from day one via hydration (D-007) even though
+nothing filters on them yet.

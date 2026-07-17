@@ -42,7 +42,7 @@ function resumeValueFor(currentTime: number, durationSeconds: number | null): nu
   return Math.floor(currentTime)
 }
 
-type Surface = 'playing' | 'ended' | 'embed-blocked'
+type Surface = 'playing' | 'embed-blocked'
 
 export interface PlayerSurfaceHandle {
   // B-045 extract-to-window: there's no way to move this iframe's DOM node
@@ -218,7 +218,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
           playerStateRef.current = payload.info
           if (payload.info === 0) {
-            setSurface('ended') // our overlay, never YouTube's
             void window.chronicle.setResumePosition(video.videoId, null)
           }
           // B-038: quality only takes effect once playback actually starts —
@@ -543,37 +542,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
               allowFullScreen
               onLoad={announce}
             />
-          )}
-
-          {active && surface === 'ended' && (
-            <div className="player-overlay">
-              <p className="overlay-title">{t('player.overlay.ended.title')}</p>
-              <div className="overlay-actions">
-                <button className="primary" onClick={onClose}>
-                  {stackDepth > 1 ? t('player.overlay.back') : t('player.overlay.backToFeed')}
-                </button>
-                {hasQueueNext && (
-                  <button className="primary" onClick={onNextInQueue}>
-                    {t('player.overlay.nextInQueue')}
-                  </button>
-                )}
-                {state.watchLater && (
-                  <button
-                    className="primary"
-                    onClick={() =>
-                      void window.chronicle
-                        .toggleWatchLater(video.videoId)
-                        .then((next) => onStatePatched(video.videoId, next))
-                    }
-                  >
-                    {t('player.overlay.removeFromWatchLater')}
-                  </button>
-                )}
-                <button className="primary" onClick={() => setSurface('playing')}>
-                  {t('player.overlay.replay')}
-                </button>
-              </div>
-            </div>
           )}
 
           {active && surface === 'embed-blocked' && (
