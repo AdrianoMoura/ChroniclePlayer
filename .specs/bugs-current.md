@@ -418,4 +418,43 @@ Resolved entries add:
 
 ## Resolved
 
-*(none yet this cycle)*
+### B-116 — All-Shorts channel with "Show Shorts" off shows empty and never fetches older uploads
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-07-17 · **Target:** 0.4.5
+- **Area:** feed
+- **What happens:** opening a subscribed channel whose recent uploads are all Shorts
+  (e.g. a channel that hasn't posted a full-length video in about a year), with "Show
+  Shorts" off, shows "no videos" — and the app never tries to fetch further back to find
+  a non-Short upload, even though older ones may exist.
+- **Expected:** the channel view should keep paging/backfilling from YouTube's uploads
+  archive until it either finds a non-Short video or genuinely exhausts the channel's
+  whole history, same as it already does for a channel with a mix of content.
+- **Code refs:** `src/ui/App.tsx` (`loadMore`, the empty-state branch around
+  `filtered.length === 0`); `src/ui/FeedList.tsx` (owns the only `onNearEnd`/zero-height
+  scroll-trigger wiring); `src/adapters/storage/repositories.ts` (`listPage`,
+  `shortsFilter` — filtering already happens in the SQL `WHERE` clause, not client-side).
+- **Root cause:** the Shorts filter is applied server-side in `listPage`'s SQL, and
+  `nextCursor` is computed from the already-filtered row count — so an all-Shorts
+  channel's first page correctly comes back as `{ videos: [], nextCursor: null }`. That's
+  precisely the condition `loadMore`'s channel-archive-backfill branch exists to handle
+  (fetch older uploads from YouTube on demand). But `loadMore` is only ever invoked via
+  `FeedList`'s own `onNearEnd` prop and its zero-height fallback effect (the same
+  mechanism [[B-107]] added for search results/channel previews) — and `App.tsx` never
+  renders `FeedList` at all when `filtered.length === 0` (a plain "no videos" `<div>`
+  takes its place instead). No `FeedList` means no scroll/zero-height wiring, means
+  `loadMore` (and the channel-archive backfill it guards) never runs.
+- **Resolved:** 2026-07-17 · **Outcome:** Fixed
+- **Resolution:** added a dedicated effect in `App.tsx`, right after `loadMore`'s own
+  definition, that calls `loadMore()` whenever `filtered.length === 0 && channelFilter !==
+  null` — the one case `FeedList`'s own zero-height effects can't cover, since there's no
+  scrollable container to measure when nothing renders at all. Same fallback idea as the
+  existing search-results/channel-preview effects, just keyed on the empty state itself
+  instead of a DOM ref. Safe against loops: `loadMore` already no-ops without a channel
+  filter, while a backfill is in flight, or once the channel's archive is marked
+  exhausted, so repeated effect firings (e.g. as `loadMore`'s own identity changes across
+  the async round-trip) settle once real content arrives or the archive is confirmed
+  exhausted. No spec change needed — `feed.md`'s existing on-demand-backfill behavior
+  already covers this case; it just wasn't reachable from an empty channel view.
+  Checked via `npm run typecheck && npm run lint && npm test`. Not run live, per
+  [[no-live-app-verification]] — needs the owner's own check against a real all-Shorts
+  channel (e.g. Vsauce) with "Show Shorts" off.

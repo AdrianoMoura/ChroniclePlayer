@@ -1138,6 +1138,23 @@ export function App() {
   // YouTube can't be confused for two modes of the same field.
   const filtered = videos
 
+  // A channel whose recent uploads are all Shorts comes back from getFeed
+  // with zero rows once "Show Shorts" is off (the filter runs in SQL, so
+  // nextCursor is already null) — exactly the condition loadMore's
+  // channel-archive-backfill branch exists to handle. But that branch only
+  // ever runs from FeedList's own onNearEnd/zero-height effects, and
+  // FeedList isn't rendered at all when the feed is empty (replaced by the
+  // "no videos" message below) — so an all-Shorts channel just sat on "no
+  // videos" forever with no backfill request ever made. Same zero-height
+  // fallback idea as the search-results/channel-preview effects elsewhere in
+  // this file, but keyed on the empty state itself since there's no
+  // scrollable container to measure when nothing renders. loadMore already
+  // no-ops without a channel filter, mid-backfill, or once exhausted, so
+  // this can't loop.
+  useEffect(() => {
+    if (filtered.length === 0 && channelFilter !== null) loadMore()
+  }, [filtered.length, channelFilter, loadMore])
+
   const rows = useMemo<FeedRow[]>(() => {
     const out: FeedRow[] = []
     let lastBucket: FeedBucketDto | null = null
