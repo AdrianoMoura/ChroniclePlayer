@@ -187,10 +187,36 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   minor-severity bug fix, no new scope). B-108, B-022, B-086, B-101 are untouched by this
   release and carry forward to `0.4.4`, renumbered from the `0.4.3` placeholder since
   this version shipped ahead of that batch.
-- **0.4.4 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
-  0.3.0 (renumbered past 0.4.0, 0.4.1, 0.4.2, and 0.4.3 — see above, none of the four
-  touched this batch). No batch of its own yet — new items reported after 0.4.3 shipped
-  land here.
+- **0.4.4 — delivered, 2026-07-17.** Not a bug-tracker batch — driven by D-052, raised
+  directly by the product owner in conversation (asking whether turning off "Show
+  Shorts" also silenced Shorts notifications — it didn't). New-video notifications
+  (D-050) counted Shorts identically to any other new video, because
+  `SyncService.refresh()`'s `newVideosByChannel` tally was built from RSS-discovery
+  counts *before* `confirmShorts()` ever ran, leaving no point where a Short could be
+  told apart from anything else. Fixed by resolving a `shortsCount` per channel — a new
+  `SyncRepository.countShorts(videoIds)` query, called right after `confirmShorts()`
+  settles that cycle's verdicts, still inside the same refresh — so `main.ts`'s
+  `maybeNotifyNewVideos` can now always exclude Shorts from the notified count whenever
+  `showShorts` is off. On top of the fix: a new `SettingsDto.notifyShorts` (default
+  true, matching pre-fix behavior; shown in Settings only while `showShorts` is also
+  on) covers the case the feed toggle alone can't — some channels post Shorts often
+  enough that a user wants them visible in the feed but silent for notifications,
+  without hiding them outright. Combined rule: `includeShorts = showShorts &&
+  notifyShorts` — a Short hidden from the feed never notifies regardless of
+  `notifyShorts`. Full narrative in `decisions.md` D-052 — no `bug-history/` file, since
+  this didn't come through the bug tracker (same pattern as `0.4.0`/`0.4.1`/`0.4.2`).
+  Checked via `npm run typecheck && npm run lint && npm test` (212/212); not run live,
+  per [[no-live-app-verification]] — needs the owner's own check that turning off "Show
+  Shorts" silences Shorts notifications too, and that the new toggle silences them while
+  still showing them in the feed. **Shipped 2026-07-17** — `package.json` bumped to
+  `0.4.4` (patch, per the owner's own explicit direction, even though this lands a new
+  Settings toggle rather than being a pure bug-fix batch). B-108, B-022, B-086, B-101 are
+  untouched by this release and carry forward to `0.4.5`, renumbered from the `0.4.4`
+  placeholder since this version shipped ahead of that batch.
+- **0.4.5 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
+  0.3.0 (renumbered past 0.4.0, 0.4.1, 0.4.2, 0.4.3, and 0.4.4 — see above, none of the
+  five touched this batch). No batch of its own yet — new items reported after 0.4.4
+  shipped land here.
 
 ## M0 — Walking skeleton
 

@@ -221,6 +221,27 @@ without touching the transition-only side effects (ended overlay, resume checkpo
 quality/rate reissue) that must still fire exactly once per real transition. Full
 narrative in `bug-history/v0.4.3.md`'s B-111 entry.
 
+**D-052 (notifications now respect Shorts, plus a notifyShorts toggle) shipped in
+`0.4.4`, 2026-07-17** — raised directly by the product owner in conversation, not
+sourced from `bugs-current.md`, same pattern as D-050/D-051. The owner asked whether
+turning off "Show Shorts" (`showShorts`) also silenced Shorts notifications — it
+didn't: `SyncService.refresh()`'s `newVideosByChannel` tally (D-050) was built from
+RSS-discovery counts *before* `confirmShorts()` ever ran, so a notification counted a
+Short exactly like any other new video with no path to exclude it regardless of any
+setting. Fixed by resolving a `shortsCount` per channel — a new
+`SyncRepository.countShorts(videoIds)` query, called right after `confirmShorts()`
+settles that cycle's verdicts, still inside the same refresh — so `main.ts`'s
+`maybeNotifyNewVideos` now always excludes Shorts from the notified count whenever
+`showShorts` is off. On top of the fix, per the owner's own same-conversation request:
+a new `SettingsDto.notifyShorts` (default true, matching pre-fix behavior; shown in
+Settings only while `showShorts` is also on) covers the case the feed toggle alone
+can't express — some channels post Shorts often enough that a user wants them visible
+in the feed but silent for notifications, without hiding them outright. Combined rule:
+`includeShorts = settings.showShorts && settings.notifyShorts` — a Short hidden from
+the feed never notifies regardless of `notifyShorts`. Full narrative in `decisions.md`
+D-052 — no `bug-history/` file, since this didn't come through the bug tracker. See
+`.specs/roadmap.md` §Release status for the exact shipped scope.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, and `0.4.3`
@@ -240,8 +261,10 @@ fix for anything in the batch below. `0.4.2` (D-051) also shipped as a **patch**
 the owner's own explicit direction, even though it lands a new Settings toggle rather
 than being a pure bug-fix batch. `0.4.3` (B-111, above) shipped as a **patch** too — a
 single minor-severity bug fix, the normal case this file's "pure bug-fix batch ships as
-a patch" rule describes. `bugs-current.md` now targets **0.4.4**, renumbered from
-`0.4.3` since that version shipped ahead of it (carries B-108, B-022, B-086, B-101
+a patch" rule describes. `0.4.4` (D-052, above) also shipped as a **patch**, per the
+owner's own explicit direction, even though it lands a new Settings toggle rather than
+being a pure bug-fix batch. `bugs-current.md` now targets **0.4.5**, renumbered from
+`0.4.4` since that version shipped ahead of it (carries B-108, B-022, B-086, B-101
 forward, untouched, from 0.3.0). Version bumps aren't always minor — a pure bug-fix
 batch ships as a patch release, a minor bump is reserved for batches that land real new
 scope, but the owner's own explicit call on a given release always wins. See
