@@ -16,7 +16,7 @@ and spec disagree, either the code is wrong or the spec must be updated in the s
 | [youtube-api.md](youtube-api.md) | API surface, quota budget, RSS strategy, failure handling |
 | [feed.md](feed.md) | Chronological feed rules, grouping, video state model |
 | [local-data.md](local-data.md) | Storage schema, migrations, export/backup |
-| [playback.md](playback.md) | How videos are watched (embedded vs. external — pending) |
+| [playback.md](playback.md) | How videos are watched (embedded YouTube IFrame player, D-006 Final) |
 | [ui.md](ui.md) | Layout, navigation model, keyboard shortcuts, visual language |
 | [features.md](features.md) | MVP feature specifications + future feature sketches |
 | [roadmap.md](roadmap.md) | Milestones, sequencing, and what blocks what |

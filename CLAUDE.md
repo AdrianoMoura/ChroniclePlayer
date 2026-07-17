@@ -8,7 +8,8 @@ Videos always come from YouTube.
 ## Vision in one paragraph
 
 The Subscriptions page **is** the application. There is no algorithmic Home, no
-recommendations, no Shorts, no infinite scroll, no engagement optimization. The user opens
+recommendations, no Shorts-style swipe feed, no infinite scroll, no engagement
+optimization. The user opens
 Chronicle and sees their subscriptions grouped chronologically (Today / Yesterday / This
 Week / Earlier). The user owns their credentials, their API quota, and their data — all of
 it lives locally on their machine.
@@ -52,7 +53,7 @@ requirements in code comments, PR descriptions, or ad-hoc conversations — refe
 | `.specs/youtube-api.md` | Endpoints used, quota budget, RSS strategy, rate limits |
 | `.specs/feed.md` | Chronological feed rules, grouping, video states |
 | `.specs/local-data.md` | SQLite schema, state model, export/backup |
-| `.specs/playback.md` | How videos are watched (major pending decision) |
+| `.specs/playback.md` | How videos are watched (embedded YouTube IFrame player, D-006 Final) |
 | `.specs/ui.md` | Layout, navigation, keyboard shortcuts, visual language |
 | `.specs/features.md` | MVP feature specs + future feature sketches |
 | `.specs/roadmap.md` | Milestones and sequencing |

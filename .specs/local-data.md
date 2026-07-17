@@ -5,10 +5,10 @@ shape, and how the user gets it out.
 
 ## Storage engine
 
-**SQLite** (D-008, Pending but high-confidence — see `architecture.md`). Single database
-file, WAL mode. Rationale: queryability (date grouping, state filters, future FTS on
-notes), atomicity, inspectability by the user (data-ownership bonus: any SQLite browser
-can open their data), zero-dependency portability.
+**SQLite** (D-008, Final — see `architecture.md`). Single database file, WAL mode.
+Rationale: queryability (date grouping, state filters, future FTS on notes), atomicity,
+inspectability by the user (data-ownership bonus: any SQLite browser can open their
+data), zero-dependency portability.
 
 ## Locations (Final in shape)
 
@@ -165,8 +165,9 @@ Design notes:
   not deleting it behind their back.
 - Settings offer optional pruning: "remove videos older than N months **that have no
   state row** (never read/favorited/queued/noted)". Favorites/notes are never pruned
-  automatically. **D-020 (Pending):** default off vs. on-at-24-months.
-  Recommendation: off by default.
+  automatically. **D-020 (Final): off by default.** Exercised at M5 — the "off" option
+  needs no code to satisfy (nothing prunes today); the on-at-24-months setting can still
+  ship post-MVP if ever requested.
 
 ## Export / import (Final in shape; format detail at implementation)
 

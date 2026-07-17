@@ -6,7 +6,8 @@ This document is the authoritative spec for its behavior.
 ## Feed membership (Final)
 
 The feed contains videos from the user's followed channels (`channels.subscribed = 1`;
-plus local follows when D-030 lands) — and nothing else. Videos opened via links or URL
+plus local follows once D-030's "Follow locally" mechanism is built) — and nothing else.
+Videos opened via links or URL
 (D-029, `playback.md`) are stored locally but **never enter the feed** and never count
 as unread; they are reachable through the states the user gave them (Favorites, Watch
 Later).
@@ -50,8 +51,8 @@ The feed is grouped under date headers, computed in the **user's local timezone*
 
 - Calendar-day boundaries, not rolling 24 h windows — "Today" must match the user's
   intuition of today. (Final)
-- Week start: **D-017 (Pending)** — ISO Monday vs. locale-dependent. Recommendation:
-  fixed Monday for MVP (predictable, no locale complexity); revisit only if users ask.
+- Week start: **D-017 (Final): fixed Monday (ISO)**, not locale-dependent — predictable,
+  no locale complexity. Exercised at M1; revisit only if users ask.
 - Groups with zero videos are hidden entirely (no empty headers).
 - Group boundaries recompute on refresh and at local midnight if the app is open
   (a cheap timer; videos migrate from Today → Yesterday naturally).
@@ -164,8 +165,8 @@ appear. (Predictability over liveliness.)
   is *not* imported by default — the feed is about "what's new," not archives. Deeper
   history loads on demand when the user scrolls past local data (D-027) or via a
   per-channel "load more history" action, both paging `playlistItems.list`
-  (1 unit/50 videos). **D-019 (Pending):** default initial backfill depth.
-  Recommendation: RSS window only (~15).
+  (1 unit/50 videos). **D-019 (Final): RSS window only (~15)** as the default initial
+  backfill depth, with scroll-triggered deeper backfill on demand.
   - **Implemented (2026-07-12, B-002):** scrolling to the end of a channel-filtered
     view with no local pages left (`nextCursor === null`) triggers
     `SyncService.backfillArchive(channelId)` — pages the channel's uploads playlist

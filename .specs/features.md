@@ -298,9 +298,10 @@ enough that a user may want them in the feed but silent for notifications, witho
 hiding them outright. Full rationale: `decisions.md` D-052.
 
 ### In-feed local search
-`/` currently filters loaded rows (`ui.md`); this upgrades it to DB-wide local search
-(SQLite FTS across titles/descriptions/notes). Never touches YouTube search
-(see `non-goals.md`).
+`/` currently triggers YouTube search (D-031) and no longer filters the loaded feed at
+all (`ui.md`, [[B-054]]). This is a sketch for a separate, DB-wide local search (SQLite
+FTS across titles/descriptions/notes) — a different surface from `/`, not an upgrade to
+it. Never touches YouTube search (see `non-goals.md`).
 
 ### Multiple accounts
 **Implemented 2026-07-12 ([[B-003]]) — shipped design differs from this sketch's

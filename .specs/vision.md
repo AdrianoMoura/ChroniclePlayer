@@ -58,7 +58,7 @@ only "personalization" is the list of channels the user subscribed to on YouTube
   "can follow illustrated step-by-step instructions" — see `onboarding.md`).
 - Values privacy, ownership, and calm software over convenience.
 - Primarily on a desktop or laptop. Linux, macOS, and Windows are all first-class targets;
-  mobile is out of scope (see `non-goals.md`).
+  mobile is not currently supported or in development (see `non-goals.md`).
 
 **Assumption:** the tolerance for a ~10-minute one-time setup is acceptable to this
 audience precisely because the payoff (no shared quota, no central credentials, full
@@ -108,13 +108,14 @@ channels? Chronicle's answer is the pre-algorithm answer — **discovery is a hu
 2. **The user's world.** Links from friends, forums, newsletters, podcasts: any YouTube
    URL can be opened in Chronicle (paste/open action; OS-level link handling is a Future
    idea). Chronicle never generates these impulses — it just honors them.
-3. **Deliberate exploration (D-030/D-031, Pending).** From any video, the user can visit
-   the channel — a chronological uploads page, no popularity sorting — decide for
-   themselves, and follow it: either as a real **YouTube subscription** (in-app, via
-   incremental write-scope consent) or as a **local follow** (RSS-based, invisible to
-   their YouTube account). A real **YouTube-style search** (D-031) lets the user find
-   videos and channels across all of YouTube — a tool the user wields, inert until a
-   query is typed, its results never injected into the feed.
+3. **Deliberate exploration (D-030/D-031, Final; both live).** From any video, the user
+   can visit the channel — a chronological uploads page, no popularity sorting — decide
+   for themselves, and follow it as a real **YouTube subscription** (in-app, via
+   incremental write-scope consent). A **local follow** (RSS-based, invisible to their
+   YouTube account) is specced as the other half of D-030 but not yet built — see
+   `features.md`. A real **YouTube-style search** (D-031) lets the user find videos and
+   channels across all of YouTube — a tool the user wields, inert until a query is
+   typed, its results never injected into the feed.
 
 The line is precise: content **selected by a human the user chose to listen to** is
 welcome; content **selected by an engagement model** never appears. Videos discovered

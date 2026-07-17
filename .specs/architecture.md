@@ -163,14 +163,14 @@ state is simple (server state = SQLite via IPC, minimal client state). Pair with
 lightweight query/cache layer over IPC calls. Alternatives considered: Svelte 5 (smaller
 runtime, smaller ecosystem), SolidJS (fastest reactivity, smallest ecosystem).
 
-## Storage engine — D-008 (Pending, high confidence)
+## Storage engine — D-008 (Final)
 
-**Recommendation: SQLite**, single file in the app data directory. Alternatives (flat JSON
+**SQLite**, single file in the app data directory. Alternatives considered (flat JSON
 files; embedded KV stores like LevelDB) lose on querying (date-range grouping, per-state
 filtering, future full-text search on notes) and on atomicity. SQLite is boring,
 inspectable by the user (data-ownership bonus), and portable. WAL mode for concurrent
-read (UI) + write (sync). Schema in `local-data.md`. Status: **Pending** (D-008) but no
-credible alternative is expected; safe to treat as the working plan.
+read (UI) + write (sync). Schema in `local-data.md`. Implemented since M0 via
+**node:sqlite** (D-034 as amended — no native module).
 
 ## Error-handling strategy (Final)
 

@@ -41,8 +41,8 @@ open-source Google API clients) use this same "bring your own OAuth client" patt
     everything the MVP needs. Minimal initial scope keeps the onboarding consent screen
     as unscary as possible.
   - Chronicle is **not** readonly-exclusive by principle: YouTube-side interaction
-    features are planned — **subscribe** (D-030), and eventually **like** and **comment**
-    (`features.md`). Each unlocks via **incremental authorization**: the broader scope
+    features are supported — **subscribe** (D-030), **like**, and **comment** (D-032,
+    `features.md`), all implemented. Each unlocks via **incremental authorization**: the broader scope
     (`youtube.force-ssl` covers subscribe/rate/comment) is requested only the first time
     the user invokes such a feature — a standard incremental-consent flow
     (`include_granted_scopes=true`) in the default browser, two clicks for an

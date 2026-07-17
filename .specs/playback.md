@@ -90,7 +90,7 @@ Entry points:
 - **Open by URL**: an "open video URL" action (Ctrl+O, see `ui.md`) accepts any pasted
   YouTube link.
 - **Future idea:** registering Chronicle as an OS-level handler for YouTube links
-  (opt-in), and an in-app channel view as an entry point (D-030).
+  (opt-in).
 
 **Push vs. replace (bug fix, 2026-07-15, `bugs.md` [[B-045]] fourth round):** only the
 in-description-link entry point above should *push* onto the navigation stack — every
@@ -111,8 +111,10 @@ Link rules inside descriptions:
   about Chronicle never building a Shorts-style vertical player (`non-goals.md`), so a
   clicked Shorts link still falls back to the browser rather than Chronicle's own
   16:9-oriented player view.
-- YouTube **channel/playlist** links → default browser for MVP; in-app channel view when
-  D-030 lands.
+- YouTube **channel/playlist** links → default browser. The in-app channel view
+  (D-030) already exists and is reachable from search results, the sidebar, and a
+  video's channel name — it just isn't wired up as the destination for a description
+  link yet.
 - **All other links** → default browser, always.
 
 Data handling for externally opened videos (Final):
@@ -131,7 +133,7 @@ Data handling for externally opened videos (Final):
   in browser).
 - On `ended`: Chronicle's end overlay — "Back to feed" and, if the video came from the
   Watch Later queue, "Next in queue" (explicit button; auto-advance within the user's own
-  queue is **D-021, Pending** — recommendation: off by default, opt-in setting).
+  queue is **D-021, Final: off by default**, explicit button only — exercised at M3).
 - Keyboard: space play/pause, ←/→ seek, esc back to feed/exit fullscreen, b open in
   browser, `/` focus search. **Extended in the B-102/B-103 audit (2026-07-15)** with the
   rest of the player's own action bar: `m` toggle read/unread, `i` ignore (closes/docks
