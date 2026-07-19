@@ -89,6 +89,9 @@ creates it with empty notes). Format:
 
 Rules for the text:
 
+- Always in English, regardless of what language the release conversation itself was
+  conducted in (e.g. PT-BR) — these notes are public-facing GitHub content, distinct
+  from the conversation.
 - User-facing language: describe the symptom and the behavior change, not the
   implementation. Call out a relevant Settings toggle if one was added.
 - Only include the sections that apply (`**New**`, `**Fixed**`, `**Changed**` — omit
