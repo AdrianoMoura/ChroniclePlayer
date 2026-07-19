@@ -514,3 +514,21 @@ Resolved entries add:
   `npm run typecheck && npm run lint && npm test` (`repositories.test.ts`'s migration
   idempotency test updated for the new `user_version`); not verified live — needs the
   owner's own confirmation that a real live broadcast now stays badged "Live" throughout.
+
+### B-118 — New video (11 min old) missing from feed after a manual reload
+- **Type:** bug · **Severity:** minor
+- **Status:** Resolved · **Reported:** 2026-07-19 · **Target:** 0.4.7
+- **Area:** sync
+- **What happens:** a subscribed channel posted a video ~11 minutes earlier;
+  the owner triggered a manual reload and the video did not appear in the feed.
+- **Expected:** a manual reload should surface any video the channel has actually
+  published, subject only to the underlying data source's own latency.
+- **Code refs:** `src/adapters/rss/rss-client.ts` (conditional GET / ETag handling,
+  `not-modified` short-circuit); `src/core/sync-service.ts`
+  (`discoverRecentWithRetry`, `refresh()`).
+- **Resolved:** 2026-07-19 · **Commit:** n/a (no code change) · **Outcome:** Won't fix
+- **Resolution:** confirmed by the owner, not fixed: opening the channel's raw RSS feed directly
+  showed the video, and a later in-app reload then surfaced it the same way —
+  the video simply wasn't in YouTube's own RSS feed yet at the 11-minute mark. Confirms
+  hypothesis 1 from the investigation (YouTube's own RSS/CDN latency, `.specs/
+  youtube-api.md`'s "updates within minutes"), not a Chronicle bug — nothing to fix.
