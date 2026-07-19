@@ -112,11 +112,21 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   after stream ends), B-115 (Premiere vs. Live badge distinction). Shipped as a
   **patch** version (pure bug-fix/adjustment batch, no new `D-NNN` scope alongside it).
   Shipped 2026-07-17.
+- **v0.4.6** — no bug-tracker batch of its own, same pattern as `v0.2.1`/`v0.4.0`/
+  `v0.4.1`/`v0.4.2`/`v0.4.4`: driven by D-053, a direct product-owner request raised in
+  conversation rather than reported here. A currently-live video now sorts to the top
+  of its date bucket; an ended broadcast sorts and buckets by when it actually ended
+  (`liveStreamingDetails.actualEndTime`, newly captured, schema v12) rather than its
+  original, older `publishedAt` — including broadcasts discovered only after they
+  already ended (e.g. via gap-backfill), which also now get the correct feed badge.
+  Full history is in `decisions.md` D-053, not a `bug-history/` file. Shipped as a
+  **patch** version, per the owner's own explicit direction. Shipped 2026-07-19.
 
-**Current target: 0.4.6.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
-none of the four made it into 0.4.5 either (see `bug-history/v0.4.5.md`). When 0.4.6
-ships, this file's content moves to `bug-history/v0.4.6.md` and a new `bugs-current.md`
-starts targeting whatever comes after it.
+**Current target: 0.4.7.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
+none of the four made it into 0.4.6 either (see above — 0.4.6 shipped ahead of this
+file with unrelated D-053 scope). When 0.4.7 ships, this file's content moves to
+`bug-history/v0.4.7.md` and a new `bugs-current.md` starts targeting whatever comes
+after it.
 
 ## Entry template
 
@@ -144,8 +154,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.6
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, and 0.4.5 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.7
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -172,7 +182,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.4.6 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, and 0.4.5 all shipped without this)
+  0.4.7 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -258,8 +268,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.6
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, and 0.4.5 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.7
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -358,8 +368,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.6 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, and 0.4.5 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.7 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
