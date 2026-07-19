@@ -112,15 +112,15 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   after stream ends), B-115 (Premiere vs. Live badge distinction). Shipped as a
   **patch** version (pure bug-fix/adjustment batch, no new `D-NNN` scope alongside it).
   Shipped 2026-07-17.
-- **v0.4.6** — no bug-tracker batch of its own, same pattern as `v0.2.1`/`v0.4.0`/
-  `v0.4.1`/`v0.4.2`/`v0.4.4`: driven by D-053, a direct product-owner request raised in
-  conversation rather than reported here. A currently-live video now sorts to the top
-  of its date bucket; an ended broadcast sorts and buckets by when it actually ended
-  (`liveStreamingDetails.actualEndTime`, newly captured, schema v12) rather than its
-  original, older `publishedAt` — including broadcasts discovered only after they
-  already ended (e.g. via gap-backfill), which also now get the correct feed badge.
-  Full history is in `decisions.md` D-053, not a `bug-history/` file. Shipped as a
-  **patch** version, per the owner's own explicit direction. Shipped 2026-07-19.
+- [`bug-history/v0.4.6.md`](bug-history/v0.4.6.md) — no B-NNN entries, driven entirely
+  by D-053, a direct product-owner request raised in conversation rather than reported
+  here (same pattern as D-050/D-051/D-052 before it). A currently-live video now sorts
+  to the top of its date bucket; an ended broadcast sorts and buckets by when it
+  actually ended (`liveStreamingDetails.actualEndTime`, newly captured, schema v12)
+  rather than its original, older `publishedAt` — including broadcasts discovered only
+  after they already ended (e.g. via gap-backfill), which also now get the correct feed
+  badge. Full narrative in `decisions.md` D-053. Shipped as a **patch** version, per the
+  owner's own explicit direction. Shipped 2026-07-19.
 
 **Current target: 0.4.7.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
 none of the four made it into 0.4.6 either (see above — 0.4.6 shipped ahead of this
