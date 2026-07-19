@@ -474,7 +474,7 @@ Resolved entries add:
   first poll(s) right as a broadcast goes live, filling in a little later — so
   `isPremiere` was transiently wrong at exactly the moment (stream just started) a viewer
   is most likely to look.
-- **Resolved:** 2026-07-19 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-19 · **Commit:** 12f8eef · **Outcome:** Fixed
 - **Resolution:** two replacement-signal candidates were considered and rejected before
   the owner chose removal over another patch:
   1. A same-conversation proposal to require an additional signal —
