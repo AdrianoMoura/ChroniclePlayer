@@ -183,7 +183,6 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           publishedAt: behavior.publishedAt?.[videoId] ?? '2026-07-11T10:00:00Z',
           durationSeconds: 600,
           liveContent: 'none' as const,
-          isPremiere: false,
           liveEndedAt: null,
           thumbnailUrl: null,
           description: null,

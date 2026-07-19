@@ -395,7 +395,6 @@ export const en = {
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Live',
   'feed.card.upcomingBadge': 'Upcoming',
-  'feed.card.premiereBadge': 'Premiere',
   'feed.loadingMore': 'Loading more…',
 
   // PlayerView

@@ -35,15 +35,21 @@ Later).
   re-hydrated every cycle instead of captured once (B-114 — a video no longer stays
   stuck showing "Live" forever after the broadcast actually ends; a sticky `wasLive` flag
   keeps a gray "Live" badge on an ended broadcast so it stays visible as *having been* one,
-  duration badge suppressed only while genuinely live). A live video is also now
+  duration badge suppressed only while genuinely live). A live video was also briefly
   best-effort flagged as a Premiere specifically (`isPremiere`, B-115) via
-  `liveStreamingDetails.concurrentViewers`'s absence — **unverified against real Premiere
-  data**, same caveat as this section's own ordering assumption below. The ordering
-  assumption above and the "Premieres {date}" label are still open — an *upcoming*
-  premiere still can't be told apart from a genuinely scheduled upcoming livestream (no
-  known API signal exists before either one starts) — they need verification against real
-  premiere/livestream data no session has had a way to exercise yet. **Extended 2026-07-19
-  (D-053):** the gray "ended" badge no longer depends solely on the sticky `wasLive` flag
+  `liveStreamingDetails.concurrentViewers`'s absence. **Reverted 2026-07-19 (B-117):** that
+  signal was confirmed wrong in practice — a genuine live broadcast was misidentified as a
+  Premiere (`concurrentViewers` was plausibly just not populated yet in the first poll(s)
+  right after a broadcast starts, self-correcting a while later once it filled in — not a
+  signal exclusive to Premieres after all). No replacement signal has been confirmed
+  against real data (a candidate — `contentDetails.duration` known/non-zero while
+  `liveContent === 'live'` — was floated but not tested against a real Premiere, so wasn't
+  adopted), so the distinction is removed outright rather than patched again: the feed
+  shows only "Live"/"Upcoming"/ended, same as before B-115 ever shipped. **Telling a
+  Premiere apart from a genuine livestream at all — in either the `live` or `upcoming`
+  state — remains open, unsolved, and unverified against real data;** see `bugs-current.md`
+  B-117 for the record. **Extended 2026-07-19 (D-053):** the gray "ended" badge no longer
+  depends solely on the sticky `wasLive` flag
   (which only ever becomes true if Chronicle observed the video while it was genuinely
   live) — it now also shows whenever `liveEndedAt` is known, even for a video whose
   *first-ever* hydration lands after its broadcast already ended (e.g. discovered later

@@ -38,7 +38,6 @@ function entry(
       thumbnailUrl: null,
       viewCount: null,
       isShort: false,
-      isPremiere: false,
       ...live
     }
   }

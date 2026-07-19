@@ -126,7 +126,6 @@ function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
     isShort: entry.video.isShort,
     liveContent: entry.video.liveContent,
     wasLive: entry.video.wasLive,
-    isPremiere: entry.video.isPremiere,
     liveEndedAt: entry.video.liveEndedAt,
     state: toStateDto(entry.state),
     bucket

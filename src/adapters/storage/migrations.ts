@@ -194,6 +194,17 @@ const SCHEMA_V12 = `
 ALTER TABLE videos ADD COLUMN live_ended_at TEXT;
 `
 
+// v13 (B-117): is_premiere's whole heuristic (v11) never had a reliable
+// signal behind it — confirmed wrong in practice (a genuine live broadcast
+// misidentified as a Premiere) rather than just theoretically unverified.
+// No replacement signal is confirmed against real data yet, so the
+// distinction is removed outright rather than patched again: the feed goes
+// back to plain 'live'/'upcoming'/'none', same as before v11 ever shipped.
+// See bugs-current.md B-117 for the open follow-up.
+const SCHEMA_V13 = `
+ALTER TABLE videos DROP COLUMN is_premiere;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -206,7 +217,8 @@ const migrations: readonly string[] = [
   SCHEMA_V9,
   SCHEMA_V10,
   SCHEMA_V11,
-  SCHEMA_V12
+  SCHEMA_V12,
+  SCHEMA_V13
 ]
 
 export function migrate(db: DatabaseSync): void {

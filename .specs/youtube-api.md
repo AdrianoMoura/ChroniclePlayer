@@ -22,7 +22,7 @@ justified against this document and its quota cost stated in a code comment.**
 | `subscriptions.list` (mine=true, 50/page) | 1 per page | Import/refresh subscription list |
 | `channels.list` (batched, 50 ids/call) | 1 per call | Uploads-playlist IDs, channel metadata |
 | `playlistItems.list` (50/page) | 1 per call | Gap detection during sync, and on-demand back-catalog fetch when scrolling past a channel's local archive ([[B-002]], implemented 2026-07-12 — bounded at 4 pages/call, resumable) |
-| `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live/premiere status, stats |
+| `videos.list` (batched, 50 ids/call) | 1 per call | Hydrate duration, live status, stats |
 | `videos.list` (single id) | 1 per call | Full (untruncated) description on every player open of an already-known video ([[B-092]], implemented 2026-07-15) — storage caps descriptions at 500 chars (local-data.md), which the player was serving as-is with no way to see the rest. Same trivial-per-open-cost precedent as `getRating` above; falls back to the stored (possibly short) copy on failure rather than blocking playback. |
 | `subscriptions.delete` | 50 per call | Unsubscribe ([[B-010]], implemented 2026-07-12; incremental scope per D-032) |
 | `subscriptions.insert` | 50 per call | In-app subscribe ([[B-009]], implemented 2026-07-12; D-030, incremental scope per D-032) |
@@ -77,7 +77,7 @@ videos are fetched by default; older content loads on demand as the user scrolls
   (even every 15 minutes) are quota-free at the discovery layer.
 - Hydration via `videos.list` is batched at 50 ids/unit and only covers *new* videos —
   a heavy day with 100 new videos across all channels costs 2 units.
-- Full metadata (duration, live/premiere flags) is preserved, which the feed and future
+- Full metadata (duration, live status) is preserved, which the feed and future
   filters need (`feed.md`, `features.md`).
 - Resulting steady-state daily quota usage: **single digits to low tens of units** out of
   10,000 — leaving effectively the whole quota as headroom for subscription re-sync,

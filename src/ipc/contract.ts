@@ -35,9 +35,6 @@ export interface FeedVideoDto {
   // liveContent reverts to 'none' post-broadcast. Distinguishes an ended
   // livestream from a video that was never live for the feed badge.
   wasLive: boolean
-  // B-115: best-effort, unverified signal (see core/video.ts) that a
-  // currently-live video is actually a Premiere, not a genuine broadcast.
-  isPremiere: boolean
   // D-053: liveStreamingDetails.actualEndTime, present once a broadcast has
   // ended — unlike wasLive, this can be known even if Chronicle never
   // observed the video while it was actually live (e.g. discovered later

@@ -452,3 +452,65 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-117 — A genuine live broadcast is misidentified as a Premiere
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.7
+- **Area:** feed / sync
+- **What happens:** the owner spotted a video from a subscribed channel currently tagged
+  "Premiere" in the feed that is actually a genuine live stream, not a pre-recorded
+  premiere. Self-corrected to "Live" on its own a while later, with no action from the
+  owner — so it was transient, not a permanently stuck badge.
+- **Expected:** only actual Premieres should badge as "Premiere"; a real live broadcast
+  should badge as "Live" (`.specs/feed.md`), from the moment it goes live, not just
+  eventually.
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`hydrate`) — `isPremiere =
+  liveContent === 'live' && liveStreamingDetails.concurrentViewers === undefined`;
+  `src/core/video.ts` (`Video.isPremiere`).
+- **Notes:** [[B-115]]'s own resolution already flagged this heuristic as "per general
+  knowledge of the API rather than anything confirmed against Chronicle's own data" — this
+  was that assumption failing in practice. The self-correction pointed at a likely
+  mechanism: `concurrentViewers` plausibly isn't populated yet in the API response for the
+  first poll(s) right as a broadcast goes live, filling in a little later — so
+  `isPremiere` was transiently wrong at exactly the moment (stream just started) a viewer
+  is most likely to look.
+- **Resolved:** 2026-07-19 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** two replacement-signal candidates were considered and rejected before
+  the owner chose removal over another patch:
+  1. A same-conversation proposal to require an additional signal —
+     `contentDetails.duration` already known/non-zero while `liveContent === 'live'`
+     (a live broadcast's duration is reportedly unset/`P0D` until it ends; a Premiere's,
+     being pre-recorded, is already known) — alongside the existing `concurrentViewers`
+     check, so both would need to agree before flagging a Premiere.
+  2. A theory from the owner via Gemini, proposing `liveStreamingDetails.actualStartTime`
+     presence/absence as the discriminator, plus a claim that `liveStreamingDetails`
+     disappears entirely once a Premiere (but not a real broadcast) finishes airing.
+     Checked against Google's own `videos` resource reference
+     (`developers.google.com/youtube/v3/docs/videos`) via fetch: **the official docs don't
+     mention Premieres at all** — every `liveStreamingDetails` field is documented
+     generically for "the broadcast," with no Premiere-specific behavior called out. So
+     this candidate carried the same unconfirmed-against-real-data risk as the original
+     B-115 heuristic and B-117's own `duration` candidate, not stronger evidence.
+  Neither candidate could be tested against a real Premiere in this session (no Premiere
+  was live/upcoming in the owner's subscriptions at the time, and fetching one blind
+  wasn't reliable) — confirming either would need catching a genuine Premiere red-handed
+  while `liveContent === 'live'`, since `liveStreamingDetails` behavior can't be
+  reconstructed after a broadcast ends. Rather than ship a second unverified guess on top
+  of the first, the owner chose to **remove the Premiere/Live distinction outright**:
+  `isPremiere` deleted from `HydratedVideo` (`core/ports.ts`), `Video`
+  (`core/video.ts`), `FeedVideoDto` (`ipc/contract.ts`); the heuristic itself removed from
+  `YouTubeApiClient.hydrate` (`adapters/youtube/api-client.ts`, `liveStreamingDetails` is
+  still fetched, just for D-053's `actualEndTime`); `is_premiere` dropped from the
+  `videos` table (schema v13, `adapters/storage/migrations.ts`, forward-only per
+  `local-data.md` §Migrations) and its read/write paths removed from
+  `sync-repository.ts`/`repositories.ts`; `main.ts`'s `toVideoDto` and
+  `FeedList.tsx`'s `liveBadgeLabel` simplified to drop the Premiere case (the
+  `feed.card.premiereBadge` i18n string removed); `dev-fixtures.ts` and every affected
+  test fixture updated. The feed shows only "Live"/"Upcoming"/ended again, same as before
+  B-115 ever shipped. `feed.md` §Ordering updated in the same change to record the
+  revert and flag that **a reliable Premiere-vs-live signal remains unsolved and
+  unverified against real data** — future work needs a genuine Premiere caught live to
+  test any candidate signal, not another guess. Checked via
+  `npm run typecheck && npm run lint && npm test` (`repositories.test.ts`'s migration
+  idempotency test updated for the new `user_version`); not verified live — needs the
+  owner's own confirmation that a real live broadcast now stays badged "Live" throughout.

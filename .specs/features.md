@@ -132,7 +132,7 @@ keep all local states — zero setup beyond installing the app. The onboarding w
 would become an **optional path** ("Connect a YouTube account") unlocking subscription
 import, YouTube search, full metadata hydration, and interactions. Graceful
 degradation without an account:
-- No `videos.list` hydration → no duration badges, no live/premiere flags (RSS-only
+- No `videos.list` hydration → no duration badges, no live status flags (RSS-only
   metadata: title, thumbnail, date, description).
 - Shorts detection would still run: without duration-based candidate filtering, every
   new video would need the `/shorts/{id}` HEAD confirmation (zero quota, cached

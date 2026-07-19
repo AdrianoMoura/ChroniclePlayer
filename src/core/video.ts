@@ -31,11 +31,6 @@ export interface Video {
   // tell an ended livestream apart from a video that was never live, for the
   // feed's "was Live" badge.
   wasLive: boolean
-  // B-115: best-effort, unverified signal that a currently-'live' video is
-  // actually a Premiere (pre-recorded, played on a schedule) rather than a
-  // genuine live broadcast — see HydratedVideo.isPremiere for the heuristic.
-  // Not sticky: only meaningful while liveContent is still 'live'.
-  isPremiere: boolean
   // D-053: liveStreamingDetails.actualEndTime, captured the first hydration
   // cycle that observes the broadcast has ended (liveContent has already
   // reverted to 'none' by then). Sticky, like wasLive — null if never live,

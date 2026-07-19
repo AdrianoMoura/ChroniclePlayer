@@ -50,12 +50,8 @@ function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
   return null
 }
 
-// B-115: only the 'live' state can currently distinguish a Premiere from a
-// genuine broadcast (see core/video.ts's Video.isPremiere) — 'upcoming' and
-// 'ended' both keep their existing generic label.
-function liveBadgeLabel(state: LiveBadgeState, video: FeedVideoDto): string {
+function liveBadgeLabel(state: LiveBadgeState): string {
   if (state === 'upcoming') return t('feed.card.upcomingBadge')
-  if (state === 'live' && video.isPremiere) return t('feed.card.premiereBadge')
   return t('feed.card.liveBadge')
 }
 // Must mirror `.grid-row`'s `gap` in styles.css — used below to derive the
@@ -405,7 +401,7 @@ export function VideoRow({
       {video.isShort && <span className="short-badge">{t('feed.card.shortBadge')}</span>}
       {liveBadge !== null && (
         <span className={`live-badge live-badge-${liveBadge}`}>
-          {liveBadgeLabel(liveBadge, video)}
+          {liveBadgeLabel(liveBadge)}
         </span>
       )}
       {video.durationSeconds !== null && video.liveContent !== 'live' && (
@@ -473,7 +469,7 @@ export function VideoCard({
         {video.isShort && <span className="short-badge card-short-badge">{t('feed.card.shortBadge')}</span>}
         {liveBadge !== null && (
           <span className={`live-badge card-live-badge live-badge-${liveBadge}`}>
-            {liveBadgeLabel(liveBadge, video)}
+            {liveBadgeLabel(liveBadge)}
           </span>
         )}
         {video.durationSeconds !== null && video.liveContent !== 'live' && (

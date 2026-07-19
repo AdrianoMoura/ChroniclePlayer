@@ -35,7 +35,6 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     publishedAt: '2026-07-11T08:00:00Z',
     durationSeconds,
     liveContent: 'none',
-    isPremiere: false,
     liveEndedAt: null,
     thumbnailUrl: 'https://thumb.example/x.jpg',
     description: 'full description',

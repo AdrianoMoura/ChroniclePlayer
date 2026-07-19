@@ -74,21 +74,19 @@ const VIDEOS_RESPONSE = {
         thumbnails: {}
       },
       contentDetails: { duration: 'P0D' },
-      // B-115: concurrentViewers present — a genuine broadcast, not a Premiere.
       liveStreamingDetails: { activeLiveChatId: 'chat-1', concurrentViewers: '120' }
     },
     {
       id: 'vid-4',
       snippet: {
         channelId: 'UCbbb',
-        title: 'A live premiere',
+        title: 'Another live stream',
         publishedAt: '2026-07-13T09:00:00Z',
         liveBroadcastContent: 'live',
         description: '',
         thumbnails: {}
       },
       contentDetails: { duration: 'P0D' },
-      // B-115: no concurrentViewers — the unverified Premiere signal.
       liveStreamingDetails: { activeLiveChatId: 'chat-2' }
     },
     {
@@ -156,27 +154,13 @@ describe('YouTubeApiClient', () => {
       videoId: 'vid-1',
       durationSeconds: 933,
       liveContent: 'none',
-      isPremiere: false,
       thumbnailUrl: 'https://i.ytimg.example/vid-1'
     })
     expect(videos[1]).toMatchObject({
       videoId: 'vid-2',
       durationSeconds: 130,
-      liveContent: 'upcoming',
-      isPremiere: false
+      liveContent: 'upcoming'
     })
-  })
-
-  it('flags a live video as a Premiere only when liveStreamingDetails.concurrentViewers is absent (B-115)', async () => {
-    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
-    const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([
-      'vid-1',
-      'vid-2',
-      'vid-3',
-      'vid-4'
-    ])
-    expect(videos[2]).toMatchObject({ videoId: 'vid-3', liveContent: 'live', isPremiere: false })
-    expect(videos[3]).toMatchObject({ videoId: 'vid-4', liveContent: 'live', isPremiere: true })
   })
 
   it('captures liveStreamingDetails.actualEndTime once a broadcast has ended (D-053)', async () => {
