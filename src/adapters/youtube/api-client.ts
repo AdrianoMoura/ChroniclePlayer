@@ -162,6 +162,9 @@ export class YouTubeApiClient implements SubscriptionSource {
       // heuristic, only evaluated while genuinely liveContent === 'live'.
       const liveStreamingDetails = item['liveStreamingDetails'] as Record<string, unknown> | undefined
       const isPremiere = liveContent === 'live' && liveStreamingDetails?.['concurrentViewers'] === undefined
+      // D-053: only present once the broadcast has actually ended.
+      const rawEndTime = liveStreamingDetails?.['actualEndTime']
+      const liveEndedAt = typeof rawEndTime === 'string' ? rawEndTime : null
       return {
         videoId: String(item['id']),
         channelId: String(snippet['channelId']),
@@ -171,6 +174,7 @@ export class YouTubeApiClient implements SubscriptionSource {
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),
         liveContent,
         isPremiere,
+        liveEndedAt,
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
         description: typeof snippet['description'] === 'string' ? snippet['description'] : null,
         viewCount: typeof rawViews === 'string' ? Number(rawViews) : null

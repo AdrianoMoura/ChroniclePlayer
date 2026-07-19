@@ -184,6 +184,7 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           durationSeconds: 600,
           liveContent: 'none' as const,
           isPremiere: false,
+          liveEndedAt: null,
           thumbnailUrl: null,
           description: null,
           viewCount: 1000

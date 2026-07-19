@@ -36,4 +36,11 @@ export interface Video {
   // genuine live broadcast — see HydratedVideo.isPremiere for the heuristic.
   // Not sticky: only meaningful while liveContent is still 'live'.
   isPremiere: boolean
+  // D-053: liveStreamingDetails.actualEndTime, captured the first hydration
+  // cycle that observes the broadcast has ended (liveContent has already
+  // reverted to 'none' by then). Sticky, like wasLive — null if never live,
+  // or if it's still live/hasn't been re-hydrated since ending yet. Feeds
+  // the feed's ordering fix: an ended broadcast sorts by when it wrapped,
+  // not by its original (older) publishedAt (feed.md §Ordering).
+  liveEndedAt: string | null
 }

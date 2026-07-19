@@ -37,13 +37,16 @@ const HEADER_HEIGHT = 38
 // "was live, broadcast has since ended" — it reverts to 'none' once a
 // stream ends, same as a normal upload, so the sticky wasLive flag is what
 // keeps the ended case showing a (now gray, not red) badge instead of
-// disappearing outright.
+// disappearing outright. D-053: liveEndedAt catches the case wasLive can't
+// — a broadcast whose end Chronicle learns about without ever having seen
+// it live (e.g. discovered later via gap-backfill), since YouTube reports
+// actualEndTime as permanent video metadata regardless of when it's read.
 type LiveBadgeState = 'live' | 'upcoming' | 'ended'
 
 function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
   if (video.liveContent === 'live') return 'live'
   if (video.liveContent === 'upcoming') return 'upcoming'
-  if (video.wasLive) return 'ended'
+  if (video.wasLive || video.liveEndedAt) return 'ended'
   return null
 }
 

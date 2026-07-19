@@ -42,9 +42,35 @@ Later).
   assumption above and the "Premieres {date}" label are still open — an *upcoming*
   premiere still can't be told apart from a genuinely scheduled upcoming livestream (no
   known API signal exists before either one starts) — they need verification against real
-  premiere/livestream data no session has had a way to exercise yet.
+  premiere/livestream data no session has had a way to exercise yet. **Extended 2026-07-19
+  (D-053):** the gray "ended" badge no longer depends solely on the sticky `wasLive` flag
+  (which only ever becomes true if Chronicle observed the video while it was genuinely
+  live) — it now also shows whenever `liveEndedAt` is known, even for a video whose
+  *first-ever* hydration lands after its broadcast already ended (e.g. discovered later
+  via gap-backfill). This is possible because `liveStreamingDetails.actualEndTime` is
+  permanent video metadata, unlike `liveBroadcastContent` (which reverts to `'none'` once
+  a broadcast ends and stays that way regardless of when the video is later hydrated).
 - Ties (identical timestamps) break by channel title, then videoId — deterministic order
   is part of "predictable."
+- **Live/ended broadcasts sort — and bucket — by an effective date, not always
+  `publishedAt` (D-053, 2026-07-19):** every video has an `effectiveDate` (`core/feed.ts`)
+  that drives **both** its sort position and which date bucket it lands in (§Grouping
+  below) — the two always share the same value, deliberately, so a video can never "jump"
+  a bucket boundary in sort order without its header landing at the right point. For a
+  video that was never live, `effectiveDate` is just `publishedAt`, unchanged. For a
+  currently-live video (`liveContent === 'live'`), it's **`now`** — so it always sorts to
+  the top of Today, however long ago it actually started, for as long as it's still going.
+  For a video whose broadcast has ended, it's `liveEndedAt` (when it actually ended, not
+  when it started) — so a livestream that ran for hours, or crossed midnight (e.g. started
+  20:00, ended 02:00), shows under the date it actually wrapped and sorted by that moment,
+  not buried under the date/position its original `publishedAt` would have put it in. This
+  is why an hours-old livestream no longer sinks below videos published since it started,
+  both while still live and, worse, right after it ends. Never affects keyset pagination
+  (D-027) — the underlying page fetch stays keyed on plain `publishedAt` (a keyset cursor
+  can't be built on a value like `now` that changes between calls); `effectiveDate` only
+  reorders/re-buckets an already-fetched page for display.
+
+  - **Watch Later is exempt** — its own explicit position ordering (below) is untouched.
 
 ## Grouping (Final in shape; boundary details below)
 
@@ -53,7 +79,7 @@ The feed is grouped under date headers, computed in the **user's local timezone*
 
 | Group | Rule |
 |---|---|
-| **Today** | `publishedAt` is the current calendar day |
+| **Today** | `effectiveDate` (§Ordering — `publishedAt` unless live/ended, D-053) is the current calendar day |
 | **Yesterday** | previous calendar day |
 | **This Week** | current ISO week (Monday start), excluding today/yesterday |
 | **Earlier** | everything else, paginated |

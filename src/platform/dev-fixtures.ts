@@ -111,7 +111,8 @@ export function seedDevFixtures(
           isShort,
           liveContent: 'none',
           wasLive: false,
-          isPremiere: false
+          isPremiere: false,
+          liveEndedAt: null
         },
         nowIso
       )

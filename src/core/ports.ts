@@ -173,6 +173,10 @@ export interface HydratedVideo {
   // tell a Premiere apart from a real scheduled livestream before either
   // one starts). **Unverified against real Premiere data** — see B-115.
   isPremiere: boolean
+  // D-053: liveStreamingDetails.actualEndTime — present once YouTube reports
+  // the broadcast has ended, null while it's still live/upcoming or for a
+  // video that was never live. See Video.liveEndedAt for how it's used.
+  liveEndedAt: string | null
   thumbnailUrl: string | null
   description: string | null
   viewCount: number | null

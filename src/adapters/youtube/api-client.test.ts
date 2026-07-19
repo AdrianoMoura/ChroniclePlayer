@@ -90,6 +90,23 @@ const VIDEOS_RESPONSE = {
       contentDetails: { duration: 'P0D' },
       // B-115: no concurrentViewers — the unverified Premiere signal.
       liveStreamingDetails: { activeLiveChatId: 'chat-2' }
+    },
+    {
+      id: 'vid-5',
+      snippet: {
+        channelId: 'UCaaa',
+        title: 'An ended broadcast',
+        publishedAt: '2026-07-13T08:00:00Z',
+        liveBroadcastContent: 'none', // D-053: reverted to 'none' once the stream ended
+        description: '',
+        thumbnails: {}
+      },
+      contentDetails: { duration: 'PT1H30M' },
+      liveStreamingDetails: {
+        activeLiveChatId: 'chat-3',
+        actualStartTime: '2026-07-13T08:00:00Z',
+        actualEndTime: '2026-07-13T09:30:00Z'
+      }
     }
   ]
 }
@@ -160,6 +177,20 @@ describe('YouTubeApiClient', () => {
     ])
     expect(videos[2]).toMatchObject({ videoId: 'vid-3', liveContent: 'live', isPremiere: false })
     expect(videos[3]).toMatchObject({ videoId: 'vid-4', liveContent: 'live', isPremiere: true })
+  })
+
+  it('captures liveStreamingDetails.actualEndTime once a broadcast has ended (D-053)', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
+    const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([
+      'vid-1',
+      'vid-5'
+    ])
+    // A normal, never-live video has no actualEndTime to report.
+    expect(videos.find((v) => v.videoId === 'vid-1')).toMatchObject({ liveEndedAt: null })
+    expect(videos.find((v) => v.videoId === 'vid-5')).toMatchObject({
+      liveContent: 'none',
+      liveEndedAt: '2026-07-13T09:30:00Z'
+    })
   })
 
   it('maps uploads playlists from channels.list', async () => {

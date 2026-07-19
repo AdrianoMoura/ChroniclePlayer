@@ -184,6 +184,16 @@ const SCHEMA_V11 = `
 ALTER TABLE videos ADD COLUMN is_premiere INTEGER NOT NULL DEFAULT 0;
 `
 
+// v12 (D-053): liveStreamingDetails.actualEndTime, captured once a broadcast
+// ends — feeds an ordering fix (feed.md §Ordering): an hours-old livestream
+// otherwise sorts by its (old) publishedAt and gets buried under same-day
+// uploads, both while still live and, worse, right after it ends. Sticky
+// like was_live (v10) once set — a later hydration cycle never has a reason
+// to clear a real end time it already captured.
+const SCHEMA_V12 = `
+ALTER TABLE videos ADD COLUMN live_ended_at TEXT;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -195,7 +205,8 @@ const migrations: readonly string[] = [
   SCHEMA_V8,
   SCHEMA_V9,
   SCHEMA_V10,
-  SCHEMA_V11
+  SCHEMA_V11,
+  SCHEMA_V12
 ]
 
 export function migrate(db: DatabaseSync): void {

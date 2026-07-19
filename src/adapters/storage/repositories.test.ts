@@ -49,7 +49,12 @@ function subscribeAs(accountId: string, channelId: string): void {
   ).run({ account: accountId, channelId, now: fixedClock.now().toISOString() })
 }
 
-function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void {
+function addVideo(
+  videoId: string,
+  publishedAt: string,
+  channelId = 'UCa',
+  liveContent: 'none' | 'live' | 'upcoming' = 'none'
+): void {
   catalog.upsertVideo(
     {
       videoId,
@@ -60,9 +65,10 @@ function addVideo(videoId: string, publishedAt: string, channelId = 'UCa'): void
       thumbnailUrl: null,
       viewCount: null,
       isShort: false,
-      liveContent: 'none',
-      wasLive: false,
-      isPremiere: false
+      liveContent,
+      wasLive: liveContent === 'live',
+      isPremiere: false,
+      liveEndedAt: null
     },
     fixedClock.now().toISOString()
   )
@@ -72,7 +78,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(11)
+    expect(Number(row.user_version)).toBe(12)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -579,7 +585,8 @@ describe('SqliteCatalogRepository', () => {
         isShort: false,
         liveContent: 'none',
         wasLive: false,
-        isPremiere: false
+        isPremiere: false,
+        liveEndedAt: null
       },
       fixedClock.now().toISOString()
     )

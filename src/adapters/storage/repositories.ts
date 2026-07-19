@@ -39,6 +39,7 @@ const FEED_SELECT = `
     v.live_content       AS live_content,
     v.was_live           AS was_live,
     v.is_premiere        AS is_premiere,
+    v.live_ended_at      AS live_ended_at,
     c.title             AS channel_title,
     COALESCE(s.read_status, 'unread') AS read_status,
     COALESCE(s.favorite, 0)           AS favorite,
@@ -102,8 +103,13 @@ function viewPredicate(view: FeedView, accountId?: string): string {
   }
 }
 
-// Must mirror core compareFeedOrder exactly (published desc, channel title,
-// videoId) — keyset pagination breaks if SQL and core disagree on ties.
+// The keyset pagination (D-027) fetch order — deliberately plain
+// publishedAt, not core's effectiveDate-based compareFeedOrder (D-053): a
+// keyset cursor can't be built on a value like "now" that changes between
+// calls, or it could skip/duplicate rows across pages. FeedService.getSlice
+// re-sorts each already-fetched page by effectiveDate for display; that
+// reorder never changes which rows a page contains, only how they're shown,
+// so it can safely diverge from this fetch order.
 const FEED_ORDER = `ORDER BY v.published_at DESC, c.title ASC, v.video_id ASC`
 
 interface FeedRow {
@@ -118,6 +124,7 @@ interface FeedRow {
   live_content: string | null
   was_live: number | bigint
   is_premiere: number | bigint
+  live_ended_at: string | null
   channel_title: string
   read_status: string
   favorite: number | bigint
@@ -146,7 +153,8 @@ function toEntry(row: FeedRow): FeedEntry {
       isShort: Number(row.is_short) === 1,
       liveContent: (row.live_content ?? 'none') as 'none' | 'live' | 'upcoming',
       wasLive: Number(row.was_live) === 1,
-      isPremiere: Number(row.is_premiere) === 1
+      isPremiere: Number(row.is_premiere) === 1,
+      liveEndedAt: row.live_ended_at
     }
   }
 }

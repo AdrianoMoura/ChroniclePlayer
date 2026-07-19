@@ -91,9 +91,12 @@ CREATE TABLE videos (
                                               -- live_content itself reverts to 'none' once a broadcast
                                               -- ends, same as a normal upload; this is the only record
                                               -- that it was ever a livestream (feed's ended-broadcast badge)
-  is_premiere       INTEGER NOT NULL DEFAULT 0 -- v11 (B-115): best-effort, unverified Premiere signal
+  is_premiere       INTEGER NOT NULL DEFAULT 0, -- v11 (B-115): best-effort, unverified Premiere signal
                                               -- (liveStreamingDetails.concurrentViewers absence while
                                               -- live_content='live') — not sticky, re-derived every hydration
+  live_ended_at     TEXT                      -- v12 (D-053): liveStreamingDetails.actualEndTime, captured
+                                              -- once a broadcast ends; sticky like was_live. Feeds the
+                                              -- feed's live-first-within-bucket ordering (feed.md §Ordering)
 );
 CREATE INDEX idx_videos_feed ON videos (published_at DESC);
 CREATE INDEX idx_videos_channel ON videos (channel_id, published_at DESC);

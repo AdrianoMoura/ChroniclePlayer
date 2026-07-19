@@ -1,4 +1,10 @@
-import { bucketOf, recentWindowStart, type FeedBucket, type FeedEntry } from './feed'
+import {
+  bucketOf,
+  effectiveDate,
+  recentWindowStart,
+  type FeedBucket,
+  type FeedEntry
+} from './feed'
 import type { Clock, FeedCursor, FeedRepository } from './ports'
 import type { FeedView } from './views'
 
@@ -46,13 +52,22 @@ export class FeedService {
       ? null
       : this.repository.listPage(view, cursor, limit, channelId, showShorts, accountId)
 
+    // D-053: display-only reorder of an already-fetched page — the SQL
+    // query and its cursor (D-027) stay keyed on the raw, un-reordered
+    // publishedAt (a keyset cursor can't be built on a value like "now"
+    // that changes between calls); only how this one page's rows are
+    // grouped/ordered for display changes here.
+    const sortedEntries = [...(page?.entries ?? [])].sort(
+      (a, b) => effectiveDate(b.video, now).getTime() - effectiveDate(a.video, now).getTime()
+    )
+
     return {
       view,
       items:
         items ??
-        (page?.entries ?? []).map((entry) => ({
+        sortedEntries.map((entry) => ({
           entry,
-          bucket: bucketOf(new Date(entry.video.publishedAt), now)
+          bucket: bucketOf(effectiveDate(entry.video, now), now)
         })),
       nextCursor: page?.nextCursor ?? null,
       unreadCount: this.repository.countUnread(showShorts, accountId),

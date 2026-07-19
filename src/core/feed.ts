@@ -19,10 +19,10 @@ const BUCKET_ORDER: readonly FeedBucket[] = ['today', 'yesterday', 'this-week', 
 // Grouping per feed.md §Grouping: calendar days in the user's local timezone,
 // not rolling 24h windows. Groups with zero videos are omitted.
 export function groupFeed(entries: readonly FeedEntry[], now: Date): FeedGroup[] {
-  const sorted = [...entries].sort(compareFeedOrder)
+  const sorted = [...entries].sort((a, b) => compareFeedOrder(a, b, now))
   const buckets = new Map<FeedBucket, FeedEntry[]>()
   for (const entry of sorted) {
-    const bucket = bucketOf(new Date(entry.video.publishedAt), now)
+    const bucket = bucketOf(effectiveDate(entry.video, now), now)
     const group = buckets.get(bucket)
     if (group) {
       group.push(entry)
@@ -36,13 +36,39 @@ export function groupFeed(entries: readonly FeedEntry[], now: Date): FeedGroup[]
   })
 }
 
-// feed.md §Ordering: publishedAt descending; ties break by channel title,
-// then videoId — deterministic order is part of "predictable".
-function compareFeedOrder(a: FeedEntry, b: FeedEntry): number {
-  const timeDiff = Date.parse(b.video.publishedAt) - Date.parse(a.video.publishedAt)
+// feed.md §Ordering: effectiveDate descending (D-053) — publishedAt for
+// everything that was never live; ties break by channel title, then
+// videoId — deterministic order is part of "predictable".
+function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
+  const timeDiff = effectiveDate(b.video, now).getTime() - effectiveDate(a.video, now).getTime()
   if (timeDiff !== 0) return timeDiff
   if (a.channelTitle !== b.channelTitle) return a.channelTitle < b.channelTitle ? -1 : 1
   return a.video.videoId < b.video.videoId ? -1 : 1
+}
+
+// D-053: the single timestamp that drives both which date bucket a video
+// lands in AND its sort position — publishedAt for anything that was never
+// live; `now` while a broadcast is genuinely live (so it always sorts to
+// the top of "today", however long ago it actually started, since it's
+// still happening); liveEndedAt once a broadcast has ended (so a stream
+// that crossed midnight, e.g. started 20:00 and ended 02:00, now shows
+// under the date it actually wrapped, not the date it started). Bucket and
+// sort order deliberately share this one value, never two different
+// timestamps — otherwise an entry could "jump" a bucket boundary in sort
+// order without its header landing at the right point, since neither
+// groupFeed's Map-based grouping nor feed-service.ts's flat "insert a
+// header whenever the bucket changes" read model has a separate pass that
+// would catch that.
+export function effectiveDate(video: Video, now: Date): Date {
+  if (video.liveContent === 'live') return now
+  // Deliberately keyed on liveEndedAt alone, not `wasLive && liveEndedAt`:
+  // wasLive only ever becomes true if Chronicle observed the video while it
+  // was still live (B-114), but liveEndedAt can be captured on a video's
+  // very first hydration if that happens to land after the broadcast
+  // already ended (e.g. gap-backfill discovering it late) — wasLive would
+  // stay false in that case despite a real end time being known.
+  if (video.liveEndedAt) return new Date(video.liveEndedAt)
+  return new Date(video.publishedAt)
 }
 
 export function bucketOf(published: Date, now: Date): FeedBucket {

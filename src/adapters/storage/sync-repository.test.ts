@@ -36,6 +36,7 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     durationSeconds,
     liveContent: 'none',
     isPremiere: false,
+    liveEndedAt: null,
     thumbnailUrl: 'https://thumb.example/x.jpg',
     description: 'full description',
     viewCount: 12345
@@ -231,6 +232,29 @@ describe('discovery and hydration', () => {
     const ended = entries.find((e) => e.video.videoId === 'stream-1')?.video
     expect(ended?.liveContent).toBe('none')
     expect(ended?.durationSeconds).toBe(5400)
+  })
+
+  it('captures liveEndedAt once a broadcast ends, and keeps it sticky through later re-hydrations (D-053)', () => {
+    sync.applyHydration([{ ...hydratedVideo('stream-1', 0), liveContent: 'live' }], NOW)
+    let ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video
+    expect(ended?.liveEndedAt).toBeNull()
+
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-1', 5400), liveContent: 'none', liveEndedAt: '2026-07-11T13:30:00Z' }],
+      NOW
+    )
+    ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video
+    expect(ended?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
+
+    // A later re-hydration reporting no end time (shouldn't normally happen,
+    // but the sticky COALESCE must not let it clear a real one already
+    // captured) leaves it untouched.
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-1', 5400), liveContent: 'none', liveEndedAt: null }],
+      NOW
+    )
+    ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video
+    expect(ended?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
   })
 
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {

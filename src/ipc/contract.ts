@@ -38,6 +38,12 @@ export interface FeedVideoDto {
   // B-115: best-effort, unverified signal (see core/video.ts) that a
   // currently-live video is actually a Premiere, not a genuine broadcast.
   isPremiere: boolean
+  // D-053: liveStreamingDetails.actualEndTime, present once a broadcast has
+  // ended — unlike wasLive, this can be known even if Chronicle never
+  // observed the video while it was actually live (e.g. discovered later
+  // via gap-backfill), since YouTube keeps it as permanent video metadata.
+  // Also drives the "ended" feed badge for that case (FeedList.tsx).
+  liveEndedAt: string | null
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so
