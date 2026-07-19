@@ -153,37 +153,6 @@ Resolved entries add:
 
 ## Open
 
-### B-118 — New video (11 min old) missing from feed after a manual reload
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-19 · **Target:** 0.4.7
-- **Area:** sync
-- **What happens:** the channel "GDTech Informatica" posted a video ~11 minutes earlier;
-  the owner triggered a manual reload and the video did not appear in the feed.
-- **Expected:** a manual reload should surface any video the channel has actually
-  published, subject only to the underlying data source's own latency.
-- **Code refs:** `src/adapters/rss/rss-client.ts` (conditional GET / ETag handling,
-  `not-modified` short-circuit); `src/core/sync-service.ts`
-  (`discoverRecentWithRetry`, `refresh()`).
-- **Notes:** not yet attacked — logged per the usual workflow (only worked when the
-  owner says so). Read-only investigation this session turned up no cooldown/debounce on
-  manual refresh (ruled out as a cause) and no Shorts-related suppression (candidates
-  stay visible pre-confirmation per `.specs/feed.md`). Two live hypotheses, most likely
-  first:
-  1. **YouTube's own RSS/CDN latency** — `.specs/youtube-api.md` already documents the
-     RSS backend as updating "within minutes," not instantly; if the edge cache hadn't
-     invalidated that channel's feed ETag yet at the 11-minute mark, Chronicle's
-     conditional GET gets back `304 not-modified` and correctly (per this cycle's data)
-     finds nothing new — YouTube-side latency, not a Chronicle bug. Trying reload again
-     a few minutes later would confirm this.
-  2. **A transient per-cycle RSS failure for that one channel**, silently absorbed by the
-     retry/backoff in `discoverRecentWithRetry` and D-049's "no banner for isolated
-     failures" — indistinguishable from (1) without logs, would also resolve on a later
-     manual reload.
-  A third, unconfirmed possibility worth ruling out with the owner: whether they were
-  scrolled away from the top of the feed at the time — a newly discovered video not at
-  the top surfaces as a "N new videos" pill (`App.tsx`) rather than an inline insert,
-  which could look like "didn't appear" without actually being missed.
-
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.7
   (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
@@ -483,3 +452,22 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-118 — New video (11 min old) missing from feed after a manual reload
+- **Type:** bug · **Severity:** minor
+- **Status:** Resolved · **Reported:** 2026-07-19 · **Target:** 0.4.7
+- **Area:** sync
+- **What happens:** the channel "GDTech Informatica" posted a video ~11 minutes earlier;
+  the owner triggered a manual reload and the video did not appear in the feed.
+- **Expected:** a manual reload should surface any video the channel has actually
+  published, subject only to the underlying data source's own latency.
+- **Code refs:** `src/adapters/rss/rss-client.ts` (conditional GET / ETag handling,
+  `not-modified` short-circuit); `src/core/sync-service.ts`
+  (`discoverRecentWithRetry`, `refresh()`).
+- **Resolved:** 2026-07-19 · **Commit:** n/a (no code change) · **Outcome:** Won't fix
+- **Resolution:** confirmed by the owner, not fixed: opening the channel's raw RSS URL
+  (`https://www.youtube.com/feeds/videos.xml?channel_id=UCPCjw2_9Is-gMAvFlpIzRAA`)
+  directly showed the video, and a later in-app reload then surfaced it the same way —
+  the video simply wasn't in YouTube's own RSS feed yet at the 11-minute mark. Confirms
+  hypothesis 1 from the investigation (YouTube's own RSS/CDN latency, `.specs/
+  youtube-api.md`'s "updates within minutes"), not a Chronicle bug — nothing to fix.
