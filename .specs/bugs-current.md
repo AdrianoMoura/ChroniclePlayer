@@ -122,11 +122,16 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   badge. Full narrative in `decisions.md` D-053. Shipped as a **patch** version, per the
   owner's own explicit direction. Shipped 2026-07-19.
 
-**Current target: 0.4.7.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
-none of the four made it into 0.4.6 either (see above — 0.4.6 shipped ahead of this
-file with unrelated D-053 scope). When 0.4.7 ships, this file's content moves to
-`bug-history/v0.4.7.md` and a new `bugs-current.md` starts targeting whatever comes
-after it.
+- [`bug-history/v0.4.7.md`](bug-history/v0.4.7.md) — B-117 (Fixed — removed the
+  unreliable Premiere-vs-live badge distinction outright, no replacement signal
+  confirmed against real data) and B-118 (Won't fix — confirmed YouTube's own RSS/CDN
+  latency, not a Chronicle bug). Shipped as a **patch** version (a pure bug-fix batch,
+  no new `D-NNN` scope alongside it). Shipped 2026-07-19.
+
+**Current target: 0.4.8.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
+none of the four made it into 0.4.7 either (see above — 0.4.7 shipped B-117/B-118
+instead). When 0.4.8 ships, this file's content moves to `bug-history/v0.4.8.md` and a
+new `bugs-current.md` starts targeting whatever comes after it.
 
 ## Entry template
 
@@ -154,8 +159,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.7
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.8
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, and 0.4.7 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -182,7 +187,7 @@ Resolved entries add:
 - **Type:** bug · **Severity:** major
 - **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
   confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
-  0.4.7 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
+  0.4.8 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, and 0.4.7 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
   Chronicle's list at all, even for the owner's own membership on that channel.
@@ -268,8 +273,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.7
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.8
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, and 0.4.7 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -368,8 +373,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.7 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, and 0.4.6 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.8 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, and 0.4.7 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -452,83 +457,3 @@ Resolved entries add:
   given that history.
 
 ## Resolved
-
-### B-117 — A genuine live broadcast is misidentified as a Premiere
-- **Type:** bug · **Severity:** minor
-- **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.7
-- **Area:** feed / sync
-- **What happens:** the owner spotted a video from a subscribed channel currently tagged
-  "Premiere" in the feed that is actually a genuine live stream, not a pre-recorded
-  premiere. Self-corrected to "Live" on its own a while later, with no action from the
-  owner — so it was transient, not a permanently stuck badge.
-- **Expected:** only actual Premieres should badge as "Premiere"; a real live broadcast
-  should badge as "Live" (`.specs/feed.md`), from the moment it goes live, not just
-  eventually.
-- **Code refs:** `src/adapters/youtube/api-client.ts` (`hydrate`) — `isPremiere =
-  liveContent === 'live' && liveStreamingDetails.concurrentViewers === undefined`;
-  `src/core/video.ts` (`Video.isPremiere`).
-- **Notes:** [[B-115]]'s own resolution already flagged this heuristic as "per general
-  knowledge of the API rather than anything confirmed against Chronicle's own data" — this
-  was that assumption failing in practice. The self-correction pointed at a likely
-  mechanism: `concurrentViewers` plausibly isn't populated yet in the API response for the
-  first poll(s) right as a broadcast goes live, filling in a little later — so
-  `isPremiere` was transiently wrong at exactly the moment (stream just started) a viewer
-  is most likely to look.
-- **Resolved:** 2026-07-19 · **Commit:** 12f8eef · **Outcome:** Fixed
-- **Resolution:** two replacement-signal candidates were considered and rejected before
-  the owner chose removal over another patch:
-  1. A same-conversation proposal to require an additional signal —
-     `contentDetails.duration` already known/non-zero while `liveContent === 'live'`
-     (a live broadcast's duration is reportedly unset/`P0D` until it ends; a Premiere's,
-     being pre-recorded, is already known) — alongside the existing `concurrentViewers`
-     check, so both would need to agree before flagging a Premiere.
-  2. A theory from the owner via Gemini, proposing `liveStreamingDetails.actualStartTime`
-     presence/absence as the discriminator, plus a claim that `liveStreamingDetails`
-     disappears entirely once a Premiere (but not a real broadcast) finishes airing.
-     Checked against Google's own `videos` resource reference
-     (`developers.google.com/youtube/v3/docs/videos`) via fetch: **the official docs don't
-     mention Premieres at all** — every `liveStreamingDetails` field is documented
-     generically for "the broadcast," with no Premiere-specific behavior called out. So
-     this candidate carried the same unconfirmed-against-real-data risk as the original
-     B-115 heuristic and B-117's own `duration` candidate, not stronger evidence.
-  Neither candidate could be tested against a real Premiere in this session (no Premiere
-  was live/upcoming in the owner's subscriptions at the time, and fetching one blind
-  wasn't reliable) — confirming either would need catching a genuine Premiere red-handed
-  while `liveContent === 'live'`, since `liveStreamingDetails` behavior can't be
-  reconstructed after a broadcast ends. Rather than ship a second unverified guess on top
-  of the first, the owner chose to **remove the Premiere/Live distinction outright**:
-  `isPremiere` deleted from `HydratedVideo` (`core/ports.ts`), `Video`
-  (`core/video.ts`), `FeedVideoDto` (`ipc/contract.ts`); the heuristic itself removed from
-  `YouTubeApiClient.hydrate` (`adapters/youtube/api-client.ts`, `liveStreamingDetails` is
-  still fetched, just for D-053's `actualEndTime`); `is_premiere` dropped from the
-  `videos` table (schema v13, `adapters/storage/migrations.ts`, forward-only per
-  `local-data.md` §Migrations) and its read/write paths removed from
-  `sync-repository.ts`/`repositories.ts`; `main.ts`'s `toVideoDto` and
-  `FeedList.tsx`'s `liveBadgeLabel` simplified to drop the Premiere case (the
-  `feed.card.premiereBadge` i18n string removed); `dev-fixtures.ts` and every affected
-  test fixture updated. The feed shows only "Live"/"Upcoming"/ended again, same as before
-  B-115 ever shipped. `feed.md` §Ordering updated in the same change to record the
-  revert and flag that **a reliable Premiere-vs-live signal remains unsolved and
-  unverified against real data** — future work needs a genuine Premiere caught live to
-  test any candidate signal, not another guess. Checked via
-  `npm run typecheck && npm run lint && npm test` (`repositories.test.ts`'s migration
-  idempotency test updated for the new `user_version`); not verified live — needs the
-  owner's own confirmation that a real live broadcast now stays badged "Live" throughout.
-
-### B-118 — New video (11 min old) missing from feed after a manual reload
-- **Type:** bug · **Severity:** minor
-- **Status:** Resolved · **Reported:** 2026-07-19 · **Target:** 0.4.7
-- **Area:** sync
-- **What happens:** a subscribed channel posted a video ~11 minutes earlier;
-  the owner triggered a manual reload and the video did not appear in the feed.
-- **Expected:** a manual reload should surface any video the channel has actually
-  published, subject only to the underlying data source's own latency.
-- **Code refs:** `src/adapters/rss/rss-client.ts` (conditional GET / ETag handling,
-  `not-modified` short-circuit); `src/core/sync-service.ts`
-  (`discoverRecentWithRetry`, `refresh()`).
-- **Resolved:** 2026-07-19 · **Commit:** n/a (no code change) · **Outcome:** Won't fix
-- **Resolution:** confirmed by the owner, not fixed: opening the channel's raw RSS feed directly
-  showed the video, and a later in-app reload then surfaced it the same way —
-  the video simply wasn't in YouTube's own RSS feed yet at the 11-minute mark. Confirms
-  hypothesis 1 from the investigation (YouTube's own RSS/CDN latency, `.specs/
-  youtube-api.md`'s "updates within minutes"), not a Chronicle bug — nothing to fix.
