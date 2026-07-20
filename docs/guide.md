@@ -32,6 +32,7 @@ Every video row supports:
 | Ignore | Removes it from view, with a few seconds to undo |
 | Favorite | Marks it for later reference (its own view in the sidebar) |
 | Watch Later | Adds it to an ordered queue (its own view in the sidebar) |
+| Open in browser | Opens the video on youtube.com instead of Chronicle's player |
 
 All of this is **local-only** state — it lives in your database, never on
 YouTube, regardless of what permissions you've granted.
@@ -62,11 +63,11 @@ come back to it later.
 - Press `x` to close the miniplayer outright.
 - The miniplayer's left edge is a drag handle to resize it; the width is
   remembered across launches.
-- The miniplayer's extract action (or `p` from the full player) pops the
-  video into its own always-on-top window, independent of the main Chronicle
-  window — useful for keeping a video visible while you do something else.
-  Closing that window docks the video back into the main window rather than
-  losing it.
+- Press `p` — from either the full player or the miniplayer — to pop the
+  video out into its own always-on-top window, independent of the main
+  Chronicle window. Useful for keeping a video visible while you do
+  something else. Closing that window docks the video back into the main
+  window rather than losing it.
 
 ## Search and channels
 
@@ -90,12 +91,20 @@ loaded automatically — it's a deliberate click), and post a top-level comment
 or reply. There's no like button on individual comments — YouTube's API
 doesn't expose one.
 
+Subscribing, liking, and commenting each need one extra Google permission
+beyond the basic read-only connection from setup. The **first** time you do
+any of these, your default browser opens for a quick consent screen; once
+granted, it applies to all of these actions from then on — you won't be
+asked again.
+
 ## Multiple accounts
 
-You can connect more than one Google account. Their feeds combine by default,
-with an account filter in the sidebar if you want to see just one. Read
-state, favorites, and Watch Later are shared per video, not per account — if
-you've watched something on one account, it shows watched everywhere.
+You can connect more than one Google account. Their feeds combine into one
+list by default. Clicking an account in the sidebar's Accounts section
+filters the feed down to just that account — click the same account again to
+deselect it and go back to the combined view. Read state, favorites, and
+Watch Later are shared per video, not per account — if you've watched
+something on one account, it shows watched everywhere.
 
 ## Shorts
 
@@ -137,9 +146,9 @@ Reconnect, replace your OAuth client file, fix the "reconnect weekly" issue
   of quitting, so background refresh (and notifications) keep working with no
   window open.
 - **Pop out on close** (only shown when background mode is on): if a video is
-  still playing when you close to the tray, pop it into the always-on-top
-  window instead of leaving it playing silently hidden. Turning this off
-  pauses it instead.
+  still playing when you close to the tray, this opens it in the
+  always-on-top window, still playing. With it off, the video pauses
+  instead.
 - **Start minimized to tray** (only shown when both auto-start and
   background mode are on): skip showing the window at login.
 
@@ -217,5 +226,3 @@ visible on-screen control — nothing here is keyboard-only.
 Menus and secondary screens (Settings, the sidebar's "…" menus, dialogs) rely
 on standard Tab / Shift+Tab and Enter/Space instead of single-key bindings —
 those are reserved for the feed and player's high-frequency actions above.
-
-Shortcuts are rebindable via `settings.json`; there's no in-app remap UI yet.

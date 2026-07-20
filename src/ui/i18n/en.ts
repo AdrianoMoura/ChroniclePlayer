@@ -82,7 +82,7 @@ export const en = {
   'connect.step2.buttonConnecting': 'Waiting for the browser…',
   'connect.step2.button': 'Connect Google',
   'connect.storageWarning':
-    'Heads-up: no OS keychain was detected, so your token will be stored with reversible local encryption — anyone with access to your user account could read it. (D-013 fallback.)',
+    'Heads-up: no OS keychain was detected, so your token will be stored with reversible local encryption — anyone with access to your user account could read it.',
 
   // SettingsView
   'settings.connection.heading': 'Connection',
@@ -95,11 +95,11 @@ export const en = {
   'settings.connection.scopeGrantedSuffix.readonly':
     '— used to list your subscriptions and fetch video metadata. Subscribing, commenting, and liking are also available from inside the app; the first time you use one, Chronicle will ask for this additional permission.',
   'settings.connection.scopeGrantedSuffix.readonlyPlusWrite':
-    "— used to list your subscriptions, fetch video metadata, and act on your behalf only for actions you take yourself (subscribe/unsubscribe, comment, like). Chronicle's own read/watch/favorite states stay local either way, never written to YouTube (D-003).",
+    "— used to list your subscriptions, fetch video metadata, and act on your behalf only for actions you take yourself (subscribe/unsubscribe, comment, like). Chronicle's own read/watch/favorite states stay local either way, never written to YouTube.",
   'settings.connection.revokeLink': 'Revoke anytime ↗',
   'settings.connection.keychainOk': 'Your key and token are stored in your system keychain.',
   'settings.connection.keychainFallback':
-    'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it (D-013 fallback).',
+    'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it.',
   'settings.connection.playerSessionNote':
     "The embedded player uses its own separate browser session, distinct from the Google connection above — sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
   'settings.connection.signInToYouTubeButton': 'Sign in to YouTube',
