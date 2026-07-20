@@ -73,7 +73,7 @@ export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: numbe
   small: { minWidth: 160, height: 176 },
   medium: { minWidth: 220, height: 214 },
   large: { minWidth: 300, height: 290 },
-  xl: { minWidth: 420, height: 320 },
+  xl: { minWidth: 420, height: 340 },
   xxl: { minWidth: 560, height: 420 }
 }
 
