@@ -519,6 +519,30 @@ Resolved entries add:
 
 ## Resolved
 
+### B-121 — Opening a video in the browser leaves it also playing in Chronicle
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8
+- **Area:** player
+- **What happens:** using "Open in browser" (the `b` shortcut, the player's own action
+  button, or a feed card's inline button) on a video currently playing in Chronicle
+  handed it off to the real YouTube tab but left Chronicle's own copy still running —
+  both playing at once, audibly competing.
+- **Expected:** opening the active video in the browser pauses Chronicle's own copy.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (`openInBrowser`, full-view button/`b` key);
+  `src/ui/PlayerDetails.tsx` (`openInBrowser`, action-bar button); `src/ui/App.tsx`
+  (`actions.openInBrowser`, feed-card button and global `b` shortcut).
+- **Resolved:** 2026-07-19 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** all three "open in browser" call sites now pause first if the video
+  being opened is the one actually loaded in the player. `PlayerSurface`'s own button/
+  `b` key (always the active video, since it's the component playing it) calls
+  `command('pauseVideo')` directly, guarded by the existing `isStillGoing()` check.
+  `PlayerDetails` (a sibling of `PlayerSurface`, same "always the active video," but
+  without direct access to `command()`) gained an `onPause` callback prop, following the
+  same pattern as its existing `onSeekTo`/`onExtract` props, wired in `App.tsx` to
+  `playerSurfaceRef.current?.pause()`. The feed-card/global-shortcut path
+  (`App.tsx`'s `actions.openInBrowser`) isn't always the active video — a docked
+  miniplayer can be playing something other than the feed card under the cursor — so it
+  only pauses when `currentPlayerVideo?.videoId` matches the video being opened.
+
 ### B-119 — A finished Premiere keeps the "ended live broadcast" badge/sort instead of behaving like a normal video
 - **Type:** bug · **Severity:** minor
 - **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8
