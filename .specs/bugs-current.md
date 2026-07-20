@@ -136,8 +136,17 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   owner while live-testing B-122). Shipped as a **patch** version (a pure bug-fix/
   adjustment batch, no new `D-NNN` scope alongside it). Shipped 2026-07-20.
 
-**Current target: 0.4.9.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
-none of the four made it into 0.4.8 either (see above — 0.4.8 shipped B-119–B-123
+- [`bug-history/v0.5.0.md`](bug-history/v0.5.0.md) — a single entry, [[B-086]] (Won't
+  fix — the open research question is resolved: an authenticated `playlistItems.list`
+  call, live-tested against a real membership, does not surface members-only content
+  either, and no other TOS-compliant endpoint exists). [[B-108]], [[B-022]], [[B-101]]
+  didn't make it in and carried their **Target** forward again. Shipped as a **minor**
+  version, driven by D-054 (the language/localization system: Settings dropdown,
+  locale registry, PT-BR translation) rather than by this batch — full narrative in
+  `decisions.md`, not a dedicated bug-history note of its own. Shipped 2026-07-20.
+
+**Current target: 0.5.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
+the three made it into 0.5.0 either (see above — 0.5.0 shipped driven by D-054
 instead).
 
 ## Entry template
@@ -166,8 +175,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.4.9
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, and 0.4.8 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.5.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -190,126 +199,10 @@ Resolved entries add:
   actual first step here, not writing speculative code against a command that may not
   exist.
 
-### B-086 — Members-only videos never show up in the feed
-- **Type:** bug · **Severity:** major
-- **Status:** Won't fix for now — the open research question is resolved (2026-07-20):
-  the authenticated `playlistItems.list` path does not surface members-only content
-  either, and no other TOS-compliant endpoint exists. No code path currently identifies
-  these videos reliably. Revisit if a different, official solution ever becomes
-  available. · **Reported:** 2026-07-15 · **Target:**
-  0.4.9 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, and 0.4.8 all shipped without this)
-- **Area:** sync
-- **What happens:** a video restricted to channel members doesn't appear in
-  Chronicle's list at all, even for the owner's own membership on that channel.
-- **Expected:** at minimum, members-only videos should be discoverable/listed like any
-  other video from a subscribed channel — no special handling needed once discovered
-  (per the owner: even if playback turns out not to work, just knowing the video exists
-  is the ask).
-- **Code refs:** `src/adapters/rss/rss-client.ts` (`parseFeed` — structurally can't
-  carry members-only content, unauthenticated); `src/adapters/youtube/api-client.ts`
-  (`listUploads` — `playlistItems.list` on the uploads playlist, called with the
-  signed-in user's own OAuth token, no client-side filtering by privacy/visibility);
-  `src/core/sync-service.ts` (`discoverChannel`'s gap-backfill, `backfillArchive` —
-  both page through `listUploads`).
-- **Notes (research, 2026-07-15):** confirmed RSS can never carry this (unauthenticated,
-  no way for it to know who's asking). The open question was whether the *authenticated*
-  path (`playlistItems.list` via `listUploads`, already used by both gap-backfill and
-  on-demand archive backfill) can see members-only uploads when called with a genuine
-  member's own OAuth token. Checked the code for anything that would filter such videos
-  out if the API did return them — found nothing: `listUploads` and `applyHydration`
-  pass through whatever `items` the API gives back with no privacy/visibility filtering.
-  Whether the API actually *includes* member content for an authenticated member's own
-  request isn't confirmed by public documentation and isn't something to guess at by
-  writing speculative code against — it needs a live test against a real membership.
-  Originally two things looked worth the owner testing directly: (1) scroll to the
-  bottom of that channel's screen to trigger `backfillArchive`; (2) if the channel also
-  publishes anything public, wait for the next regular sync — [[B-051]]'s fix (any new
-  video now triggers a gap-backfill pass, not just an all-new RSS window) may already
-  surface member content sitting in the same uploads-playlist window as a side effect,
-  with no new code. **Deliberately not implemented:** a routine per-cycle authenticated
-  playlist walk for every channel regardless of RSS activity, to catch the case where a
-  channel posts *only* member content and nothing public ever triggers a backfill pass —
-  at ~1 unit/channel/cycle × 229 channels × 48 cycles/day (30-min interval) that's
-  ~11,000 units/day on its own, over the entire 10,000/day budget by itself. Worth
-  revisiting only if (1)/(2) above confirm the authenticated path actually works and this
-  specific gap (member-only-only channels) turns out to matter in practice.
-  **Owner update (2026-07-15):** neither of the two suggested checks can be run yet —
-  none of the owner's membership channels has published anything since this was written.
-  Staying Open until one of them does.
-  **Owner update (2026-07-17):** a real case arrived — a channel the owner has an active
-  paid membership on posted a members-only video; the owner ran a manual sync a few
-  minutes later and it was not synced, not notified, and did not appear in the list.
-  **This confirms the top-level symptom but does not resolve the open research question
-  above** — traced through `discoverChannel` (`src/core/sync-service.ts`): the
-  authenticated backfill path (`backfillGap`, which calls `listUploads`) is only reached
-  when `possibleGap = newIds.length > 0 && …`, i.e. only when RSS's diff already found at
-  least one *other* newly-known video for that channel this cycle (`newIds` comes from
-  `discoverRecentWithRetry`'s RSS diff). Since the members-only video is invisible to RSS
-  and nothing else new was published this cycle, `newIds` stayed empty, `possibleGap` was
-  false, and the authenticated `listUploads` call was never made at all — the manual sync
-  never touched the code path in question. So this test still doesn't tell us whether an
-  authenticated `playlistItems.list` call, if it *had* been made, would have returned the
-  members-only video — it confirms sync missed it, for a reason already predicted by the
-  research notes above (member-only-only activity never triggers gap-backfill), not a new
-  finding about the API's own behavior.
-  **Check (1) retracted — scrolling doesn't test this at all:** confirmed by reading
-  `backfillArchive` (`src/core/sync-service.ts`) directly — it pages *older*, never
-  newer. Its cursor (`account_channels.backfill_page_token`, in
-  `src/adapters/storage/sync-repository.ts`) only ever advances forward through the
-  playlist, deeper into the past, and is never reset to page 1; the scroll-to-bottom UI
-  trigger (`App.tsx`, `backfillChannelArchive`) is explicitly documented in its own code
-  comment as fetching older videos on demand. A channel's newest upload — exactly the
-  members-only case here — is never something `backfillArchive` would encounter, no
-  matter how far the owner scrolls. `backfillGap`, by contrast, *does* always start
-  fresh from page 1/newest (confirmed: plain local `pageToken` variable, no persisted
-  cursor) and would see a members-only newest upload — but there is currently no UI
-  action that triggers `backfillGap` on demand for an already-subscribed channel; it only
-  runs automatically, gated by `possibleGap`, as part of routine sync.
-  **Actual gap, restated:** the only way to get a real answer to the open research
-  question today is check (2) — waiting for a cycle where the same channel also
-  publishes something public, so routine sync's own `possibleGap` gate fires naturally.
-  There is no on-demand way to force it.
-  **Adjustment flagged by the owner (2026-07-17):** independent of the open research
-  question, the owner wants this tracked as something to actively improve, not just wait
-  on. Two concrete directions once check (2) confirms whether the API can see member
-  content at all: (a) a manual "refresh this channel from newest" action for a
-  subscribed channel's screen (reusing `backfillGap`'s already-correct newest-first,
-  no-cursor walk, just exposed as an on-demand trigger instead of only running
-  RSS-gated) — cheap since it's user-initiated, one channel at a time; (b) if that's not
-  enough, reconsidering the "deliberately not implemented" per-cycle authenticated walk
-  above with a cheaper trigger than "every channel every cycle" (e.g. only for channels
-  with an active membership, a small subset of the total), which may sidestep the quota
-  objection that ruled out the blanket version.
-  **Owner update (2026-07-20) — the open research question is now answered:** a real
-  case arrived again (a channel the owner has an active paid membership on posted a
-  members-only video ~1h before this was written, then a public Short ~16 min before),
-  and this time it was tested directly — with the owner's explicit authorization, a
-  one-off diagnostic reused the app's own already-stored OAuth credentials (the existing
-  refresh token from `secrets.json`, no new consent flow) to mint an access token exactly
-  the way `GoogleAuthProvider` does, then called `playlistItems.list`
-  (part=snippet,contentDetails, 3 pages/60 items) on that channel's uploads playlist
-  directly — the same authenticated call `backfillGap`/`backfillArchive` already make.
-  Result: every item came back already
-  known — no `secret` or `refresh_token` value was ever printed, only the resulting
-  video listing. The newest item returned was the Short the RSS diff had already found; the very
-  next item was two days older, with no video in between — meaning the members-only
-  upload, chronologically sitting right between those two, was not in the response at
-  all. This resolves the question left open on 2026-07-15/07-17: the uploads playlist an
-  authenticated call reads from reflects the channel's **public** upload history only,
-  not a per-viewer view filtered by the caller's own membership — a member's own OAuth
-  token does not unlock anything extra here. **Conclusion:** within the YouTube Data API
-  v3's documented, TOS-compliant surface (no Innertube/undocumented endpoints,
-  `youtube-api.md` §Terms-of-service constraints), there is currently no way to identify
-  members-only videos reliably — not a gating bug in `possibleGap`/`backfillGap`, a
-  genuine data-source limitation. Closing the research thread as **Won't fix for now**:
-  if a different, official solution ever surfaces (a new documented endpoint, a change
-  in what the uploads playlist returns, etc.), this should be revisited and could improve
-  the experience — but nothing implementable exists today.
-
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.4.9
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, and 0.4.8 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.5.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -408,8 +301,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.4.9 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, and 0.4.8 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.5.1 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
