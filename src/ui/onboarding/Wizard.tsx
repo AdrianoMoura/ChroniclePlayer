@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { WizardStateDto } from '../../ipc/contract'
 import { STEP_ASSETS, type WizardStepId } from './assets'
-import { t } from '../i18n'
+import { AVAILABLE_LOCALES, t } from '../i18n'
 
 // The onboarding wizard (onboarding.md) — a flagship feature: every step
 // explains WHY, opens the exact Google page, copies any value the user must
@@ -19,76 +19,87 @@ interface StepDefinition {
   variations?: string
 }
 
-const CONSOLE_STEPS: StepDefinition[] = [
-  {
-    id: 'project',
-    label: '1',
-    title: t('wizard.step.project.title'),
-    why: t('wizard.step.project.why'),
-    url: { label: t('wizard.step.project.urlLabel'), href: 'https://console.cloud.google.com/projectcreate' },
-    copy: { label: t('wizard.step.project.copyLabel'), value: 'chronicle-player' },
-    confirmLabel: t('wizard.step.project.confirmLabel'),
-    variations: t('wizard.step.project.variations')
-  },
-  {
-    id: 'enable-api',
-    label: '2',
-    title: t('wizard.step.enableApi.title'),
-    why: t('wizard.step.enableApi.why'),
-    url: {
-      label: t('wizard.step.enableApi.urlLabel'),
-      href: 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'
+// A function, not a module-level array — must re-resolve against whichever
+// language is active *right now*, not whatever `t()` returned once at
+// import time (D-054; same reasoning as Sidebar.tsx's viewLabel).
+function getConsoleSteps(): StepDefinition[] {
+  return [
+    {
+      id: 'project',
+      label: '1',
+      title: t('wizard.step.project.title'),
+      why: t('wizard.step.project.why'),
+      url: {
+        label: t('wizard.step.project.urlLabel'),
+        href: 'https://console.cloud.google.com/projectcreate'
+      },
+      copy: { label: t('wizard.step.project.copyLabel'), value: 'chronicle-player' },
+      confirmLabel: t('wizard.step.project.confirmLabel'),
+      variations: t('wizard.step.project.variations')
     },
-    confirmLabel: t('wizard.step.enableApi.confirmLabel'),
-    variations: t('wizard.step.enableApi.variations')
-  },
-  {
-    id: 'consent',
-    label: '3',
-    title: t('wizard.step.consent.title'),
-    why: t('wizard.step.consent.why'),
-    url: {
-      label: t('wizard.step.consent.urlLabel'),
-      href: 'https://console.cloud.google.com/apis/credentials/consent'
+    {
+      id: 'enable-api',
+      label: '2',
+      title: t('wizard.step.enableApi.title'),
+      why: t('wizard.step.enableApi.why'),
+      url: {
+        label: t('wizard.step.enableApi.urlLabel'),
+        href: 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'
+      },
+      confirmLabel: t('wizard.step.enableApi.confirmLabel'),
+      variations: t('wizard.step.enableApi.variations')
     },
-    copy: { label: t('wizard.step.consent.copyLabel'), value: 'Chronicle' },
-    confirmLabel: t('wizard.step.consent.confirmLabel'),
-    variations: t('wizard.step.consent.variations')
-  },
-  {
-    id: 'test-user',
-    label: '4',
-    title: t('wizard.step.testUser.title'),
-    why: t('wizard.step.testUser.why'),
-    url: {
-      label: t('wizard.step.testUser.urlLabel'),
-      href: 'https://console.cloud.google.com/apis/credentials/consent'
+    {
+      id: 'consent',
+      label: '3',
+      title: t('wizard.step.consent.title'),
+      why: t('wizard.step.consent.why'),
+      url: {
+        label: t('wizard.step.consent.urlLabel'),
+        href: 'https://console.cloud.google.com/apis/credentials/consent'
+      },
+      copy: { label: t('wizard.step.consent.copyLabel'), value: 'Chronicle' },
+      confirmLabel: t('wizard.step.consent.confirmLabel'),
+      variations: t('wizard.step.consent.variations')
     },
-    confirmLabel: t('wizard.step.testUser.confirmLabel'),
-    variations: t('wizard.step.testUser.variations')
-  },
-  {
-    id: 'publish',
-    label: '4b',
-    title: t('wizard.step.publish.title'),
-    why: t('wizard.step.publish.why'),
-    url: {
-      label: t('wizard.step.publish.urlLabel'),
-      href: 'https://console.cloud.google.com/apis/credentials/consent'
+    {
+      id: 'test-user',
+      label: '4',
+      title: t('wizard.step.testUser.title'),
+      why: t('wizard.step.testUser.why'),
+      url: {
+        label: t('wizard.step.testUser.urlLabel'),
+        href: 'https://console.cloud.google.com/apis/credentials/consent'
+      },
+      confirmLabel: t('wizard.step.testUser.confirmLabel'),
+      variations: t('wizard.step.testUser.variations')
     },
-    variations: t('wizard.step.publish.variations')
-  },
-  {
-    id: 'client',
-    label: '5',
-    title: t('wizard.step.client.title'),
-    why: t('wizard.step.client.why'),
-    url: { label: t('wizard.step.client.urlLabel'), href: 'https://console.cloud.google.com/apis/credentials' },
-    copy: { label: t('wizard.step.client.copyLabel'), value: 'Chronicle Desktop' },
-    confirmLabel: t('wizard.step.client.confirmLabel'),
-    variations: t('wizard.step.client.variations')
-  }
-]
+    {
+      id: 'publish',
+      label: '4b',
+      title: t('wizard.step.publish.title'),
+      why: t('wizard.step.publish.why'),
+      url: {
+        label: t('wizard.step.publish.urlLabel'),
+        href: 'https://console.cloud.google.com/apis/credentials/consent'
+      },
+      variations: t('wizard.step.publish.variations')
+    },
+    {
+      id: 'client',
+      label: '5',
+      title: t('wizard.step.client.title'),
+      why: t('wizard.step.client.why'),
+      url: {
+        label: t('wizard.step.client.urlLabel'),
+        href: 'https://console.cloud.google.com/apis/credentials'
+      },
+      copy: { label: t('wizard.step.client.copyLabel'), value: 'Chronicle Desktop' },
+      confirmLabel: t('wizard.step.client.confirmLabel'),
+      variations: t('wizard.step.client.variations')
+    }
+  ]
+}
 
 // No 'first-sync' step: connecting (Step 7) already triggers the first sync
 // in the backend, so a second, wizard-owned "start sync and wait" step was
@@ -112,10 +123,25 @@ interface WizardProps {
   onDone: () => void
   // Present only for Settings re-entry (onboarding.md §Re-entry points).
   onExit?: () => void
+  // D-054: the wizard runs before Settings is reachable at all, so it needs
+  // its own language switcher rather than relying solely on system
+  // detection — same persisted setting (SettingsDto.language), just a
+  // second place to change it.
+  language: string
+  onLanguageChange: (language: string) => void
 }
 
-export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: WizardProps) {
+export function Wizard({
+  state,
+  onStateChange,
+  onQuickPath,
+  onDone,
+  onExit,
+  language,
+  onLanguageChange
+}: WizardProps) {
   const stepId = STEP_SEQUENCE[Math.min(state.step, STEP_SEQUENCE.length - 1)]
+  const consoleSteps = getConsoleSteps()
 
   const update = useCallback(
     (partial: Partial<WizardStateDto>) => onStateChange({ ...state, ...partial }),
@@ -126,7 +152,10 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
     [update]
   )
   const next = useCallback(() => update({ step: state.step + 1 }), [state.step, update])
-  const back = useCallback(() => update({ step: Math.max(0, state.step - 1) }), [state.step, update])
+  const back = useCallback(
+    () => update({ step: Math.max(0, state.step - 1) }),
+    [state.step, update]
+  )
 
   return (
     <div className="wizard">
@@ -138,7 +167,12 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
       {stepId !== 'welcome' && (
         <div className="wizard-progress">
           {STEP_SEQUENCE.slice(1).map((id) => {
-            const label = id === 'import' ? '6' : id === 'connect' ? '7' : CONSOLE_STEPS.find((s) => s.id === id)?.label
+            const label =
+              id === 'import'
+                ? '6'
+                : id === 'connect'
+                  ? '7'
+                  : consoleSteps.find((s) => s.id === id)?.label
             const index = STEP_SEQUENCE.indexOf(id)
             return (
               <span
@@ -152,10 +186,17 @@ export function Wizard({ state, onStateChange, onQuickPath, onDone, onExit }: Wi
         </div>
       )}
 
-      {stepId === 'welcome' && <WelcomeStep onStart={next} onQuickPath={onQuickPath} />}
-      {CONSOLE_STEPS.some((s) => s.id === stepId) && (
+      {stepId === 'welcome' && (
+        <WelcomeStep
+          onStart={next}
+          onQuickPath={onQuickPath}
+          language={language}
+          onLanguageChange={onLanguageChange}
+        />
+      )}
+      {consoleSteps.some((s) => s.id === stepId) && (
         <ConsoleStep
-          definition={CONSOLE_STEPS.find((s) => s.id === stepId) as StepDefinition}
+          definition={consoleSteps.find((s) => s.id === stepId) as StepDefinition}
           state={state}
           update={update}
           next={next}
@@ -185,9 +226,30 @@ function Screenshot({ stepId }: { stepId: WizardStepId }) {
   )
 }
 
-function WelcomeStep({ onStart, onQuickPath }: { onStart: () => void; onQuickPath: () => void }) {
+function WelcomeStep({
+  onStart,
+  onQuickPath,
+  language,
+  onLanguageChange
+}: {
+  onStart: () => void
+  onQuickPath: () => void
+  language: string
+  onLanguageChange: (language: string) => void
+}) {
   return (
     <div className="wizard-step welcome">
+      <label className="wizard-language">
+        <span>{t('settings.language.label')}</span>
+        <select value={language} onChange={(event) => onLanguageChange(event.target.value)}>
+          <option value="system">{t('settings.language.system')}</option>
+          {AVAILABLE_LOCALES.map((locale) => (
+            <option key={locale.code} value={locale.code}>
+              {locale.nativeName}
+            </option>
+          ))}
+        </select>
+      </label>
       <h1>{t('wizard.welcome.heading')}</h1>
       <p>
         {t('wizard.welcome.intro.pre')} <strong>{t('wizard.welcome.intro.strong')}</strong>
@@ -278,7 +340,9 @@ function ConsoleStep({
                 type="checkbox"
                 checked={confirmed}
                 onChange={(event) =>
-                  update({ confirmed: { ...state.confirmed, [definition.id]: event.target.checked } })
+                  update({
+                    confirmed: { ...state.confirmed, [definition.id]: event.target.checked }
+                  })
                 }
               />
               {definition.confirmLabel}
@@ -294,7 +358,10 @@ function ConsoleStep({
         </button>
         {isPublishStep ? (
           <>
-            <button className="primary" onClick={() => update({ published: 'yes', step: state.step + 1 })}>
+            <button
+              className="primary"
+              onClick={() => update({ published: 'yes', step: state.step + 1 })}
+            >
               {t('wizard.step.publish.publishedButton')}
             </button>
             <button
@@ -420,7 +487,8 @@ function FileDrop({ onFile }: { onFile: (file: File) => void }) {
         if (file) onFile(file)
       }}
     >
-      {t('wizard.import.drop.part1')} <code>client_secret.json</code> {t('wizard.import.drop.part2')}
+      {t('wizard.import.drop.part1')} <code>client_secret.json</code>{' '}
+      {t('wizard.import.drop.part2')}
       <input
         type="file"
         accept="application/json,.json"
@@ -446,7 +514,9 @@ function ConnectStep({
 }) {
   const [phase, setPhase] = useState<'idle' | 'waiting' | 'connected'>('idle')
   const [identity, setIdentity] = useState<string | null>(null)
-  const [failure, setFailure] = useState<{ message: string; route: WizardStepId | null } | null>(null)
+  const [failure, setFailure] = useState<{ message: string; route: WizardStepId | null } | null>(
+    null
+  )
 
   async function connect(): Promise<void> {
     setFailure(null)
@@ -485,8 +555,9 @@ function ConnectStep({
         <p>
           {t('wizard.connect.warning.part1')} <em>{t('wizard.connect.warning.quote')}</em>
           {t('wizard.connect.warning.part2')} <em>{t('wizard.connect.warning.you')}</em>
-          {t('wizard.connect.warning.part3')} <strong>{t('wizard.connect.warning.advanced')}</strong>{' '}
-          → <strong>{t('wizard.connect.warning.goUnsafe')}</strong>
+          {t('wizard.connect.warning.part3')}{' '}
+          <strong>{t('wizard.connect.warning.advanced')}</strong> →{' '}
+          <strong>{t('wizard.connect.warning.goUnsafe')}</strong>
           {t('wizard.connect.warning.part4')}
         </p>
       </div>
@@ -505,7 +576,9 @@ function ConnectStep({
           )}
           {failure.route !== null && (
             <button className="wizard-quiet" onClick={() => goTo(failure.route as WizardStepId)}>
-              {t('wizard.connect.fixItButton', { step: failure.route === 'enable-api' ? '2' : '4' })}
+              {t('wizard.connect.fixItButton', {
+                step: failure.route === 'enable-api' ? '2' : '4'
+              })}
             </button>
           )}
         </div>
@@ -533,4 +606,3 @@ function ConnectStep({
     </div>
   )
 }
-

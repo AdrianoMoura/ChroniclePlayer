@@ -2057,6 +2057,28 @@ button.primary.danger {
   float: right;
 }
 
+/* D-054: the wizard runs before Settings is reachable, so the welcome step
+   carries its own language switcher — quiet, right-aligned, same control as
+   Settings' own. */
+.wizard-language {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.wizard-language select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
 /* ── Onboarding wizard (full-window, no sidebar — ui.md) ── */
 
 .wizard {

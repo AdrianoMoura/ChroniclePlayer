@@ -66,12 +66,23 @@ export const VIEW_ORDER: readonly FeedViewDto[] = [
   'ignored'
 ]
 
-export const VIEW_LABELS: Record<FeedViewDto, string> = {
-  all: t('sidebar.view.all'),
-  unread: t('sidebar.view.unread'),
-  'watch-later': t('sidebar.view.watchLater'),
-  favorites: t('sidebar.view.favorites'),
-  ignored: t('sidebar.view.ignored')
+// A function, not a module-level object — the label must resolve against
+// whichever language is active *right now*. A plain object here would bake
+// in whatever `t()` returned at import time (before Settings' language
+// setting even loads) and never update again on a language switch (D-054).
+export function viewLabel(view: FeedViewDto): string {
+  switch (view) {
+    case 'all':
+      return t('sidebar.view.all')
+    case 'unread':
+      return t('sidebar.view.unread')
+    case 'watch-later':
+      return t('sidebar.view.watchLater')
+    case 'favorites':
+      return t('sidebar.view.favorites')
+    case 'ignored':
+      return t('sidebar.view.ignored')
+  }
 }
 
 interface SidebarProps {
@@ -196,7 +207,7 @@ export function Sidebar({
             onClick={() => onSelectView(candidate)}
           >
             <span className="view-key">{index + 1}</span>
-            <span className="view-label">{VIEW_LABELS[candidate]}</span>
+            <span className="view-label">{viewLabel(candidate)}</span>
             {candidate === 'unread' && unreadCount > 0 && (
               <span className="view-count">{unreadCount}</span>
             )}
@@ -209,123 +220,123 @@ export function Sidebar({
 
       <div className="channel-list">
         <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
-          <div className="field-wrap">
-            <input
-              ref={channelQueryRef}
-              className="channel-query"
-              placeholder={t('sidebar.findChannelPlaceholder')}
-              value={channelQuery}
-              onChange={(event) => setChannelQuery(event.target.value)}
-              onKeyDown={(event) => {
-                // Owned here, not by App's global handler (which clears the
-                // feed filter): Esc clears this query, Enter just leaves.
-                if (event.key === 'Escape') {
-                  setChannelQuery('')
-                  event.currentTarget.blur()
-                } else if (event.key === 'Enter') {
-                  // Enter opens the first filtered match, mirroring a
-                  // normal search-and-go field.
-                  const first = visibleChannels[0]
-                  if (first) onSelectChannel(first.channelId)
-                  event.currentTarget.blur()
-                }
-                event.stopPropagation()
+        <div className="field-wrap">
+          <input
+            ref={channelQueryRef}
+            className="channel-query"
+            placeholder={t('sidebar.findChannelPlaceholder')}
+            value={channelQuery}
+            onChange={(event) => setChannelQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Owned here, not by App's global handler (which clears the
+              // feed filter): Esc clears this query, Enter just leaves.
+              if (event.key === 'Escape') {
+                setChannelQuery('')
+                event.currentTarget.blur()
+              } else if (event.key === 'Enter') {
+                // Enter opens the first filtered match, mirroring a
+                // normal search-and-go field.
+                const first = visibleChannels[0]
+                if (first) onSelectChannel(first.channelId)
+                event.currentTarget.blur()
+              }
+              event.stopPropagation()
+            }}
+          />
+          {channelQuery !== '' && (
+            <button
+              className="field-clear"
+              title={t('sidebar.clearTitle')}
+              onClick={() => {
+                setChannelQuery('')
+                channelQueryRef.current?.focus()
               }}
-            />
-            {channelQuery !== '' && (
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {visibleChannels.map((channel) => (
+          <div key={channel.channelId} className="channel-row">
+            <button
+              className={`view channel${channelFilter === channel.channelId ? ' active' : ''}`}
+              title={channel.title}
+              onClick={() =>
+                onSelectChannel(channelFilter === channel.channelId ? null : channel.channelId)
+              }
+            >
+              <span className="view-label ellipsis">{channel.title}</span>
+              {channel.unreadCount > 0 && <span className="view-count">{channel.unreadCount}</span>}
+            </button>
+            <button
+              className={`channel-favorite-btn${channel.favorite ? ' favorited' : ''}`}
+              title={
+                channel.favorite
+                  ? t('sidebar.channelMenu.unfavorite')
+                  : t('sidebar.channelMenu.favorite')
+              }
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleFavorite(channel.channelId)
+              }}
+            >
+              {channel.favorite ? '★' : '☆'}
+            </button>
+            {showNotifyControl && (
               <button
-                className="field-clear"
-                title={t('sidebar.clearTitle')}
-                onClick={() => {
-                  setChannelQuery('')
-                  channelQueryRef.current?.focus()
+                className={`channel-notify-btn${channel.notify ? ' notifying' : ''}`}
+                title={
+                  channel.notify
+                    ? t('sidebar.channelMenu.unnotify')
+                    : t('sidebar.channelMenu.notify')
+                }
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleNotify(channel.channelId)
                 }}
               >
-                ✕
+                <BellIcon filled={channel.notify} />
               </button>
             )}
-          </div>
-          {visibleChannels.map((channel) => (
-            <div key={channel.channelId} className="channel-row">
-              <button
-                className={`view channel${channelFilter === channel.channelId ? ' active' : ''}`}
-                title={channel.title}
-                onClick={() =>
-                  onSelectChannel(channelFilter === channel.channelId ? null : channel.channelId)
-                }
+            <button
+              className="channel-menu-btn"
+              title={t('sidebar.channelMenu.title')}
+              onClick={(event) => {
+                event.stopPropagation()
+                setConfirmingUnsub(null)
+                setChannelMenuAnchor(event.currentTarget.getBoundingClientRect())
+                setMenuChannelId((current) =>
+                  current === channel.channelId ? null : channel.channelId
+                )
+              }}
+            >
+              ⋯
+            </button>
+            {menuChannelId === channel.channelId && channelMenuAnchor && (
+              <ContextMenu
+                anchorRect={channelMenuAnchor}
+                onMenuClick={(event) => event.stopPropagation()}
               >
-                <span className="view-label ellipsis">{channel.title}</span>
-                {channel.unreadCount > 0 && (
-                  <span className="view-count">{channel.unreadCount}</span>
-                )}
-              </button>
-              <button
-                className={`channel-favorite-btn${channel.favorite ? ' favorited' : ''}`}
-                title={
-                  channel.favorite
-                    ? t('sidebar.channelMenu.unfavorite')
-                    : t('sidebar.channelMenu.favorite')
-                }
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onToggleFavorite(channel.channelId)
-                }}
-              >
-                {channel.favorite ? '★' : '☆'}
-              </button>
-              {showNotifyControl && (
                 <button
-                  className={`channel-notify-btn${channel.notify ? ' notifying' : ''}`}
-                  title={
-                    channel.notify
-                      ? t('sidebar.channelMenu.unnotify')
-                      : t('sidebar.channelMenu.notify')
-                  }
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onToggleNotify(channel.channelId)
+                  className={confirmingUnsub === channel.channelId ? 'danger' : ''}
+                  onClick={() => {
+                    if (confirmingUnsub === channel.channelId) {
+                      onUnsubscribe(channel.channelId)
+                      setMenuChannelId(null)
+                      setConfirmingUnsub(null)
+                    } else {
+                      setConfirmingUnsub(channel.channelId)
+                    }
                   }}
                 >
-                  <BellIcon filled={channel.notify} />
+                  {confirmingUnsub === channel.channelId
+                    ? t('sidebar.channelMenu.confirmUnsubscribe')
+                    : t('sidebar.channelMenu.unsubscribe')}
                 </button>
-              )}
-              <button
-                className="channel-menu-btn"
-                title={t('sidebar.channelMenu.title')}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setConfirmingUnsub(null)
-                  setChannelMenuAnchor(event.currentTarget.getBoundingClientRect())
-                  setMenuChannelId((current) => (current === channel.channelId ? null : channel.channelId))
-                }}
-              >
-                ⋯
-              </button>
-              {menuChannelId === channel.channelId && channelMenuAnchor && (
-                <ContextMenu
-                  anchorRect={channelMenuAnchor}
-                  onMenuClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    className={confirmingUnsub === channel.channelId ? 'danger' : ''}
-                    onClick={() => {
-                      if (confirmingUnsub === channel.channelId) {
-                        onUnsubscribe(channel.channelId)
-                        setMenuChannelId(null)
-                        setConfirmingUnsub(null)
-                      } else {
-                        setConfirmingUnsub(channel.channelId)
-                      }
-                    }}
-                  >
-                    {confirmingUnsub === channel.channelId
-                      ? t('sidebar.channelMenu.confirmUnsubscribe')
-                      : t('sidebar.channelMenu.unsubscribe')}
-                  </button>
-                </ContextMenu>
-              )}
-            </div>
-          ))}
+              </ContextMenu>
+            )}
+          </div>
+        ))}
         {visibleChannels.length === 0 && (
           <p className="channel-query-empty">
             {channels.length === 0 ? t('sidebar.noChannels') : t('sidebar.noChannelMatch')}
@@ -356,7 +367,9 @@ export function Sidebar({
                 event.stopPropagation()
                 setConfirmingRemove(null)
                 setAccountMenuAnchor(event.currentTarget.getBoundingClientRect())
-                setMenuAccountId((current) => (current === account.accountId ? null : account.accountId))
+                setMenuAccountId((current) =>
+                  current === account.accountId ? null : account.accountId
+                )
               }}
             >
               ⋯
@@ -377,7 +390,9 @@ export function Sidebar({
                 <button
                   className={confirmingRemove === account.accountId ? 'danger' : ''}
                   disabled={account.isPrimary}
-                  title={account.isPrimary ? t('sidebar.accountMenu.removeDisabledTitle') : undefined}
+                  title={
+                    account.isPrimary ? t('sidebar.accountMenu.removeDisabledTitle') : undefined
+                  }
                   onClick={() => {
                     if (account.isPrimary) return
                     if (confirmingRemove === account.accountId) {

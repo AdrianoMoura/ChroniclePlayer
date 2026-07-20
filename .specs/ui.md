@@ -174,6 +174,13 @@ control back to the feed (`playback.md` §Miniplayer).
   showing blank or breaking the build.
 - English (`locales/en.ts`) is the only dict required to be complete — it's the source of
   truth for which keys exist at all.
+- The onboarding wizard's Welcome screen carries the same dropdown (Settings isn't
+  reachable yet at that point) — same options, same persisted setting, just a second
+  place to reach it.
+- Any `t()` call must sit inside a component's render body (or something that re-runs
+  on every render/language change), never baked into a module-level constant evaluated
+  once at import — that constant would freeze at whatever language happened to be active
+  the moment the module first loaded and never update again.
 
 ## Onboarding wizard UI
 

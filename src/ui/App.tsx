@@ -43,17 +43,25 @@ import {
   SearchVideoCard,
   SearchVideoRow
 } from './SearchResults'
-import { Sidebar, VIEW_LABELS, VIEW_ORDER } from './Sidebar'
+import { Sidebar, VIEW_ORDER, viewLabel } from './Sidebar'
 import { UrlPrompt } from './UrlPrompt'
 import { useWriteScopeGate } from './useWriteScopeGate'
 import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
-const BUCKET_LABELS: Record<FeedBucketDto, string> = {
-  today: t('app.bucket.today'),
-  yesterday: t('app.bucket.yesterday'),
-  'this-week': t('app.bucket.thisWeek'),
-  earlier: t('app.bucket.earlier')
+// A function, not a module-level object — see Sidebar.tsx's viewLabel for
+// why (D-054): must re-resolve against the active language on every call.
+function bucketLabel(bucket: FeedBucketDto): string {
+  switch (bucket) {
+    case 'today':
+      return t('app.bucket.today')
+    case 'yesterday':
+      return t('app.bucket.yesterday')
+    case 'this-week':
+      return t('app.bucket.thisWeek')
+    case 'earlier':
+      return t('app.bucket.earlier')
+  }
 }
 
 const UNDO_WINDOW_MS = 5000
@@ -577,7 +585,13 @@ export function App() {
   useEffect(() => {
     const el = searchResultsRef.current
     if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreSearchResults()
-  }, [searchResults, settings.itemSize, settings.layout, settings.showShorts, loadMoreSearchResults])
+  }, [
+    searchResults,
+    settings.itemSize,
+    settings.layout,
+    settings.showShorts,
+    loadMoreSearchResults
+  ])
 
   // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
   // may open the system browser once for incremental write-scope consent.
@@ -879,7 +893,10 @@ export function App() {
   // MiniPlayerBar's Extract buttons, PlayerSurface's `p` handler), and a raw
   // `onClick={extractToWindow}` binding would otherwise forward the click's
   // MouseEvent as the `auto` argument — not structured-cloneable over IPC.
-  const extractToWindow = useCallback(() => extractToWindowInternal(false), [extractToWindowInternal])
+  const extractToWindow = useCallback(
+    () => extractToWindowInternal(false),
+    [extractToWindowInternal]
+  )
 
   // The main window just closed to the tray (backgroundMode on) — without
   // this, a still-playing video would keep running silently behind the
@@ -1160,13 +1177,18 @@ export function App() {
     let lastBucket: FeedBucketDto | null = null
     filtered.forEach((video, videoIndex) => {
       if (video.bucket !== null && video.bucket !== lastBucket) {
-        out.push({ kind: 'header', key: `h-${video.bucket}`, label: BUCKET_LABELS[video.bucket] })
+        out.push({ kind: 'header', key: `h-${video.bucket}`, label: bucketLabel(video.bucket) })
         lastBucket = video.bucket
       }
       out.push({ kind: 'video', key: video.videoId, video, videoIndex })
     })
     return out
-  }, [filtered])
+    // settings.language isn't read directly in this body — bucketLabel()
+    // calls t(), which reads module-level i18n state the linter can't see.
+    // The memoized label strings above must still recompute on a language
+    // switch, not just when the underlying video list changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, settings.language])
 
   const setStatus = useCallback(
     (video: FeedVideoDto, status: ReadStatusDto) => {
@@ -1447,6 +1469,8 @@ export function App() {
         onQuickPath={closeEntry}
         onDone={closeEntry}
         onExit={closeEntry}
+        language={settings.language}
+        onLanguageChange={(language) => changeSettings({ ...settings, language })}
       />
     )
   }
@@ -1465,6 +1489,8 @@ export function App() {
           loadView()
           loadChannels()
         }}
+        language={settings.language}
+        onLanguageChange={(language) => changeSettings({ ...settings, language })}
       />
     )
   }
@@ -1586,7 +1612,7 @@ export function App() {
                 <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
               </button>
               <span className="topbar-view">
-                {VIEW_LABELS[view]}
+                {viewLabel(view)}
                 {accountFilter !== null && (
                   <span className="topbar-account-suffix">
                     {' · '}
@@ -1696,7 +1722,9 @@ export function App() {
                     onSubscribe={() => subscribeToChannel(channelFilter)}
                     onToggleFavorite={() => toggleChannelFavorite(channelFilter)}
                     onToggleNotify={() => toggleChannelNotify(channelFilter)}
-                    showNotifyControl={settings.notifyNewVideos && settings.notifyScope === 'selected'}
+                    showNotifyControl={
+                      settings.notifyNewVideos && settings.notifyScope === 'selected'
+                    }
                     onOpenInBrowser={() =>
                       void window.chronicle.openExternalUrl(
                         `https://www.youtube.com/channel/${channelFilter}`
