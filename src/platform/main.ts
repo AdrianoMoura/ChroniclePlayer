@@ -1019,6 +1019,9 @@ async function boot(): Promise<void> {
             durationSeconds: entry.video.durationSeconds,
             thumbnailUrl: entry.video.thumbnailUrl,
             description,
+            liveContent: entry.video.liveContent,
+            liveStartedAt: entry.video.liveStartedAt,
+            liveEndedAt: entry.video.liveEndedAt,
             state: toStateDto(entry.state),
             isSubscribed: feedRepository.isSubscribed(entry.video.channelId)
           }
@@ -1042,6 +1045,9 @@ async function boot(): Promise<void> {
             durationSeconds: video.durationSeconds,
             thumbnailUrl: video.thumbnailUrl,
             description: video.description, // full text — storage keeps the truncated copy
+            liveContent: video.liveContent,
+            liveStartedAt: video.liveStartedAt,
+            liveEndedAt: video.liveEndedAt,
             state: toStateDto(stateRepository.get(video.videoId)),
             isSubscribed: feedRepository.isSubscribed(video.channelId)
           }

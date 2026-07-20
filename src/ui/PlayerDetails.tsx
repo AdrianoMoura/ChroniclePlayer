@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import type { PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
 import { CommentsSection, type CommentsSectionHandle } from './Comments'
-import { formatDuration, publishedLabel } from './format'
+import { feedItemLabel, formatDuration } from './format'
 import { t } from './i18n'
 import { useWriteScopeGate } from './useWriteScopeGate'
 
@@ -166,7 +166,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               >
                 {video.channelTitle}
               </button>{' '}
-              · {publishedLabel(video.publishedAt)}
+              · {feedItemLabel(video)}
               {video.durationSeconds !== null && <> · {formatDuration(video.durationSeconds)}</>}
             </div>
 

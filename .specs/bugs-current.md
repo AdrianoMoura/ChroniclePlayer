@@ -502,6 +502,17 @@ Resolved entries add:
   including new coverage for the API capture and DB persistence); **not run live** (per
   [[no-live-app-verification]]) — needs the owner's own check against a real live/
   Premiere video.
+- **Follow-up (2026-07-20), same day:** the owner asked for the same "Started X ago"
+  label on the full-view player screen too — it had its own `publishedLabel(publishedAt)`
+  call (`PlayerDetails.tsx`), not the feed's `feedItemLabel`, so it never had the "0 min
+  ago" symptom in the first place but also never said "Started" — it just showed a plain
+  elapsed time off `publishedAt`. `PlayerVideoDto` (`ipc/contract.ts`) gained
+  `liveContent`/`liveStartedAt`/`liveEndedAt` (both `getVideo` branches in
+  `platform/main.ts` — the local-DB path and the D-029 external-video hydrate path —
+  already had these on `Video`/`HydratedVideo`, just weren't threaded into the DTO).
+  `PlayerDetails.tsx` now calls the same `feedItemLabel` the feed uses instead of
+  `publishedLabel` directly. Checked via `npm run typecheck && npm run lint && npm test`
+  (233/233); not run live.
 
 ### B-121 — Opening a video in the browser leaves it also playing in Chronicle
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8

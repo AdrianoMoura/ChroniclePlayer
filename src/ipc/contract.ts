@@ -134,6 +134,11 @@ export interface PlayerVideoDto {
   durationSeconds: number | null
   thumbnailUrl: string | null
   description: string | null
+  // Drives the same "Started X ago" label the feed shows (ui/format.ts's
+  // feedItemLabel) while liveContent === 'live'.
+  liveContent: 'none' | 'live' | 'upcoming'
+  liveStartedAt: string | null
+  liveEndedAt: string | null
   state: VideoStateDto
   // Lets the player offer a Subscribe/Unsubscribe toggle without a separate
   // lookup — cross-referenced against local subscription state the same way
