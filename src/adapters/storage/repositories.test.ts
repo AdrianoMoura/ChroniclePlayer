@@ -66,8 +66,8 @@ function addVideo(
       viewCount: null,
       isShort: false,
       liveContent,
-      wasLive: liveContent === 'live',
-      liveEndedAt: null
+      liveEndedAt: null,
+      isPremiere: false
     },
     fixedClock.now().toISOString()
   )
@@ -77,7 +77,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(13)
+    expect(Number(row.user_version)).toBe(15)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -583,8 +583,8 @@ describe('SqliteCatalogRepository', () => {
         viewCount: 1234,
         isShort: false,
         liveContent: 'none',
-        wasLive: false,
-        liveEndedAt: null
+        liveEndedAt: null,
+        isPremiere: false
       },
       fixedClock.now().toISOString()
     )

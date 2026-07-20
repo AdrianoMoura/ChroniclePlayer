@@ -36,6 +36,7 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     durationSeconds,
     liveContent: 'none',
     liveEndedAt: null,
+    isPremiere: false,
     thumbnailUrl: 'https://thumb.example/x.jpg',
     description: 'full description',
     viewCount: 12345
@@ -254,6 +255,67 @@ describe('discovery and hydration', () => {
     )
     ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video
     expect(ended?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
+  })
+
+  it('isPremiere is sticky once observed airing as a Premiere (B-119)', () => {
+    sync.applyHydration(
+      [{ ...hydratedVideo('prem-1', 0), liveContent: 'live', isPremiere: true }],
+      NOW
+    )
+    let video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'prem-1')?.video
+    expect(video?.isPremiere).toBe(true)
+
+    // Once it ends, liveContent reverts to 'none' and this cycle's isPremiere
+    // is false again (only ever true while liveContent === 'live') — the
+    // sticky column must still remember it was a Premiere.
+    sync.applyHydration(
+      [{ ...hydratedVideo('prem-1', 4200), liveContent: 'none', isPremiere: false }],
+      NOW
+    )
+    video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'prem-1')?.video
+    expect(video?.isPremiere).toBe(true)
+  })
+
+  it('a finished Premiere never gets liveEndedAt set (B-119) — it settles back into a plain video', () => {
+    sync.applyHydration(
+      [{ ...hydratedVideo('prem-1', 0), liveContent: 'live', isPremiere: true }],
+      NOW
+    )
+    sync.applyHydration(
+      [
+        {
+          ...hydratedVideo('prem-1', 4200),
+          liveContent: 'none',
+          isPremiere: false,
+          liveEndedAt: '2026-07-11T13:30:00Z'
+        }
+      ],
+      NOW
+    )
+    const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'prem-1')?.video
+    expect(video?.liveEndedAt).toBeNull()
+    expect(video?.isPremiere).toBe(true)
+  })
+
+  it('a genuine broadcast still gets liveEndedAt set (B-119 regression guard)', () => {
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-2', 0), liveContent: 'live', isPremiere: false }],
+      NOW
+    )
+    sync.applyHydration(
+      [
+        {
+          ...hydratedVideo('stream-2', 5400),
+          liveContent: 'none',
+          isPremiere: false,
+          liveEndedAt: '2026-07-11T13:30:00Z'
+        }
+      ],
+      NOW
+    )
+    const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-2')?.video
+    expect(video?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
+    expect(video?.isPremiere).toBe(false)
   })
 
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {

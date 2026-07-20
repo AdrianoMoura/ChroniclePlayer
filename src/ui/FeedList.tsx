@@ -33,25 +33,24 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
 }
 const HEADER_HEIGHT = 38
 
-// B-114: liveContent alone can't tell "genuinely live right now" apart from
-// "was live, broadcast has since ended" — it reverts to 'none' once a
-// stream ends, same as a normal upload, so the sticky wasLive flag is what
-// keeps the ended case showing a (now gray, not red) badge instead of
-// disappearing outright. D-053: liveEndedAt catches the case wasLive can't
-// — a broadcast whose end Chronicle learns about without ever having seen
-// it live (e.g. discovered later via gap-backfill), since YouTube reports
-// actualEndTime as permanent video metadata regardless of when it's read.
-type LiveBadgeState = 'live' | 'upcoming' | 'ended'
+// liveContent alone doesn't distinguish "airing now" from "broadcast has
+// since ended" — it reverts to 'none' once a stream wraps, same as a normal
+// upload, and no badge is shown for the ended case either way: an ended
+// broadcast still sorts and buckets by when it wrapped rather than its
+// original publishedAt (core/feed.ts, liveEndedAt), just without a visual
+// indicator — its own duration (e.g. multiple hours) is the only card-level
+// hint it was ever live.
+type LiveBadgeState = 'live' | 'premiere' | 'upcoming'
 
 function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
-  if (video.liveContent === 'live') return 'live'
+  if (video.liveContent === 'live') return video.isPremiere ? 'premiere' : 'live'
   if (video.liveContent === 'upcoming') return 'upcoming'
-  if (video.wasLive || video.liveEndedAt) return 'ended'
   return null
 }
 
 function liveBadgeLabel(state: LiveBadgeState): string {
   if (state === 'upcoming') return t('feed.card.upcomingBadge')
+  if (state === 'premiere') return t('feed.card.premiereBadge')
   return t('feed.card.liveBadge')
 }
 // Must mirror `.grid-row`'s `gap` in styles.css — used below to derive the

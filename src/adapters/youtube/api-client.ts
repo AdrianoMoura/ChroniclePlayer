@@ -137,15 +137,15 @@ export class YouTubeApiClient implements SubscriptionSource {
   }
 
   // videos.list batched — 1 unit per call (≤ 50 ids) regardless of how many
-  // parts are requested — liveStreamingDetails rides along on the same call
-  // at no extra quota cost, for actualEndTime (D-053). The hydration half of
-  // the hybrid feed source (D-007).
+  // parts are requested — liveStreamingDetails and status ride along on the
+  // same call at no extra quota cost, for actualEndTime and uploadStatus.
+  // The hydration half of the hybrid feed source (D-007).
   async hydrate(videoIds: readonly string[]): Promise<HydratedVideo[]> {
     if (videoIds.length === 0) return []
     const page = await this.get(
       'videos',
       {
-        part: 'snippet,contentDetails,statistics,liveStreamingDetails',
+        part: 'snippet,contentDetails,statistics,liveStreamingDetails,status',
         id: videoIds.join(','),
         maxResults: '50'
       },
@@ -162,6 +162,14 @@ export class YouTubeApiClient implements SubscriptionSource {
       // D-053: only present once the broadcast has actually ended.
       const rawEndTime = liveStreamingDetails?.['actualEndTime']
       const liveEndedAt = typeof rawEndTime === 'string' ? rawEndTime : null
+      // status.uploadStatus is 'processed' for a Premiere (already fully
+      // uploaded/encoded, just waiting to "air") vs 'uploaded' for a genuine
+      // broadcast, while liveContent === 'live'. Outside that state
+      // uploadStatus is 'processed' for nearly every finished video ever,
+      // live or not, so it's meaningless there — isPremiere must stay false
+      // rather than reuse the raw value.
+      const status = item['status'] as Record<string, unknown> | undefined
+      const isPremiere = liveContent === 'live' && status?.['uploadStatus'] === 'processed'
       return {
         videoId: String(item['id']),
         channelId: String(snippet['channelId']),
@@ -171,6 +179,7 @@ export class YouTubeApiClient implements SubscriptionSource {
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),
         liveContent,
         liveEndedAt,
+        isPremiere,
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
         description: typeof snippet['description'] === 'string' ? snippet['description'] : null,
         viewCount: typeof rawViews === 'string' ? Number(rawViews) : null

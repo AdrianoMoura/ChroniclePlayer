@@ -87,16 +87,14 @@ CREATE TABLE videos (
   hydrated_at       TEXT,                    -- NULL = RSS-only, awaiting videos.list
   fetched_at        TEXT NOT NULL,
   view_count        INTEGER,                 -- v2 (D-018): captured at hydration, NULL until then
-  was_live          INTEGER NOT NULL DEFAULT 0, -- v10 (B-114): sticky once ever live_content='live' —
-                                              -- live_content itself reverts to 'none' once a broadcast
-                                              -- ends, same as a normal upload; this is the only record
-                                              -- that it was ever a livestream (feed's ended-broadcast badge)
-  is_premiere       INTEGER NOT NULL DEFAULT 0, -- v11 (B-115): best-effort, unverified Premiere signal
-                                              -- (liveStreamingDetails.concurrentViewers absence while
-                                              -- live_content='live') — not sticky, re-derived every hydration
+  is_premiere       INTEGER NOT NULL DEFAULT 0, -- v14 (B-119): sticky once ever seen live_content='live'
+                                              -- with status.uploadStatus='processed'. Gates live_ended_at
+                                              -- so a finished Premiere settles back into a plain video
+                                              -- instead of the livestream-wrap sort (feed.md §Ordering)
   live_ended_at     TEXT                      -- v12 (D-053): liveStreamingDetails.actualEndTime, captured
-                                              -- once a broadcast ends; sticky like was_live. Feeds the
-                                              -- feed's live-first-within-bucket ordering (feed.md §Ordering)
+                                              -- once a broadcast ends; sticky, and (v14) never captured
+                                              -- for a Premiere. Feeds the feed's live-first-within-bucket
+                                              -- ordering (feed.md §Ordering)
 );
 CREATE INDEX idx_videos_feed ON videos (published_at DESC);
 CREATE INDEX idx_videos_channel ON videos (channel_id, published_at DESC);

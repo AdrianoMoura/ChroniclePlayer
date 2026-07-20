@@ -60,13 +60,12 @@ function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
 // header whenever the bucket changes" read model has a separate pass that
 // would catch that.
 export function effectiveDate(video: Video, now: Date): Date {
-  if (video.liveContent === 'live') return now
-  // Deliberately keyed on liveEndedAt alone, not `wasLive && liveEndedAt`:
-  // wasLive only ever becomes true if Chronicle observed the video while it
-  // was still live (B-114), but liveEndedAt can be captured on a video's
-  // very first hydration if that happens to land after the broadcast
-  // already ended (e.g. gap-backfill discovering it late) — wasLive would
-  // stay false in that case despite a real end time being known.
+  // A Premiere sorts like a plain video always (publishedAt, below), never
+  // "now" — it's a synchronized watch-along of an already-recorded video,
+  // not an open-ended broadcast. liveEndedAt is never captured for one
+  // either (sync-repository.ts), so it falls through to publishedAt on its
+  // own once it ends.
+  if (video.liveContent === 'live' && !video.isPremiere) return now
   if (video.liveEndedAt) return new Date(video.liveEndedAt)
   return new Date(video.publishedAt)
 }

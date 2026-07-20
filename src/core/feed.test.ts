@@ -20,10 +20,10 @@ function entry(
   published: Date,
   channelTitle = 'Channel A',
   state: VideoState = DEFAULT_VIDEO_STATE,
-  live: Pick<Video, 'liveContent' | 'wasLive' | 'liveEndedAt'> = {
+  live: Pick<Video, 'liveContent' | 'liveEndedAt' | 'isPremiere'> = {
     liveContent: 'none',
-    wasLive: false,
-    liveEndedAt: null
+    liveEndedAt: null,
+    isPremiere: false
   }
 ): FeedEntry {
   return {
@@ -123,8 +123,8 @@ describe('groupFeed', () => {
         // Started at 09:00 — hours before the other two — but still live.
         entry('hours-old-live', new Date(2026, 6, 8, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'live',
-          wasLive: true,
-          liveEndedAt: null
+          liveEndedAt: null,
+          isPremiere: false
         }),
         entry('older-upload', new Date(2026, 6, 8, 10))
       ],
@@ -146,8 +146,8 @@ describe('groupFeed', () => {
         // still rank first, by its end time rather than its start time.
         entry('ended-live', new Date(2026, 6, 8, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'none',
-          wasLive: true,
-          liveEndedAt: new Date(2026, 6, 8, 14).toISOString()
+          liveEndedAt: new Date(2026, 6, 8, 14).toISOString(),
+          isPremiere: false
         }),
         entry('upload-at-10', new Date(2026, 6, 8, 10))
       ],
@@ -166,8 +166,8 @@ describe('groupFeed', () => {
       [
         entry('crossed-midnight', new Date(2026, 6, 7, 20), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'none',
-          wasLive: true,
-          liveEndedAt: new Date(2026, 6, 8, 2).toISOString()
+          liveEndedAt: new Date(2026, 6, 8, 2).toISOString(),
+          isPremiere: false
         })
       ],
       NOW
@@ -180,13 +180,31 @@ describe('groupFeed', () => {
       [
         entry('marathon-stream', new Date(2026, 6, 5, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'live',
-          wasLive: true,
-          liveEndedAt: null
+          liveEndedAt: null,
+          isPremiere: false
         })
       ],
       NOW
     )
     expect(groups.map((g) => g.bucket)).toEqual(['today'])
+  })
+
+  it('a Premiere airing days ago stays in its original bucket, never floats to today like a real broadcast would (B-119)', () => {
+    const groups = groupFeed(
+      [
+        entry('older-upload', new Date(2026, 6, 8, 10)),
+        entry('airing-premiere', new Date(2026, 6, 5, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
+          liveContent: 'live',
+          liveEndedAt: null,
+          isPremiere: true
+        })
+      ],
+      NOW
+    )
+    expect(groups.map((g) => g.bucket)).toEqual(['today', 'earlier'])
+    expect(groups.find((g) => g.bucket === 'earlier')?.entries.map((e) => e.video.videoId)).toEqual([
+      'airing-premiere'
+    ])
   })
 })
 
@@ -195,25 +213,53 @@ describe('effectiveDate', () => {
     entry('v', new Date(2026, 6, 5, 9), 'Channel A', DEFAULT_VIDEO_STATE, live).video
 
   it('is publishedAt for a video that was never live', () => {
-    expect(effectiveDate(base({ liveContent: 'none', wasLive: false, liveEndedAt: null }), NOW)).toEqual(
-      new Date(2026, 6, 5, 9)
-    )
+    expect(
+      effectiveDate(
+        base({ liveContent: 'none', liveEndedAt: null, isPremiere: false }),
+        NOW
+      )
+    ).toEqual(new Date(2026, 6, 5, 9))
   })
 
   it('is "now" while genuinely live, regardless of publishedAt', () => {
-    expect(effectiveDate(base({ liveContent: 'live', wasLive: true, liveEndedAt: null }), NOW)).toEqual(
-      NOW
-    )
+    expect(
+      effectiveDate(
+        base({ liveContent: 'live', liveEndedAt: null, isPremiere: false }),
+        NOW
+      )
+    ).toEqual(NOW)
   })
 
-  it('is liveEndedAt once ended, even without wasLive (e.g. discovered post-broadcast via gap-backfill)', () => {
+  it('is liveEndedAt once ended, even for a video discovered post-broadcast (e.g. gap-backfill)', () => {
     const endedAt = new Date(2026, 6, 6, 10)
     expect(
       effectiveDate(
-        base({ liveContent: 'none', wasLive: false, liveEndedAt: endedAt.toISOString() }),
+        base({
+          liveContent: 'none',
+          liveEndedAt: endedAt.toISOString(),
+          isPremiere: false
+        }),
         NOW
       )
     ).toEqual(endedAt)
+  })
+
+  it('is publishedAt while a Premiere is airing, not "now" (B-119)', () => {
+    expect(
+      effectiveDate(
+        base({ liveContent: 'live', liveEndedAt: null, isPremiere: true }),
+        NOW
+      )
+    ).toEqual(new Date(2026, 6, 5, 9))
+  })
+
+  it('is publishedAt for a finished Premiere, not liveEndedAt (which is never captured for one)', () => {
+    expect(
+      effectiveDate(
+        base({ liveContent: 'none', liveEndedAt: null, isPremiere: true }),
+        NOW
+      )
+    ).toEqual(new Date(2026, 6, 5, 9))
   })
 })
 

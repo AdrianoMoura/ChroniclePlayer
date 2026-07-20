@@ -1193,13 +1193,13 @@ button.primary:disabled {
   border: 1px solid transparent;
 }
 
-.live-badge-live {
+.live-badge-live,
+.live-badge-premiere {
   color: #e0a3a3;
   border-color: #a05252;
 }
 
-.live-badge-upcoming,
-.live-badge-ended {
+.live-badge-upcoming {
   color: var(--text-dim);
   border-color: var(--border);
 }

@@ -130,8 +130,11 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
 
 **Current target: 0.4.8.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
 none of the four made it into 0.4.7 either (see above — 0.4.7 shipped B-117/B-118
-instead). When 0.4.8 ships, this file's content moves to `bug-history/v0.4.8.md` and a
-new `bugs-current.md` starts targeting whatever comes after it.
+instead). [[B-119]] (the flip side of B-117: a finished Premiere kept the "ended live
+broadcast" badge/sort instead of settling back into a normal video) was reported and
+Fixed the same day — see its own entry under Resolved. When 0.4.8 ships, this file's
+content moves to `bug-history/v0.4.8.md` and a new `bugs-current.md` starts targeting
+whatever comes after it.
 
 ## Entry template
 
@@ -457,3 +460,118 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-119 — A finished Premiere keeps the "ended live broadcast" badge/sort instead of behaving like a normal video
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8
+- **Area:** feed
+- **What happens:** the owner watched a Premiere air (correctly shown as "Live", per
+  [[B-117]]'s removal of the Premiere/Live distinction), but once the Premiere finished,
+  it did not settle back into behaving like a normal, already-published video — it kept
+  the "ended broadcast" treatment instead (gray "ended" badge, sorted by when it wrapped
+  rather than its original `publishedAt`).
+- **Expected:** a Premiere is just a synchronized watch-along of an already-recorded
+  video; once it's done airing it should look exactly like any other normal video, not
+  like a livestream that just wrapped.
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`hydrate`); `src/core/video.ts`
+  (`isPremiere`, `liveEndedAt`); `src/core/feed.ts` (`effectiveDate`); `src/ui/FeedList.tsx`
+  (`liveBadgeState`); `src/adapters/storage/sync-repository.ts` (`applyHydration`).
+- **Notes:** the flip side of [[B-117]] — since Chronicle couldn't tell a Premiere apart
+  from a genuine live broadcast, a Premiere was captured with `liveContent: 'live'` while
+  airing exactly like a real stream, and the existing sticky ended-broadcast machinery
+  then treated it identically once it ended too. That machinery was correct for a genuine
+  livestream but wrong for a Premiere.
+  A reliable signal was found and confirmed against real API data the same day:
+  `status.uploadStatus` is `'processed'` for a Premiere vs. `'uploaded'` for a genuine
+  broadcast, while `liveContent === 'live'`. Investigation trail:
+  1. A public YouTube playlist convention (an auto-generated "live videos only"
+     playlist per channel, same family as the regular uploads playlist Chronicle already
+     resolves via `channels.list`) was checked against a real subscribed channel's recent
+     videos and reliably separated confirmed Premieres from confirmed live broadcasts.
+     **Not pursued as the fix**: it's a second RSS request that doesn't replace the
+     `videos.list` hydration call already happening every cycle for any `live`/`upcoming`
+     video, so it would add cost without removing any, and (like the main channel feed)
+     is capped at a small recency window — useless for anything backfilled past that.
+  2. A proposal to cross-reference `videos.list` against `liveBroadcasts.list` (the
+     YouTube *Live Streaming* API, not Data API) was checked against the official docs
+     before writing any code: that resource has no `channelId` filter, `mine=true` is
+     explicitly "your own broadcasts only", and everything else about it (partner-only
+     `onBehalfOfContentOwner`, `insufficientPermissions`/`forbidden` in its own error
+     docs) points at a broadcaster self-management API, not public third-party read
+     access — confirmed by a dedicated public forum thread on this exact problem never
+     mentioning `liveBroadcasts` at all. **Not pursued** — Chronicle is never the owner of
+     any subscribed channel's broadcasts, so this would almost certainly 403/return empty
+     for every third-party video regardless of Premiere vs. live, non-discriminating even
+     if it "worked."
+  3. A public forum thread on the same problem surfaced two candidates needing **zero
+     additional requests** — both live in fields from the exact `videos.list` hydration
+     call already made: `contentDetails.duration` (claimed `"P0D"` for a genuine upcoming
+     broadcast vs. already-fixed/non-zero for an upcoming Premiere) and
+     `status.uploadStatus` (`"uploaded"` vs. `"processed"`).
+  4. Both were tested against three real, currently-live videos via a real, disposable
+     OAuth PKCE+loopback grant against the owner's own dev credentials (`youtube.readonly`
+     scope, same as D-013/D-032; the grant's access token and client secret were never
+     written to disk) hitting the actual `videos.list` endpoint — not the public
+     watch-page HTML, which was checked first and **turned out to disagree with the real
+     API** on `duration` (the webpage showed a real non-zero number for a Premiere; the
+     actual API's `contentDetails.duration` was absent entirely, not `"P0D"` and not a
+     real value — a reminder that scraping ≠ the production data path). `duration` didn't
+     behave as the forum thread described — not adopted. **`status.uploadStatus` matched
+     cleanly and is the confirmed signal**: `"uploaded"` for a genuine broadcast (upcoming
+     or live), `"processed"` for a Premiere, verified against the real API Chronicle
+     actually calls.
+  5. After implementing, the owner live-tested against a real account with existing local
+     data and found the signal's known accepted gap in practice: two Premieres whose
+     first-ever hydration landed only after they'd already finished airing (following a
+     full local-data reset) still showed the gray "ended" treatment, because
+     `status.uploadStatus` only discriminates while `liveContent === 'live'` — by the time
+     a video is first seen already `'none'`, `uploadStatus` is `'processed'` for any
+     finished video regardless of Premiere vs. genuine broadcast.
+  6. A candidate fix for that gap was investigated and tested against real API data:
+     `liveStreamingDetails.actualStartTime` vs. `scheduledStartTime` — permanent metadata,
+     available regardless of when a video is first hydrated, unlike `uploadStatus`. Real
+     results were a very clean split (two independently confirmed Premieres from two
+     different channels both started within single-digit seconds of their scheduled time;
+     two confirmed genuine broadcasts from the same channel both started 20+ minutes late)
+     — but the owner flagged a real objection before adopting it: any threshold is a guess
+     about future streamer behavior, and a genuine broadcast that happens to start within
+     the window would be misclassified as a Premiere permanently, with no later
+     correction possible (unlike the routine `uploadStatus` path, which the video would
+     never pass through in this exact scenario). **Not adopted**, given that risk against
+     a feature (the gray "ended" badge) that only existed to answer a cosmetic question.
+  7. Given a made-up threshold could misclassify a real broadcast with no way to correct
+     it, and the badge it exists to serve is purely cosmetic, the owner chose to remove
+     the gray "ended" badge outright rather than accept that risk or the original
+     late-discovery gap: **no badge survives `liveContent` reverting to `'none'`, for
+     either a Premiere or a genuine broadcast.** Sort/bucket order for an ended genuine
+     broadcast is kept (by explicit owner call — old livestreams are rare enough day to
+     day, and an unusually long `durationSeconds` on the card is itself a hint) —
+     `liveEndedAt` and its ordering effect are untouched; only the badge, and the flag
+     that only ever fed it, are gone.
+- **Resolved:** 2026-07-19 · **Commit:** (see repository history) · **Outcome:** Fixed
+- **Resolution:** `status` added to `YouTubeApiClient.hydrate`'s `part=` (free — same call
+  already made, no new request or quota cost); `isPremiere = liveContent === 'live' &&
+  status.uploadStatus === 'processed'` computed there per-cycle, never sticky at that
+  layer (`uploadStatus === 'processed'` is the ordinary terminal state for nearly every
+  finished video ever, so it's only meaningful gated on `liveContent === 'live'`). New
+  sticky `Video.isPremiere` (schema v14, `is_premiere` column) — only ever set while
+  observed `liveContent === 'live'`; stays false for a Premiere whose first-ever
+  hydration lands after it already ended, an accepted gap. `sync-repository.ts`
+  `applyHydration` gates `live_ended_at` on **not** being a premiere (`is_premiere` read
+  from the pre-update row, since SQLite evaluates an `UPDATE`'s `SET` expressions against
+  old values) — a finished Premiere never gets it set. `core/feed.ts` `effectiveDate`
+  skips the "now" sort override for a currently-airing Premiere — it sorts/buckets by
+  `publishedAt` throughout, live or ended, never floating to the top of Today just for
+  airing right now. `FeedList.tsx`'s badge now has three states — `'live'`, `'premiere'`
+  (both red, picked by `isPremiere`, shown only while `liveContent === 'live'`), and
+  `'upcoming'` — with no "ended" state at all anymore; the sticky `wasLive` flag (schema
+  v10) that used to feed it is removed entirely (schema v15) as dead code, since the
+  badge was its only reader. `isPremiere` threaded end-to-end: `HydratedVideo` → `Video`
+  → `FeedVideoDto` → `FEED_SELECT`/`toEntry`. Tests added at every layer covering
+  `isPremiere` derivation (including the "`processed` outside `live` must not count"
+  trap), sticky persistence, `live_ended_at` suppression for a Premiere, a regression
+  guard for genuine broadcasts, and `effectiveDate`/`groupFeed` premiere sort cases.
+  `feed.md` §Ordering and `local-data.md`'s schema notes updated in the same change; no
+  new `D-NNN` — same precedent as B-115/B-117 themselves, this stays a bug-tracker-only
+  record.
+

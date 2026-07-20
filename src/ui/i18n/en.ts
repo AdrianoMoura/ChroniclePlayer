@@ -394,6 +394,7 @@ export const en = {
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Live',
+  'feed.card.premiereBadge': 'Premiere',
   'feed.card.upcomingBadge': 'Upcoming',
   'feed.loadingMore': 'Loading more…',
 

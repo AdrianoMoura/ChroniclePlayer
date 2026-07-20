@@ -32,30 +32,32 @@ Later).
   reaching the feed) is now threaded through to a "Live"/"Upcoming" badge on the video
   row/card — so a premiere or active livestream is at least visually distinguishable from
   a normal upload today. **Extended 2026-07-17 (B-114/B-115):** `liveContent` is now
-  re-hydrated every cycle instead of captured once (B-114 — a video no longer stays
-  stuck showing "Live" forever after the broadcast actually ends; a sticky `wasLive` flag
-  keeps a gray "Live" badge on an ended broadcast so it stays visible as *having been* one,
-  duration badge suppressed only while genuinely live). A live video was also briefly
+  re-hydrated every cycle instead of captured once (B-114 — a video no longer stays stuck
+  showing "Live" forever after the broadcast actually ends). A live video was also briefly
   best-effort flagged as a Premiere specifically (`isPremiere`, B-115) via
   `liveStreamingDetails.concurrentViewers`'s absence. **Reverted 2026-07-19 (B-117):** that
   signal was confirmed wrong in practice — a genuine live broadcast was misidentified as a
   Premiere (`concurrentViewers` was plausibly just not populated yet in the first poll(s)
   right after a broadcast starts, self-correcting a while later once it filled in — not a
-  signal exclusive to Premieres after all). No replacement signal has been confirmed
-  against real data (a candidate — `contentDetails.duration` known/non-zero while
-  `liveContent === 'live'` — was floated but not tested against a real Premiere, so wasn't
-  adopted), so the distinction is removed outright rather than patched again: the feed
-  shows only "Live"/"Upcoming"/ended, same as before B-115 ever shipped. **Telling a
-  Premiere apart from a genuine livestream at all — in either the `live` or `upcoming`
-  state — remains open, unsolved, and unverified against real data;** see `bugs-current.md`
-  B-117 for the record. **Extended 2026-07-19 (D-053):** the gray "ended" badge no longer
-  depends solely on the sticky `wasLive` flag
-  (which only ever becomes true if Chronicle observed the video while it was genuinely
-  live) — it now also shows whenever `liveEndedAt` is known, even for a video whose
-  *first-ever* hydration lands after its broadcast already ended (e.g. discovered later
-  via gap-backfill). This is possible because `liveStreamingDetails.actualEndTime` is
-  permanent video metadata, unlike `liveBroadcastContent` (which reverts to `'none'` once
-  a broadcast ends and stays that way regardless of when the video is later hydrated).
+  signal exclusive to Premieres after all). No replacement signal was confirmed against
+  real data at the time, so the distinction was removed outright: the feed went back to
+  plain "Live"/"Upcoming", same as before B-115 ever shipped. **Reintroduced 2026-07-19
+  (B-119), this time verified against the real API for real videos:** `status.uploadStatus`
+  is `'processed'` for a Premiere vs. `'uploaded'` for a genuine broadcast, while
+  `liveContent === 'live'` — see `bugs-current.md` B-119 for the full trail. `isPremiere`
+  (`Video`/schema v14) is sticky, captured only while `liveContent === 'live'`; telling a
+  Premiere apart from a genuine livestream while `upcoming` (before either has started) is
+  still unsolved.
+- **Badge (Final, 2026-07-19):** a red "Live" or "Premiere" badge shows only while
+  `liveContent === 'live'` (picked by `isPremiere`); an "Upcoming" badge shows while
+  `liveContent === 'upcoming'` (no Live/Premiere distinction there). **No badge survives
+  `liveContent` reverting to `'none'`, for either case** — once a broadcast or Premiere
+  ends, `uploadStatus` stops being a usable signal (it's `'processed'` for nearly every
+  finished video ever, live or not), so there's no reliable way to badge one as "this was
+  live" without either an unverified heuristic or a false-positive risk against a genuine
+  broadcast; the feed treats every ended video the same, badge-less. Sort/bucket order for
+  an ended broadcast is unaffected (below) — a long `durationSeconds` on the card is the
+  only remaining visual hint that a video was ever live.
 - Ties (identical timestamps) break by channel title, then videoId — deterministic order
   is part of "predictable."
 - **Live/ended broadcasts sort — and bucket — by an effective date, not always
@@ -75,6 +77,12 @@ Later).
   (D-027) — the underlying page fetch stays keyed on plain `publishedAt` (a keyset cursor
   can't be built on a value like `now` that changes between calls); `effectiveDate` only
   reorders/re-buckets an already-fetched page for display.
+  - **A Premiere is exempt from all of the above, in every state (B-119, 2026-07-19):**
+    `effectiveDate` is always `publishedAt` for one — never `now` while it's airing, never
+    `liveEndedAt` once it's done (which is never captured for one in the first place). A
+    Premiere is a synchronized watch-along of an already-recorded video, not an open-ended
+    broadcast, so unlike a real livestream it sorts and buckets exactly like a normal
+    upload throughout, never floating to the top of Today just for being "live" right now.
 
   - **Watch Later is exempt** — its own explicit position ordering (below) is untouched.
 

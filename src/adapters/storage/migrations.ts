@@ -205,6 +205,26 @@ const SCHEMA_V13 = `
 ALTER TABLE videos DROP COLUMN is_premiere;
 `
 
+// v14: is_premiere, keyed on status.uploadStatus ('processed' vs. 'uploaded')
+// while live_content = 'live'. Sticky: once observed airing as a Premiere,
+// later cycles (which flip live_content back to 'none' once it's done, same
+// as any broadcast) never clear it — see sync-repository.ts applyHydration
+// for how it also gates live_ended_at so a finished Premiere doesn't get an
+// ended broadcast's wrap-time sort. Not backfilled on migrate: the signal
+// only exists while live_content = 'live', already in the past for any
+// existing row.
+const SCHEMA_V14 = `
+ALTER TABLE videos ADD COLUMN is_premiere INTEGER NOT NULL DEFAULT 0;
+`
+
+// v15: was_live (v10) dropped — its only reader was a gray "ended" feed
+// badge that no longer exists; live_ended_at (untouched) still drives
+// ended-broadcast sort/bucket order on its own, was_live was never involved
+// in that.
+const SCHEMA_V15 = `
+ALTER TABLE videos DROP COLUMN was_live;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -218,7 +238,9 @@ const migrations: readonly string[] = [
   SCHEMA_V10,
   SCHEMA_V11,
   SCHEMA_V12,
-  SCHEMA_V13
+  SCHEMA_V13,
+  SCHEMA_V14,
+  SCHEMA_V15
 ]
 
 export function migrate(db: DatabaseSync): void {

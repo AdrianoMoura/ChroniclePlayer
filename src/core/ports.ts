@@ -167,6 +167,10 @@ export interface HydratedVideo {
   // the broadcast has ended, null while it's still live/upcoming or for a
   // video that was never live. See Video.liveEndedAt for how it's used.
   liveEndedAt: string | null
+  // This cycle's observation only, NOT sticky (the persisted, sticky
+  // version lives on Video.isPremiere) — status.uploadStatus === 'processed'
+  // while liveContent === 'live'. Always false outside that state.
+  isPremiere: boolean
   thumbnailUrl: string | null
   description: string | null
   viewCount: number | null

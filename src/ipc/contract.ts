@@ -31,16 +31,19 @@ export interface FeedVideoDto {
   // Captured at hydration from snippet.liveBroadcastContent; 'none'
   // otherwise, and again once a broadcast ends (same as a normal upload).
   liveContent: 'none' | 'live' | 'upcoming'
-  // B-114: sticky — true once this was ever seen live, even after
-  // liveContent reverts to 'none' post-broadcast. Distinguishes an ended
-  // livestream from a video that was never live for the feed badge.
-  wasLive: boolean
-  // D-053: liveStreamingDetails.actualEndTime, present once a broadcast has
-  // ended — unlike wasLive, this can be known even if Chronicle never
-  // observed the video while it was actually live (e.g. discovered later
-  // via gap-backfill), since YouTube keeps it as permanent video metadata.
-  // Also drives the "ended" feed badge for that case (FeedList.tsx).
+  // liveStreamingDetails.actualEndTime, present once a broadcast has ended,
+  // even if Chronicle never observed the video while it was actually live
+  // (e.g. discovered later via gap-backfill), since YouTube keeps it as
+  // permanent video metadata. Drives ended-broadcast sort/bucket order
+  // (core/feed.ts) — not read by any feed badge. Never set for a Premiere.
   liveEndedAt: string | null
+  // Sticky — true once this was ever seen airing as a Premiere
+  // (status.uploadStatus === 'processed' while liveContent === 'live').
+  // Picks the red "Premiere" vs "Live" badge while liveContent === 'live';
+  // afterward keeps a finished Premiere sorting like a plain video
+  // (publishedAt) instead of an ended broadcast's wrap-time sort
+  // (FeedList.tsx, core/feed.ts).
+  isPremiere: boolean
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
   // The UI renders a header whenever the bucket changes between rows, so

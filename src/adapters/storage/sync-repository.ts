@@ -231,28 +231,36 @@ export class SqliteSyncRepository implements SyncRepository {
   // Hydration upserts full facts — it also creates rows for gap-backfilled
   // videos that never passed through RSS.
   applyHydration(videos: readonly HydratedVideo[], now: string): void {
-    // B-114: was_live is sticky (CASE ... ELSE was_live on conflict) — once
-    // a video is ever seen live, later re-hydrations (which flip
-    // live_content back to 'none' once the broadcast ends) never clear it.
-    // D-053: live_ended_at is sticky the same way, via COALESCE — once a
-    // real end time is captured it's never overwritten by a later cycle
-    // that (for any reason) doesn't report one again.
+    // live_ended_at is sticky via COALESCE — once a real end time is
+    // captured it's never overwritten by a later cycle that (for any reason)
+    // doesn't report one again. is_premiere is sticky the same way, and also
+    // gates live_ended_at so a Premiere never gets the livestream-wrap sort
+    // treatment — live_ended_at is left alone (never COALESCE'd in) whenever
+    // the video is a premiere, this cycle or a previously-captured one.
+    // `is_premiere` on the right of that CASE reads the pre-update row
+    // (SQLite evaluates an UPDATE's SET expressions against the old row, not
+    // each other), so it correctly reflects history already on the row, not
+    // this statement's own new value.
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
-          live_content, was_live, live_ended_at, thumbnail_url, view_count,
+          live_content, is_premiere, live_ended_at, thumbnail_url, view_count,
           hydrated_at, fetched_at)
        VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live,
-         CASE WHEN :live = 'live' THEN 1 ELSE 0 END, :liveEndedAt, :thumb, :views,
-         :now, :now)
+         :isPremiereNow,
+         CASE WHEN :isPremiereNow = 1 THEN NULL ELSE :liveEndedAt END,
+         :thumb, :views, :now, :now)
        ON CONFLICT(video_id) DO UPDATE SET
          title = :title,
          description = :description,
          published_at = :publishedAt,
          duration_seconds = :duration,
          live_content = :live,
-         was_live = CASE WHEN :live = 'live' THEN 1 ELSE was_live END,
-         live_ended_at = COALESCE(:liveEndedAt, live_ended_at),
+         is_premiere = CASE WHEN :isPremiereNow = 1 THEN 1 ELSE is_premiere END,
+         live_ended_at = CASE
+           WHEN is_premiere = 1 OR :isPremiereNow = 1 THEN live_ended_at
+           ELSE COALESCE(:liveEndedAt, live_ended_at)
+         END,
          thumbnail_url = COALESCE(:thumb, thumbnail_url),
          view_count = :views,
          hydrated_at = :now`
@@ -266,6 +274,7 @@ export class SqliteSyncRepository implements SyncRepository {
         publishedAt: video.publishedAt,
         duration: video.durationSeconds,
         live: video.liveContent,
+        isPremiereNow: video.isPremiere ? 1 : 0,
         liveEndedAt: video.liveEndedAt,
         thumb: video.thumbnailUrl,
         views: video.viewCount,

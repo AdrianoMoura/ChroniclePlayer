@@ -49,7 +49,11 @@ const VIDEOS_RESPONSE = {
         description: 'desc',
         thumbnails: { medium: { url: 'https://i.ytimg.example/vid-1' } }
       },
-      contentDetails: { duration: 'PT15M33S' }
+      contentDetails: { duration: 'PT15M33S' },
+      // 'processed' is the normal terminal status for basically every
+      // finished video — must NOT be read as isPremiere outside liveContent
+      // === 'live'.
+      status: { uploadStatus: 'processed' }
     },
     {
       id: 'vid-2',
@@ -74,7 +78,8 @@ const VIDEOS_RESPONSE = {
         thumbnails: {}
       },
       contentDetails: { duration: 'P0D' },
-      liveStreamingDetails: { activeLiveChatId: 'chat-1', concurrentViewers: '120' }
+      liveStreamingDetails: { activeLiveChatId: 'chat-1', concurrentViewers: '120' },
+      status: { uploadStatus: 'uploaded' }
     },
     {
       id: 'vid-4',
@@ -104,7 +109,25 @@ const VIDEOS_RESPONSE = {
         activeLiveChatId: 'chat-3',
         actualStartTime: '2026-07-13T08:00:00Z',
         actualEndTime: '2026-07-13T09:30:00Z'
-      }
+      },
+      status: { uploadStatus: 'processed' }
+    },
+    {
+      // A Premiere airing right now — liveBroadcastContent 'live' same as a
+      // genuine stream, but uploadStatus 'processed' (already fully
+      // uploaded/encoded) instead of 'uploaded'.
+      id: 'vid-6',
+      snippet: {
+        channelId: 'UCaaa',
+        title: 'A premiere airing now',
+        publishedAt: '2026-07-13T23:00:00Z',
+        liveBroadcastContent: 'live',
+        description: '',
+        thumbnails: {}
+      },
+      contentDetails: {},
+      liveStreamingDetails: { activeLiveChatId: 'chat-4', actualStartTime: '2026-07-13T23:00:00Z' },
+      status: { uploadStatus: 'processed' }
     }
   ]
 }
@@ -174,6 +197,29 @@ describe('YouTubeApiClient', () => {
     expect(videos.find((v) => v.videoId === 'vid-5')).toMatchObject({
       liveContent: 'none',
       liveEndedAt: '2026-07-13T09:30:00Z'
+    })
+  })
+
+  it('derives isPremiere from status.uploadStatus while liveContent is live, and only then (B-119)', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
+    const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([
+      'vid-1',
+      'vid-3',
+      'vid-5',
+      'vid-6'
+    ])
+    // A normal finished video: uploadStatus 'processed' too, but not live —
+    // must not be misread as a Premiere.
+    expect(videos.find((v) => v.videoId === 'vid-1')).toMatchObject({ isPremiere: false })
+    // A genuine live stream: uploadStatus 'uploaded'.
+    expect(videos.find((v) => v.videoId === 'vid-3')).toMatchObject({ isPremiere: false })
+    // A genuine ended broadcast: uploadStatus 'processed' too, but
+    // liveContent already reverted to 'none' — same trap as vid-1.
+    expect(videos.find((v) => v.videoId === 'vid-5')).toMatchObject({ isPremiere: false })
+    // An airing Premiere: liveContent 'live' AND uploadStatus 'processed'.
+    expect(videos.find((v) => v.videoId === 'vid-6')).toMatchObject({
+      liveContent: 'live',
+      isPremiere: true
     })
   })
 
