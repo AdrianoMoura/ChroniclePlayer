@@ -48,6 +48,10 @@ interface PlayerDetailsProps {
   // to that position — PlayerSurface owns the actual seek command, a
   // sibling component, so this reaches it the same way onExtract/onClose do.
   onSeekTo: (seconds: number) => void
+  // Opening in the real YouTube tab shouldn't leave this copy also playing
+  // behind the scenes — same sibling-reaches-PlayerSurface pattern as
+  // onSeekTo above.
+  onPause: () => void
 }
 
 export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>(
@@ -63,7 +67,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       onOpenVideo,
       onOpenChannel,
       onStatePatched,
-      onSeekTo
+      onSeekTo,
+      onPause
     }: PlayerDetailsProps,
     ref
   ) {
@@ -93,6 +98,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     }
 
     function openInBrowser(): void {
+      onPause()
       void window.chronicle.openInBrowser(video.videoId)
     }
 

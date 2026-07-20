@@ -283,6 +283,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     }, [command, defaultPlaybackRate])
 
     function openInBrowser(): void {
+      // Opening in the real YouTube tab shouldn't leave this copy also
+      // playing (and audibly competing with it) behind the scenes.
+      if (isStillGoing()) command('pauseVideo')
       void window.chronicle.openInBrowser(video.videoId)
     }
 

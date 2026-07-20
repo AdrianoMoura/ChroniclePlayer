@@ -131,9 +131,10 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
 **Current target: 0.4.8.** Carries [[B-108]], [[B-022]], [[B-086]], [[B-101]] forward —
 none of the four made it into 0.4.7 either (see above — 0.4.7 shipped B-117/B-118
 instead). [[B-119]] (the flip side of B-117: a finished Premiere kept the "ended live
-broadcast" badge/sort instead of settling back into a normal video) and [[B-120]] (feed
+broadcast" badge/sort instead of settling back into a normal video), [[B-120]] (feed
 date-bucket headers repeating out of order, relative-time labels disagreeing with their
-bucket, around live/ended broadcasts) were both reported and Fixed the same day they
+bucket, around live/ended broadcasts), and [[B-121]] (opening the active video in the
+browser left it also playing in Chronicle) were all reported and Fixed the same day they
 were reported — see their own entries under Resolved. When 0.4.8 ships, this file's
 content moves to `bug-history/v0.4.8.md` and a new `bugs-current.md` starts targeting
 whatever comes after it.
@@ -374,6 +375,64 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+### B-120 — Feed date-bucket headers repeat out of order, and relative-time labels disagree with their bucket, around live/ended broadcasts
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-07-19 · **Target:** 0.4.8
+- **Area:** feed
+- **What happens:** scrolling the feed, the owner found the Today/Yesterday/This
+  Week/Earlier grouping (`feed.md` §Grouping) badly out of order and internally
+  inconsistent:
+  1. The first video under "Yesterday" shows "8 hours ago," but it's a 3-hour-long
+     livestream that, per YouTube, was broadcast entirely the day before — "8 hours ago"
+     doesn't fit either the bucket or the video's own duration.
+  2. A video under "Earlier" shows "12 hours ago," but the same video is actually ~11
+     days old on YouTube.
+  3. After "Earlier", a second "Yesterday" section appears, with different videos than
+     the first "Yesterday" section (not merged into it — a separate header).
+  4. Further down, a "This Week" section shows videos labeled "yesterday" that are
+     actually 2 days old; after that, "Earlier" and "This Week" each appear again.
+  Net effect: bucket headers repeat and appear out of the fixed order, and several
+  relative-time labels don't match the reality of the video they're on (confirmed by the
+  owner against YouTube directly, not just internal inconsistency).
+- **Expected:** each bucket (Today/Yesterday/This Week/Earlier) appears at most once, in
+  that fixed order (`feed.md` §Grouping), and a video's displayed relative-time label
+  agrees with the bucket it's shown under.
+- **Code refs:** `src/core/feed.ts` (`effectiveDate`, `bucketOf`, `groupFeed`);
+  `src/core/feed-service.ts` (`getSlice`); `src/ui/FeedList.tsx` (`publishedLabel(video.publishedAt)`,
+  two call sites); `src/ui/format.ts` (`publishedLabel`).
+- **Notes (code analysis, not yet live-verified against the owner's own data — needs
+  their live confirmation before this moves past Open):** two distinct defects, likely
+  compounding on the videos described above:
+  - **Label/bucket mismatch:** bucketing and sort order are driven by `effectiveDate`
+    (D-053: `now` while a broadcast is genuinely live, `liveEndedAt` once it's ended,
+    `publishedAt` otherwise) in both `feed.ts` and `feed-service.ts`. But `FeedList.tsx`
+    renders each row's relative-time text via `publishedLabel(video.publishedAt)` — always
+    the raw `publishedAt`, never `effectiveDate`. For any video that was ever live, the two
+    can diverge sharply: an ended broadcast buckets/sorts by when it actually wrapped
+    (`liveEndedAt`), but its on-row label still counts from the original `publishedAt`
+    (when the stream started/was scheduled) — this fits both reported mismatches (#1: bucket
+    correct per `liveEndedAt`, label stale from `publishedAt`; #2: same shape, larger gap).
+    Likely fix direction: label from the same value used to bucket it
+    (`effectiveDate(video, now)`), not `video.publishedAt`, at both `FeedList.tsx` call
+    sites.
+  - **Repeated/out-of-order section headers:** `feed-service.ts`'s own D-053 comment
+    already flags the mechanism this points to: `getSlice` fetches one page at a time from
+    the DB in plain `publishedAt` order (`repository.listPage`, D-027's keyset — it can't be
+    built on a value like `effectiveDate` that changes between calls), then re-sorts/
+    re-buckets *only within that one page* for display. Cross-page order is never
+    reconciled. A live/ended video whose `effectiveDate` diverges sharply from its raw
+    `publishedAt`-based position in the keyset can land near the top of its own page's
+    local re-sort while chronologically "behind" videos the previous page already rendered
+    under a later bucket — producing a bucket header a second time, out of
+    `BUCKET_ORDER` sequence, once the next page renders. This matches the reported
+    "Yesterday" and "This Week" sections reappearing later in the scroll with different
+    videos than their first occurrence. Structural, not a one-off: page-local reordering
+    can never fully fix a global ordering problem when pages are fetched in a different
+    order than they're displayed in. A real fix needs a design call (not just a patch) on
+    how far to look ahead before bucketing, or whether a repeated bucket should fold into
+    its first occurrence instead of getting a new header — flagging the mechanism here
+    rather than picking an approach unilaterally.
+
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -462,6 +521,30 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-121 — Opening a video in the browser leaves it also playing in Chronicle
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8
+- **Area:** player
+- **What happens:** using "Open in browser" (the `b` shortcut, the player's own action
+  button, or a feed card's inline button) on a video currently playing in Chronicle
+  handed it off to the real YouTube tab but left Chronicle's own copy still running —
+  both playing at once, audibly competing.
+- **Expected:** opening the active video in the browser pauses Chronicle's own copy.
+- **Code refs:** `src/ui/PlayerSurface.tsx` (`openInBrowser`, full-view button/`b` key);
+  `src/ui/PlayerDetails.tsx` (`openInBrowser`, action-bar button); `src/ui/App.tsx`
+  (`actions.openInBrowser`, feed-card button and global `b` shortcut).
+- **Resolved:** 2026-07-19 · **Commit:** 186e8e6 · **Outcome:** Fixed
+- **Resolution:** all three "open in browser" call sites now pause first if the video
+  being opened is the one actually loaded in the player. `PlayerSurface`'s own button/
+  `b` key (always the active video, since it's the component playing it) calls
+  `command('pauseVideo')` directly, guarded by the existing `isStillGoing()` check.
+  `PlayerDetails` (a sibling of `PlayerSurface`, same "always the active video," but
+  without direct access to `command()`) gained an `onPause` callback prop, following the
+  same pattern as its existing `onSeekTo`/`onExtract` props, wired in `App.tsx` to
+  `playerSurfaceRef.current?.pause()`. The feed-card/global-shortcut path
+  (`App.tsx`'s `actions.openInBrowser`) isn't always the active video — a docked
+  miniplayer can be playing something other than the feed card under the cursor — so it
+  only pauses when `currentPlayerVideo?.videoId` matches the video being opened.
 
 ### B-120 — Feed date-bucket headers repeat out of order, and relative-time labels disagree with their bucket, around live/ended broadcasts
 - **Type:** bug · **Severity:** major

@@ -1292,12 +1292,16 @@ export function App() {
           .toggleWatchLater(video.videoId)
           .then((state) => patch(video.videoId, state)),
       openInBrowser: (video) => {
+        // Opening in the real YouTube tab shouldn't leave this copy also
+        // playing behind the scenes — only relevant if the feed card being
+        // opened is actually the one loaded in the player right now.
+        if (currentPlayerVideo?.videoId === video.videoId) playerSurfaceRef.current?.pause()
         // Opening counts as reading (feed.md §Semantics).
         void window.chronicle.openInBrowser(video.videoId)
         setStatus(video, 'read')
       }
     }),
-    [setStatus, ignoreVideo, undoIgnore, patch]
+    [setStatus, ignoreVideo, undoIgnore, patch, currentPlayerVideo]
   )
 
   const effectiveCursor = filtered.length === 0 ? -1 : Math.min(cursorIdx, filtered.length - 1)
@@ -2027,6 +2031,7 @@ export function App() {
                       onOpenChannel={navigateToChannel}
                       onStatePatched={patch}
                       onSeekTo={(seconds) => playerSurfaceRef.current?.seekTo(seconds)}
+                      onPause={() => playerSurfaceRef.current?.pause()}
                     />
                     <MiniPlayerBar
                       video={currentPlayerVideo}
