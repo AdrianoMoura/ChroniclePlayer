@@ -548,7 +548,7 @@ Resolved entries add:
      day, and an unusually long `durationSeconds` on the card is itself a hint) —
      `liveEndedAt` and its ordering effect are untouched; only the badge, and the flag
      that only ever fed it, are gone.
-- **Resolved:** 2026-07-19 · **Commit:** (see repository history) · **Outcome:** Fixed
+- **Resolved:** 2026-07-19 · **Commit:** 37a2a1a · **Outcome:** Fixed
 - **Resolution:** `status` added to `YouTubeApiClient.hydrate`'s `part=` (free — same call
   already made, no new request or quota cost); `isPremiere = liveContent === 'live' &&
   status.uploadStatus === 'processed'` computed there per-cycle, never sticky at that
