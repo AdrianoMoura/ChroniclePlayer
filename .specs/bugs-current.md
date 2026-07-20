@@ -513,7 +513,7 @@ Resolved entries add:
     sequence, once the next page renders. This matches the reported "Yesterday" and "This
     Week" sections reappearing later in the scroll with different videos than their first
     occurrence.
-- **Resolved:** 2026-07-19 · **Commit:** (see repository history) · **Outcome:** Fixed
+- **Resolved:** 2026-07-19 · **Commit:** a026843 · **Outcome:** Fixed
 - **Resolution:** two independent fixes, one per defect above:
   - `src/ui/format.ts` gained `feedItemLabel`, mirroring `core/feed.ts`'s `effectiveDate`
     (D-053) over the fields `FeedVideoDto` already carries (`liveContent`, `liveEndedAt`,
