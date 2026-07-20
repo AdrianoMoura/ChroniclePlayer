@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
-import { formatDuration, formatViews, publishedLabel } from './format'
+import { feedItemLabel, formatDuration, formatViews } from './format'
 import { t } from './i18n'
 
 export type FeedRow =
@@ -360,7 +360,7 @@ export function VideoRow({
           >
             {video.channelTitle}
           </span>{' '}
-          · {publishedLabel(video.publishedAt)}
+          · {feedItemLabel(video)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
           {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
           {state.watchLater && (
@@ -513,7 +513,7 @@ export function VideoCard({
           >
             {video.channelTitle}
           </span>{' '}
-          · {publishedLabel(video.publishedAt)}
+          · {feedItemLabel(video)}
           {showViewCounts && video.viewCount !== null && <> · {formatViews(video.viewCount)}</>}
           {state.favorite && <span className="glyph" title={t('feed.card.favoriteTitle')}> ★</span>}
           {state.watchLater && (

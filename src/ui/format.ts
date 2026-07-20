@@ -11,6 +11,31 @@ export function publishedLabel(publishedAt: string, now = Date.now()): string {
   return new Date(publishedAt).toLocaleDateString()
 }
 
+// B-120: feed rows must label a video by the same instant that decides its
+// date bucket (core/feed.ts's effectiveDate, D-053) — otherwise a video that
+// was ever live can show a relative-time label that disagrees with the
+// section it's grouped under (an ended broadcast buckets by when it
+// wrapped, but a publishedAt-only label keeps counting from when it
+// started/was scheduled). ui/ can't import core/ directly (architecture.md),
+// so this mirrors that narrow rule instead of sharing it.
+export function feedItemLabel(
+  video: {
+    publishedAt: string
+    liveContent: 'none' | 'live' | 'upcoming'
+    liveEndedAt: string | null
+    isPremiere: boolean
+  },
+  now = Date.now()
+): string {
+  const effectiveAt =
+    video.liveContent === 'live' && !video.isPremiere
+      ? now
+      : video.liveEndedAt !== null
+        ? Date.parse(video.liveEndedAt)
+        : Date.parse(video.publishedAt)
+  return publishedLabel(new Date(effectiveAt).toISOString(), now)
+}
+
 export function formatClockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
