@@ -86,7 +86,7 @@ export const dict: Partial<Dict> = {
   'connect.step2.buttonConnecting': 'Aguardando o navegador…',
   'connect.step2.button': 'Conectar com o Google',
   'connect.storageWarning':
-    'Atenção: nenhum chaveiro do sistema foi detectado, então seu token será guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário poderia lê-lo. (fallback D-013.)',
+    'Atenção: nenhum chaveiro do sistema foi detectado, então seu token será guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário poderia lê-lo.',
 
   // SettingsView
   'settings.language.heading': 'Idioma',
@@ -103,11 +103,11 @@ export const dict: Partial<Dict> = {
   'settings.connection.scopeGrantedSuffix.readonly':
     '— usada para listar suas inscrições e buscar metadados dos vídeos. Inscrever-se, comentar e curtir também estão disponíveis dentro do app; na primeira vez que você usar uma dessas ações, o Chronicle vai pedir essa permissão adicional.',
   'settings.connection.scopeGrantedSuffix.readonlyPlusWrite':
-    '— usada para listar suas inscrições, buscar metadados dos vídeos e agir em seu nome apenas para ações que você mesmo realiza (inscrever-se/cancelar inscrição, comentar, curtir). Os estados próprios do Chronicle (lido/assistir depois/favorito) continuam locais de qualquer forma, nunca são escritos no YouTube (D-003).',
+    '— usada para listar suas inscrições, buscar metadados dos vídeos e agir em seu nome apenas para ações que você mesmo realiza (inscrever-se/cancelar inscrição, comentar, curtir). Os estados próprios do Chronicle (lido/assistir depois/favorito) continuam locais de qualquer forma, nunca são escritos no YouTube.',
   'settings.connection.revokeLink': 'Revogar quando quiser ↗',
   'settings.connection.keychainOk': 'Sua chave e seu token estão guardados no chaveiro do sistema.',
   'settings.connection.keychainFallback':
-    'Nenhum chaveiro do sistema detectado: seu token é guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário pode lê-lo (fallback D-013).',
+    'Nenhum chaveiro do sistema detectado: seu token é guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário pode lê-lo.',
   'settings.connection.playerSessionNote':
     'O player incorporado usa sua própria sessão de navegador, separada da conexão com o Google acima — entre por lá se a reprodução mostrar a tela do YouTube "Confirme que você não é um robô". É também ali que a reprodução sem anúncios do YouTube Premium se aplicaria, caso você esteja conectado ao Premium.',
   'settings.connection.signInToYouTubeButton': 'Entrar no YouTube',
