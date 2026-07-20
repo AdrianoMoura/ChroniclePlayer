@@ -7,6 +7,10 @@ export const en = {
   'format.minutesAgo': '{minutes} min ago',
   'format.hoursAgo': '{hours} h ago',
   'format.daysAgo': '{days} d ago',
+  'format.startedMinutesAgo': 'Started {minutes} min ago',
+  'format.startedHoursAgo': 'Started {hours} h ago',
+  'format.startedDaysAgo': 'Started {days} d ago',
+  'format.startedOn': 'Started {date}',
   'format.views': '{count} views',
   'format.subscribers': '{count} subscribers',
 

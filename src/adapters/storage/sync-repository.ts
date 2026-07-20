@@ -244,10 +244,10 @@ export class SqliteSyncRepository implements SyncRepository {
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
-          live_content, is_premiere, live_ended_at, thumbnail_url, view_count,
+          live_content, is_premiere, live_started_at, live_ended_at, thumbnail_url, view_count,
           hydrated_at, fetched_at)
        VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live,
-         :isPremiereNow,
+         :isPremiereNow, :liveStartedAt,
          CASE WHEN :isPremiereNow = 1 THEN NULL ELSE :liveEndedAt END,
          :thumb, :views, :now, :now)
        ON CONFLICT(video_id) DO UPDATE SET
@@ -257,6 +257,7 @@ export class SqliteSyncRepository implements SyncRepository {
          duration_seconds = :duration,
          live_content = :live,
          is_premiere = CASE WHEN :isPremiereNow = 1 THEN 1 ELSE is_premiere END,
+         live_started_at = :liveStartedAt,
          live_ended_at = CASE
            WHEN is_premiere = 1 OR :isPremiereNow = 1 THEN live_ended_at
            ELSE COALESCE(:liveEndedAt, live_ended_at)
@@ -275,6 +276,7 @@ export class SqliteSyncRepository implements SyncRepository {
         duration: video.durationSeconds,
         live: video.liveContent,
         isPremiereNow: video.isPremiere ? 1 : 0,
+        liveStartedAt: video.liveStartedAt,
         liveEndedAt: video.liveEndedAt,
         thumb: video.thumbnailUrl,
         views: video.viewCount,

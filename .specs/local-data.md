@@ -91,6 +91,10 @@ CREATE TABLE videos (
                                               -- with status.uploadStatus='processed'. Gates live_ended_at
                                               -- so a finished Premiere settles back into a plain video
                                               -- instead of the livestream-wrap sort (feed.md §Ordering)
+  live_started_at   TEXT,                     -- v16: liveStreamingDetails.actualStartTime, re-read every
+                                              -- hydration cycle like title/duration (not sticky). Drives
+                                              -- the feed's "Started X ago" label while live_content='live'
+                                              -- (feed.md §Feed item presentation)
   live_ended_at     TEXT                      -- v12 (D-053): liveStreamingDetails.actualEndTime, captured
                                               -- once a broadcast ends; sticky, and (v14) never captured
                                               -- for a Premiere. Feeds the feed's live-first-within-bucket

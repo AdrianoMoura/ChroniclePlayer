@@ -20,8 +20,9 @@ function entry(
   published: Date,
   channelTitle = 'Channel A',
   state: VideoState = DEFAULT_VIDEO_STATE,
-  live: Pick<Video, 'liveContent' | 'liveEndedAt' | 'isPremiere'> = {
+  live: Pick<Video, 'liveContent' | 'liveStartedAt' | 'liveEndedAt' | 'isPremiere'> = {
     liveContent: 'none',
+    liveStartedAt: null,
     liveEndedAt: null,
     isPremiere: false
   }
@@ -123,6 +124,7 @@ describe('groupFeed', () => {
         // Started at 09:00 — hours before the other two — but still live.
         entry('hours-old-live', new Date(2026, 6, 8, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'live',
+          liveStartedAt: null,
           liveEndedAt: null,
           isPremiere: false
         }),
@@ -146,6 +148,7 @@ describe('groupFeed', () => {
         // still rank first, by its end time rather than its start time.
         entry('ended-live', new Date(2026, 6, 8, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'none',
+          liveStartedAt: null,
           liveEndedAt: new Date(2026, 6, 8, 14).toISOString(),
           isPremiere: false
         }),
@@ -166,6 +169,7 @@ describe('groupFeed', () => {
       [
         entry('crossed-midnight', new Date(2026, 6, 7, 20), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'none',
+          liveStartedAt: null,
           liveEndedAt: new Date(2026, 6, 8, 2).toISOString(),
           isPremiere: false
         })
@@ -180,6 +184,7 @@ describe('groupFeed', () => {
       [
         entry('marathon-stream', new Date(2026, 6, 5, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'live',
+          liveStartedAt: null,
           liveEndedAt: null,
           isPremiere: false
         })
@@ -195,6 +200,7 @@ describe('groupFeed', () => {
         entry('older-upload', new Date(2026, 6, 8, 10)),
         entry('airing-premiere', new Date(2026, 6, 5, 9), 'Channel A', DEFAULT_VIDEO_STATE, {
           liveContent: 'live',
+          liveStartedAt: null,
           liveEndedAt: null,
           isPremiere: true
         })
@@ -215,7 +221,7 @@ describe('effectiveDate', () => {
   it('is publishedAt for a video that was never live', () => {
     expect(
       effectiveDate(
-        base({ liveContent: 'none', liveEndedAt: null, isPremiere: false }),
+        base({ liveContent: 'none', liveStartedAt: null, liveEndedAt: null, isPremiere: false }),
         NOW
       )
     ).toEqual(new Date(2026, 6, 5, 9))
@@ -224,7 +230,7 @@ describe('effectiveDate', () => {
   it('is "now" while genuinely live, regardless of publishedAt', () => {
     expect(
       effectiveDate(
-        base({ liveContent: 'live', liveEndedAt: null, isPremiere: false }),
+        base({ liveContent: 'live', liveStartedAt: null, liveEndedAt: null, isPremiere: false }),
         NOW
       )
     ).toEqual(NOW)
@@ -236,6 +242,7 @@ describe('effectiveDate', () => {
       effectiveDate(
         base({
           liveContent: 'none',
+          liveStartedAt: null,
           liveEndedAt: endedAt.toISOString(),
           isPremiere: false
         }),
@@ -250,6 +257,7 @@ describe('effectiveDate', () => {
       effectiveDate(
         base({
           liveContent: 'none',
+          liveStartedAt: null,
           liveEndedAt: staleEndedAt.toISOString(),
           isPremiere: false
         }),
@@ -261,7 +269,7 @@ describe('effectiveDate', () => {
   it('is publishedAt while a Premiere is airing, not "now" (B-119)', () => {
     expect(
       effectiveDate(
-        base({ liveContent: 'live', liveEndedAt: null, isPremiere: true }),
+        base({ liveContent: 'live', liveStartedAt: null, liveEndedAt: null, isPremiere: true }),
         NOW
       )
     ).toEqual(new Date(2026, 6, 5, 9))
@@ -270,7 +278,7 @@ describe('effectiveDate', () => {
   it('is publishedAt for a finished Premiere, not liveEndedAt (which is never captured for one)', () => {
     expect(
       effectiveDate(
-        base({ liveContent: 'none', liveEndedAt: null, isPremiere: true }),
+        base({ liveContent: 'none', liveStartedAt: null, liveEndedAt: null, isPremiere: true }),
         NOW
       )
     ).toEqual(new Date(2026, 6, 5, 9))

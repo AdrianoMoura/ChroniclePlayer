@@ -31,6 +31,11 @@ export interface FeedVideoDto {
   // Captured at hydration from snippet.liveBroadcastContent; 'none'
   // otherwise, and again once a broadcast ends (same as a normal upload).
   liveContent: 'none' | 'live' | 'upcoming'
+  // liveStreamingDetails.actualStartTime, present once a broadcast (or a
+  // Premiere) has actually started. Drives the "Started X ago" feed label
+  // shown while liveContent === 'live' (ui/format.ts) instead of the
+  // otherwise-useless "0 min ago" a live video's own effectiveDate gives.
+  liveStartedAt: string | null
   // liveStreamingDetails.actualEndTime, present once a broadcast has ended,
   // even if Chronicle never observed the video while it was actually live
   // (e.g. discovered later via gap-backfill), since YouTube keeps it as

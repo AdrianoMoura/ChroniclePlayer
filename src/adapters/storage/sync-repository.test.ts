@@ -35,6 +35,7 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     publishedAt: '2026-07-11T08:00:00Z',
     durationSeconds,
     liveContent: 'none',
+    liveStartedAt: null,
     liveEndedAt: null,
     isPremiere: false,
     thumbnailUrl: 'https://thumb.example/x.jpg',
@@ -255,6 +256,15 @@ describe('discovery and hydration', () => {
     )
     ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video
     expect(ended?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
+  })
+
+  it('captures liveStartedAt while a broadcast is live', () => {
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-2', 0), liveContent: 'live', liveStartedAt: '2026-07-11T11:00:00Z' }],
+      NOW
+    )
+    const live = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-2')?.video
+    expect(live?.liveStartedAt).toBe('2026-07-11T11:00:00Z')
   })
 
   it('isPremiere is sticky once observed airing as a Premiere (B-119)', () => {

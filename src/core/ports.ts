@@ -163,6 +163,10 @@ export interface HydratedVideo {
   publishedAt: string
   durationSeconds: number
   liveContent: 'none' | 'live' | 'upcoming'
+  // liveStreamingDetails.actualStartTime — present once a broadcast (or a
+  // Premiere) has actually started, null before then or for a video that
+  // was never live. See Video.liveStartedAt for how it's used.
+  liveStartedAt: string | null
   // D-053: liveStreamingDetails.actualEndTime — present once YouTube reports
   // the broadcast has ended, null while it's still live/upcoming or for a
   // video that was never live. See Video.liveEndedAt for how it's used.

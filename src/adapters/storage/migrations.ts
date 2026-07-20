@@ -225,6 +225,15 @@ const SCHEMA_V15 = `
 ALTER TABLE videos DROP COLUMN was_live;
 `
 
+// v16: liveStreamingDetails.actualStartTime — rides along on the same
+// videos.list call as actualEndTime (v12), no extra quota cost. Lets the
+// feed show a currently-live video's real elapsed-since-start time instead
+// of "0 min ago" (which is all a live video's own effectiveDate, D-053,
+// ever gives — it's pinned to "now" so the video sorts to the top of Today).
+const SCHEMA_V16 = `
+ALTER TABLE videos ADD COLUMN live_started_at TEXT;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -240,7 +249,8 @@ const migrations: readonly string[] = [
   SCHEMA_V12,
   SCHEMA_V13,
   SCHEMA_V14,
-  SCHEMA_V15
+  SCHEMA_V15,
+  SCHEMA_V16
 ]
 
 export function migrate(db: DatabaseSync): void {

@@ -133,11 +133,12 @@ none of the four made it into 0.4.7 either (see above — 0.4.7 shipped B-117/B-
 instead). [[B-119]] (the flip side of B-117: a finished Premiere kept the "ended live
 broadcast" badge/sort instead of settling back into a normal video), [[B-120]] (feed
 date-bucket headers repeating out of order, relative-time labels disagreeing with their
-bucket, around live/ended broadcasts), and [[B-121]] (opening the active video in the
-browser left it also playing in Chronicle) were all reported and Fixed the same day they
-were reported — see their own entries under Resolved. When 0.4.8 ships, this file's
-content moves to `bug-history/v0.4.8.md` and a new `bugs-current.md` starts targeting
-whatever comes after it.
+bucket, around live/ended broadcasts), [[B-121]] (opening the active video in the
+browser left it also playing in Chronicle), and [[B-122]] (a currently-airing live/
+Premiere always showed "0 min ago" instead of how long it's been running) were all
+reported and Fixed the same day they were reported — see their own entries under
+Resolved. When 0.4.8 ships, this file's content moves to `bug-history/v0.4.8.md` and a
+new `bugs-current.md` starts targeting whatever comes after it.
 
 ## Entry template
 
@@ -463,6 +464,44 @@ Resolved entries add:
   given that history.
 
 ## Resolved
+
+### B-122 — Feed shows "0 min ago" for a currently-airing live/Premiere instead of how long it's been running
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-20 · **Target:** 0.4.8
+- **Area:** feed
+- **What happens:** the owner noted that currently-live videos correctly float to the top
+  of the feed (D-053), but the meta line under them always reads "0 min ago" — a
+  currently-airing video's `effectiveDate` is pinned to "now" (that's what floats it to
+  the top), so `feedItemLabel` (B-120) always computed a ~0-minute gap regardless of how
+  long the broadcast has actually been running. Suggested showing something like
+  "started X ago" instead, for both genuine livestreams and Premieres airing now.
+- **Expected:** a currently-airing video's row shows real elapsed time since it started,
+  not a meaningless "0 min ago".
+- **Code refs:** `src/adapters/youtube/api-client.ts` (`hydrate`); `src/core/ports.ts`
+  (`HydratedVideo.liveStartedAt`, new); `src/core/video.ts` (`Video.liveStartedAt`, new);
+  `src/adapters/storage/migrations.ts` (v16); `src/adapters/storage/repositories.ts`,
+  `src/adapters/storage/sync-repository.ts`; `src/ipc/contract.ts`
+  (`FeedVideoDto.liveStartedAt`); `src/platform/main.ts`; `src/ui/format.ts`
+  (`startedLabel`, new; `feedItemLabel`).
+- **Resolved:** 2026-07-20 · **Commit:** (see repository history) · **Outcome:** Fixed
+- **Resolution:** `liveStreamingDetails.actualStartTime` rides along on the same
+  `videos.list` call already made for `actualEndTime` (D-053) — no new quota cost.
+  Captured as `liveStartedAt` (schema v16, plain column — re-read every hydration cycle
+  like title/duration, not sticky/COALESCE'd like `liveEndedAt`, since it's only ever
+  read while `liveContent === 'live'` and becomes irrelevant the moment that flips).
+  Threaded through the same path `liveEndedAt` already takes: `HydratedVideo` →
+  `applyHydration` → `videos` table → `SqliteFeedRepository`'s feed query → `Video` →
+  `FeedVideoDto` → the renderer. `format.ts` gained `startedLabel` (mirrors
+  `publishedLabel`'s minute/hour/day/absolute-date shape, with "Started " wording); a
+  currently-live video (Premiere or genuine broadcast — `liveContent === 'live'`
+  regardless of `isPremiere`, per the owner's own ask covering both) now gets its
+  `feedItemLabel` from `startedLabel(liveStartedAt ?? publishedAt)` instead of the
+  effectiveDate-based path, falling back to `publishedAt` if `actualStartTime` hasn't
+  been captured yet (e.g. old data from before this shipped). Purely a label change —
+  doesn't touch bucket/sort (`effectiveDate`, D-053) at all, so none of B-120's fixes are
+  affected. Checked via `npm run typecheck && npm run lint && npm test` (233/233,
+  including new coverage for the API capture and DB persistence); **not run live** (per
+  [[no-live-app-verification]]) — needs the owner's own check against a real live/
+  Premiere video.
 
 ### B-121 — Opening a video in the browser leaves it also playing in Chronicle
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-19 · **Target:** 0.4.8

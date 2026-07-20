@@ -26,6 +26,12 @@ export interface Video {
   // 'upcoming' or 'live' (B-085/B-114) — reverts to 'none' once a broadcast
   // ends, same as a normal upload.
   liveContent: 'none' | 'live' | 'upcoming'
+  // liveStreamingDetails.actualStartTime — when a live broadcast or a
+  // Premiere actually started airing. Not sticky: re-read every hydration
+  // cycle like duration/title, and only meaningful while liveContent is
+  // still 'live' (feed.md §Feed item presentation's "Started X ago" label);
+  // ignored once a broadcast ends, when liveEndedAt takes over instead.
+  liveStartedAt: string | null
   // liveStreamingDetails.actualEndTime, captured the first hydration cycle
   // that observes the broadcast has ended (liveContent has already reverted
   // to 'none' by then). Sticky — null if never live, still live, or a

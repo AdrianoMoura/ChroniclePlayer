@@ -38,6 +38,7 @@ const FEED_SELECT = `
     v.is_short           AS is_short,
     v.live_content       AS live_content,
     v.is_premiere        AS is_premiere,
+    v.live_started_at    AS live_started_at,
     v.live_ended_at      AS live_ended_at,
     c.title             AS channel_title,
     COALESCE(s.read_status, 'unread') AS read_status,
@@ -122,6 +123,7 @@ interface FeedRow {
   is_short: number | bigint | null
   live_content: string | null
   is_premiere: number | bigint
+  live_started_at: string | null
   live_ended_at: string | null
   channel_title: string
   read_status: string
@@ -151,6 +153,7 @@ function toEntry(row: FeedRow): FeedEntry {
       isShort: Number(row.is_short) === 1,
       liveContent: (row.live_content ?? 'none') as 'none' | 'live' | 'upcoming',
       isPremiere: Number(row.is_premiere) === 1,
+      liveStartedAt: row.live_started_at,
       liveEndedAt: row.live_ended_at
     }
   }

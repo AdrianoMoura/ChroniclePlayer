@@ -200,6 +200,25 @@ describe('YouTubeApiClient', () => {
     })
   })
 
+  it('captures liveStreamingDetails.actualStartTime for a broadcast (ended or still airing)', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
+    const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([
+      'vid-1',
+      'vid-5',
+      'vid-6'
+    ])
+    // A normal, never-live video has no actualStartTime to report.
+    expect(videos.find((v) => v.videoId === 'vid-1')).toMatchObject({ liveStartedAt: null })
+    // An ended broadcast still reports when it started.
+    expect(videos.find((v) => v.videoId === 'vid-5')).toMatchObject({
+      liveStartedAt: '2026-07-13T08:00:00Z'
+    })
+    // A still-airing video (Premiere or genuine broadcast) too.
+    expect(videos.find((v) => v.videoId === 'vid-6')).toMatchObject({
+      liveStartedAt: '2026-07-13T23:00:00Z'
+    })
+  })
+
   it('derives isPremiere from status.uploadStatus while liveContent is live, and only then (B-119)', async () => {
     const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
     const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([

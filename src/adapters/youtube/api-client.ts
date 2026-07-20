@@ -159,6 +159,9 @@ export class YouTubeApiClient implements SubscriptionSource {
       const live = snippet['liveBroadcastContent']
       const liveContent = live === 'live' || live === 'upcoming' ? live : 'none'
       const liveStreamingDetails = item['liveStreamingDetails'] as Record<string, unknown> | undefined
+      // Present once the broadcast (or Premiere) has actually started.
+      const rawStartTime = liveStreamingDetails?.['actualStartTime']
+      const liveStartedAt = typeof rawStartTime === 'string' ? rawStartTime : null
       // D-053: only present once the broadcast has actually ended.
       const rawEndTime = liveStreamingDetails?.['actualEndTime']
       const liveEndedAt = typeof rawEndTime === 'string' ? rawEndTime : null
@@ -178,6 +181,7 @@ export class YouTubeApiClient implements SubscriptionSource {
         publishedAt: String(snippet['publishedAt']),
         durationSeconds: parseIsoDuration(String(details['duration'] ?? 'PT0S')),
         liveContent,
+        liveStartedAt,
         liveEndedAt,
         isPremiere,
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),

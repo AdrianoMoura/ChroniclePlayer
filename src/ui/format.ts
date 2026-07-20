@@ -11,25 +11,38 @@ export function publishedLabel(publishedAt: string, now = Date.now()): string {
   return new Date(publishedAt).toLocaleDateString()
 }
 
+// A currently-airing video's own effectiveDate is pinned to "now" (so it
+// sorts to the top of Today), which would make publishedLabel always read
+// "0 min ago" — this shows real elapsed time since it actually started.
+export function startedLabel(startedAt: string, now = Date.now()): string {
+  const minutes = Math.floor((now - Date.parse(startedAt)) / 60_000)
+  if (minutes < 60) return t('format.startedMinutesAgo', { minutes: Math.max(minutes, 0) })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('format.startedHoursAgo', { hours })
+  const days = Math.floor(hours / 24)
+  if (days <= 7) return t('format.startedDaysAgo', { days })
+  return t('format.startedOn', { date: new Date(startedAt).toLocaleDateString() })
+}
+
 // Labels a feed row by the same instant core/feed.ts's effectiveDate uses to
 // bucket it (ui/ can't import core/ directly, per architecture.md, so this
-// narrow rule is mirrored rather than shared).
+// narrow rule is mirrored rather than shared) — except while a video is
+// actually airing, when startedLabel is more useful than "0 min ago".
 export function feedItemLabel(
   video: {
     publishedAt: string
     liveContent: 'none' | 'live' | 'upcoming'
+    liveStartedAt: string | null
     liveEndedAt: string | null
-    isPremiere: boolean
   },
   now = Date.now()
 ): string {
+  if (video.liveContent === 'live') {
+    return startedLabel(video.liveStartedAt ?? video.publishedAt, now)
+  }
   const publishedAt = Date.parse(video.publishedAt)
   const effectiveAt =
-    video.liveContent === 'live' && !video.isPremiere
-      ? now
-      : video.liveEndedAt !== null
-        ? Math.max(Date.parse(video.liveEndedAt), publishedAt)
-        : publishedAt
+    video.liveEndedAt !== null ? Math.max(Date.parse(video.liveEndedAt), publishedAt) : publishedAt
   return publishedLabel(new Date(effectiveAt).toISOString(), now)
 }
 

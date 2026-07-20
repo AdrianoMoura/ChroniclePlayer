@@ -190,6 +190,13 @@ badge, published time (relative within 7 days — "3 h ago" — absolute date be
 unread indicator, and flag glyphs (favorite/watch-later) when set. View count display
 (**D-018**): shown by default, with a Settings toggle to hide it.
 
+- **While a video is actually airing (`liveContent === 'live'`, live or Premiere), the
+  published-time slot instead reads "Started X ago"** (`ui/format.ts`'s `startedLabel`),
+  using `liveStreamingDetails.actualStartTime` — a live video's own sort/bucket instant
+  (§Ordering, D-053) is pinned to "now" so it always floats to the top of Today, which
+  would otherwise make the normal published-time label always read the useless
+  "0 min ago". Falls back to `publishedAt` if `actualStartTime` hasn't been captured yet.
+
 ## Unread accounting & "caught up" (Final)
 
 - The unread badge counts videos with `read_status = unread`, excluding nothing else —
