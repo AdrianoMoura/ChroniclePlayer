@@ -32,7 +32,7 @@ import {
 } from './FeedList'
 import { formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
-import { t } from './i18n'
+import { setLocale, t } from './i18n'
 import { MiniPlayerBar } from './MiniPlayerBar'
 import { PlayerDetails, type PlayerDetailsHandle } from './PlayerDetails'
 import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
@@ -224,6 +224,7 @@ export function App() {
   // room for the video) and leaving restores whatever the user had before.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settings, setSettings] = useState<SettingsDto>({
+    language: 'system',
     theme: 'system',
     itemSize: 'medium',
     layout: 'list',
@@ -385,6 +386,7 @@ export function App() {
     void window.chronicle.getAuthStatus().then(setAuth)
     void window.chronicle.getWizardState().then(setWizard)
     void window.chronicle.getSettings().then(({ settings: loaded, warning }) => {
+      setLocale(loaded.language)
       setSettings(loaded)
       if (warning !== null) setBanner({ text: warning })
     })
@@ -400,6 +402,7 @@ export function App() {
   const changeSettings = useCallback(
     (next: SettingsDto) => {
       const shortsChanged = next.showShorts !== settings.showShorts
+      setLocale(next.language)
       setSettings(next)
       void window.chronicle.setSettings(next)
       // B-028: showShorts is applied server-side (it affects counts, not

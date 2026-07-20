@@ -1,8 +1,13 @@
-// B-017: every UI string lives here, keyed by component/section. Only
-// English ships — a future locale is a new file with the same keys (TS
-// enforces parity via `Dict` in ./index) plus a switch in `activeDict`.
-// `{name}` placeholders are substituted by `t()`.
-export const en = {
+import type { LocaleMeta } from '../types'
+
+// B-017/D-054: every UI string lives here, keyed by component/section. This
+// is the source-of-truth dict — every other locale is a Partial<Dict> of the
+// same keys, so a translation can lag behind new keys without breaking the
+// build; t() falls back to English per missing key. `{name}` placeholders
+// are substituted by `t()`.
+export const meta: LocaleMeta = { code: 'en', nativeName: 'English' }
+
+export const dict = {
   // format.ts
   'format.minutesAgo': '{minutes} min ago',
   'format.hoursAgo': '{hours} h ago',
@@ -85,6 +90,9 @@ export const en = {
     'Heads-up: no OS keychain was detected, so your token will be stored with reversible local encryption — anyone with access to your user account could read it. (D-013 fallback.)',
 
   // SettingsView
+  'settings.language.heading': 'Language',
+  'settings.language.label': 'Language',
+  'settings.language.system': 'Follow system',
   'settings.connection.heading': 'Connection',
   'settings.connection.stateConnected': 'Connected to your Google account.',
   'settings.connection.stateDisconnected': 'API key imported, but not connected.',
@@ -140,14 +148,14 @@ export const en = {
     'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
   'settings.startup.popOutOnClose': 'Pop out the video when closing the window',
   'settings.startup.popOutOnCloseNote':
-    "If a video is playing, closing the window pops it into the always-on-top floating player (same as pressing p) instead of leaving it playing silently behind the tray icon — closing that floating player then actually stops it. Turn this off and closing the window pauses the video instead.",
+    'If a video is playing, closing the window pops it into the always-on-top floating player (same as pressing p) instead of leaving it playing silently behind the tray icon — closing that floating player then actually stops it. Turn this off and closing the window pauses the video instead.',
   'settings.startup.startMinimized': 'Start minimized to tray (don’t open the window)',
   'settings.startup.startMinimizedNote':
     'Opening Chronicle yourself always shows the window — this only applies to the automatic launch at login.',
   'settings.notifications.heading': 'Notifications',
   'settings.notifications.enabled': 'Notify me about new videos',
   'settings.notifications.backgroundModeHint':
-    "Notifications only fire while Chronicle is running. Turn on \"Run in background\" above to keep them going after you close the window.",
+    'Notifications only fire while Chronicle is running. Turn on "Run in background" above to keep them going after you close the window.',
   'settings.notifications.scope': 'Notify me about',
   'settings.notifications.scopeAll': 'All channels',
   'settings.notifications.scopeSelected': 'Selected channels',
@@ -155,10 +163,10 @@ export const en = {
     'Toggle notifications per channel from the icon next to it in the sidebar, or from its channel page.',
   'settings.notifications.notifyShorts': 'Notify me about new Shorts',
   'settings.notifications.notifyShortsNote':
-    "Off means Shorts still show up in your feed, but never trigger a notification — handy for channels that post them often. Shorts hidden from the feed above never notify either way.",
+    'Off means Shorts still show up in your feed, but never trigger a notification — handy for channels that post them often. Shorts hidden from the feed above never notify either way.',
   'settings.notifications.autoFavorite': 'Automatically notify for channels I favorite',
   'settings.notifications.autoFavoriteNote':
-    'Favoriting a channel turns notifications on for it; unfavoriting turns them back off — unless you change that channel\'s notification state yourself afterward, which is always respected.',
+    "Favoriting a channel turns notifications on for it; unfavoriting turns them back off — unless you change that channel's notification state yourself afterward, which is always respected.",
   'settings.notifications.autoFavoriteDisableConfirm':
     'Also turn off notifications for your currently-favorited channels?',
   'settings.notifications.autoFavoriteDisableKeep': 'Leave as-is',

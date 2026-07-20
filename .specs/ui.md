@@ -158,6 +158,23 @@ control back to the feed (`playback.md` §Miniplayer).
   the user's YouTube account and offers "Refresh subscriptions."
 - Destructive-ish actions (ignore, remove from WL) use inline undo, not confirm dialogs.
 
+## Localization (Final in shape — D-054)
+
+- Every UI string is a key in `src/ui/i18n` (`t(key, vars)`, B-017), never inline in a
+  component — this is what makes translation possible without touching component code.
+- Settings' **first section** (above Connection) is a **Language** dropdown: "Follow
+  system" plus every locale currently shipped. Default is "Follow system," which resolves
+  to the OS locale (`navigator.languages`), falling back to English if no shipped locale
+  matches.
+- Locales are **discovered, not hand-registered**: each one is a file at
+  `src/ui/i18n/locales/<code>.ts` (`meta: { code, nativeName }` + a `Partial` dict of
+  translated keys), picked up automatically at build time. Contributing a translation is a
+  PR adding one file — the dropdown, the fallback, everything else already handles it. A
+  translation may be incomplete; any key it doesn't have falls back to English rather than
+  showing blank or breaking the build.
+- English (`locales/en.ts`) is the only dict required to be complete — it's the source of
+  truth for which keys exist at all.
+
 ## Onboarding wizard UI
 
 Sequential full-window flow (no sidebar), one step per screen: progress indicator

@@ -78,6 +78,12 @@ There is no `Player` port — playback converged on D-006's direct embedded IFra
 alternative that would have justified one stayed a Future idea only (`playback.md`), so
 `adapters/player/` was never built.
 
+There is no localization port either (D-054): choosing/detecting the active language is a
+pure presentation concern with zero I/O, so it lives entirely in `src/ui/i18n` — locale
+files discovered at build time, system-locale detection via the renderer's own
+`navigator`. `platform/`'s settings store only persists the chosen language as an opaque
+string; it never needs to know which locale dictionaries actually exist.
+
 ## Process model
 
 Two-process desktop model (Final in shape; exact runtime depends on D-005):
