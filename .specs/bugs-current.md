@@ -530,7 +530,7 @@ Resolved entries add:
 - **Code refs:** `src/ui/PlayerSurface.tsx` (`openInBrowser`, full-view button/`b` key);
   `src/ui/PlayerDetails.tsx` (`openInBrowser`, action-bar button); `src/ui/App.tsx`
   (`actions.openInBrowser`, feed-card button and global `b` shortcut).
-- **Resolved:** 2026-07-19 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-07-19 · **Commit:** 186e8e6 · **Outcome:** Fixed
 - **Resolution:** all three "open in browser" call sites now pause first if the video
   being opened is the one actually loaded in the player. `PlayerSurface`'s own button/
   `b` key (always the active video, since it's the component playing it) calls
