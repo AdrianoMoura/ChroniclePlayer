@@ -19,6 +19,7 @@ describe('settings store', () => {
   it('round-trips saved settings', () => {
     const file = tempFile()
     const custom = {
+      language: 'pt-BR',
       theme: 'light',
       itemSize: 'small',
       layout: 'grid',
@@ -50,6 +51,7 @@ describe('settings store', () => {
   it('normalizes field-by-field: one bad value falls back alone', () => {
     expect(
       normalizeSettings({
+        language: 42,
         theme: 'light',
         itemSize: 'huge',
         layout: 'masonry',
@@ -69,6 +71,7 @@ describe('settings store', () => {
         popOutOnClose: 'yes'
       })
     ).toEqual({
+      language: 'system',
       theme: 'light',
       itemSize: 'medium',
       layout: 'list',
@@ -122,6 +125,13 @@ describe('settings store', () => {
     // Unknown scopes fall back to 'all'.
     expect(normalizeSettings({ notifyScope: 'favorites' }).notifyScope).toBe('all')
     expect(normalizeSettings({ notifyScope: 'custom' }).notifyScope).toBe('all')
+  })
+
+  it('accepts any non-empty language string, defaulting to system (D-054)', () => {
+    expect(normalizeSettings({ language: 'pt-BR' }).language).toBe('pt-BR')
+    expect(normalizeSettings({}).language).toBe('system')
+    expect(normalizeSettings({ language: '' }).language).toBe('system')
+    expect(normalizeSettings({ language: 42 }).language).toBe('system')
   })
 
   it('accepts checkForUpdates=false (D-026)', () => {

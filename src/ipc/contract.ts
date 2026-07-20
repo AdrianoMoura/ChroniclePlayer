@@ -168,6 +168,12 @@ export const MINIPLAYER_MAX_WIDTH = 1280
 
 // Mirrors platform settings.json (human-editable; local-data.md).
 export interface SettingsDto {
+  // D-054. 'system' resolves to the OS locale at runtime (ui/i18n); any
+  // other value is a locale code (e.g. 'pt-BR') the renderer's i18n
+  // registry may or may not still recognize — an unknown code just falls
+  // back to English, so this layer doesn't need to validate against the
+  // set of shipped locales.
+  language: string
   theme: 'system' | 'dark' | 'light'
   itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl' // B-007/D-037, default medium — list + grid
   layout: 'list' | 'grid' // B-007, default list

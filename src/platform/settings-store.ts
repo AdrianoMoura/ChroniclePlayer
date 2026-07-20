@@ -7,6 +7,12 @@ import { MINIPLAYER_MAX_WIDTH, MINIPLAYER_MIN_WIDTH, PLAYBACK_RATES } from '../i
 // user-edited config.
 
 export interface AppSettings {
+  // D-054. 'system' resolves to the OS locale at runtime (ui/i18n); any
+  // other value is a locale code (e.g. 'pt-BR'). Not validated against the
+  // set of shipped locales here — that's a renderer concern (ui/i18n falls
+  // back to English for an unrecognized code), keeping this layer decoupled
+  // from which translations happen to exist.
+  language: string
   theme: 'system' | 'dark' | 'light'
   // File-explorer-style item size, shared by list rows and grid cards; six
   // steps (D-037).
@@ -61,6 +67,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  language: 'system',
   theme: 'system',
   itemSize: 'medium',
   layout: 'list',
@@ -83,6 +90,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 // Field-by-field: one bad value falls back alone, the rest survive.
 export function normalizeSettings(raw: unknown): AppSettings {
   const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const language = source['language']
   const theme = source['theme']
   const itemSize = source['itemSize']
   const layout = source['layout']
@@ -101,6 +109,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const autoNotifyFavorites = source['autoNotifyFavorites']
   const popOutOnClose = source['popOutOnClose']
   return {
+    language: typeof language === 'string' && language.length > 0 ? language : DEFAULT_SETTINGS.language,
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
     itemSize:
       itemSize === 'xs' ||

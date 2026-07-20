@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto } from '../ipc/contract'
-import { t } from './i18n'
+import { AVAILABLE_LOCALES, t } from './i18n'
 
 // Settings surface. One column, quiet sections — every control maps to a
 // spec decision: D-016 interval, theme (ui.md), D-018 view counts, D-038
@@ -93,6 +93,21 @@ export function SettingsView({
 
   return (
     <div className="settings-view">
+      <section>
+        <h2>{t('settings.language.heading')}</h2>
+        <label className="settings-row">
+          <span>{t('settings.language.label')}</span>
+          <select value={settings.language} onChange={(event) => set('language', event.target.value)}>
+            <option value="system">{t('settings.language.system')}</option>
+            {AVAILABLE_LOCALES.map((locale) => (
+              <option key={locale.code} value={locale.code}>
+                {locale.nativeName}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
       <section>
         <h2>{t('settings.connection.heading')}</h2>
         <p className="settings-line">
