@@ -112,6 +112,9 @@ Current functionality includes:
 * Optional Shorts filtering
 * Local caching for offline browsing and instant startup
 
+See the **[User Guide](docs/guide.md)** for a full walkthrough — the feed, the
+player, search, settings, and every keyboard shortcut.
+
 ---
 
 ## Core principles

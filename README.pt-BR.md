@@ -112,6 +112,8 @@ A funcionalidade atual inclui:
 * Filtro opcional de Shorts
 * Cache local para navegação offline e inicialização instantânea
 
+Veja o **[Guia do usuário](docs/guide.md)** (em inglês) para um passo a passo completo — o feed, o player, a busca, as configurações e todos os atalhos de teclado.
+
 ---
 
 ## Princípios centrais
