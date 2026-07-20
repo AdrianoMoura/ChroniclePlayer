@@ -2,15 +2,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { SecretStore } from '../../core/ports'
 
-// D-013 (recommended option exercised): secrets live in one encrypted file
-// in the app data dir; the cipher is injected — the platform provides
-// Electron safeStorage where a real keychain backs it, else the
-// machine-derived-key fallback. isSecure() surfaces which one, so settings
-// can show the honest warning. Values are never stored in plaintext.
+// Secrets live in one encrypted file in the app data dir; the cipher is
+// injected — Electron safeStorage when a real keychain backs it, else a
+// machine-derived-key fallback (D-013). isSecure() reports which one so
+// settings can show an honest warning. Values are never stored in plaintext.
 //
-// The file pins the cipher that wrote it (`cipher` field): if the machine
-// later gains a keychain, existing entries still decrypt with the cipher
-// that created them instead of silently breaking.
+// The file pins the cipher that wrote it (`cipher` field), so entries keep
+// decrypting correctly even if the machine later gains a keychain.
 
 export interface SecretCipher {
   encrypt(plain: string): Buffer

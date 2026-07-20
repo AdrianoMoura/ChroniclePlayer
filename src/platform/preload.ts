@@ -11,10 +11,9 @@ import {
   type WizardStateDto
 } from '../ipc/contract'
 
-// niri sets this for its own IPC; sway/i3 take the same "minimize is
-// incompatible with tiling" stance but don't expose an equivalent marker
-// we can check cheaply, so this only covers the compositor actually
-// reported broken (B-026).
+// niri sets this for its own IPC; other tiling compositors (sway, i3) take
+// the same "minimize is incompatible with tiling" stance but expose no
+// equivalent marker to check cheaply, so only niri is covered (B-026).
 const minimizeSupported = process.env['NIRI_SOCKET'] === undefined
 
 const api: ChronicleApi = {

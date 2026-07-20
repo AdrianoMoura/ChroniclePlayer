@@ -1,6 +1,5 @@
-// D-050: a plain, monochrome (currentColor) inline icon — no emoji, no icon
-// font/library — filled vs. outline mirrors the app's existing ★/☆ favorite
-// convention, just for a shape unicode has no good non-emoji equivalent for.
+// A plain, monochrome (currentColor) inline icon — no emoji, no icon
+// font/library. Filled vs. outline mirrors the app's ★/☆ favorite convention.
 export function BellIcon({ filled }: { filled: boolean }) {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">

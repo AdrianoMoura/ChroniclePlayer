@@ -196,16 +196,12 @@ export function App() {
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
   const playerDetailsRef = useRef<PlayerDetailsHandle>(null)
 
-  // B-045: any "hard" navigation away from the player (sidebar clicks,
-  // submitting a search, switching accounts) used to just clear playerStack
-  // outright, bypassing the dock-vs-close decision entirely — leaving via
-  // any of those paths never docked, even mid-playback. This collapses the
-  // stack down to just the current (top) video and docks it if still going,
-  // otherwise clears the stack exactly like before. Safe to call with no
-  // player open at all: isStillGoing() reads false via the `?? false`
-  // fallback, so it just falls through to the same clear as always. Declared
-  // early (before runSearch/selectAccount/etc. reference it) since those are
-  // themselves declared well before the rest of the player-related callbacks.
+  // Any "hard" navigation away from the player (sidebar clicks, submitting a
+  // search, switching accounts) collapses the stack down to just the
+  // current (top) video and docks it if still going, otherwise clears the
+  // stack (B-045). Safe to call with no player open: isStillGoing() reads
+  // false via the `?? false` fallback. Declared early since
+  // runSearch/selectAccount/etc. reference it.
   const leavePlayerForNavigation = useCallback(() => {
     if (playerSurfaceRef.current?.isStillGoing() ?? false) {
       setPlayerStack((stack) => (stack.length > 0 ? [stack[stack.length - 1]] : []))
@@ -269,9 +265,7 @@ export function App() {
   // Bumped by every loadView call; loadMore/backfill capture the value in
   // flight and check it again on resolve — a mismatch means a newer
   // loadView happened meanwhile, so the response is fully discarded rather
-  // than partially applied (previously a bare viewRef/channelRef check,
-  // which couldn't tell "superseded" apart from "still current" precisely
-  // enough and left loadingRef stuck true on the superseded path).
+  // than partially applied.
   const requestGenerationRef = useRef(0)
   const [archiveExhausted, setArchiveExhausted] = useState<ReadonlySet<string>>(new Set())
   // Videos are already hydrated and persisted well before the (slower)
@@ -571,14 +565,12 @@ export function App() {
     })
   }, [searchQuery, searchNextPageToken, searchLoadingMore])
 
-  // B-107 follow-up: search results only page via the `.search-results`
-  // container's own onScroll handler, same as the near-end check this
-  // fixed in FeedList.tsx — a small result count, a small grid item size,
-  // or a tall window can all mean the first page never actually overflows,
-  // so that scroll handler never fires and pagination silently stalls
-  // exactly like the original report. `loadMoreSearchResults` itself
-  // already no-ops without a `searchNextPageToken`/while already loading,
-  // so this can't loop.
+  // Search results only page via the `.search-results` container's own
+  // onScroll handler — a small result count, small grid item size, or tall
+  // window can mean the first page never actually overflows, so that
+  // handler never fires and pagination silently stalls (B-107).
+  // `loadMoreSearchResults` already no-ops without a `searchNextPageToken`/
+  // while loading, so this can't loop.
   useEffect(() => {
     const el = searchResultsRef.current
     if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreSearchResults()
@@ -672,9 +664,9 @@ export function App() {
     })
   }, [])
 
-  // B-107 follow-up: same "no overflow, so the onScroll near-end check
-  // never fires" gap as search results above, for the channel-preview list
-  // (browsing a not-yet-subscribed channel's uploads from a search result).
+  // Same "no overflow, so the onScroll near-end check never fires" gap as
+  // search results above (B-107), for the channel-preview list (browsing a
+  // not-yet-subscribed channel's uploads from a search result).
   useEffect(() => {
     const el = channelPreviewRef.current
     if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreChannelPreview()
@@ -772,12 +764,10 @@ export function App() {
       setVideos((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
-      // B-045: playerStack entries used to never get updated after the
-      // initial open — harmless while the player only ever fully
-      // remounted on a fresh openVideo() call, but PlayerDetails now stays
-      // mounted (just hidden) across the miniplayer toggle, so its local
-      // `state` (read/favorite/watch-later) would otherwise flicker back to
-      // whatever it was when the video was first opened.
+      // PlayerDetails stays mounted (just hidden) across the miniplayer
+      // toggle, so playerStack entries need updating too, or its local
+      // `state` (read/favorite/watch-later) flickers back to whatever it
+      // was when the video was first opened (B-045).
       setPlayerStack((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
@@ -801,14 +791,12 @@ export function App() {
         }
         const state = await window.chronicle.setReadStatus(videoId, 'read')
         patch(videoId, state)
-        // B-112: the extract window being open means the user already
-        // signaled they want playback separate from the main window — send
-        // a newly picked video there instead of (also) starting it here.
-        // startMini is excluded on purpose: it's only ever true for the
-        // extract-window-closed restore path itself (see
-        // 'player:restoreFromExtract' below), which by definition must land
-        // in the main window's miniplayer, not loop back into the window
-        // that just closed.
+        // The extract window being open means the user already signaled
+        // they want playback separate from the main window — send a newly
+        // picked video there instead of (also) starting it here (B-112).
+        // startMini is excluded since it's only ever true for the
+        // extract-window-closed restore path ('player:restoreFromExtract'
+        // below), which must land in the main window's miniplayer.
         if (extractWindowOpenRef.current && !startMini) {
           const sent = await window.chronicle.loadInExtractWindow(videoId, result.value.title)
           if (sent) return
@@ -820,7 +808,7 @@ export function App() {
         const entry = { ...result.value, state }
         setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
         // Normally starts in full view, even if a previous video was docked
-        // — startMini is only for the B-045 extract-window-closed path,
+        // — startMini is only for the extract-window-closed path (B-045),
         // which hands a video back to the miniplayer, not the full view.
         setMiniplayer(startMini)
       })
@@ -838,14 +826,10 @@ export function App() {
         viewRef.current === 'watch-later'
           ? { ids: filteredList.map((v) => v.videoId), index: videoIndexInFiltered }
           : null
-      // B-045: 'replace', not the default 'push' — opening a video from the
-      // feed is a fresh browsing action, not "diving deeper" from within a
-      // video's own description (which is what 'push' — the queue-stack
-      // model — is for). Mattered only once mini mode existed: with a video
-      // docked and playing, opening an unrelated one from the feed used to
-      // push it on top of the docked one, leaving the docked video reachable
-      // via Back as if it were a "previous screen" rather than a separate,
-      // already-left-behind session.
+      // 'replace', not the default 'push' — opening a video from the feed is
+      // a fresh browsing action, not "diving deeper" from within a video's
+      // own description (which is what 'push', the queue-stack model, is
+      // for) (B-045).
       openVideo(video.videoId, 'replace')
     },
     [openVideo]
@@ -857,14 +841,13 @@ export function App() {
   }, [])
 
   // Called automatically by PlayerSurface's own Esc/Back dock-vs-close
-  // decision (`closeOrDock`) — there's no manual "dock" button in the UI
-  // (removed per product-owner feedback: the ask was purely automatic).
+  // decision (`closeOrDock`) — there's no manual "dock" button in the UI.
   const dockPlayer = useCallback(() => setMiniplayer(true), [])
 
-  // B-045: hands off a playback snapshot to a brand-new always-on-top
-  // window rather than moving the live iframe there (impossible across
-  // renderer processes) — then fully closes the in-app player, since the
-  // video now lives in that window instead. `auto` (D-051) marks an
+  // Hands off a playback snapshot to a brand-new always-on-top window
+  // rather than moving the live iframe there (impossible across renderer
+  // processes) — then fully closes the in-app player, since the video now
+  // lives in that window instead (B-045). `auto` (D-051) marks an
   // extraction triggered by closing the window to the tray rather than the
   // user pressing `p` — see extractPlayer's own doc comment for what that
   // changes about the extract window's close behavior.
@@ -888,21 +871,18 @@ export function App() {
     [playerStack, settings.defaultPlaybackRate]
   )
 
-  // Kept zero-arg on purpose, unlike extractToWindowInternal above: this is
-  // handed straight to onClick/onKeyDown props elsewhere (PlayerDetails'
-  // and MiniPlayerBar's Extract buttons, PlayerSurface's `p` handler), and a
-  // raw `onClick={extractToWindow}` binding would otherwise forward the
-  // click's MouseEvent as the first argument — exactly what broke live once
-  // extractToWindowInternal grew an `auto` parameter for D-051: the event
-  // object isn't structured-cloneable, so the IPC call silently failed while
-  // the player had already closed, leaving no extract window at all.
+  // Kept zero-arg, unlike extractToWindowInternal above: this is handed
+  // straight to onClick/onKeyDown props elsewhere (PlayerDetails' and
+  // MiniPlayerBar's Extract buttons, PlayerSurface's `p` handler), and a raw
+  // `onClick={extractToWindow}` binding would otherwise forward the click's
+  // MouseEvent as the `auto` argument — not structured-cloneable over IPC.
   const extractToWindow = useCallback(() => extractToWindowInternal(false), [extractToWindowInternal])
 
-  // D-051: the main window just closed to the tray (backgroundMode on) —
-  // without this, a still-playing video would keep running silently behind
-  // the tray icon with no easy way to stop it. popOutOnClose true (default)
-  // pops it into the always-on-top extract window instead, same as `p`;
-  // false just pauses it. No-op if nothing was playing.
+  // The main window just closed to the tray (backgroundMode on) — without
+  // this, a still-playing video would keep running silently behind the
+  // tray icon with no easy way to stop it (D-051). popOutOnClose true
+  // (default) pops it into the always-on-top extract window instead, same
+  // as `p`; false just pauses it. No-op if nothing was playing.
   const handleClosedToTray = useCallback(() => {
     if (!(playerSurfaceRef.current?.isStillGoing() ?? false)) return
     if (settings.popOutOnClose) {
@@ -992,16 +972,11 @@ export function App() {
           } else {
             loadView()
           }
-          // B-110/D-048: YouTube's own RSS backend is flaky enough in
-          // ordinary operation that a handful of per-cycle channel failures
-          // is now expected background noise (retried automatically next
-          // cycle) rather than something the owner can act on — surfacing
-          // it every cycle regardless would just be a banner nobody can
-          // ever make go away, working against a calm/predictable UI. Only
-          // surface a *systemic* failure: every polled channel failing at
-          // once, on a poll wide enough that random per-channel noise
-          // couldn't plausibly explain it (a real network/connectivity
-          // problem, unlike an ordinary transient 404/500 spread).
+          // A handful of per-cycle channel failures is expected background
+          // noise (retried automatically next cycle), not worth a banner —
+          // only a *systemic* failure surfaces: every polled channel failing
+          // at once, on a poll wide enough that random per-channel noise
+          // couldn't plausibly explain it (D-048).
           if (event.report.outcome === 'failed' && event.report.channelsPolled > 1) {
             setFailureDetailsOpen(false)
             setBanner({
@@ -1091,13 +1066,11 @@ export function App() {
     backfillingRef.current = true
     setLoadingMore(true)
     // The resume cursor comes from the last video actually on screen, not a
-    // separately-tracked "last requested cursor" — the backend already
-    // reports nextCursor as null once the local page comes back short of
-    // the page limit (the common case for a channel whose whole archive is
-    // one RSS-sized page), so a cursor tracked only inside the "there's
-    // another local page" branch never gets set and silently stays at its
-    // initial null. Retrying with a null cursor after backfill re-requests
-    // page one from scratch, appending it as a duplicate "next page."
+    // separately-tracked "last requested cursor" — the backend reports
+    // nextCursor as null once the local page comes back short of the page
+    // limit, so a cursor tracked only inside the "there's another local
+    // page" branch would stay null and retry from page one, appending a
+    // duplicate "next page."
     const lastVideo = videos.at(-1)
     const cursorToRetry: FeedCursorDto | null = lastVideo
       ? {
@@ -1106,14 +1079,13 @@ export function App() {
           videoId: lastVideo.videoId
         }
       : null
-    // B-002's own page cap (youtube-api.md: "bounded at 4 pages/call,
-    // resumable") is a per-call pacing device, not a give-up point — a
-    // channel whose next uploads-playlist stretch is entirely
-    // already-known videos comes back `{ videosNew: 0, exhausted: false }`
-    // with a resume token saved server-side. Nothing else re-triggers
-    // FeedList's onNearEnd checks in that case (row count didn't change),
-    // so without this loop the channel silently stalls forever once that
-    // batch happens to land on an all-duplicates stretch.
+    // The page cap (youtube-api.md: "bounded at 4 pages/call, resumable",
+    // B-002) is a per-call pacing device, not a give-up point — a channel
+    // whose next uploads-playlist stretch is entirely already-known videos
+    // comes back `{ videosNew: 0, exhausted: false }` with a resume token
+    // saved server-side. Nothing else re-triggers FeedList's onNearEnd
+    // checks in that case (row count didn't change), so this loops until a
+    // real answer.
     const runBackfill = (): void => {
       void window.chronicle.backfillChannelArchive(targetChannel).then((result) => {
         if (requestGenerationRef.current !== generation) {
@@ -1167,18 +1139,15 @@ export function App() {
   const filtered = videos
 
   // A channel whose recent uploads are all Shorts comes back from getFeed
-  // with zero rows once "Show Shorts" is off (the filter runs in SQL, so
-  // nextCursor is already null) — exactly the condition loadMore's
-  // channel-archive-backfill branch exists to handle. But that branch only
-  // ever runs from FeedList's own onNearEnd/zero-height effects, and
-  // FeedList isn't rendered at all when the feed is empty (replaced by the
-  // "no videos" message below) — so an all-Shorts channel just sat on "no
-  // videos" forever with no backfill request ever made. Same zero-height
-  // fallback idea as the search-results/channel-preview effects elsewhere in
-  // this file, but keyed on the empty state itself since there's no
-  // scrollable container to measure when nothing renders. loadMore already
-  // no-ops without a channel filter, mid-backfill, or once exhausted, so
-  // this can't loop.
+  // with zero rows once "Show Shorts" is off — exactly the condition
+  // loadMore's channel-archive-backfill branch handles, but that branch only
+  // runs from FeedList's own onNearEnd/zero-height effects, and FeedList
+  // isn't rendered at all when the feed is empty. Same zero-height fallback
+  // idea as the search-results/channel-preview effects elsewhere in this
+  // file, keyed on the empty state itself since there's no scrollable
+  // container to measure when nothing renders. loadMore already no-ops
+  // without a channel filter, mid-backfill, or once exhausted, so this
+  // can't loop.
   useEffect(() => {
     if (filtered.length === 0 && channelFilter !== null) loadMore()
   }, [filtered.length, channelFilter, loadMore])

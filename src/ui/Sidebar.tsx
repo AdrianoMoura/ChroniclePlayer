@@ -89,12 +89,10 @@ interface SidebarProps {
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
   onToggleNotify: (channelId: string) => void
-  // D-050 redesign: only meaningful (and shown) when notifications are on
-  // globally and the scope is "Selected Channels" — with "All Channels" or
-  // notifications off, every/no channel notifies regardless of this flag,
-  // so there'd be nothing to configure.
+  // Only meaningful (and shown) when notifications are on globally and the
+  // scope is "Selected Channels" — with "All Channels" or notifications
+  // off, every/no channel notifies regardless of this flag.
   showNotifyControl: boolean
-  // B-003
   accounts: AccountDto[]
   accountFilter: string | null
   onSelectAccount: (accountId: string | null) => void
@@ -126,15 +124,15 @@ export function Sidebar({
   onRemoveAccount,
   onSyncAccountNow
 }: SidebarProps) {
-  // Local channel-name filter (B-024) — over the user's own subscriptions,
-  // never YouTube search.
+  // Local channel-name filter over the user's own subscriptions, never
+  // YouTube search.
   const [channelQuery, setChannelQuery] = useState('')
-  // Per-row "…" context menu (B-010): armed twice before it actually acts,
-  // same pattern as Settings' delete-all confirmation.
+  // Per-row "…" context menu: armed twice before it actually acts, same
+  // pattern as Settings' delete-all confirmation.
   const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
   const [channelMenuAnchor, setChannelMenuAnchor] = useState<DOMRect | null>(null)
   const [confirmingUnsub, setConfirmingUnsub] = useState<string | null>(null)
-  // B-003: same double-arm pattern, for the Accounts "…" menu.
+  // Same double-arm pattern, for the Accounts "…" menu.
   const [menuAccountId, setMenuAccountId] = useState<string | null>(null)
   const [accountMenuAnchor, setAccountMenuAnchor] = useState<DOMRect | null>(null)
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null)
@@ -225,7 +223,7 @@ export function Sidebar({
                   setChannelQuery('')
                   event.currentTarget.blur()
                 } else if (event.key === 'Enter') {
-                  // B-030: Enter opens the first filtered match, mirroring a
+                  // Enter opens the first filtered match, mirroring a
                   // normal search-and-go field.
                   const first = visibleChannels[0]
                   if (first) onSelectChannel(first.channelId)

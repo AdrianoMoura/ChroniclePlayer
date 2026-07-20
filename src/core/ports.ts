@@ -37,11 +37,9 @@ export interface FollowedChannel {
 }
 
 export interface FeedRepository {
-  // channelId narrows the feed to one channel (ui.md sidebar channel list).
-  // showShorts (B-028, default true): false applies the same is_short
-  // exclusion the feed used unconditionally before D-028 was reversed.
-  // accountId (B-003) narrows feed membership to one account; undefined
-  // means "any connected account" (the combined-feed default).
+  // channelId narrows to one channel (ui.md sidebar). showShorts (B-028,
+  // default true): false excludes is_short videos. accountId (B-003) narrows
+  // to one account; undefined means the combined feed across all accounts.
   listPage(
     view: FeedView,
     cursor: FeedCursor | null,
@@ -67,11 +65,11 @@ export interface FeedRepository {
   // D-050: toggles a channel's per-channel notify flag (the "Selected
   // Channels" scope membership) for one account; returns the new state.
   toggleChannelNotify(accountId: string, channelId: string): boolean
-  // D-050 redesign: direct set (not toggle) — syncs notify to a channel's
-  // new favorite state when autoNotifyFavorites is on.
+  // D-050: direct set (not toggle) — syncs notify to a channel's new
+  // favorite state when autoNotifyFavorites is on.
   setChannelNotify(accountId: string, channelId: string, notify: boolean): void
-  // D-050 redesign: bulk-applies notify to every currently-favorited channel
-  // (any account) — used by the autoNotifyFavorites enable/disable flow.
+  // D-050: bulk-applies notify to every currently-favorited channel (any
+  // account) — used by the autoNotifyFavorites enable/disable flow.
   bulkSetNotifyForFavorites(enable: boolean): void
   // B-042: unread videos from favorited channels, most recent first — a
   // separate capped list (like listWatchLaterQueue), not merged into the
@@ -268,11 +266,9 @@ export interface SyncRepository {
   knownVideoIds(videoIds: readonly string[]): Set<string>
   insertDiscoveredVideos(channelId: string, videos: readonly DiscoveredVideo[], now: string): void
   applyHydration(videos: readonly HydratedVideo[], now: string): void
-  // Deep-archive backfill surfaces videos that predate the user
-  // following/using Chronicle — they were never "missed" chronologically, so
-  // they default to read rather than inflating unread counts. Only touches
-  // videos with no existing video_state row (never overwrites a real read/
-  // unread preference the user, or an earlier hydration path, already set).
+  // Archive-backfilled videos predate the user following Chronicle, so they
+  // default to read instead of inflating unread counts. Only touches videos
+  // with no existing video_state row — never overwrites an existing read/unread.
   markVideosReadIfUnset(videoIds: readonly string[], now: string): void
   updateChannelSyncMeta(
     channelId: string,
@@ -299,19 +295,17 @@ export interface SyncRepository {
   // channelId scopes to a single channel (B-036).
   shortCandidates(channelId?: string): string[]
   setShortStatus(videoId: string, isShort: boolean): void
-  // D-052: how many of the given (already-confirmed) videoIds are Shorts —
-  // used right after confirmShorts() to break a refresh's newVideosByChannel
-  // counts down into shorts vs. non-shorts, for the notify-shorts filter.
+  // How many of the given (already-confirmed) videoIds are Shorts — used
+  // after confirmShorts() to split newVideosByChannel counts for the
+  // notify-shorts filter (D-052).
   countShorts(videoIds: readonly string[]): number
-  // liveContent is only ever captured at hydration time — a video hydrated
-  // while the broadcast hadn't started yet stays 'upcoming' forever unless
-  // something re-queries it. channelId scopes to a single channel (B-036).
+  // liveContent is only captured at hydration time — a video hydrated before
+  // the broadcast started stays 'upcoming' until re-queried. channelId
+  // scopes to a single channel (B-036).
   upcomingVideoIds(channelId?: string): string[]
-  // B-114: the mirror-image gap — a video hydrated while a stream was
-  // actually live stays 'live' forever once the broadcast ends unless
-  // something re-queries it too (duration_seconds also stays stuck at the
-  // 0 the API reports for an in-progress broadcast). channelId scopes to a
-  // single channel (B-036).
+  // The mirror-image gap: a video hydrated while genuinely live stays 'live'
+  // (duration_seconds stuck at 0) until re-queried (B-114). channelId scopes
+  // to a single channel (B-036).
   liveVideoIds(channelId?: string): string[]
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null

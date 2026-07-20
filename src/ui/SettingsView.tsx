@@ -2,11 +2,11 @@ import { useRef, useState } from 'react'
 import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto } from '../ipc/contract'
 import { t } from './i18n'
 
-// Settings surface (M5). One column, five quiet sections — every control
-// maps to a spec decision: D-016 interval, theme (ui.md), D-018 view
-// counts, D-038 default speed (playback.md), D-013 storage honesty,
-// export/delete (local-data.md). Layout and item size (D-022, D-037) live
-// inline in the feed topbar instead — see App.tsx — not here.
+// Settings surface. One column, quiet sections — every control maps to a
+// spec decision: D-016 interval, theme (ui.md), D-018 view counts, D-038
+// default speed (playback.md), D-013 storage honesty, export/delete
+// (local-data.md). Layout and item size (D-022, D-037) live inline in the
+// feed topbar instead — see App.tsx.
 
 interface SettingsViewProps {
   auth: AuthStatusDto | null
@@ -19,9 +19,9 @@ interface SettingsViewProps {
   onFixWeeklyLogout: () => void
   onSignOut: () => void
   onBanner: (text: string) => void
-  // D-050 redesign: the bulk favorite<->notify sync (below) changes
-  // per-channel DB state SettingsView doesn't itself display — the sidebar/
-  // channel-header icons that do need to pick up the change.
+  // The bulk favorite<->notify sync (below) changes per-channel DB state
+  // SettingsView doesn't itself display — the sidebar/channel-header icons
+  // that do need to pick up the change.
   onChannelsChanged: () => void
 }
 
@@ -40,9 +40,9 @@ export function SettingsView({
 }: SettingsViewProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const confirmTimer = useRef<number | null>(null)
-  // D-050 redesign: turning "auto-enable on favorite" off always takes
-  // effect immediately — this only gates the separate question of whether
-  // to *also* bulk-clear notify from currently-favorited channels.
+  // Turning "auto-enable on favorite" off always takes effect immediately —
+  // this only gates the separate question of whether to *also* bulk-clear
+  // notify from currently-favorited channels.
   const [confirmingAutoNotifyDisable, setConfirmingAutoNotifyDisable] = useState(false)
 
   const set = <K extends keyof SettingsDto>(key: K, value: SettingsDto[K]): void =>

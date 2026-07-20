@@ -119,7 +119,7 @@ describe('settings store', () => {
         autoNotifyFavorites: true
       })
     )
-    // 'favorites'/'custom' no longer exist as scopes — fall back to 'all'.
+    // Unknown scopes fall back to 'all'.
     expect(normalizeSettings({ notifyScope: 'favorites' }).notifyScope).toBe('all')
     expect(normalizeSettings({ notifyScope: 'custom' }).notifyScope).toBe('all')
   })

@@ -8,33 +8,30 @@ import { MINIPLAYER_MAX_WIDTH, MINIPLAYER_MIN_WIDTH, PLAYBACK_RATES } from '../i
 
 export interface AppSettings {
   theme: 'system' | 'dark' | 'light'
-  // B-007: file-explorer-style item size, shared by list rows and grid cards.
-  // Supersedes the old two-step "density" (comfortable/compact). Six steps
-  // as of the B-037/B-095 follow-ups (D-037).
+  // File-explorer-style item size, shared by list rows and grid cards; six
+  // steps (D-037).
   itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl'
-  // B-007: list rows vs. a thumbnail grid, same data either way.
+  // List rows vs. a thumbnail grid, same data either way.
   layout: 'list' | 'grid'
   // Background refresh interval (D-016). 0 = manual only.
   refreshMinutes: number
-  // B-029: shown by default (revisits D-018's "hidden by default").
   showViewCounts: boolean
-  // B-028: shown by default, tagged with a badge (supersedes D-028's
-  // unconditional exclusion).
+  // Shown by default, tagged with a badge.
   showShorts: boolean
-  // D-038: the player loads already set to this speed instead of always 1x.
+  // The player loads already set to this speed instead of always 1x (D-038).
   defaultPlaybackRate: number
-  // D-026: background check against GitHub's public Releases API. Notice
-  // only — never auto-downloads/installs.
+  // Background check against GitHub's public Releases API. Notice only —
+  // never auto-downloads/installs (D-026).
   checkForUpdates: boolean
-  // B-045: the docked miniplayer's width, drag-resized from its own corner
-  // handle (MiniPlayerBar) and persisted rather than reset every launch.
+  // The docked miniplayer's width, drag-resized from its own corner handle
+  // (MiniPlayerBar) and persisted rather than reset every launch.
   miniplayerWidth: number
-  // D-050: three independent toggles, all default off — none gates any
-  // other. autoStart launches on OS login; backgroundMode keeps the app
-  // alive in the tray after the window closes (which extends *when* a sync
-  // can happen, not whether notifications are allowed); notifyNewVideos
-  // fires an OS notification from any sync, whenever the process happens to
-  // be running at all (open window or tray-resident).
+  // Three independent toggles, all default off — none gates any other
+  // (D-050). autoStart launches on OS login; backgroundMode keeps the app
+  // alive in the tray after the window closes (extends *when* a sync can
+  // happen, not whether notifications are allowed); notifyNewVideos fires an
+  // OS notification from any sync while the process is running at all (open
+  // window or tray-resident).
   autoStart: boolean
   backgroundMode: boolean
   // Only takes effect when autoStart and backgroundMode are both also on —
@@ -43,26 +40,23 @@ export interface AppSettings {
   startMinimized: boolean
   notifyNewVideos: boolean
   // 'all' ignores the per-channel notify flag entirely (everyone notifies);
-  // 'selected' respects it. Switching between the two never touches the
-  // flag itself (ChannelDto.notify) — it's just ignored while inactive, so
-  // the per-channel configuration survives round-trips between modes.
+  // 'selected' respects it. Switching between the two never touches the flag
+  // itself (ChannelDto.notify), so per-channel configuration survives
+  // round-trips between modes.
   notifyScope: 'all' | 'selected'
-  // D-052. A Short hidden from the feed (showShorts off) never notifies,
-  // regardless of this flag — this only decides whether Shorts that *are*
-  // shown in the feed also trigger a notification. Default true (matches
-  // the pre-D-052 behavior of notifying about every new video, Shorts
-  // included) — shown in Settings only while showShorts is also on.
+  // A Short hidden from the feed (showShorts off) never notifies regardless
+  // of this flag — it only decides whether Shorts that *are* shown in the
+  // feed also trigger a notification. Default true; shown in Settings only
+  // while showShorts is also on (D-052).
   notifyShorts: boolean
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless the user has manually changed it since. A one-shot
   // nudge at the moment of the favorite toggle, not a persistent binding.
   autoNotifyFavorites: boolean
-  // D-051: only meaningful when backgroundMode is on. Closing the window
-  // used to just hide it, leaving a still-playing video running silently
-  // behind the tray icon with no easy way to stop it. True (default) pops
-  // the video into the always-on-top extract window instead (same as `p`),
-  // so closing *that* window is what actually stops it; false pauses the
-  // video on close instead of popping it out.
+  // Only meaningful when backgroundMode is on. True (default) pops the video
+  // into the always-on-top extract window on window close (same as `p`), so
+  // closing *that* window is what actually stops it; false pauses the video
+  // on close instead of popping it out (D-051).
   popOutOnClose: boolean
 }
 

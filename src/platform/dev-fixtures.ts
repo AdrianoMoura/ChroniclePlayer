@@ -96,8 +96,7 @@ export function seedDevFixtures(
     while (ageHours < 24 * 730) {
       const videoId = `fx-${String(index).padStart(2, '0')}-${String(serial).padStart(4, '0')}`
       const publishedAt = new Date(now.getTime() - ageHours * 3_600_000).toISOString()
-      // B-028: ~8% Shorts, so the badge/filter have something to exercise
-      // in dev without the D-028 exclusion pipeline running.
+      // ~8% Shorts, so the badge/filter have something to exercise in dev.
       const isShort = random() < 0.08
       catalog.upsertVideo(
         {

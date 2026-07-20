@@ -6,11 +6,11 @@ const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke'
 
-// D-032: initial auth requests the readonly scope only; broader scopes come
-// via incremental authorization when interaction features land (post-MVP).
+// Initial auth requests the readonly scope only; write actions request
+// youtube.force-ssl incrementally (D-032).
 export const YOUTUBE_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
 // Covers subscribe/unsubscribe, rate, and comment (D-032) — requested only
-// the first time a write action is invoked (B-010 is the first caller).
+// the first time a write action is invoked.
 export const YOUTUBE_FORCE_SSL_SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl'
 
 export interface OAuthClientCredentials {

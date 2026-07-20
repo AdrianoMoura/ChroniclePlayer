@@ -52,11 +52,8 @@ export class FeedService {
       ? null
       : this.repository.listPage(view, cursor, limit, channelId, showShorts, accountId)
 
-    // D-053: display-only reorder of an already-fetched page — the SQL
-    // query and its cursor (D-027) stay keyed on the raw, un-reordered
-    // publishedAt (a keyset cursor can't be built on a value like "now"
-    // that changes between calls); only how this one page's rows are
-    // grouped/ordered for display changes here.
+    // D-053: reorders this page's rows for display only — the cursor (D-027)
+    // stays keyed on raw publishedAt, since a keyset cursor can't use "now".
     const sortedEntries = [...(page?.entries ?? [])].sort(
       (a, b) => effectiveDate(b.video, now).getTime() - effectiveDate(a.video, now).getTime()
     )
@@ -77,8 +74,8 @@ export class FeedService {
     }
   }
 
-  // B-042: unread videos from favorited channels — bucket-less, like the
-  // watch-later queue, since it sits above the chronological grouping.
+  // Unread videos from favorited channels — bucket-less, like the
+  // watch-later queue, since it sits above the chronological grouping (B-042).
   getPriorityVideos(showShorts = true, accountId?: string): FeedItem[] {
     return this.repository
       .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts, accountId)

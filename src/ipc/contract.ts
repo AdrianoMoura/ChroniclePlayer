@@ -25,8 +25,8 @@ export interface FeedVideoDto {
   thumbnailUrl: string | null
   // Shown only when the setting enables it (D-018: hidden by default).
   viewCount: number | null
-  // Confirmed Short (B-028, supersedes D-028's unconditional exclusion):
-  // shown in the feed, tagged with a badge, hideable via SettingsDto.showShorts.
+  // Confirmed Short (B-028): shown in the feed, tagged with a badge,
+  // hideable via SettingsDto.showShorts.
   isShort: boolean
   // Captured at hydration from snippet.liveBroadcastContent; 'none'
   // otherwise, and again once a broadcast ends (same as a normal upload).
@@ -105,13 +105,10 @@ export interface ChannelDetailDto {
   subscriberCount: number | null
 }
 
-// B-003: a connected Google account. The OAuth client (one Google Cloud
+// A connected Google account (B-003). The OAuth client (one Google Cloud
 // project) is shared across every account — only the token/scope state is
 // per-account, hence no "unconfigured" state here (that's global, see
-// AuthStatusDto — still used for the first/primary account's own connect
-// flow, which is unchanged by multi-account: Settings keeps managing that
-// one account exactly as before; the sidebar Accounts section manages the
-// rest).
+// AuthStatusDto, which still covers the primary account's own connect flow).
 export interface AccountDto {
   accountId: string
   label: string
@@ -192,13 +189,10 @@ export interface SettingsDto {
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless manually changed since.
   autoNotifyFavorites: boolean
-  // D-051. Only meaningful when backgroundMode is on: closing the window
-  // while a video is playing normally just hides it, leaving the video
-  // playing silently behind the tray icon with no easy way to stop it. When
-  // true (the default), closing instead pops the video into the always-
-  // on-top extract window (same as pressing `p`) so it stays audible/visible
-  // and closing *that* window actually stops it. When false, closing pauses
-  // the video instead of popping it out.
+  // D-051. Only meaningful when backgroundMode is on. True (default): closing
+  // the window pops a playing video into the always-on-top extract window
+  // (same as pressing `p`), so closing that window stops it. False: closing
+  // pauses the video in place instead.
   popOutOnClose: boolean
 }
 
@@ -277,10 +271,9 @@ export interface SyncReportDto {
   subscriptions: { added: number; removed: number } | null
 }
 
-// Backend → UI push (architecture.md §IPC: the UI never polls).
-// Every refresh:started is paired with exactly one terminal event:
-// refresh:done, refresh:failed, or auth:required (B-023 — a started with
-// no terminal event left the spinner running forever).
+// Backend → UI push (architecture.md §IPC: the UI never polls). Every
+// refresh:started is paired with exactly one terminal event: refresh:done,
+// refresh:failed, or auth:required (B-023).
 export type ChronicleEventDto =
   | { type: 'refresh:started'; trigger: 'launch' | 'manual' | 'timer' }
   | { type: 'refresh:progress'; phase: 'channels' | 'shorts'; checked: number; total: number }
@@ -426,17 +419,14 @@ export interface ChronicleApi {
   // browser and never touches this one. Signing in here is what lets the
   // player pass YouTube's bot-check (B-093).
   openYouTubeSignIn(): Promise<void>
-  // B-045: pops the player into its own always-on-top OS window. There's no
-  // way to move the live iframe's DOM node into a different renderer
-  // process, so this hands off a snapshot (current position, playing or
-  // paused) to a fresh instance in the new window rather than the same one.
-  // D-051: `auto` marks an extraction triggered by closing the window to the
-  // tray rather than the user pressing `p` — the extract window's own close
-  // then stops the video for good instead of restoring it docked into the
-  // (possibly still-hidden) main window. `title` sets that window's OS-level
-  // title (the video's own title) so it's distinguishable from the main
-  // window in a taskbar/window-switcher/compositor context even though
-  // neither window shows a visible custom titlebar there.
+  // Pops the player into its own always-on-top OS window (B-045). There's no
+  // way to move the live iframe's DOM node into a different renderer process,
+  // so this hands off a snapshot (position, playing/paused) to a fresh
+  // instance instead. `auto` marks an extraction triggered by closing to the
+  // tray rather than pressing `p`, so the extract window's close stops the
+  // video instead of restoring it to the main window (D-051). `title` sets
+  // the window's OS-level title so it's distinguishable from the main window
+  // in a taskbar/compositor context.
   extractPlayer(
     videoId: string,
     title: string,
@@ -446,20 +436,18 @@ export interface ChronicleApi {
     auto: boolean
   ): Promise<void>
   // B-112: sends a newly-selected video to the already-open extract window
-  // instead of starting it (also) in the main window. Resolves false if no
-  // extract window is currently open (a race — it closed just before this
-  // call landed), so the caller can fall back to the normal in-main-window
-  // open instead of silently doing nothing.
+  // instead of also starting it in the main window. Resolves false if no
+  // extract window is open (a race), so the caller falls back to opening
+  // normally in the main window.
   loadInExtractWindow(videoId: string, title: string): Promise<boolean>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>
   platform: string
-  // Best-effort (Electron doesn't expose the Wayland compositor's
-  // xdg_toplevel wm_capabilities, which is how native GTK/Qt apps know to
-  // hide controls the compositor won't honor): false hides the Minimize
-  // button on compositors known not to support it — scrolling/tiling ones
-  // like niri, by the same design stance as sway/i3.
+  // Best-effort: Electron doesn't expose the Wayland compositor's
+  // xdg_toplevel wm_capabilities (how native GTK/Qt apps know to hide
+  // unusable controls), so this flags scrolling/tiling compositors that
+  // don't support minimize (niri, sway, i3) to hide the button instead.
   minimizeSupported: boolean
   // Writes the documented JSON export (FORMAT.md) where the user chooses.
   exportData(): Promise<ResultDto<{ path: string; videos: number; states: number }>>

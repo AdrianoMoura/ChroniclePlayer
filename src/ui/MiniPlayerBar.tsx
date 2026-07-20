@@ -2,21 +2,18 @@ import { useRef, useState } from 'react'
 import { MINIPLAYER_MAX_WIDTH, MINIPLAYER_MIN_WIDTH, type PlayerVideoDto } from '../ipc/contract'
 import { t } from './i18n'
 
-// The docked miniplayer's chrome (B-045) — a small corner box with a slot
-// `<div>` (see PlayerDetails for the same pattern) that PlayerSurface
-// measures and visually aligns its live iframe to (see PlayerSurface.tsx
-// for why it's measurement, not a portal), plus title +
-// maximize/extract/close. The feed underneath is fully interactive while
-// this is showing — that's the point of docking instead of closing.
-// Resizable via a custom drag handle in a dedicated left-edge strip (not the
-// browser's native `resize`, which anchors its own handle to the box's
-// bottom-right corner — exactly where this box already sits against the
-// screen's own corner). The strip is real layout (a flex sibling of
-// `.miniplayer-content`), not an absolutely-positioned overlay, because the
-// live video iframe is a separate floating element mirroring the stage
-// slot's rect at a higher z-index (see PlayerSurface.tsx / styles.css's
-// stacking-order note) — an overlay handle sitting inside that rect would be
-// painted over and unclickable, which is exactly what happened before this.
+// The docked miniplayer's chrome — a small corner box with a slot `<div>`
+// (see PlayerDetails for the same pattern) that PlayerSurface measures and
+// visually aligns its live iframe to, plus title + maximize/extract/close.
+// The feed underneath stays fully interactive while this is showing.
+// Resizable via a custom drag handle in a dedicated left-edge strip rather
+// than the browser's native `resize` (which anchors to the bottom-right
+// corner, where this box already sits against the screen's corner). The
+// strip is real layout (a flex sibling of `.miniplayer-content`), not an
+// absolutely-positioned overlay — the live video iframe is a separate
+// floating element mirroring the stage slot's rect at a higher z-index, so
+// an overlay handle sitting inside that rect would be painted over and
+// unclickable.
 
 interface MiniPlayerBarProps {
   video: PlayerVideoDto

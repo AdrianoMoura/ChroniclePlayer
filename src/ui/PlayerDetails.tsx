@@ -7,18 +7,15 @@ import { t } from './i18n'
 import { useWriteScopeGate } from './useWriteScopeGate'
 
 // The full-view player's chrome — title, meta, action bar, description,
-// comments — everything *around* the video surface. Split out of the
-// original PlayerView (B-045) so the surface itself (`PlayerSurface`, the
-// live iframe) can stay mounted and keep playing while this chrome is
-// hidden (miniplayer) or shown (full view). Renders a slot `<div>` that
-// PlayerSurface measures and visually aligns itself to — see `slotRef`
-// and PlayerSurface.tsx's own comment for why it's measurement, not a
-// portal.
+// comments — everything *around* the video surface. Split from the surface
+// itself (`PlayerSurface`, the live iframe) so it can stay mounted and keep
+// playing while this chrome is hidden (miniplayer) or shown (full view).
+// Renders a slot `<div>` that PlayerSurface measures and visually aligns
+// itself to — see `slotRef` and PlayerSurface.tsx's own comment for why
+// it's measurement, not a portal.
 //
 // Docking is automatic only (leaving a playing video via Esc/Back, decided
-// in PlayerSurface) — there's deliberately no manual "dock" button here;
-// an earlier version had one and the product owner found it redundant
-// clutter next to the automatic behavior they'd actually asked for.
+// in PlayerSurface) — there's deliberately no manual "dock" button here.
 
 export interface PlayerDetailsHandle {
   // The player's own keyboard shortcuts (l/s/c) live in PlayerSurface, a
@@ -75,8 +72,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     const commentsRef = useRef<CommentsSectionHandle>(null)
     const [descriptionOpen, setDescriptionOpen] = useState(false)
     const [descriptionOverflows, setDescriptionOverflows] = useState(false)
-    // B-006: the user's own rating, fetched silently on open (a passive
-    // background check — failures, e.g. not connected, are not worth a banner).
+    // The user's own rating, fetched silently on open — failures (e.g. not
+    // connected) are not worth a banner.
     const [rating, setRating] = useState<VideoRatingDto>('none')
     const [subscribed, setSubscribed] = useState(video.isSubscribed)
     const [actionError, setActionError] = useState<string | null>(null)
@@ -298,11 +295,11 @@ function Description({
     if (!el) return
     const measure = () => onOverflowChange(el.scrollHeight > el.clientHeight + 1)
     measure()
-    // B-032: a same-mount measurement can run before web fonts finish
-    // loading or before the container's final width settles (sidebar
-    // toggle, window resize) — both change line-wrapping and therefore
-    // whether the clamp actually cuts text off. Re-measure once layout
-    // and fonts have settled, and on any later resize of the element.
+    // A same-mount measurement can run before web fonts finish loading or
+    // before the container's final width settles (sidebar toggle, window
+    // resize) — both change line-wrapping and whether the clamp actually
+    // cuts text off. Re-measure once layout and fonts have settled, and on
+    // any later resize of the element.
     const raf = requestAnimationFrame(measure)
     void document.fonts?.ready.then(measure)
     const observer = new ResizeObserver(measure)

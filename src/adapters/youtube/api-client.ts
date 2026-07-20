@@ -166,11 +166,10 @@ export class YouTubeApiClient implements SubscriptionSource {
       const rawEndTime = liveStreamingDetails?.['actualEndTime']
       const liveEndedAt = typeof rawEndTime === 'string' ? rawEndTime : null
       // status.uploadStatus is 'processed' for a Premiere (already fully
-      // uploaded/encoded, just waiting to "air") vs 'uploaded' for a genuine
-      // broadcast, while liveContent === 'live'. Outside that state
-      // uploadStatus is 'processed' for nearly every finished video ever,
-      // live or not, so it's meaningless there — isPremiere must stay false
-      // rather than reuse the raw value.
+      // encoded, waiting to "air") vs 'uploaded' for a genuine broadcast,
+      // meaningful only while liveContent === 'live' — outside that state
+      // 'processed' is normal for nearly any finished video, so isPremiere
+      // must stay false there.
       const status = item['status'] as Record<string, unknown> | undefined
       const isPremiere = liveContent === 'live' && status?.['uploadStatus'] === 'processed'
       return {

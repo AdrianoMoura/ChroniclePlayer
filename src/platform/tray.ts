@@ -12,11 +12,9 @@ export interface TrayCallbacks {
 
 export function createAppTray(iconPath: string, callbacks: TrayCallbacks): Tray {
   const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
-  // D-050: new Tray(icon, guid) exists, but Electron validates the guid
-  // against a strict format (confirmed live: "Invalid GUID format" thrown
-  // on this exact Linux setup for a plain string) and its docs mark
-  // getGUID() as darwin/win32-only anyway — not a free/harmless addition on
-  // Linux as hoped, so left out entirely rather than fighting the format.
+  // new Tray(icon, guid) exists, but Electron validates the guid against a
+  // strict format and getGUID() is darwin/win32-only anyway — left out
+  // entirely rather than fighting the format for no benefit on Linux.
   const tray = new Tray(icon)
   tray.setToolTip('Chronicle')
   tray.setContextMenu(

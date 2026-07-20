@@ -12,9 +12,9 @@ interface ChannelHeaderProps {
   onSubscribe: () => void
   onToggleFavorite: () => void
   onToggleNotify: () => void
-  // D-050 redesign: same gating as the sidebar's inline icon (Sidebar.tsx)
-  // — hidden when it wouldn't do anything (notifications off globally, or
-  // scope is "All Channels" where every channel already notifies).
+  // Hidden when it wouldn't do anything: notifications off globally, or
+  // scope is "All Channels" where every channel already notifies. Same
+  // gating as the sidebar's inline icon (Sidebar.tsx).
   showNotifyControl: boolean
   onOpenInBrowser: () => void
 }
@@ -24,10 +24,8 @@ function thumbSrc(url: string): string {
 }
 
 // A compact channel screen header — avatar, banner, subscriber count,
-// Unsubscribe/Open-in-browser. Deliberately a slim strip rather than
-// YouTube's full-height banner: content should fill the available screen
-// (D-004), and a giant banner eating the feed's vertical space would be the
-// algorithm's aesthetic imposing itself, not the user's.
+// Unsubscribe/Open-in-browser. A slim strip rather than YouTube's full-height
+// banner, so content fills the available screen (D-004).
 export function ChannelHeader({
   channel,
   subscribed,

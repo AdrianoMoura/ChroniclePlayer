@@ -17,34 +17,24 @@ export interface Video {
   thumbnailUrl: string | null
   viewCount: number | null // captured at hydration; displayed only by setting (D-018)
   // Confirmed via the D-028 detection pipeline; false until confirmed true.
-  // Shown in the feed (tagged) or hidden by setting (B-028, supersedes the
-  // former unconditional exclusion).
+  // Shown in the feed (tagged) or hidden by setting (B-028).
   isShort: boolean
   // Captured at hydration from snippet.liveBroadcastContent; 'none' for a
-  // normal upload. Not persisted until hydration runs, so it lags RSS
-  // discovery like duration/view count do. Re-hydrated every cycle while
-  // 'upcoming' or 'live' (B-085/B-114) — reverts to 'none' once a broadcast
-  // ends, same as a normal upload.
+  // normal upload. Lags RSS discovery like duration/view count until
+  // hydrated. Re-hydrated every cycle while 'upcoming' or 'live' (B-085, B-114).
   liveContent: 'none' | 'live' | 'upcoming'
-  // liveStreamingDetails.actualStartTime — when a live broadcast or a
-  // Premiere actually started airing. Not sticky: re-read every hydration
-  // cycle like duration/title, and only meaningful while liveContent is
-  // still 'live' (feed.md §Feed item presentation's "Started X ago" label);
-  // ignored once a broadcast ends, when liveEndedAt takes over instead.
+  // liveStreamingDetails.actualStartTime — when a live broadcast or Premiere
+  // actually started. Not sticky, re-read every cycle; only meaningful while
+  // liveContent is still 'live' (feed's "Started X ago" label).
   liveStartedAt: string | null
-  // liveStreamingDetails.actualEndTime, captured the first hydration cycle
-  // that observes the broadcast has ended (liveContent has already reverted
-  // to 'none' by then). Sticky — null if never live, still live, or a
-  // Premiere (never captured for one — see isPremiere below). Feeds the
-  // feed's ordering: an ended broadcast sorts by when it wrapped, not its
-  // original (older) publishedAt (feed.md §Ordering).
+  // liveStreamingDetails.actualEndTime, captured once the broadcast is
+  // observed ended. Sticky; null if never live, still live, or a Premiere
+  // (see isPremiere). Drives feed ordering: an ended broadcast sorts by when
+  // it wrapped, not its original publishedAt (feed.md §Ordering).
   liveEndedAt: string | null
-  // Sticky — true forever once this was ever observed airing as a Premiere
-  // (liveContent === 'live' with status.uploadStatus === 'processed').
-  // Only ever set while liveContent === 'live'; a Premiere and a genuine
-  // broadcast are indistinguishable in every other state (upcoming, or
-  // already ended before Chronicle ever saw it live), so this stays false in
-  // those cases. Drives the feed treating a finished Premiere as a plain
-  // video (publishedAt sort, no badge) instead of a livestream-wrap sort.
+  // Sticky — true once observed airing as a Premiere (liveContent === 'live'
+  // with status.uploadStatus === 'processed'); only ever set in that state,
+  // so a Premiere never seen live stays false. Drives the feed to treat a
+  // finished Premiere as a plain video (publishedAt sort), not a livestream wrap.
   isPremiere: boolean
 }
