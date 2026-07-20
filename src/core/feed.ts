@@ -66,7 +66,14 @@ export function effectiveDate(video: Video, now: Date): Date {
   // either (sync-repository.ts), so it falls through to publishedAt on its
   // own once it ends.
   if (video.liveContent === 'live' && !video.isPremiere) return now
-  if (video.liveEndedAt) return new Date(video.liveEndedAt)
+  if (video.liveEndedAt) {
+    // liveEndedAt isn't always after publishedAt (some channels publish a
+    // VOD's listing well after the stream actually ended) — never let it
+    // push effectiveDate earlier than publishedAt.
+    const endedAt = new Date(video.liveEndedAt)
+    const publishedAt = new Date(video.publishedAt)
+    return endedAt > publishedAt ? endedAt : publishedAt
+  }
   return new Date(video.publishedAt)
 }
 

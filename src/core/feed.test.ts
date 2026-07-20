@@ -244,6 +244,20 @@ describe('effectiveDate', () => {
     ).toEqual(endedAt)
   })
 
+  it('is publishedAt, not liveEndedAt, when liveEndedAt precedes publishedAt', () => {
+    const staleEndedAt = new Date(2026, 6, 1, 10) // days before base()'s publishedAt
+    expect(
+      effectiveDate(
+        base({
+          liveContent: 'none',
+          liveEndedAt: staleEndedAt.toISOString(),
+          isPremiere: false
+        }),
+        NOW
+      )
+    ).toEqual(new Date(2026, 6, 5, 9))
+  })
+
   it('is publishedAt while a Premiere is airing, not "now" (B-119)', () => {
     expect(
       effectiveDate(

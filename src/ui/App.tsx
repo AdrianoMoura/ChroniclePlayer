@@ -56,15 +56,6 @@ const BUCKET_LABELS: Record<FeedBucketDto, string> = {
   earlier: t('app.bucket.earlier')
 }
 
-// B-120: fixed Today→Yesterday→This Week→Earlier order (feed.md §Grouping),
-// used to clamp header progression forward-only — see the `rows` memo below.
-const BUCKET_RANK: Record<FeedBucketDto, number> = {
-  today: 0,
-  yesterday: 1,
-  'this-week': 2,
-  earlier: 3
-}
-
 const UNDO_WINDOW_MS = 5000
 
 // B-097: the banner itself stays a one-line count; per-channel detail is an
@@ -1196,21 +1187,9 @@ export function App() {
     const out: FeedRow[] = []
     let lastBucket: FeedBucketDto | null = null
     filtered.forEach((video, videoIndex) => {
-      if (video.bucket !== null) {
-        // B-120: each page is fetched by raw publishedAt (D-027) but
-        // reordered for display by effectiveDate (D-053) only within that
-        // one page — across a page boundary, a live/ended video's bucket
-        // can land "behind" what a later page already rendered. Clamp
-        // forward-only so a header never reopens a bucket already passed;
-        // such a video folds into the most advanced bucket shown so far.
-        const bucket =
-          lastBucket !== null && BUCKET_RANK[video.bucket] < BUCKET_RANK[lastBucket]
-            ? lastBucket
-            : video.bucket
-        if (bucket !== lastBucket) {
-          out.push({ kind: 'header', key: `h-${bucket}`, label: BUCKET_LABELS[bucket] })
-          lastBucket = bucket
-        }
+      if (video.bucket !== null && video.bucket !== lastBucket) {
+        out.push({ kind: 'header', key: `h-${video.bucket}`, label: BUCKET_LABELS[video.bucket] })
+        lastBucket = video.bucket
       }
       out.push({ kind: 'video', key: video.videoId, video, videoIndex })
     })

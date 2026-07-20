@@ -375,64 +375,6 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
-### B-120 — Feed date-bucket headers repeat out of order, and relative-time labels disagree with their bucket, around live/ended broadcasts
-- **Type:** bug · **Severity:** major
-- **Status:** Open · **Reported:** 2026-07-19 · **Target:** 0.4.8
-- **Area:** feed
-- **What happens:** scrolling the feed, the owner found the Today/Yesterday/This
-  Week/Earlier grouping (`feed.md` §Grouping) badly out of order and internally
-  inconsistent:
-  1. The first video under "Yesterday" shows "8 hours ago," but it's a 3-hour-long
-     livestream that, per YouTube, was broadcast entirely the day before — "8 hours ago"
-     doesn't fit either the bucket or the video's own duration.
-  2. A video under "Earlier" shows "12 hours ago," but the same video is actually ~11
-     days old on YouTube.
-  3. After "Earlier", a second "Yesterday" section appears, with different videos than
-     the first "Yesterday" section (not merged into it — a separate header).
-  4. Further down, a "This Week" section shows videos labeled "yesterday" that are
-     actually 2 days old; after that, "Earlier" and "This Week" each appear again.
-  Net effect: bucket headers repeat and appear out of the fixed order, and several
-  relative-time labels don't match the reality of the video they're on (confirmed by the
-  owner against YouTube directly, not just internal inconsistency).
-- **Expected:** each bucket (Today/Yesterday/This Week/Earlier) appears at most once, in
-  that fixed order (`feed.md` §Grouping), and a video's displayed relative-time label
-  agrees with the bucket it's shown under.
-- **Code refs:** `src/core/feed.ts` (`effectiveDate`, `bucketOf`, `groupFeed`);
-  `src/core/feed-service.ts` (`getSlice`); `src/ui/FeedList.tsx` (`publishedLabel(video.publishedAt)`,
-  two call sites); `src/ui/format.ts` (`publishedLabel`).
-- **Notes (code analysis, not yet live-verified against the owner's own data — needs
-  their live confirmation before this moves past Open):** two distinct defects, likely
-  compounding on the videos described above:
-  - **Label/bucket mismatch:** bucketing and sort order are driven by `effectiveDate`
-    (D-053: `now` while a broadcast is genuinely live, `liveEndedAt` once it's ended,
-    `publishedAt` otherwise) in both `feed.ts` and `feed-service.ts`. But `FeedList.tsx`
-    renders each row's relative-time text via `publishedLabel(video.publishedAt)` — always
-    the raw `publishedAt`, never `effectiveDate`. For any video that was ever live, the two
-    can diverge sharply: an ended broadcast buckets/sorts by when it actually wrapped
-    (`liveEndedAt`), but its on-row label still counts from the original `publishedAt`
-    (when the stream started/was scheduled) — this fits both reported mismatches (#1: bucket
-    correct per `liveEndedAt`, label stale from `publishedAt`; #2: same shape, larger gap).
-    Likely fix direction: label from the same value used to bucket it
-    (`effectiveDate(video, now)`), not `video.publishedAt`, at both `FeedList.tsx` call
-    sites.
-  - **Repeated/out-of-order section headers:** `feed-service.ts`'s own D-053 comment
-    already flags the mechanism this points to: `getSlice` fetches one page at a time from
-    the DB in plain `publishedAt` order (`repository.listPage`, D-027's keyset — it can't be
-    built on a value like `effectiveDate` that changes between calls), then re-sorts/
-    re-buckets *only within that one page* for display. Cross-page order is never
-    reconciled. A live/ended video whose `effectiveDate` diverges sharply from its raw
-    `publishedAt`-based position in the keyset can land near the top of its own page's
-    local re-sort while chronologically "behind" videos the previous page already rendered
-    under a later bucket — producing a bucket header a second time, out of
-    `BUCKET_ORDER` sequence, once the next page renders. This matches the reported
-    "Yesterday" and "This Week" sections reappearing later in the scroll with different
-    videos than their first occurrence. Structural, not a one-off: page-local reordering
-    can never fully fix a global ordering problem when pages are fetched in a different
-    order than they're displayed in. A real fix needs a design call (not just a patch) on
-    how far to look ahead before bucketing, or whether a repeated bucket should fold into
-    its first occurrence instead of getting a new header — flagging the mechanism here
-    rather than picking an approach unilaterally.
-
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
@@ -570,7 +512,8 @@ Resolved entries add:
   agrees with the bucket it's shown under.
 - **Code refs:** `src/core/feed.ts` (`effectiveDate`, `bucketOf`, `groupFeed`);
   `src/core/feed-service.ts` (`getSlice`); `src/ui/FeedList.tsx`, `src/ui/format.ts`
-  (`feedItemLabel`, new); `src/ui/App.tsx` (`rows` memo, `BUCKET_RANK`, new).
+  (`feedItemLabel`, new); `src/ui/App.tsx` (`rows` memo — touched in round 1, reverted
+  in round 2, see below).
 - **Notes (code analysis):** two distinct defects, compounding on the videos described
   above — the owner authorized attacking both from analysis alone rather than waiting for
   further live narrowing first:
@@ -628,6 +571,49 @@ Resolved entries add:
   Week" now appear only once each, in the fixed order; do the previously-mismatched
   "8 hours ago"/"12 hours ago" labels now read correctly — before being considered fully
   confirmed.
+- **Round 2 (2026-07-19), same day:** the owner's live test found round 1 made the
+  header problem worse, not better — "Earlier" now showed several videos actually
+  published yesterday, and "This Week" disappeared from the feed entirely. Root cause:
+  `BUCKET_RANK`'s forward-only clamp assumed any bucket regression was noise to
+  suppress, but a single misordered video early in the scroll would permanently pin
+  `lastBucket` at its (wrong) advanced rank — every subsequent video, including
+  correctly-ordered Yesterday/This Week ones, then got folded into that same bucket for
+  the rest of the session. A cosmetic duplicate-header bug had been turned into a
+  data-mangling one.
+  - At the owner's suggestion, checked the real local `chronicle.db` directly (raw SQL,
+    read-only) instead of reasoning from code alone. Replayed the exact page-by-page
+    fetch-and-resort `feed-service.ts` performs against all 3449 stored videos: 6 real
+    bucket regressions across the archive, the largest caused by `x9HYGt4R2XI` — a
+    livestream VOD with `published_at` 11 days *after* `live_ended_at`. Widening the
+    query showed this wasn't a one-off: several videos from a sports-tournament-replay
+    channel consistently publish their VOD listing 11-13h after the broadcast actually
+    ended — `liveEndedAt < publishedAt` is a real, recurring pattern for some channels,
+    not corrupted data. `effectiveDate` (D-053) had implicitly assumed the opposite
+    (`liveEndedAt` always after `publishedAt`, since a stream can't end before it airs)
+    — true for when a video is published *before* or *as* it goes live, but not for a
+    VOD whose public listing lands well after the fact.
+  - `BUCKET_RANK`/the clamp was removed from `App.tsx`'s `rows` memo entirely — reverted
+    to the original "insert a header whenever `bucket` changes" logic. The actual fix
+    went to the shared root: `core/feed.ts`'s `effectiveDate` now clamps its
+    `liveEndedAt` branch to `Math.max(liveEndedAt, publishedAt)`, never letting the
+    effective date fall before `publishedAt`. `format.ts`'s `feedItemLabel` mirrors the
+    same clamp, so label and bucket keep agreeing. This restores the invariant
+    `effectiveDate >= publishedAt` that page-local reordering depends on to stay close
+    to the raw keyset order it's fetched in.
+  - Re-ran the same full-archive replay with the fix: regressions dropped from 6 to 1.
+    The one remaining case is a different, much rarer situation — a 24/7 "lo-fi radio"
+    livestream (`liveContent: 'live'` for weeks straight) whose `publishedAt` sits deep
+    in the archive while D-053 correctly wants it sorted at the very top of Today; a
+    single perpetually-live video will always be far from its display position in the
+    raw-`publishedAt`-ordered keyset. **Not fixed here** — genuinely needs the
+    look-ahead-across-pages redesign already flagged as out of scope for a patch (a
+    dedicated "what's live right now" query merged at the top of page 0, rather than
+    relying on keyset order to surface it), and affects at most one bucket header for a
+    kind of channel that's rare in practice. Left as a known, smaller, separate gap.
+  - Added `feed.test.ts` coverage for `liveEndedAt` preceding `publishedAt`. Checked via
+    `npm run typecheck && npm run lint && npm test` (231/231); **not run live** — needs
+    the owner's own re-check, ideally scrolling further this time since the original
+    regression only showed up after a few pages.
 
 ### B-119 — A finished Premiere keeps the "ended live broadcast" badge/sort instead of behaving like a normal video
 - **Type:** bug · **Severity:** minor
