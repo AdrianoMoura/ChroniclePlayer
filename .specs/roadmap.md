@@ -213,10 +213,73 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   Settings toggle rather than being a pure bug-fix batch). B-108, B-022, B-086, B-101 are
   untouched by this release and carry forward to `0.4.5`, renumbered from the `0.4.4`
   placeholder since this version shipped ahead of that batch.
-- **0.4.5 — in progress.** Carries B-108, B-022, B-086, B-101 forward, unchanged, from
-  0.3.0 (renumbered past 0.4.0, 0.4.1, 0.4.2, 0.4.3, and 0.4.4 — see above, none of the
-  five touched this batch). No batch of its own yet — new items reported after 0.4.4
-  shipped land here.
+- **0.4.5 — delivered, 2026-07-17.** Five Fixed entries, `bug-history/v0.4.5.md`:
+  B-116 (an all-Shorts channel with "Show Shorts" off showed empty and never
+  backfilled further back — fixed with a dedicated empty-state effect in `App.tsx`
+  since `FeedList`'s own scroll-triggered `loadMore` never ran with nothing rendered),
+  B-115 (Premieres got a distinct "Premiere" badge via a `concurrentViewers`-presence
+  heuristic, later disproven — see B-117/B-119), B-114 (a live badge/duration no
+  longer gets stuck once a broadcast ends — new sticky `was_live`, `refreshLiveStatus`
+  re-hydrates live videos every cycle for free), B-112 (opening a new video while the
+  extract/pop-out window is open now loads into that window instead of double-playing
+  in the main window), and B-113 (clickable `mm:ss` comment timestamps that seek the
+  player). B-108, B-022, B-086, B-101 carried forward, untouched. Shipped as a
+  **patch** version (a pure bug-fix/adjustment batch, no new `D-NNN` scope alongside
+  it).
+- **0.4.6 — delivered, 2026-07-19.** Not a bug-tracker batch — driven entirely by
+  D-053, a direct product-owner request raised in conversation rather than reported
+  here (same pattern as D-050–D-052). A currently-live video now sorts to the top of
+  its date bucket; an ended broadcast sorts and buckets by when it actually ended
+  (`liveStreamingDetails.actualEndTime`, new sticky `videos.live_ended_at`, schema
+  v12) rather than its original, older `publishedAt` — including broadcasts
+  discovered only after they already ended (e.g. via gap-backfill), which also now
+  get the correct feed badge. A single `effectiveDate(video, now)` drives both bucket
+  assignment and sort order, display-only in `FeedService.getSlice()` — never
+  touching the keyset pagination cursor itself (D-027). B-108, B-022, B-086, B-101
+  carried forward, untouched. Full narrative in `decisions.md` D-053. Shipped as a
+  **patch** version, per the owner's own explicit direction.
+- **0.4.7 — delivered, 2026-07-19.** Two entries, `bug-history/v0.4.7.md`: B-117
+  (Fixed — removed the unreliable Premiere-vs-live badge distinction outright, no
+  replacement signal confirmed against real data) and B-118 (Won't fix — a video the
+  owner reported missing 11 minutes after upload was confirmed to be genuine YouTube
+  RSS/CDN latency, not a Chronicle bug). B-108, B-022, B-086, B-101 carried forward,
+  untouched. Shipped as a **patch** version (a pure bug-fix batch, no new `D-NNN`
+  scope alongside it).
+- **0.4.8 — delivered, 2026-07-20.** Five Fixed entries, `bug-history/v0.4.8.md`:
+  B-119 (a finished Premiere no longer gets stuck with the "ended live broadcast"
+  treatment — fixed via a newly-confirmed signal, `status.uploadStatus ===
+  'processed'` while `liveContent === 'live'`, verified against real API data through
+  a disposable OAuth grant; the gray "ended" badge was removed outright rather than
+  accept a made-up start-time threshold that could misclassify a real broadcast
+  permanently), B-120 (feed bucket headers/labels now agree with each other around
+  live/ended broadcasts — needed a same-day round 2 once the first fix's
+  forward-only clamp turned a cosmetic bug into a data-mangling one; the owner's own
+  suggestion to check the real `chronicle.db` directly found the actual root cause —
+  some channels publish a VOD listing hours after the broadcast itself ended,
+  fixed with a `Math.max(liveEndedAt, publishedAt)` clamp), B-121 (opening the active
+  video in the browser now pauses Chronicle's own copy), B-122 (a currently-airing
+  live/Premiere shows "Started X ago" instead of a meaningless "0 min ago", feed and
+  player screen both), and B-123 (the player screen no longer shows a duration at
+  all, caught by the owner while live-testing B-122). B-108, B-022, B-086, B-101
+  carried forward, untouched. Shipped as a **patch** version (a pure bug-fix/
+  adjustment batch, no new `D-NNN` scope alongside it).
+- **0.5.0 — delivered, 2026-07-20.** Driven by D-054, a direct product-owner request
+  not sourced from `bugs-current.md` (same pattern as D-050–D-053): a Language setting
+  (Settings dropdown, first section on the screen, defaulting to "Follow system"),
+  backed by a locale registry discovered at build time via `import.meta.glob` — adding
+  a translation is only a PR adding one file. Ships with English and Portuguese
+  (Brazil) at launch. Same-day fixes for module-level `t()` calls that had gone stale
+  on a language switch (sidebar view labels, feed bucket headers, wizard console
+  steps), plus a language picker added to the onboarding wizard's own Welcome screen.
+  Full narrative in `decisions.md` D-054. Alongside it, `bug-history/v0.5.0.md`
+  closes B-086 (Won't fix — live-tested: an authenticated `playlistItems.list` call
+  doesn't surface members-only content either, no TOS-compliant endpoint exists).
+  B-108, B-022, B-101 carried forward, untouched, now targeting **0.5.1** (renumbered
+  from `0.4.5`/`0.4.9`, since 0.4.5–0.4.8 and 0.5.0 all shipped ahead of them).
+  Shipped as a **minor** version — D-054 is real new scope, not a bug-fix batch.
+- **0.5.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+  (renumbered past 0.4.0 through 0.4.8 and 0.5.0 — see above, none touched this
+  batch). No batch of its own yet — new items reported after 0.5.0 shipped land here.
 
 ## M0 — Walking skeleton
 

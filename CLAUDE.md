@@ -243,30 +243,127 @@ the feed never notifies regardless of `notifyShorts`. Full narrative in `decisio
 D-052 — no `bug-history/` file, since this didn't come through the bug tracker. See
 `.specs/roadmap.md` §Release status for the exact shipped scope.
 
+**`0.4.5` shipped 2026-07-17** — a normal bug-tracker batch, five entries all Fixed the
+same day they were reported: B-116 (an all-Shorts channel with "Show Shorts" off
+showed empty and never backfilled further back, because `App.tsx` never rendered
+`FeedList` — and therefore never ran its scroll-triggered `loadMore` — once the page
+was empty; fixed with a dedicated empty-state effect), B-115 (Premieres got their own
+"Premiere" badge instead of masquerading as "Live", via a `concurrentViewers`-presence
+heuristic explicitly flagged as unconfirmed against real data — later disproven and
+replaced, see B-117/B-119 below), B-114 (a live badge/duration no longer gets stuck
+once a broadcast ends — new sticky `was_live`, `refreshLiveStatus` now re-hydrates live
+videos every cycle for free), B-112 (opening a new video while the extract/pop-out
+window is open now loads into that window instead of double-playing in the main
+window), and B-113 (clickable `mm:ss` comment timestamps that seek the player, plus
+scrolling back to the top on click, per the owner's same-day follow-up). Shipped as a
+**patch** version. Full narrative in `bug-history/v0.4.5.md`.
+
+**D-053 (live-sort ordering) shipped in `0.4.6`, 2026-07-19** — a direct
+product-owner request, not sourced from `bugs-current.md`, same pattern as D-050–D-052.
+A currently-live video now sorts to the top of its date bucket instead of sinking under
+its original (possibly hours-old) `publishedAt`; an ended broadcast sorts and buckets
+by when it actually ended (`liveStreamingDetails.actualEndTime`, new sticky
+`videos.live_ended_at`, schema v12) rather than its stale start time — including
+broadcasts discovered only after they'd already ended (e.g. via gap-backfill), which
+also now get the feed's existing gray "ended" badge for free. One design was rejected
+mid-conversation (a separate bucket-less "Live now" section, mirroring D-039's
+favorites section — the owner wanted this to stay "just ordering," no new section) and
+one gap was caught by the owner's own follow-up (a broadcast crossing midnight sorting
+right but bucketing under the wrong day) before landing on a single `effectiveDate(video,
+now)` value driving both bucket assignment and sort order, applied display-only in
+`FeedService.getSlice()` — never touching the keyset pagination cursor itself (D-027),
+which deliberately stays on raw `publishedAt`. Shipped as a **patch** version, per the
+owner's own explicit direction. Full narrative in `decisions.md` D-053 — no
+`bug-history/` file, since this didn't come through the bug tracker.
+
+**`0.4.7` shipped 2026-07-19** — a normal bug-tracker batch, two entries: B-117 (a
+genuine live broadcast was transiently misidentified as a Premiere right as it went
+live, self-correcting a while later — rather than patch the heuristic again, the owner
+chose to remove the whole Premiere/Live distinction outright, since neither of two
+replacement-signal candidates could be verified against a real Premiere in the session;
+the feed shows only "Live"/"Upcoming"/ended again) and B-118 (a video the owner
+reported missing 11 minutes after upload turned out to be genuine YouTube RSS/CDN
+latency, confirmed by checking the raw feed directly — Won't fix, not a Chronicle
+bug). Shipped as a **patch** version (a pure bug-fix batch, no new `D-NNN` scope
+alongside it). Full narrative in `bug-history/v0.4.7.md`.
+
+**`0.4.8` shipped 2026-07-20** — a normal bug-tracker batch, five entries all Fixed:
+B-119 (the flip side of B-117's removal — a finished Premiere kept the "ended live
+broadcast" treatment instead of settling back into a normal video; fixed via a
+newly-confirmed signal, `status.uploadStatus === 'processed'` while `liveContent ===
+'live'`, found and verified against real API data through a disposable OAuth grant
+after two other candidates — a public "live videos" playlist, and `liveBroadcasts.list`
+— were ruled out by checking the docs first; a known gap, a Premiere first hydrated
+only after it already ended, led the owner to remove the gray "ended" badge outright
+rather than accept a made-up start-time threshold that could misclassify a real
+broadcast permanently), B-120 (feed bucket headers repeating out of order and
+relative-time labels disagreeing with their bucket — needed a same-day round 2 once the
+first fix's forward-only clamp turned a cosmetic bug into a data-mangling one; the
+owner's own suggestion to check the real `chronicle.db` directly, rather than reason
+from code alone, found the actual root cause — some channels publish a VOD listing
+hours after the broadcast itself ended, violating an assumption D-053's `effectiveDate`
+made implicitly — fixed with a `Math.max(liveEndedAt, publishedAt)` clamp), B-121
+(opening the active video in the browser now pauses Chronicle's own copy instead of
+both playing at once), B-122 (a currently-airing live/Premiere shows "Started X ago"
+instead of a meaningless "0 min ago", on both the feed and the player screen, off a
+newly-captured `liveStreamingDetails.actualStartTime` riding free on the existing
+hydration call), and B-123 (the player screen no longer shows a duration at all, caught
+by the owner while live-testing B-122 — always wrong for a live/Premiere and redundant
+with the embed's own controls otherwise). Shipped as a **patch** version (a pure
+bug-fix/adjustment batch, no new `D-NNN` scope alongside it). Full narrative in
+`bug-history/v0.4.8.md`.
+
+**D-054 (localization: a Language setting) shipped in `0.5.0`, 2026-07-20** — a direct
+product-owner request, not sourced from `bugs-current.md`, same pattern as D-050–D-053.
+Turns the existing single-locale `t(key, vars)` lookup (B-017) into a real multi-locale
+system: a Settings dropdown (first section on the screen), defaulting to "Follow
+system," backed by a locale registry discovered at build time via `import.meta.glob`
+over `src/ui/i18n/locales/*.ts` — contributing a translation is only a PR adding one
+file, no registry to edit. Ships with English (the complete source-of-truth dict) and
+Portuguese (Brazil) at launch; any other locale file is allowed to be a partial `Dict`,
+falling back to English per missing key. A pure-string `AppSettings.language`
+(`'system'` sentinel or a locale code) keeps `settings-store.ts` decoupled from which
+locales happen to exist. Applying a change with no restart needed careful placement:
+`App.tsx` calls `setLocale()` synchronously before its own `setSettings()` re-render, at
+both points that ever change the setting. **Revised the same day, the owner's own live
+catch:** three call sites (`Sidebar.tsx`'s view labels, `App.tsx`'s feed date-bucket
+headers, `onboarding/Wizard.tsx`'s console-step text) had baked `t()` into a
+module-level constant evaluated once at import time, so they stayed stuck in whichever
+language loaded first — fixed by converting all three into plain functions called
+fresh at render time; one of them needed a second fix beyond that, adding
+`settings.language` to a `useMemo`'s dependency array the linter couldn't see was
+affected. **Also added, prompted by the owner noticing they had no way to change the
+language before ever reaching Settings:** a language dropdown on the onboarding
+wizard's own Welcome screen. Checked via `npm run typecheck && npm run lint && npm
+test` plus a production build. Shipped as a **minor** version (real new scope, not a
+bug-fix batch). Full narrative in `decisions.md` D-054 — no `bug-history/` file, since
+this didn't come through the bug tracker.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
 the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
-each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, and `0.4.3`
-have shipped and are archived in `bug-history/` (`0.2.1` was a single one-off patch with
-no batch of its own — see `bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110,
-both Fixed) was originally tracked toward a `0.2.3` patch but grew into real new scope
-along the way — D-048 removed a whole failure-handling subsystem (channels no longer
-get permanently marked "unavailable" off a single transient RSS 404), a
+each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
+`0.4.5`, `0.4.7`, `0.4.8`, and `0.5.0` have shipped and are archived in `bug-history/`
+(`0.2.1` was a single one-off patch with no batch of its own — see
+`bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
+originally tracked toward a `0.2.3` patch but grew into real new scope along the way —
+D-048 removed a whole failure-handling subsystem (channels no longer get permanently
+marked "unavailable" off a single transient RSS 404), a
 previously-documented-but-never-built per-channel RSS retry-with-backoff was actually
 implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
-entirely. `0.4.0` (D-050, above) shipped the same way — real new scope, not a
-bug-tracker batch, no `bug-history/` file of its own (same pattern as `0.2.1`). `0.4.1`
-(the B-108 revert) shipped as a **patch** instead — a revert, not new scope, and not a
-fix for anything in the batch below. `0.4.2` (D-051) also shipped as a **patch**, per
-the owner's own explicit direction, even though it lands a new Settings toggle rather
-than being a pure bug-fix batch. `0.4.3` (B-111, above) shipped as a **patch** too — a
-single minor-severity bug fix, the normal case this file's "pure bug-fix batch ships as
-a patch" rule describes. `0.4.4` (D-052, above) also shipped as a **patch**, per the
-owner's own explicit direction, even though it lands a new Settings toggle rather than
-being a pure bug-fix batch. `bugs-current.md` now targets **0.4.5**, renumbered from
-`0.4.4` since that version shipped ahead of it (carries B-108, B-022, B-086, B-101
-forward, untouched, from 0.3.0). Version bumps aren't always minor — a pure bug-fix
-batch ships as a patch release, a minor bump is reserved for batches that land real new
-scope, but the owner's own explicit call on a given release always wins. See
-`.specs/roadmap.md` §Release status for the summary.
+entirely. `0.4.0` (D-050), `0.4.6` (D-053), and `0.5.0`'s driving decision (D-054,
+above) all shipped real new scope with no bug-tracker batch of their own — `0.4.0` and
+`0.4.6` have no `bug-history/` file at all; `0.5.0` has one, but only because B-086
+also happened to close out during the same cycle, not because the batch itself drove
+the version bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
+not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
+owner's own explicit direction, even though each lands a new Settings toggle rather
+than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, and `0.4.8` (all
+above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
+describes. `bugs-current.md` now targets **0.5.1**, carrying [[B-108]], [[B-022]],
+[[B-101]] forward untouched (B-086, the fourth item carried since 0.3.0, closed as
+Won't fix in `0.5.0` — see `bug-history/v0.5.0.md`). Version bumps aren't always
+minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for
+batches that land real new scope, but the owner's own explicit call on a given release
+always wins. See `.specs/roadmap.md` §Release status for the summary.
