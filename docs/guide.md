@@ -119,9 +119,8 @@ and Favorites.
 ### Language
 
 - **Language**: "Follow system" (the default, based on your OS language) or
-  pick one explicitly. Ships with English and Portuguese (Brazil); a
-  translation can be incomplete — any string it's missing just falls back to
-  English.
+  pick one explicitly. A translation can be incomplete — any string it's
+  missing just falls back to English.
 
 Chronicle's translations live in
 [`src/ui/i18n/locales/`](https://github.com/AdrianoMoura/ChroniclePlayer/tree/main/src/ui/i18n/locales)
