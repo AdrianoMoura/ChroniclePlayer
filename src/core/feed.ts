@@ -46,25 +46,15 @@ function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
   return a.video.videoId < b.video.videoId ? -1 : 1
 }
 
-// D-053: the single timestamp that drives both which date bucket a video
-// lands in AND its sort position — publishedAt for anything that was never
-// live; `now` while a broadcast is genuinely live (so it always sorts to
-// the top of "today", however long ago it actually started, since it's
-// still happening); liveEndedAt once a broadcast has ended (so a stream
-// that crossed midnight, e.g. started 20:00 and ended 02:00, now shows
-// under the date it actually wrapped, not the date it started). Bucket and
-// sort order deliberately share this one value, never two different
-// timestamps — otherwise an entry could "jump" a bucket boundary in sort
-// order without its header landing at the right point, since neither
-// groupFeed's Map-based grouping nor feed-service.ts's flat "insert a
-// header whenever the bucket changes" read model has a separate pass that
-// would catch that.
+// D-053: the single timestamp driving both bucket and sort order —
+// publishedAt normally; `now` while genuinely live (always sorts atop
+// "today"); liveEndedAt once ended (so a stream crossing midnight lands
+// under the day it wrapped, not the day it started). Bucket and sort must
+// share this one value, or an entry could sort into one bucket while its
+// header renders in another.
 export function effectiveDate(video: Video, now: Date): Date {
-  // A Premiere sorts like a plain video always (publishedAt, below), never
-  // "now" — it's a synchronized watch-along of an already-recorded video,
-  // not an open-ended broadcast. liveEndedAt is never captured for one
-  // either (sync-repository.ts), so it falls through to publishedAt on its
-  // own once it ends.
+  // A Premiere always sorts like a plain video (publishedAt), never "now" —
+  // it's a watch-along of an already-recorded video, not an open broadcast.
   if (video.liveContent === 'live' && !video.isPremiere) return now
   if (video.liveEndedAt) {
     // liveEndedAt isn't always after publishedAt (some channels publish a
@@ -92,7 +82,7 @@ function localDayNumber(date: Date): number {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000
 }
 
-// D-017 (Pending; recommended option exercised): weeks start on ISO Monday.
+// D-017 (Pending): weeks start on ISO Monday.
 function isoWeekdayIndex(date: Date): number {
   return (date.getDay() + 6) % 7
 }

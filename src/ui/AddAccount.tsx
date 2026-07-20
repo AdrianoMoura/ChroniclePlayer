@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { t } from './i18n'
 
-// B-003: adding an additional account skips the Google-console walkthrough
-// entirely — the OAuth client is already set up and shared across accounts
-// (D-030/D-032's "just add yourself as a Test user" model). Distinct from
-// the full first-run Wizard, which only the very first account ever needs.
+// Adding an account skips the Google-console walkthrough — the OAuth client
+// is already set up and shared across accounts (D-030/D-032). The full
+// first-run Wizard is only for the very first account.
 
 const TEST_USERS_URL = 'https://console.cloud.google.com/apis/credentials/consent'
 
@@ -17,8 +16,7 @@ export function AddAccount({ onConnected, onCancel }: AddAccountProps) {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // B-043: matches every other overlay (Help, URL prompt) — Esc closes it,
-  // not just the backdrop click.
+  // Esc closes it, matching every other overlay (Help, URL prompt).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       if (event.key === 'Escape') onCancel()

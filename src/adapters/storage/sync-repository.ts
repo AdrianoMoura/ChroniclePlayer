@@ -231,16 +231,11 @@ export class SqliteSyncRepository implements SyncRepository {
   // Hydration upserts full facts — it also creates rows for gap-backfilled
   // videos that never passed through RSS.
   applyHydration(videos: readonly HydratedVideo[], now: string): void {
-    // live_ended_at is sticky via COALESCE — once a real end time is
-    // captured it's never overwritten by a later cycle that (for any reason)
-    // doesn't report one again. is_premiere is sticky the same way, and also
-    // gates live_ended_at so a Premiere never gets the livestream-wrap sort
-    // treatment — live_ended_at is left alone (never COALESCE'd in) whenever
-    // the video is a premiere, this cycle or a previously-captured one.
-    // `is_premiere` on the right of that CASE reads the pre-update row
-    // (SQLite evaluates an UPDATE's SET expressions against the old row, not
-    // each other), so it correctly reflects history already on the row, not
-    // this statement's own new value.
+    // live_ended_at and is_premiere are both sticky via COALESCE/CASE — once
+    // set, a later cycle that reports nothing never clears them. is_premiere
+    // also gates live_ended_at so a Premiere never gets the livestream-wrap
+    // sort. `is_premiere` on the right of that CASE reads the pre-update row
+    // (SQLite evaluates an UPDATE's SET expressions against the old row).
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,

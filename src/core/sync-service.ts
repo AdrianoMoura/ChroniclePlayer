@@ -23,10 +23,8 @@ export interface SyncProgress {
   total: number
 }
 
-// B-097: the raw per-channel (or account-level, when channelId is null —
-// e.g. the subscription re-list itself, or a hydration batch spanning more
-// than one channel) detail behind channelsFailed, so a failure banner has
-// something to actually show beyond a bare count.
+// B-097: per-channel (or account-level, when channelId is null) failure
+// detail behind channelsFailed, so a failure banner has something to show.
 export interface SyncFailureDetail {
   channelId: string | null
   channelTitle: string | null
@@ -41,19 +39,16 @@ export interface SyncReport {
   channelsFailed: number
   failures: SyncFailureDetail[]
   videosNew: number
-  // D-050: same information as videosNew, broken down per channel — only
-  // channels with at least one newly discovered video are listed.
-  // D-052: shortsCount (how many of count are confirmed Shorts) is filled in
-  // after confirmShorts() runs below, so it reflects that cycle's verdicts.
+  // Per-channel breakdown of videosNew, channels with ≥1 new video only (D-050).
+  // shortsCount is filled in after confirmShorts() settles this cycle's verdicts (D-052).
   newVideosByChannel: { channelId: string; channelTitle: string; count: number; shortsCount: number }[]
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
   // The subscription-list diff for this run (B-021: every sync re-lists —
   // no gate, no separate manual action; new channels never wait).
   subscriptions: { added: number; removed: number } | null
-  // True the very first time this account ever synced subscriptions
-  // (B-020: drives the connect-time backlog auto-read — the composition
-  // root marks pre-existing videos read after this report comes back).
+  // True on an account's first-ever subscription sync — the composition
+  // root uses this to mark the backlog read after the report returns (B-020).
   firstSync: boolean
 }
 
@@ -61,11 +56,8 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-// youtube-api.md politeness rule (raised from 8 to 12, product owner's call,
-// 2026-07-16: live testing showed the RSS failure rate is roughly the same
-// concurrent or sequential, so this only trades a bit of "politeness"
-// headroom for a shorter wait before the first sync's channel-discovery
-// phase — and therefore hydration/the feed itself — finishes).
+// youtube-api.md politeness bound — concurrency doesn't meaningfully affect
+// RSS failure rate, so a higher value only shortens first-sync discovery time.
 const RSS_CONCURRENCY = 12
 const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
@@ -76,17 +68,10 @@ const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
 // so a single scroll-triggered fetch can't run away.
 const ARCHIVE_BACKFILL_PAGE_LIMIT = 4
 // youtube-api.md §Failure handling: exponential backoff, per-channel, up to
-// RSS_RETRY_ATTEMPTS attempts per cycle. YouTube's RSS backend (a distinct,
-// less reliable service from the main site — confirmed live: valid, active
-// channels return transient 404/500 from it under ordinary conditions, no
-// special load required, and a plain retry moments later often succeeds) is
-// flaky enough that most of these resolve within the same cycle rather than
-// waiting for the next one. Since B-110's fix made these failures silent by
-// default (D-049 — no banner for an ordinary partial failure), a higher
-// attempt count is pure upside for cutting the residual failure rate
-// further, bounded only by how long a fully-failing channel holds its
-// RSS_CONCURRENCY worker slot (worst case here: sum of the backoff delays
-// below, a few seconds).
+// RSS_RETRY_ATTEMPTS attempts per cycle — YouTube's RSS backend returns
+// transient 404/500 for active channels, and most resolve within the same
+// cycle. Bounded by how long a fully-failing channel holds its
+// RSS_CONCURRENCY worker slot (worst case: the sum of the backoff delays below).
 const RSS_RETRY_ATTEMPTS = 5
 const RSS_RETRY_BASE_MS = 300
 
@@ -111,11 +96,9 @@ interface RefreshContext {
 export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
-  // channelId scopes the whole run to one channel (B-036): the subscription
-  // re-list is skipped (nothing to gain re-listing every channel to refresh
-  // one), and both channel discovery and Shorts confirmation are filtered to
-  // it. accountId (B-003) scopes which account's subscriptions/tokens this
-  // run uses — the repo is shared across accounts, so every call threads it.
+  // channelId scopes the whole run to one channel (B-036) — subscription
+  // re-list is skipped, discovery and Shorts confirmation filter to it.
+  // accountId (B-003) selects whose subscriptions/tokens this run uses.
   async refresh(trigger: SyncTrigger, accountId: string, channelId?: string): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
@@ -124,9 +107,8 @@ export class SyncService {
     let channelsFailed = 0
     let channelsPolled = 0
     let videosNew = 0
-    // D-050: per-channel new-video counts, free information already known at
-    // this point in the discovery loop below — used by the (main-process,
-    // not core) opt-in notification feature to resolve its channel scope.
+    // Per-channel new-video counts, used by main-process notifications to
+    // resolve their channel scope (D-050).
     const newVideosByChannel: SyncReport['newVideosByChannel'] = []
     let subscriptions: { added: number; removed: number } | null = null
     const failures: SyncFailureDetail[] = []
@@ -154,9 +136,8 @@ export class SyncService {
       this.deps.onProgress?.({ phase: 'channels', checked, total: channels.length })
 
       const toHydrate: string[] = []
-      // D-052: kept alongside newVideosByChannel so shortsCount can be
-      // resolved once confirmShorts() below has settled this cycle's Shorts
-      // candidates — at discovery time isShort isn't known yet.
+      // Kept alongside newVideosByChannel so shortsCount can be resolved
+      // once confirmShorts() settles this cycle's verdicts (D-052).
       const newIdsByChannel = new Map<string, string[]>()
       const results = await mapPool(channels, RSS_CONCURRENCY, async (channel) => {
         const newIds = await this.discoverChannel(channel, ctx)
@@ -194,16 +175,9 @@ export class SyncService {
 
       const newIds = [...new Set(toHydrate)]
       videosNew = newIds.length
-      // B-020/B-069, amended by B-105 (2026-07-16, owner's call): on an
-      // account's very first sync there is no prior visit for "today's
-      // videos" to be new relative to — every video discovered is an
-      // equally uninformed guess about relevance, so none of it should
-      // render as unread, not just the backlog published before today.
-      // Applied here, per hydrated batch, rather than only once in a
-      // retroactive pass after every channel finishes (which left a long
-      // window where a feed reload mid-sync showed them as unread).
-      // Every subsequent sync (routine or backfill) is unaffected and
-      // marks newly discovered videos unread as normal.
+      // On an account's first sync, every discovered video is marked read
+      // instead of unread — applied per hydrated batch so a feed reload
+      // mid-sync never shows them unread (B-020, B-069, B-105).
       if (!ctx.quotaHit && newIds.length > 0) {
         try {
           for (let i = 0; i < newIds.length; i += HYDRATE_BATCH) {
@@ -319,12 +293,8 @@ export class SyncService {
     return report
   }
 
-  // Re-lists subscriptions on every sync (B-021 — no gate, no separate
-  // manual action: a new subscription shows up on the very next sync,
-  // launch/manual/timer alike). Cost is a few units per run
-  // (subscriptions.list, 1 unit per 50) — cheap enough at any reasonable
-  // refresh interval that gating it added friction for no real saving
-  // (youtube-api.md §Subscription import & sync).
+  // Re-lists subscriptions on every sync, no gate (B-021) — a few units per
+  // run (subscriptions.list, 1 unit per 50), cheap enough not to bother gating.
   private async syncSubscriptions(
     accountId: string
   ): Promise<{ added: number; removed: number }> {
@@ -385,19 +355,11 @@ export class SyncService {
     const newIds = newEntries.map((entry) => entry.videoId)
 
     // Gap detection: any newly discovered video on a previously synced
-    // channel is reason enough to check the uploads playlist for older
-    // misses (feed.md §Backfill). Previously gated on the *entire* RSS
-    // window being new — but a window that's a mix of known and new entries
-    // can still hide a real gap: RSS only ever shows the ~15 most recent
-    // entries, so a video missed on a day sync failed (or otherwise never
-    // got captured) silently falls out of every future window the moment
-    // enough newer videos push it out, regardless of whether *this* cycle's
-    // window happens to still contain some already-known entry too
-    // (`bugs.md` B-051, hypothesis 6). `backfillGap` itself already checks
-    // the real DB-known set per page (not just this window), so it stops at
-    // the very first overlapping page in the common, gap-free case — the
-    // extra cost of checking is normally one bounded page fetch, not a deep
-    // walk; GAP_BACKFILL_MAX still caps the worst case.
+    // channel triggers a check of the uploads playlist for older misses
+    // (feed.md §Backfill, B-051) — a mix of known and new entries in the RSS
+    // window can still hide a real gap. backfillGap stops at the first page
+    // it finds already known, so the common gap-free case costs one bounded
+    // page fetch; GAP_BACKFILL_MAX caps the worst case.
     const possibleGap =
       newIds.length > 0 && channel.lastSyncedAt !== null && channel.uploadsPlaylist !== null
     if (possibleGap && !ctx.quotaHit) {
@@ -418,11 +380,9 @@ export class SyncService {
   }
 
   // B-002: user-initiated back-catalog fetch — paginates a channel's uploads
-  // playlist from wherever the last on-demand call left off, hydrates
-  // whatever is genuinely new, and stops once it finds something to show
-  // (or hits the page bound). Distinct from backfillGap: this is scroll-
-  // triggered, resumable across calls (backfill_page_token), and has no
-  // relation to routine sync's gap detection.
+  // playlist from wherever the last call left off, hydrates whatever is
+  // genuinely new, and stops once it finds something (or hits the page
+  // bound). Resumable across calls, independent of routine sync's gap detection.
   async backfillArchive(
     accountId: string,
     channelId: string
@@ -492,19 +452,11 @@ export class SyncService {
     return collected.slice(0, GAP_BACKFILL_MAX)
   }
 
-  // B-085/B-114: liveContent is captured once, at hydration time — a video
-  // that was `upcoming` then stays `upcoming` forever unless something
-  // re-checks it, and the mirror-image case (B-114) is just as stuck: a
-  // video hydrated while genuinely live stays `live` forever once the
-  // broadcast actually ends, badge and all, and its duration_seconds stays
-  // at the 0 the API reports for an in-progress broadcast — nothing else
-  // ever re-queries either case. Bounded by however many local videos are
-  // actually still flagged upcoming/live (typically tiny), re-hydrated the
-  // same way newly discovered videos are — re-hydrating both together costs
-  // nothing extra (videos.list is 1 unit per call regardless of how many of
-  // the up-to-50 ids in it are upcoming vs. live, youtube-api.md). Tolerant
-  // of failure the same way confirmShorts is: a video left at
-  // `upcoming`/`live` just gets retried on the next cycle.
+  // liveContent is captured once at hydration time and never re-checked
+  // otherwise, so `upcoming`/`live` videos would get stuck forever (B-085,
+  // B-114) — re-hydrated here every cycle instead, at no extra quota cost
+  // (videos.list is 1 unit per call regardless of id count). Failures just
+  // leave a video stuck for one more cycle, retried next time.
   private async refreshLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
     if (ctx.quotaHit) return
     const ids = [

@@ -3,11 +3,10 @@ import { readFileSync } from 'node:fs'
 import { hostname, userInfo } from 'node:os'
 import type { SecretCipher } from './file-secret-store'
 
-// D-013 fallback (b): when no OS keychain exists (headless Linux, minimal
-// WMs), secrets are encrypted with a key derived from stable machine facts.
-// This is obfuscation, not protection against the local user — isSecure()
-// says so and the UI shows the honest warning. Still strictly better than
-// plaintext (survives casual file exposure, backups, greps).
+// D-013 fallback: when no OS keychain exists (headless Linux, minimal WMs),
+// secrets are encrypted with a key derived from stable machine facts. This is
+// obfuscation, not protection against the local user — isSecure() reports it
+// so the UI can show an honest warning. Still better than plaintext.
 
 const KEY_CONTEXT = 'chronicle-secret-store-v1'
 const IV_LENGTH = 12

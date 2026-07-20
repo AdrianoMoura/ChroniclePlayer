@@ -9,11 +9,9 @@ import {
   type OAuthClientCredentials
 } from './google-oauth'
 
-// B-003: the OAuth client (one Google Cloud project) is shared across every
+// The OAuth client (one Google Cloud project) is shared across every
 // connected account — only the refresh token and granted scopes are
-// per-account. 'default' is the pre-existing single-account id: this keeps
-// upgrades from an older single-account install working with zero secret
-// migration, since that's exactly the literal key already in use there.
+// per-account (B-003). 'default' is the single-account id.
 export const SECRET_KEYS = {
   oauthClient: 'default/oauth-client'
 } as const
@@ -65,9 +63,8 @@ export function readStoredCredentials(secrets: SecretStore): OAuthClientCredenti
 
 // Produces valid access tokens on demand; access tokens live in this
 // process's memory only, never on disk (authentication.md §Token lifecycle).
-// B-003: one instance per connected account — each mints from its own
-// refresh token, sharing nothing but the OAuth client and (by the caller
-// wiring the same QuotaSink into every account's YouTubeApiClient) the quota.
+// One instance per connected account — each mints from its own refresh
+// token, sharing only the OAuth client and quota (B-003).
 export class GoogleAuthProvider implements AuthProvider {
   private cached: { token: string; expiresAtMs: number } | null = null
   private readonly keys: { refreshToken: string; grantedScopes: string }
@@ -100,10 +97,9 @@ export class GoogleAuthProvider implements AuthProvider {
   }
 }
 
-// The interactive connect flow: system browser + loopback + PKCE.
-// B-003: one instance per account — importClientSecret is only ever called
-// on the first-ever instance (the shared OAuth client), but connect/signOut/
-// scope state are per-account since each account has its own refresh token.
+// The interactive connect flow: system browser + loopback + PKCE. One
+// instance per account; importClientSecret affects the shared OAuth client,
+// while connect/signOut/scope state stay per-account (B-003).
 export class AuthFlow {
   private readonly keys: { refreshToken: string; grantedScopes: string }
 

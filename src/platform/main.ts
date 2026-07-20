@@ -58,27 +58,20 @@ import { createAppTray } from './tray'
 
 const clock: Clock = { now: () => new Date() }
 
-// D-050: before tray-resident mode existed, closing the window always quit
-// the app, so relaunching it (e.g. restarting the dev server) never left a
-// stale process behind. Now that "Run in background" keeps the process
-// alive with no window open, launching a second instance on top of a
-// tray-resident one would leave two independent processes each with their
-// own tray icon — the first (ghost) one never torn down, and unaffected by
-// Settings changes made in the second. This must be checked before anything
-// else registers.
+// Must be checked before anything else registers: with "Run in background"
+// (D-050) keeping the process alive with no window open, a second launch
+// on top of a tray-resident instance would leave two independent processes
+// each with their own tray icon.
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
   app.quit()
 }
 
-// D-050: "start minimized" needs to know a given launch was actually
-// triggered by the OS autostart entry, not a manual open — a manual launch
-// should always show the window regardless of this setting. macOS reports
-// this natively (wasOpenedAtLogin); Windows has no such per-launch signal,
-// so applyAutoStart() below bakes this flag into the login item's own args
-// (Electron's Settings.args is win32-only) — read back here at boot.
-// Linux has no Electron-level login-item API at all (linux-autostart.ts's
-// own .desktop Exec= line), so the same flag doubles as its detection too.
+// "Start minimized" (D-050) needs to know a launch was actually triggered by
+// the OS autostart entry, not a manual open. macOS reports this natively
+// (wasOpenedAtLogin); Windows/Linux have no per-launch signal, so
+// applyAutoStart() below bakes this flag into the login item's args /
+// .desktop Exec= line, read back here at boot.
 const AUTOSTART_HIDDEN_FLAG = '--hidden'
 function wasLaunchedViaAutostart(): boolean {
   if (process.platform === 'darwin') return app.getLoginItemSettings().wasOpenedAtLogin
@@ -234,30 +227,25 @@ function chooseSecretStore(file: string): FileSecretStore {
   return new FileSecretStore(file, ciphers[chosen], chosen)
 }
 
-// electron-vite's dev orchestrator sets this once on this process and it
-// stays set for the process's whole lifetime — including across a "delete
-// all data" reset, which no longer spawns a new process at all (see boot()).
+// electron-vite's dev orchestrator sets this once for the process's whole
+// lifetime, including across a "delete all data" reset (boot() reruns
+// in-process rather than spawning a new one).
 function devRendererUrl(): string | undefined {
   return process.env['ELECTRON_RENDERER_URL']
 }
 
-// B-093: deliberately *not* a named partition — every BrowserWindow here
-// omits `webPreferences.partition`, which means they all share Electron's
-// one unnamed default session, same as the player's embedded iframe (a
-// plain <iframe> always inherits its embedding page's session — there's no
-// per-iframe override) and the "Sign in to YouTube" window below. This was
-// tried as an explicitly *named* partition first, which broke thumbnails:
-// `protocol.handle()` (used for `thumb://` further down) registers on
-// `session.defaultSession` specifically, and a custom partition is a
-// different session with no handler on it at all. The default session was
-// always the right answer anyway — Chronicle's own OAuth connect flow
-// (D-001/D-012) runs in the *system* browser, never touching this one, so
-// it starts out signed into nothing regardless of a custom name.
+// Deliberately not a named partition (B-093): every BrowserWindow here omits
+// `webPreferences.partition`, so they all share Electron's default session —
+// same as the player's embedded iframe (inherits its embedding page's
+// session) and the "Sign in to YouTube" window below. `protocol.handle()`
+// (used for `thumb://` further down) registers on `session.defaultSession`
+// specifically, so a named partition would have no handler on it. Chronicle's
+// own OAuth flow (D-001/D-012) runs in the system browser, never this
+// session, so it starts out signed into nothing regardless.
 
-// Shared by createWindow() and the B-045 extract-to-window flow below —
-// both load the exact same renderer bundle; the extracted window just adds
-// a query string the renderer's main.tsx checks to render a different, much
-// smaller UI instead of the full app (see src/ui/main.tsx).
+// Shared by createWindow() and the extract-to-window flow below (B-045) —
+// both load the same renderer bundle; the extracted window adds a query
+// string main.tsx checks to render a smaller UI instead of the full app.
 function loadRenderer(window: BrowserWindow, query?: Record<string, string>): void {
   const qs = query ? `?${new URLSearchParams(query).toString()}` : ''
   const rendererUrl = devRendererUrl()
@@ -274,10 +262,10 @@ function loadRenderer(window: BrowserWindow, query?: Record<string, string>): vo
   }
 }
 
-// D-050: build/icon.png isn't part of electron-builder's `files` (only
-// consumed at package time for the app's own OS icon) — extraResources
-// copies it to resources/icon.png for the packaged app; in dev it's just the
-// project's own build/icon.png.
+// build/icon.png isn't part of electron-builder's `files` (only consumed at
+// package time for the app's own OS icon) — extraResources copies it to
+// resources/icon.png for the packaged app; in dev it's the project's own
+// build/icon.png (D-050).
 function trayIconPath(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'icon.png')
@@ -303,18 +291,16 @@ function createWindow(): BrowserWindow {
   })
   loadRenderer(window)
   mainWindow = window
-  // D-050: while "Run in background" is on, closing the window hides it to
-  // the tray instead of quitting — the tray's own Quit item (or any other
-  // real quit path) sets isQuitting first so this doesn't also intercept that.
+  // While "Run in background" is on, closing the window hides it to the tray
+  // instead of quitting (D-050) — the tray's own Quit item (or any other real
+  // quit path) sets isQuitting first so this doesn't also intercept that.
   window.on('close', (event) => {
     if (backgroundModeEnabled && !isQuitting) {
       event.preventDefault()
       window.hide()
-      // D-051: hiding alone used to leave a still-playing video running
-      // silently behind the tray icon — the renderer decides whether to pop
-      // it out to the always-on-top window or pause it, per
-      // settings.popOutOnClose (it owns the live playback state; this
-      // process doesn't).
+      // The renderer decides whether to pop the video out to the always-on-top
+      // window or pause it, per settings.popOutOnClose (D-051) — it owns the
+      // live playback state, this process doesn't.
       broadcast({ type: 'app:closedToTray' })
     }
   })
@@ -324,28 +310,23 @@ function createWindow(): BrowserWindow {
   return window
 }
 
-// B-045: a second BrowserWindow (its own renderer process — the live
-// iframe's DOM node can't move between them) hosting the minimal
-// ExtractedPlayerWindow UI, seeked to wherever the main window's player was
-// when the user chose to extract. alwaysOnTop is the whole point: a small
-// floating video that stays above other windows while the user works.
+// A second BrowserWindow (its own renderer process — the live iframe's DOM
+// node can't move between them) hosting the minimal ExtractedPlayerWindow UI,
+// seeked to wherever the main window's player was when extracted (B-045).
+// alwaysOnTop is the point: a small floating video above other windows.
 function createExtractWindow(
   videoId: string,
   title: string,
   startSeconds: number,
   playing: boolean,
   defaultPlaybackRate: number,
-  // D-051: true when this extraction was triggered by closing the window to
-  // the tray rather than the user pressing `p` — closing this window then
-  // should stop the video for good, not hand it back to the (possibly still
-  // hidden) main window.
+  // True when extraction was triggered by closing to tray rather than the
+  // user pressing `p` (D-051); its close must stop the video for good, not
+  // hand it back to the possibly still-hidden main window.
   auto: boolean
 ): void {
-  // B-112: guards against ever having two extract windows open at once —
-  // nothing in the renderer currently offers a way to trigger a second
-  // extraction while one is already open (the main window's own player is
-  // empty for as long as the extract window is up), but this makes that
-  // invariant hold even if that ever changes, rather than assuming it.
+  // Guards against two extract windows open at once (B-112) — not currently
+  // reachable from the renderer, but enforced here regardless.
   if (extractWindow !== null && !extractWindow.isDestroyed()) {
     extractWindow.destroy()
   }
@@ -379,16 +360,15 @@ function createExtractWindow(
     rate: String(defaultPlaybackRate)
   })
   extractWindow = window
-  // B-112: tracks whichever video is *currently* showing in the extract
-  // window, not just the one it was created with — loadInExtractWindow
-  // updates this whenever the user swaps videos while the window stays
-  // open, so the restore-on-close path below hands back the right one.
+  // Tracks whichever video is currently showing in the extract window, not
+  // just the one it was created with — loadInExtractWindow updates this when
+  // the user swaps videos, so the restore-on-close path hands back the right
+  // one (B-112).
   extractWindowVideoId = videoId
   // The main window's miniplayer picks the video back up once this window
-  // closes, resuming from wherever ExtractedPlayerWindow's own
-  // beforeunload last saved (best-effort — if that write raced the window
-  // actually tearing down, this falls back to the extraction-time position
-  // already persisted when extraction started).
+  // closes, resuming from wherever ExtractedPlayerWindow's own beforeunload
+  // last saved (best-effort — falls back to the extraction-time position if
+  // that write raced the window tearing down).
   window.on('closed', () => {
     const restoreVideoId = extractWindowVideoId ?? videoId
     if (extractWindow === window) {
@@ -410,33 +390,34 @@ let db: DatabaseSync | undefined
 let packagedRendererUrl: string | null = null
 let closeRendererServer: (() => void) | null = null
 // Module-level (not boot()-local): "delete all data" tears boot() down and
-// calls it again in-process (see boot()'s own comment for why), and the
-// will-quit cleanup below needs to reach whichever generation's timers are
-// currently live regardless of how many times boot() has run.
+// calls it again in-process, and the will-quit cleanup below needs to reach
+// whichever generation's timers are currently live regardless of how many
+// times boot() has run.
 let timer: ReturnType<typeof setInterval> | null = null
 let updateTimer: ReturnType<typeof setInterval> | null = null
-// D-050: tray-resident mode. mainWindow is tracked so the tray's "Open" item
-// and a notification click can re-show it instead of only being able to spawn
-// a fresh one; isQuitting distinguishes a real quit (let the window close) from
-// the user just clicking the window's close button while backgroundMode is on
-// (hide instead).
+// Tray-resident mode (D-050). mainWindow is tracked so the tray's "Open" item
+// and a notification click can re-show it instead of only spawning a fresh
+// one; isQuitting distinguishes a real quit (let the window close) from the
+// user clicking the window's close button while backgroundMode is on (hide
+// instead).
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
-// B-112: tracks the single always-on-top extract window (if any) so a newly
-// selected video can be routed into it instead of the main window, and so
-// its close handler can look up whichever video is currently showing there.
+// Tracks the single always-on-top extract window (if any) so a newly
+// selected video can be routed into it instead of the main window, and so its
+// close handler can look up whichever video is currently showing there
+// (B-112).
 let extractWindow: BrowserWindow | null = null
 let extractWindowVideoId: string | null = null
 // Mirrors settings.backgroundMode (boot()-local) so the module-level
 // createWindow()'s close handler can read it without needing boot()'s whole
 // closure — kept in sync by applyBackgroundMode() every time it runs.
 let backgroundModeEnabled = false
-// D-050: startMinimized only ever applies to the actual app launch — a
+// startMinimized only ever applies to the actual app launch — a
 // deleteAllData reset re-runs boot() while the window is already open and
-// visible (the user just clicked a button in it), and process.argv/
-// getLoginItemSettings() don't change mid-process, so without this guard
-// wasLaunchedViaAutostart() would still read true on that later re-boot too.
+// visible, and process.argv/getLoginItemSettings() don't change mid-process,
+// so without this guard wasLaunchedViaAutostart() would still read true on
+// that later re-boot too (D-050).
 let hasBootedBefore = false
 
 // Isolated try/catch so a throwing destroy() (unlikely, but seen with flaky
@@ -447,7 +428,7 @@ function destroyTray(): void {
   try {
     tray?.destroy()
   } catch (error) {
-    console.error('D-050: tray destroy failed', error)
+    console.error('tray destroy failed', error)
   }
   tray = null
 }
@@ -462,15 +443,11 @@ function showOrCreateMainWindow(): void {
 }
 
 // Composition root + IPC registration. Callable more than once: "delete all
-// data" (IpcChannel.deleteAllData below) tears everything down and calls
-// this again in the same process, landing on a genuinely fresh first-run
-// state without ever exiting the process. Previously this flow used
-// `app.relaunch()` + `app.quit()` instead, which reportedly left the
-// relaunched window frozen/blank — the working theory is that `electron-vite
-// dev` supervises this process as its own child and tears down the Vite dev
-// server the moment it sees that child exit, which a relaunched instance
-// then has nothing to `loadURL()` against. Never exiting the process at all
-// sidesteps that regardless of whether the theory is exactly right.
+// data" (IpcChannel.deleteAllData below) tears everything down and calls this
+// again in the same process, landing on a fresh first-run state without ever
+// exiting the process — `electron-vite dev` supervises this process as its
+// own child and tears down the Vite dev server as soon as it exits, which a
+// relaunched instance would have nothing to `loadURL()` against.
 async function boot(): Promise<void> {
   const dataDir = chronicleDataDir()
   mkdirSync(dataDir, { recursive: true })
@@ -547,7 +524,7 @@ async function boot(): Promise<void> {
   // Pending accounts from startAddAccount() that haven't connected yet —
   // never persisted (no accounts row, no entry in accountStacks) until
   // connectAccount() succeeds, so an abandoned "add account" flow leaves no
-  // trace beyond the shared oauth-client secret (already the case pre-B-003).
+  // trace beyond the shared oauth-client secret.
   const pendingAccountStacks = new Map<string, AccountStack>()
 
   function toAccountDto(stack: AccountStack): AccountDto {
@@ -618,15 +595,12 @@ async function boot(): Promise<void> {
   }
 
   let refreshing = false
-  // B-070: a refresh call that arrives while another is already running must
-  // never be silently dropped — connectGoogle/connectAccount fire their
-  // post-connect sync as fire-and-forget (`void runRefresh(...)`), and if
-  // that lost the race against the launch-time refresh, the 30-min timer, or
-  // another account's own connect, the new account's videos never synced
-  // until some unrelated later refresh happened to run to completion. Every
-  // call now chains onto this queue instead of racing a single boolean guard,
-  // so it always eventually runs (and its own refresh:started/refresh:done
-  // pair always fires) rather than returning `busy` and vanishing.
+  // A refresh call arriving while another is already running is never
+  // dropped — connectGoogle/connectAccount fire their post-connect sync as
+  // fire-and-forget, so every call chains onto this queue instead of racing a
+  // single boolean guard: it always eventually runs, with its own
+  // refresh:started/refresh:done pair, rather than returning `busy` and
+  // vanishing (B-070).
   let refreshQueue: Promise<unknown> = Promise.resolve()
   // accountId (B-003) targets one account explicitly (e.g. sidebar "Sync
   // now"); channelId resolves to whichever account(s) actually subscribe to
@@ -675,13 +649,12 @@ async function boot(): Promise<void> {
       try {
         const report = await stack.syncService.refresh(trigger, stack.accountId, channelId)
         reports.push(report)
-        // B-020: on an account's very first subscription sync, videos already
-        // published before today start read — the user opens onto "what's
-        // new", not an unclearable backlog. SyncService.refresh (B-069) now
-        // applies this per hydrated batch as the sync runs, so this blanket
-        // pass is a safety net for anything quota-interrupted hydration left
-        // behind, not the primary mechanism — but still runs before
-        // refresh:done so the event's unread count is guaranteed correct.
+        // On an account's first subscription sync, videos already published
+        // before today start read — the user opens onto "what's new", not an
+        // unclearable backlog (B-020). SyncService.refresh applies this per
+        // hydrated batch as it runs; this pass is a safety net for anything
+        // quota-interrupted hydration left behind, and still runs before
+        // refresh:done so the event's unread count is correct.
         if (report.firstSync) {
           const now = clock.now()
           feedRepository.markManyRead(
@@ -750,11 +723,11 @@ async function boot(): Promise<void> {
     void runRefresh('launch')
   }
 
-  // B-003: an owning-account lookup for actions that operate on one
-  // account's relationship to a channel (favorite/unsubscribe/backfill) —
-  // the UI only ever passes a channelId, never an accountId, for these.
-  // Usually exactly one account owns a channel; if more than one does, the
-  // action applies to the first (a deliberate simplification — see bugs.md).
+  // An owning-account lookup for actions that operate on one account's
+  // relationship to a channel (favorite/unsubscribe/backfill) — the UI only
+  // ever passes a channelId, never an accountId, for these (B-003). Usually
+  // exactly one account owns a channel; if more than one does, the action
+  // applies to the first.
   function resolveOwningAccountId(channelId: string): string | undefined {
     return syncRepository.listAccountIdsForChannel(channelId)[0]
   }
@@ -801,10 +774,9 @@ async function boot(): Promise<void> {
     const accountId = resolveOwningAccountId(id)
     if (accountId === undefined) return false
     const favorite = feedRepository.toggleChannelFavorite(accountId, id)
-    // D-050 redesign: a one-shot nudge at the moment of the favorite toggle,
-    // not a persistent binding — a later manual notify toggle on this same
-    // channel is never re-overridden by this until the next favorite/
-    // unfavorite event.
+    // A one-shot nudge at the moment of the favorite toggle, not a persistent
+    // binding — a later manual notify toggle on this channel isn't
+    // re-overridden until the next favorite/unfavorite event (D-050).
     if (settings.autoNotifyFavorites) feedRepository.setChannelNotify(accountId, id, favorite)
     return favorite
   })
@@ -884,9 +856,8 @@ async function boot(): Promise<void> {
   )
   ipcMain.handle(
     IpcChannel.subscribeChannel,
-    // B-003: a newly discovered channel (search) has no owning account yet
-    // to resolve — subscribes under the primary account. Picking which
-    // account to subscribe under is future scope (see bugs.md notes).
+    // A newly discovered channel (search) has no owning account yet to
+    // resolve — subscribes under the primary account (B-003).
     async (_event, channelId: unknown): Promise<ResultDto<void>> => {
       const id = parseChannelIdRequired(channelId)
       try {
@@ -1095,9 +1066,8 @@ async function boot(): Promise<void> {
     try {
       await authFlow.connect()
       authProvider.invalidate()
-      // B-003: the primary account needs its accounts row too — every other
-      // write to account_channels has an FK on it. A nice label is
-      // best-effort (mirrors connectAccount's pattern for additional ones).
+      // The primary account needs its accounts row too — every other write to
+      // account_channels has an FK on it (B-003). A nice label is best-effort.
       let label = 'My account'
       try {
         const channel = await apiClient.getOwnChannel()
@@ -1171,9 +1141,8 @@ async function boot(): Promise<void> {
         }
       }
       try {
-        // D-032 incremental consent: surfaced as an in-app dialog (the
-        // writeScopeGate pattern) before any browser opens, never requested
-        // silently by the action itself.
+        // Incremental consent (D-032): surfaced as an in-app dialog before
+        // any browser opens, never requested silently by the action itself.
         if (!stack.authFlow.hasWriteScope()) {
           return {
             ok: false,
@@ -1223,9 +1192,9 @@ async function boot(): Promise<void> {
     }
   )
 
-  // B-003: additional-account management. The primary account (above) is
+  // Additional-account management (B-003). The primary account above is
   // untouched by any of this — Settings and the first-run wizard keep
-  // working exactly as before.
+  // working the same.
   ipcMain.handle(IpcChannel.listAccounts, (): AccountDto[] =>
     [...accountStacks.values()].map(toAccountDto)
   )
@@ -1310,12 +1279,11 @@ async function boot(): Promise<void> {
     ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>> => {
       const id = parseVideoId(videoId)
       try {
-        // Empirically requires the write scope too, not just readonly (the
-        // opposite of what Google's own docs say) — confirmed by the owner:
-        // commentThreads.list 403s until the force-ssl grant from a Like
-        // action, after which reading comments starts working. Gated the
-        // same way as every other write-scope action so the dialog shows up
-        // instead of a bare 403.
+        // Reading comments requires the write scope too, not just readonly
+        // (the opposite of what Google's docs say) — commentThreads.list
+        // 403s until the force-ssl grant from a Like action. Gated like
+        // every other write-scope action so the dialog shows instead of a
+        // bare 403.
         if (!authFlow.hasWriteScope()) {
           return {
             ok: false,
@@ -1462,9 +1430,8 @@ async function boot(): Promise<void> {
   }
   applyRefreshTimer()
 
-  // D-026: notice-only background check against GitHub's public Releases
-  // API — a startup check plus a slow (24h) interval, since unlike sync
-  // there's no reason to poll a release feed often.
+  // Notice-only background check against GitHub's public Releases API
+  // (D-026) — a startup check plus a slow (24h) interval.
   const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000
   async function checkForUpdates(): Promise<void> {
     const release = await updateSource.latestRelease()
@@ -1482,37 +1449,25 @@ async function boot(): Promise<void> {
   }
   applyUpdateCheckTimer()
 
-  // D-050: three independent toggles (none gates any other — see
-  // AppSettings' own comment). Both apply* functions below feature-detect
-  // and swallow errors rather than throw, per the decision's own risk note
-  // that Windows/macOS auto-start and Linux's hand-rolled autostart file are
-  // unverified here (only Linux is hands-on tested) — a platform that
-  // doesn't support one of these should silently no-op, not crash the app.
+  // Three independent toggles, none gating any other (D-050). Both apply*
+  // functions below feature-detect and swallow errors rather than throw —
+  // only Linux autostart is hands-on tested, so an unsupported platform
+  // should silently no-op, not crash the app.
   function applyAutoStart(): void {
     try {
-      // In a packaged app, process.execPath *is* Chronicle — no arguments
-      // needed. Running from source (electron-vite dev), it's the bare
-      // Electron binary from node_modules instead; launched alone at login
-      // it has no app to load at all. The standard fix (Electron's own
-      // "Launch at startup" recipe): pass the project entry point
-      // (process.argv[1], what electron-vite invoked electron with) as an
+      // In a packaged app, process.execPath is Chronicle itself. Running
+      // from source (electron-vite dev), it's the bare Electron binary,
+      // which needs the project entry point (process.argv[1]) passed as an
       // argument so a dev-mode autostart actually opens Chronicle too.
       const devArgs = app.isPackaged ? [] : [resolve(process.argv[1] ?? '.')]
       if (process.platform === 'linux') {
-        // D-024: the Linux target is AppImage-only. An AppImage's
-        // process.execPath resolves to a path *inside its own temporary
-        // SquashFS mount* (e.g. /tmp/.mount_XXXXXX/chronicle) — that mount
-        // is torn down as soon as this run exits, so writing it into the
-        // autostart entry would point at a path that no longer exists by
-        // the next login. The AppImage runtime sets $APPIMAGE to the
-        // actual, stable .AppImage file path on disk; use that instead
-        // whenever present (unset outside an AppImage — e.g. dev mode).
-        // AUTOSTART_HIDDEN_FLAG is always included regardless of the
-        // current startMinimized value — wasLaunchedViaAutostart() only
-        // means "this launch came from autostart"; whether to actually
-        // start hidden is decided at boot from the live setting, not baked
-        // in here (so changing startMinimized alone, without retoggling
-        // autoStart, still takes effect on the next login).
+        // The Linux target is AppImage-only (D-024). process.execPath
+        // resolves inside the AppImage's own temporary SquashFS mount,
+        // torn down as soon as this run exits — use $APPIMAGE (the stable
+        // file path the AppImage runtime sets) instead whenever present.
+        // AUTOSTART_HIDDEN_FLAG is always included; whether to actually
+        // start hidden is decided at boot from the live startMinimized
+        // setting, not baked in here.
         const linuxExecPath = process.env.APPIMAGE ?? process.execPath
         const execCommand = [linuxExecPath, ...devArgs, AUTOSTART_HIDDEN_FLAG]
           .map((part) => JSON.stringify(part))
@@ -1530,25 +1485,19 @@ async function boot(): Promise<void> {
         app.setLoginItemSettings({ openAtLogin: settings.autoStart })
       }
     } catch (error) {
-      console.error('D-050: applyAutoStart failed', error)
+      console.error('applyAutoStart failed', error)
     }
   }
   applyAutoStart()
 
-  // D-050 (revised, live-tested workaround): once created, the tray is never
-  // destroyed mid-session — only at real app quit (will-quit) or a
-  // deleteAllData reset (new boot() generation, see its own comment). Live
-  // testing (D-Bus introspection: zero live Chronicle registrations under
-  // org.kde.StatusNotifierWatcher while a ghost icon stayed stuck and
-  // unresponsive) narrowed this to the tray host — at least the owner's
-  // QuickShell setup — not reliably processing destroy() while the process
-  // stays alive, even though the exact same destroy()-then-recreate pattern
-  // is the documented-correct one and reliably works on real quit (which
-  // drops the whole D-Bus connection instead of sending an explicit
-  // unregister). Trade-off accepted (owner's call): turning "Run in
-  // background" off no longer removes an already-shown icon immediately —
-  // it still fully restores window-close-quits-the-app behavior via
-  // backgroundModeEnabled below, the icon just lingers until the app quits.
+  // The tray is only ever destroyed at real quit (will-quit) or a
+  // deleteAllData reset, never recreated mid-session — some Linux tray hosts
+  // go stale under a destroy()-then-recreate cycle while the process stays
+  // alive, even though it works fine on real quit (D-050). Trade-off:
+  // turning "Run in background" off no longer removes an already-shown icon
+  // immediately — window-close-quits-the-app behavior is still fully
+  // restored via backgroundModeEnabled below, the icon just lingers until
+  // the app quits.
   function applyBackgroundMode(): void {
     backgroundModeEnabled = settings.backgroundMode
     try {
@@ -1570,26 +1519,24 @@ async function boot(): Promise<void> {
         mainWindow.show()
       }
     } catch (error) {
-      console.error('D-050: applyBackgroundMode failed', error)
+      console.error('applyBackgroundMode failed', error)
     }
   }
   applyBackgroundMode()
 
-  // D-050: never fires on an account's first sync (that's backlog, not
-  // something that happened while backgrounded — mirrors D-047's reasoning).
-  // 'all' ignores the per-channel notify flag entirely; 'selected' respects
-  // it (notify flags OR'd across every connected account, same semantics
-  // listFollowedChannels already uses elsewhere) — switching scope never
-  // writes to those flags, so they survive round-trips between modes.
+  // Never fires on an account's first sync — that's backlog, not something
+  // that happened while backgrounded (D-050). 'all' ignores the per-channel
+  // notify flag; 'selected' respects it (OR'd across every connected
+  // account, same semantics listFollowedChannels uses elsewhere) — switching
+  // scope never writes to those flags, so they survive round-trips.
   function maybeNotifyNewVideos(report: SyncReport): void {
     if (!settings.notifyNewVideos || report.firstSync || report.newVideosByChannel.length === 0) {
       return
     }
     try {
       if (!Notification.isSupported()) return
-      // D-052: Shorts hidden from the feed (showShorts off) never notify,
-      // full stop — notifyShorts only decides whether they do when Shorts
-      // are otherwise shown.
+      // A Short hidden from the feed (showShorts off) never notifies; when
+      // shown, notifyShorts decides whether it also triggers one (D-052).
       const includeShorts = settings.showShorts && settings.notifyShorts
       let matched = report.newVideosByChannel
         .map((entry) => ({ ...entry, count: includeShorts ? entry.count : entry.count - entry.shortsCount }))
@@ -1608,7 +1555,7 @@ async function boot(): Promise<void> {
       notification.on('click', showOrCreateMainWindow)
       notification.show()
     } catch (error) {
-      console.error('D-050: maybeNotifyNewVideos failed', error)
+      console.error('maybeNotifyNewVideos failed', error)
     }
   }
 
@@ -1623,12 +1570,9 @@ async function boot(): Promise<void> {
   })
   ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
 
-  // B-093: no automation, no credential handling — just a plain window at
-  // youtube.com. No explicit partition (see the comment above createWindow),
-  // so it shares the same default session the player's iframe already uses.
-  // The user signs in (or not) exactly like they would in any browser;
-  // closing the window is on them, same as the corner-icon workaround this
-  // replaces with a discoverable action.
+  // No automation, no credential handling — a plain window at youtube.com,
+  // sharing the default session the player's iframe already uses (B-093).
+  // The user signs in (or not) exactly like they would in any browser.
   ipcMain.handle(IpcChannel.openYouTubeSignIn, () => {
     const signInWindow = new BrowserWindow({ width: 480, height: 720 })
     signInWindow.removeMenu()
@@ -1658,11 +1602,9 @@ async function boot(): Promise<void> {
     }
   )
 
-  // B-112: routes a newly-selected video into the already-open extract
-  // window rather than the main window. Returns false (not an error) if no
-  // extract window is open — the extractWindowVideoId bookkeeping
-  // createExtractWindow's own close handler relies on is only meaningful
-  // while a window actually exists.
+  // Routes a newly-selected video into the already-open extract window
+  // rather than the main window (B-112). Returns false (not an error) if no
+  // extract window is open.
   ipcMain.handle(IpcChannel.loadInExtractWindow, (_event, videoId: unknown, title: unknown) => {
     if (extractWindow === null || extractWindow.isDestroyed()) return false
     const id = parseVideoId(videoId)
@@ -1727,10 +1669,10 @@ async function boot(): Promise<void> {
       clearInterval(updateTimer)
       updateTimer = null
     }
-    // D-050: the tray's own click callbacks close over this boot()
-    // generation's runRefresh/settings — stale once boot() reruns below, so
-    // it's destroyed here and freshly recreated by the new generation's own
-    // applyBackgroundMode() rather than left pointing at torn-down state.
+    // The tray's click callbacks close over this boot() generation's
+    // runRefresh/settings — destroyed here and freshly recreated by the new
+    // generation's applyBackgroundMode() rather than left pointing at
+    // torn-down state (D-050).
     destroyTray()
     // Every handler this boot() generation registered must go before the
     // next boot() re-registers them — ipcMain.handle throws if a channel
@@ -1752,11 +1694,10 @@ async function boot(): Promise<void> {
     for (const window of staleWindows) window.destroy()
   })
 
-  // D-050: skip the initial window only for the real launch (not a
-  // deleteAllData re-boot — see hasBootedBefore's own comment), only when
-  // it actually came from the OS autostart entry, and only when there's a
-  // tray to fall back to (backgroundMode) — otherwise the process would be
-  // fully unreachable with no window and no tray.
+  // Skip the initial window only for the real launch (not a deleteAllData
+  // re-boot), only when it came from the OS autostart entry, and only when
+  // there's a tray to fall back to (backgroundMode) — otherwise the process
+  // would be fully unreachable (D-050).
   const skipInitialWindow =
     !hasBootedBefore &&
     wasLaunchedViaAutostart() &&
@@ -1783,10 +1724,9 @@ void app.whenReady().then(async () => {
   await boot()
 })
 
-// D-050: a second launch attempt (e.g. clicking the app icon again while
-// tray-resident) hits this in the *original* instance instead of spawning
-// its own process — bring the existing window forward like the tray's own
-// Open item does.
+// A second launch attempt (e.g. clicking the app icon while tray-resident)
+// hits this in the original instance instead of spawning its own process
+// (D-050) — bring the existing window forward like the tray's Open item.
 app.on('second-instance', () => {
   if (gotSingleInstanceLock) showOrCreateMainWindow()
 })
@@ -1810,9 +1750,9 @@ app.on('will-quit', () => {
   db?.close()
 })
 
-// D-050: falls back to isQuitting = true on any other route to a real quit
-// (e.g. Cmd+Q on macOS, or an OS session logout) so backgroundMode's close
-// intercept doesn't fight the app actually trying to exit.
+// Falls back to isQuitting = true on any other route to a real quit (Cmd+Q
+// on macOS, an OS session logout) so backgroundMode's close intercept
+// doesn't fight the app actually trying to exit (D-050).
 app.on('before-quit', () => {
   isQuitting = true
 })

@@ -8,9 +8,9 @@ import './styles.css'
 const root = document.getElementById('root')
 if (!root) throw new Error('missing #root element')
 
-// B-045: the extracted-to-window player loads this exact same renderer
-// bundle (main.ts's loadRenderer helper appends the query string) rather
-// than needing its own separate Vite entry point.
+// The extracted-to-window player loads this exact same renderer bundle
+// (main.ts's loadRenderer helper appends the query string) rather than
+// needing its own separate Vite entry point.
 const params = new URLSearchParams(window.location.search)
 const extractVideoId = params.get('extract')
 

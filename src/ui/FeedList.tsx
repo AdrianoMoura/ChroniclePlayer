@@ -16,11 +16,9 @@ type DisplayRow =
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
   | { kind: 'card-row'; key: string; items: { video: FeedVideoDto; videoIndex: number }[] }
 
-// File-explorer-style item size (B-007, six steps as of the B-095
-// follow-up): shared by list rows and grid cards. Medium is the default
-// (formerly "comfortable" density). The xl/xxl steps are deliberately bigger
-// jumps than the rest — "as big as it gets" territory, not another even
-// increment.
+// File-explorer-style item size, shared by list rows and grid cards.
+// Medium is the default. The xl/xxl steps are deliberately bigger jumps
+// than the rest — "as big as it gets" territory, not another even increment.
 export type ItemSize = 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl'
 export const ITEM_SIZES: ItemSize[] = ['xs', 'small', 'medium', 'large', 'xl', 'xxl']
 const ROW_HEIGHTS: Record<ItemSize, number> = {
@@ -35,11 +33,10 @@ const HEADER_HEIGHT = 38
 
 // liveContent alone doesn't distinguish "airing now" from "broadcast has
 // since ended" — it reverts to 'none' once a stream wraps, same as a normal
-// upload, and no badge is shown for the ended case either way: an ended
-// broadcast still sorts and buckets by when it wrapped rather than its
-// original publishedAt (core/feed.ts, liveEndedAt), just without a visual
-// indicator — its own duration (e.g. multiple hours) is the only card-level
-// hint it was ever live.
+// upload, so no badge shows for the ended case. An ended broadcast still
+// sorts and buckets by when it wrapped rather than its original publishedAt
+// (core/feed.ts, liveEndedAt); its duration is the only card-level hint it
+// was ever live.
 type LiveBadgeState = 'live' | 'premiere' | 'upcoming'
 
 function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
@@ -61,13 +58,11 @@ const GRID_GAP = 16
 // the grid reflows instead of overflowing (D-037). Both grow with itemSize.
 // `height` is the card's rendered height *at exactly `minWidth` wide* (thumb
 // + padding + gap + two-line title + meta line at that size's own
-// font-size). Columns render at `1fr` and stretch past `minWidth` to fill
-// the row, and the thumbnail's `aspect-ratio` makes real height grow with
-// actual column width — so the virtualizer (which never re-measures
-// individual cards; no `measureElement`) is fed a width-adjusted estimate
-// computed in the resize handler below, not this constant directly (B-095
-// covered the under-budgeted xs/small case; this covers the same failure at
-// the wide end, e.g. xxl with only two columns on a narrow screen).
+// font-size). Columns render at `1fr` and stretch past `minWidth`, and the
+// thumbnail's `aspect-ratio` makes real height grow with actual column
+// width — so the virtualizer (which never re-measures individual cards) is
+// fed a width-adjusted estimate computed in the resize handler below, not
+// this constant directly.
 export const GRID_CARD_SIZES: Record<ItemSize, { minWidth: number; height: number }> = {
   xs: { minWidth: 110, height: 144 },
   small: { minWidth: 160, height: 176 },
@@ -147,14 +142,12 @@ export function FeedList({
   const [cardRowHeight, setCardRowHeight] = useState(gridCardSize.height)
 
   // Column count follows the scroll container's width so the grid reflows
-  // instead of overflowing or leaving dead space (B-007). Row height is
-  // recomputed alongside it: columns render at `1fr`, so the actual card
-  // width can be well past `minWidth` (worst case, just under double it,
-  // right before a row would gain another column) — and since the
-  // thumbnail's height follows its width (`aspect-ratio`), the fixed
-  // per-size `height` alone underestimates real card height once a column
-  // stretches. Scale the thumbnail portion by actual width and keep the
-  // rest (padding/title/meta) constant to get an accurate estimate.
+  // instead of overflowing or leaving dead space. Row height is recomputed
+  // alongside it: columns render at `1fr`, so actual card width can be well
+  // past `minWidth`, and since the thumbnail's height follows its width
+  // (`aspect-ratio`), the fixed per-size `height` alone underestimates real
+  // card height once a column stretches. Scale the thumbnail portion by
+  // actual width and keep the rest (padding/title/meta) constant.
   useEffect(() => {
     if (layout !== 'grid') return
     const el = scrollRef.current
@@ -206,15 +199,13 @@ export function FeedList({
       onNearEnd()
   }, [lastIndex, displayRows.length, columns, onNearEnd])
 
-  // B-107: the check above only ever fires from a scroll position — a
-  // narrow channel filter, a large item size, or a wide/short window can
-  // all produce a page of results short enough that the container never
-  // actually overflows, so no scroll (and therefore no near-end check)
-  // ever happens, silently stranding pagination. If there's no scrollable
-  // overflow after the current results render, trigger it directly instead
-  // of waiting for a scroll event that can't come; `onNearEnd` itself
-  // (`loadMore`) already no-ops when there's genuinely nothing more to
-  // fetch, so this can't loop.
+  // The check above only ever fires from a scroll position — a narrow
+  // channel filter, a large item size, or a wide/short window can all
+  // produce a page of results short enough that the container never
+  // actually overflows, silently stranding pagination (B-107). If there's
+  // no scrollable overflow after the current results render, trigger it
+  // directly; `onNearEnd` (`loadMore`) already no-ops when there's nothing
+  // more to fetch, so this can't loop.
   useEffect(() => {
     const el = scrollRef.current
     if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) onNearEnd()
@@ -290,13 +281,12 @@ interface VideoRowProps {
   onOpen: () => void
   onOpenChannel: (channelId: string) => void
   showViewCounts: boolean
-  // B-043: the main virtualized FeedList has its own keyboard path (global
-  // j/k/Enter cursor navigation) — making every row individually Tab-
-  // focusable there would make Tab cycle through hundreds of rows, so it
-  // stays off (the default) for that caller. Callers that render VideoRow
-  // *outside* that cursor-navigated list — the priority section (B-042),
-  // search results (B-009) — have no other keyboard path to it at all, so
-  // they opt in.
+  // The main virtualized FeedList has its own keyboard path (global
+  // j/k/Enter cursor navigation) — making every row individually
+  // Tab-focusable there would make Tab cycle through hundreds of rows, so
+  // it stays off by default. Callers that render VideoRow outside that
+  // cursor-navigated list — the priority section, search results — have no
+  // other keyboard path to it, so they opt in.
   focusable?: boolean
 }
 

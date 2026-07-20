@@ -59,11 +59,11 @@ function shortsFilter(showShorts: boolean): string {
   return showShorts ? '' : `AND ${NOT_SHORT}`
 }
 
-// B-003: "subscribed"/"favorite" now live per (account, channel) in
-// account_channels, since more than one local account can follow the same
-// channel. An EXISTS subquery (not a JOIN) avoids duplicating a video row
-// once per subscribing account; accountId narrows to one account, undefined
-// means "any connected account" (the combined-feed default).
+// B-003: subscribed/favorite live per (account, channel) in account_channels
+// — more than one local account can follow the same channel. An EXISTS
+// subquery (not a JOIN) avoids duplicating a video row per subscribing
+// account; accountId narrows to one account, undefined means any connected
+// account (the combined-feed default).
 function membershipExists(column: 'subscribed' | 'favorite', accountId?: string): string {
   return `EXISTS (
     SELECT 1 FROM account_channels ac
@@ -72,9 +72,9 @@ function membershipExists(column: 'subscribed' | 'favorite', accountId?: string)
   )`
 }
 
-// A favorited-but-now-unsubscribed channel (favorite survives markUnsubscribed,
-// D-039-adjacent precedent: local flags outlive membership) must not surface
-// in the priority section — it requires both flags on the same row.
+// A favorited-but-unsubscribed channel (favorite outlives unsubscribe, D-039)
+// must not surface in the priority section — requires both flags on the
+// same row.
 function favoritedAndSubscribedExists(accountId?: string): string {
   return `EXISTS (
     SELECT 1 FROM account_channels ac
@@ -102,13 +102,11 @@ function viewPredicate(view: FeedView, accountId?: string): string {
   }
 }
 
-// The keyset pagination (D-027) fetch order — deliberately plain
-// publishedAt, not core's effectiveDate-based compareFeedOrder (D-053): a
-// keyset cursor can't be built on a value like "now" that changes between
-// calls, or it could skip/duplicate rows across pages. FeedService.getSlice
-// re-sorts each already-fetched page by effectiveDate for display; that
-// reorder never changes which rows a page contains, only how they're shown,
-// so it can safely diverge from this fetch order.
+// Keyset pagination (D-027) fetch order — plain publishedAt, not core's
+// effectiveDate-based compareFeedOrder (D-053): a keyset cursor can't be
+// built on a value like "now" that changes between calls. FeedService.getSlice
+// re-sorts each fetched page by effectiveDate for display without changing
+// which rows a page contains.
 const FEED_ORDER = `ORDER BY v.published_at DESC, c.title ASC, v.video_id ASC`
 
 interface FeedRow {
@@ -375,18 +373,16 @@ export class SqliteFeedRepository implements FeedRepository {
     return next === 1
   }
 
-  // D-050 redesign: a direct set (not toggle) — used to sync the notify flag
-  // to a channel's new favorite state when autoNotifyFavorites is on.
+  // D-050: direct set (not toggle) — syncs the notify flag to a channel's
+  // favorite state when autoNotifyFavorites is on.
   setChannelNotify(accountId: string, channelId: string, notify: boolean): void {
     this.db
       .prepare(`UPDATE account_channels SET notify = ? WHERE account_id = ? AND channel_id = ?`)
       .run(notify ? 1 : 0, accountId, channelId)
   }
 
-  // D-050 redesign: bulk-applies the notify flag to every row (any account)
-  // currently marked favorite — used when "auto-enable on favorite" is
-  // turned on (enable=true, immediate) or turned off with the user
-  // confirming the cleanup (enable=false).
+  // D-050: bulk-applies the notify flag to every row (any account) currently
+  // marked favorite, for the "auto-enable on favorite" setting.
   bulkSetNotifyForFavorites(enable: boolean): void {
     this.db.prepare(`UPDATE account_channels SET notify = ? WHERE favorite = 1`).run(enable ? 1 : 0)
   }

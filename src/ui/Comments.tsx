@@ -11,9 +11,9 @@ function commentsErrorMessage(errorKind: string, message: string): string {
   return errorKind === 'auth-expired' ? t('comments.reconnectRequired') : message
 }
 
-// B-006: read the comment thread, post a top-level comment, reply to a
-// comment. There is no public API to like a *comment* (only videos, via
-// PlayerView's own Like button) — likeCount here is read-only display.
+// Reads the comment thread, posts a top-level comment, replies to a comment.
+// There is no public API to like a *comment* (only videos, via the player's
+// Like button) — likeCount here is read-only display.
 
 export interface CommentsSectionHandle {
   // Lets the player's own keyboard shortcut (`c`) drive the same show/hide
@@ -27,14 +27,13 @@ export type RunWithWriteScope = ReturnType<typeof useWriteScopeGate>['run']
 
 interface CommentsSectionProps {
   videoId: string
-  // The write-scope consent dialog lives once in PlayerDetails (rendered as
-  // a sibling of `.player-view`, not nested inside it — a modal nested
-  // inside `.player-view`'s own z-index stacking context loses to the video
-  // regardless of its own z-index, same bug as the like/subscribe actions
-  // had) rather than one per action-owning component.
+  // The write-scope consent dialog lives once in PlayerDetails, rendered as
+  // a sibling of `.player-view` rather than nested inside it — a modal
+  // nested inside loses to the video's z-index stacking context regardless
+  // of its own z-index.
   runWithWriteScope: RunWithWriteScope
-  // B-113: threaded down to every CommentItem/ReplyItem so a linkified
-  // timestamp in any comment or reply can seek the player.
+  // Threaded down to every CommentItem/ReplyItem so a linkified timestamp
+  // in any comment or reply can seek the player.
   onSeekTo: (seconds: number) => void
 }
 
@@ -322,12 +321,11 @@ function ReplyItem({
   )
 }
 
-// B-113: YouTube's own web client linkifies mm:ss/h:mm:ss-shaped substrings
-// in comment text into seek links client-side (this isn't something the API
-// itself marks up in textDisplay) — same approach here. `TIMESTAMP_PATTERN`
-// is kept in its own (non-global) form for the per-part exact-match test
-// below, separate from the global copy used for splitting, so the two never
-// share (and fight over) a stateful `lastIndex`.
+// Linkifies mm:ss/h:mm:ss-shaped substrings in comment text into seek links
+// client-side (the API's textDisplay doesn't mark these up itself).
+// `TIMESTAMP_PATTERN` is kept in its own non-global form for the per-part
+// exact-match test below, separate from the global copy used for splitting,
+// so the two never share (and fight over) a stateful `lastIndex`.
 const TIMESTAMP_PATTERN = /\d{1,2}(?::[0-5]\d){1,2}/
 const TIMESTAMP_SPLIT_PATTERN = new RegExp(`(${TIMESTAMP_PATTERN.source})`, 'g')
 const TIMESTAMP_FULL_PATTERN = new RegExp(`^${TIMESTAMP_PATTERN.source}$`)

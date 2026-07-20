@@ -60,9 +60,8 @@ CREATE TABLE meta (
 );
 `
 
-// v2 (M5, D-018): view counts are captured during hydration so the
-// hidden-by-default setting has data to show. NULL = not yet hydrated
-// since this migration.
+// v2 (D-018): view counts, captured during hydration so the hidden-by-default
+// setting has data to show. NULL means not yet hydrated.
 const SCHEMA_V2 = `
 ALTER TABLE videos ADD COLUMN view_count INTEGER;
 `
@@ -88,16 +87,14 @@ ALTER TABLE channels ADD COLUMN backfill_page_token TEXT;
 ALTER TABLE channels ADD COLUMN backfill_exhausted INTEGER NOT NULL DEFAULT 0;
 `
 
-// v6 (B-003): multi-account. `channels` stays account-agnostic — a
-// channel's synced facts (title, uploads playlist, RSS validators,
-// availability) are shared/deduped across every account that follows it,
-// same as an externally-opened channel (D-029). The per-account
-// *relationship* to a channel (subscribed, favorite, subscription id,
-// on-demand backfill cursor) moves into a new junction table, since the
-// same channel can now be followed by more than one local account.
-// videos/video_state stay untouched and account-agnostic too — read/
-// favorite/watch-later are the Chronicle user's own facts, not tied to
-// whichever account's subscription surfaced the video (D-003).
+// v6 (B-003): multi-account. `channels` stays account-agnostic — synced
+// facts (title, uploads playlist, RSS validators) are shared/deduped across
+// every account that follows a channel (same as an externally-opened
+// channel, D-029). The per-account relationship (subscribed, favorite,
+// subscription id, backfill cursor) moves into a new junction table.
+// videos/video_state stay account-agnostic too — read/favorite/watch-later
+// are the user's own facts, not tied to whichever account surfaced the
+// video (D-003).
 const SCHEMA_V6 = `
 CREATE TABLE accounts (
   account_id TEXT PRIMARY KEY,
@@ -135,22 +132,16 @@ ALTER TABLE channels DROP COLUMN backfill_page_token;
 ALTER TABLE channels DROP COLUMN backfill_exhausted;
 `
 
-// v7: last known playback position, so reopening a partially-watched
-// video can resume instead of always starting at 0:00. Lives on video_state
-// alongside the other user-facts flags (local-data.md) — Chronicle-only,
-// never synced to YouTube (D-003), same as read/favorite/watch-later.
+// v7: last known playback position, so reopening a partially-watched video
+// resumes instead of starting at 0:00. Local-only, never synced to YouTube
+// (D-003), same as read/favorite/watch-later.
 const SCHEMA_V7 = `
 ALTER TABLE video_state ADD COLUMN resume_position_seconds INTEGER;
 `
 
-// v8 (D-048, bugs.md B-110): a single RSS 404 used to permanently flip a
-// channel's `available` off and silently exclude it from every future sync
-// and on-demand backfill — with no retry and no UI ever surfacing the state
-// (the "show in a settings list" plan in youtube-api.md was never built and
-// is dropped, per the product owner: this was never actually a discussed
-// decision, just an assumption from earlier development). A transient 404
-// isn't reliable proof of deletion; the column is gone outright rather than
-// just unused, since nothing sets or reads it anymore.
+// v8 (D-048, B-110): drops `available` — channel availability is no longer
+// tracked; a single transient RSS 404 isn't reliable proof a channel was
+// deleted.
 const SCHEMA_V8 = `
 ALTER TABLE channels DROP COLUMN available;
 `
@@ -162,65 +153,48 @@ const SCHEMA_V9 = `
 ALTER TABLE account_channels ADD COLUMN notify INTEGER NOT NULL DEFAULT 0;
 `
 
-// v10 (B-114): live_content flips back to 'none' once a broadcast ends
-// (same value a normal upload has) — sticky was_live is the only way to
-// still tell "this was a livestream" apart from a normal upload afterward,
-// which the feed badge needs (gray "Live" badge for an ended broadcast, vs.
-// no badge at all for a video that was never live). Backfills existing rows
-// already sitting at live_content = 'live' at migration time, so nothing
-// already-live loses its marker the next time it gets re-hydrated.
+// v10 (B-114): adds was_live, a sticky flag so an ended broadcast
+// (live_content reverts to 'none', same as a normal upload) can still be
+// told apart from a video that was never live. Backfills existing rows
+// already at live_content = 'live' so they keep the marker.
 const SCHEMA_V10 = `
 ALTER TABLE videos ADD COLUMN was_live INTEGER NOT NULL DEFAULT 0;
 UPDATE videos SET was_live = 1 WHERE live_content = 'live';
 `
 
-// v11 (B-115): liveStreamingDetails.concurrentViewers absence, while
-// liveContent = 'live' — best-effort Premiere signal (unverified against
-// real Premiere data, see HydratedVideo.isPremiere's own comment). Not
-// sticky like was_live (v10): only meaningful for as long as liveContent
-// itself says 'live' — re-derived fresh on every hydration, no CASE-based
-// preservation needed.
+// v11 (B-115): adds is_premiere — best-effort Premiere signal from
+// liveStreamingDetails.concurrentViewers absence while liveContent = 'live'
+// (see HydratedVideo.isPremiere). Not sticky like was_live (v10):
+// re-derived fresh on every hydration.
 const SCHEMA_V11 = `
 ALTER TABLE videos ADD COLUMN is_premiere INTEGER NOT NULL DEFAULT 0;
 `
 
-// v12 (D-053): liveStreamingDetails.actualEndTime, captured once a broadcast
-// ends — feeds an ordering fix (feed.md §Ordering): an hours-old livestream
-// otherwise sorts by its (old) publishedAt and gets buried under same-day
-// uploads, both while still live and, worse, right after it ends. Sticky
-// like was_live (v10) once set — a later hydration cycle never has a reason
-// to clear a real end time it already captured.
+// v12 (D-053): adds live_ended_at — liveStreamingDetails.actualEndTime,
+// captured once a broadcast ends, so an ended livestream sorts by its wrap
+// time instead of a stale publishedAt (feed.md §Ordering). Sticky once set.
 const SCHEMA_V12 = `
 ALTER TABLE videos ADD COLUMN live_ended_at TEXT;
 `
 
-// v13 (B-117): is_premiere's whole heuristic (v11) never had a reliable
-// signal behind it — confirmed wrong in practice (a genuine live broadcast
-// misidentified as a Premiere) rather than just theoretically unverified.
-// No replacement signal is confirmed against real data yet, so the
-// distinction is removed outright rather than patched again: the feed goes
-// back to plain 'live'/'upcoming'/'none', same as before v11 ever shipped.
-// See bugs-current.md B-117 for the open follow-up.
+// v13 (B-117): drops is_premiere (v11) — its heuristic proved unreliable
+// (misidentified a genuine live broadcast). Feed reverts to plain
+// 'live'/'upcoming'/'none' until a reliable signal exists.
 const SCHEMA_V13 = `
 ALTER TABLE videos DROP COLUMN is_premiere;
 `
 
-// v14: is_premiere, keyed on status.uploadStatus ('processed' vs. 'uploaded')
-// while live_content = 'live'. Sticky: once observed airing as a Premiere,
-// later cycles (which flip live_content back to 'none' once it's done, same
-// as any broadcast) never clear it — see sync-repository.ts applyHydration
-// for how it also gates live_ended_at so a finished Premiere doesn't get an
-// ended broadcast's wrap-time sort. Not backfilled on migrate: the signal
-// only exists while live_content = 'live', already in the past for any
-// existing row.
+// v14: re-adds is_premiere, keyed on status.uploadStatus ('processed' vs.
+// 'uploaded') while live_content = 'live'. Sticky once set (see
+// sync-repository.ts applyHydration, which also gates live_ended_at so a
+// Premiere doesn't get an ended broadcast's wrap-time sort). Not backfilled —
+// the signal only applies while still live.
 const SCHEMA_V14 = `
 ALTER TABLE videos ADD COLUMN is_premiere INTEGER NOT NULL DEFAULT 0;
 `
 
-// v15: was_live (v10) dropped — its only reader was a gray "ended" feed
-// badge that no longer exists; live_ended_at (untouched) still drives
-// ended-broadcast sort/bucket order on its own, was_live was never involved
-// in that.
+// v15: drops was_live (v10) — no longer read; live_ended_at alone drives
+// ended-broadcast sort/bucket order.
 const SCHEMA_V15 = `
 ALTER TABLE videos DROP COLUMN was_live;
 `

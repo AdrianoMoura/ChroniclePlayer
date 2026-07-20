@@ -4,18 +4,17 @@ import { t } from './i18n'
 
 // Wraps a write action (like/subscribe/comment) so a missing incremental
 // write-scope grant surfaces as an in-app dialog explaining what's about to
-// happen *before* the system browser opens for Google's consent screen,
-// instead of the browser popping up with no warning. On confirm, requests
-// the scope and retries the original action; on cancel, resolves as
-// 'cancelled' rather than leaving the caller hanging.
+// happen before the system browser opens for Google's consent screen. On
+// confirm, requests the scope and retries the action; on cancel, resolves
+// as 'cancelled'.
 export function useWriteScopeGate() {
   const [pending, setPending] = useState<{ onDecide: (proceed: boolean) => void } | null>(null)
 
   const run = useCallback(<T,>(
     action: () => Promise<ResultDto<T>>,
-    // Unsubscribe (B-003 multi-account) needs the owning account's grant,
-    // not necessarily the primary account's — callers pass a narrower
-    // request when the default (primary-account) consent wouldn't apply.
+    // Unsubscribe needs the owning account's grant, not necessarily the
+    // primary account's — callers pass a narrower request when the default
+    // (primary-account) consent wouldn't apply.
     requestScope: () => Promise<ResultDto<void>> = () => window.chronicle.requestWriteScope()
   ): Promise<ResultDto<T>> => {
     return action().then((result) => {

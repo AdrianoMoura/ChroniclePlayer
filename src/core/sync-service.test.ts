@@ -367,11 +367,8 @@ describe('SyncService.refresh', () => {
     ])
   })
 
-  // D-048 (bugs.md B-110): an RSS 404 used to be treated as permanent proof
-  // of channel deletion, excluding the channel from every future sync with
-  // no retry — a single transient 404 shouldn't be able to do that, so it's
-  // now just an ordinary per-channel failure like any other, retried next
-  // cycle.
+  // D-048 (B-110): a single RSS 404 is an ordinary per-channel failure,
+  // retried next cycle — never a permanent exclusion.
   it('treats an RSS 404 as an ordinary per-channel failure, not a permanent exclusion', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCgone')
@@ -388,11 +385,8 @@ describe('SyncService.refresh', () => {
     expect(repo.listSubscribedChannels('acc1').map((c) => c.channelId)).toContain('UCgone')
   })
 
-  // D-048/B-110: YouTube's RSS backend was confirmed live to return
-  // transient 404/500 for genuinely active channels under ordinary
-  // conditions — retrying within the same cycle (youtube-api.md's own
-  // documented, previously-unimplemented "max 3 per cycle" rule) recovers
-  // most of these instead of waiting for the next 30-minute cycle.
+  // D-048/B-110: YouTube's RSS backend returns transient 404/500 for active
+  // channels — retrying within the same cycle (youtube-api.md) recovers most.
   it('retries a failing RSS fetch up to 5 times before giving up on the channel this cycle', async () => {
     const repo = new FakeRepo()
     repo.addChannel('UCflaky')
@@ -470,8 +464,7 @@ describe('SyncService.refresh', () => {
 
   it('backfills a gap when the whole RSS window is new on a previously synced channel', async () => {
     const repo = new FakeRepo()
-    // Not a first sync (B-105 now marks everything read on a first sync,
-    // which this test isn't exercising — see the account-level meta).
+    // Not a first sync (B-105 marks everything read on first sync; see account-level meta).
     repo.setMeta('subscriptions_synced_at:acc1', '2026-07-01T00:00:00Z')
     repo.addChannel('UCa', { lastSyncedAt: '2026-07-01T00:00:00Z', uploadsPlaylist: 'UUa' })
     repo.known.add('older-known')
@@ -502,10 +495,8 @@ describe('SyncService.refresh', () => {
     const repo = new FakeRepo()
     repo.addChannel('UCa', { lastSyncedAt: '2026-07-01T00:00:00Z', uploadsPlaylist: 'UUa' })
     // 'window-known' sits in the current RSS window alongside genuinely new
-    // entries — under the old all-or-nothing gate this alone would have
-    // suppressed gap-backfill entirely, hiding 'missed-1' forever even
-    // though it's a real, never-captured video sitting just past the RSS
-    // window and just before 'window-known' in the uploads playlist.
+    // entries — this alone must not suppress gap-backfill, or 'missed-1'
+    // would stay hidden even though it's a real never-captured video.
     repo.known.add('window-known')
     const rssEntries = [discovered('rss-new-1'), discovered('rss-new-2'), discovered('window-known')]
     const source = fakeVideoSource({

@@ -2,10 +2,8 @@ import { t } from './i18n'
 
 // Two groups rather than one flat list: several keys mean different things
 // depending on where they're pressed (`s` sidebar-toggle in the feed vs.
-// subscribe in the player), and this overlay is reachable from both screens
-// (B-102 fixed `?` doing nothing in the player) — showing both groups
-// always, regardless of which screen it was opened from, is simpler and
-// more honest than trying to filter the list by context.
+// subscribe in the player). Both groups always show, regardless of which
+// screen the overlay was opened from, rather than filtering by context.
 const FEED_SHORTCUTS: readonly [string, () => string][] = [
   ['j / k  ·  ↓ / ↑', () => t('help.action.nextPrev')],
   ['Enter / o', () => t('help.action.play')],
@@ -43,8 +41,8 @@ const PLAYER_SHORTCUTS: readonly [string, () => string][] = [
   ['/', () => t('help.action.filter')]
 ]
 
-// Only live while the player is docked to its corner box (B-045) — the feed
-// is fully interactive underneath then, so these are handled by the feed's
+// Only live while the player is docked to its corner box — the feed is
+// fully interactive underneath then, so these are handled by the feed's
 // own keydown map (App.tsx), not PlayerSurface's, guarded on `miniplayer`
 // being true.
 const MINIPLAYER_SHORTCUTS: readonly [string, () => string][] = [

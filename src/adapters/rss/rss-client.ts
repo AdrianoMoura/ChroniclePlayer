@@ -5,7 +5,7 @@ import { request, type FetchFn } from '../http'
 
 // The free discovery tier of the hybrid feed source (D-007): public channel
 // feeds, no auth, no quota. Politeness (youtube-api.md §RSS): conditional
-// GET via ETag/Last-Modified; the sync engine bounds concurrency at 8.
+// GET via ETag/Last-Modified; the sync engine bounds concurrency.
 
 const FEED_BASE = 'https://www.youtube.com/feeds/videos.xml'
 
@@ -30,9 +30,8 @@ export class YouTubeRssClient {
 
     if (response.status === 304) return { kind: 'not-modified' }
     // A 404 here isn't reliable proof a channel is gone for good — YouTube's
-    // RSS edge can return one transiently. Treated as an ordinary fetch
-    // failure (retried next cycle, like any other), not a permanent,
-    // un-retried "channel deleted" verdict (see decisions.md D-048).
+    // RSS edge can return one transiently, so it's treated as an ordinary
+    // retryable fetch failure, never a permanent "channel deleted" verdict (D-048).
     if (!response.ok) throw internal(`RSS fetch failed with ${response.status}`)
 
     return {

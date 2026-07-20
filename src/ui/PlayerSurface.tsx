@@ -10,21 +10,19 @@ import {
 import type { PlayerVideoDto, VideoStateDto } from '../ipc/contract'
 import { t } from './i18n'
 
-// The live iframe + its postMessage widget protocol (playback.md, D-006) —
-// split out of what used to be the whole PlayerView so it can stay mounted
-// (and therefore never restart the video) across the full-view ↔ miniplayer
-// transition (B-045).
+// The live iframe + its postMessage widget protocol (playback.md, D-006).
+// Stays mounted (and therefore never restarts the video) across the
+// full-view ↔ miniplayer transition (B-045).
 //
 // This renders at one single, fixed position in the tree (App.tsx) and is
-// *never* reparented into PlayerDetails or MiniPlayerBar — a React portal
-// was tried first and reverted, because moving an <iframe> to a different
-// DOM parent (which is what a portal does under the hood, even without
-// ever removing it from the document) makes Chromium reload it, same as
-// any other cross-parent move. Instead this measures whichever "slot"
-// placeholder element the current layout hands it (`alignTarget` — an
-// empty div PlayerDetails/MiniPlayerBar render exactly where the video
-// should visually appear) and mirrors its on-screen rect via a `position:
-// fixed` wrapper. The iframe's actual DOM parent chain never changes.
+// *never* reparented into PlayerDetails or MiniPlayerBar — moving an
+// <iframe> to a different DOM parent (which is what a React portal does
+// under the hood, even without removing it from the document) makes
+// Chromium reload it. Instead this measures whichever "slot" placeholder
+// element the current layout hands it (`alignTarget` — an empty div
+// PlayerDetails/MiniPlayerBar render exactly where the video should
+// visually appear) and mirrors its on-screen rect via a `position: fixed`
+// wrapper. The iframe's actual DOM parent chain never changes.
 
 const PLAYER_ORIGIN = 'https://www.youtube.com'
 
@@ -45,31 +43,28 @@ function resumeValueFor(currentTime: number, durationSeconds: number | null): nu
 type Surface = 'playing' | 'embed-blocked'
 
 export interface PlayerSurfaceHandle {
-  // B-045 extract-to-window: there's no way to move this iframe's DOM node
-  // into a different BrowserWindow's renderer process, so extracting hands
-  // off a snapshot (position + playing/paused) to a fresh instance there
-  // instead — this is what reads that snapshot at the moment of extraction.
+  // There's no way to move this iframe's DOM node into a different
+  // BrowserWindow's renderer process, so extracting (B-045) hands off a
+  // snapshot (position + playing/paused) to a fresh instance there instead —
+  // this reads that snapshot at the moment of extraction.
   getPlaybackSnapshot: () => { currentTimeSeconds: number; playing: boolean }
   // PlayerDetails' own topbar "Back" button lives in a different component
-  // (it's only rendered in the full-view layout) but the dock-vs-close
-  // decision needs the live playerStateRef this component owns — exposed
-  // here so that button can trigger the exact same logic Esc/the mouse
-  // back-button already use.
+  // (only rendered in the full-view layout) but the dock-vs-close decision
+  // needs the live playerStateRef this component owns — exposed here so
+  // that button triggers the same logic Esc/the mouse back-button use.
   requestClose: () => void
-  // B-045: used both by this component's own dock-vs-close decision and by
+  // Used by both this component's own dock-vs-close decision and by
   // App.tsx's "hard" navigation-away actions (sidebar clicks, submitting a
-  // search, switching accounts) so leaving the player through any of those
-  // paths docks consistently, not just Esc/Back. See `closeOrDock`'s own
-  // comment for why this is deliberately lenient rather than a strict
-  // `=== 1` (playing) check.
+  // search, switching accounts), so leaving the player through any path
+  // docks consistently. See `closeOrDock` for why this is deliberately
+  // lenient rather than a strict `=== 1` (playing) check.
   isStillGoing: () => boolean
-  // D-051: closing the window to the tray with SettingsDto.popOutOnClose off
+  // Closing the window to the tray with SettingsDto.popOutOnClose off (D-051)
   // pauses whatever's playing instead of popping it into the extract window.
   pause: () => void
-  // B-113: jumps to a specific position — used by a comment's linkified
-  // timestamp (e.g. "12:34"). Also resumes playback if paused, matching
-  // YouTube's own comment-timestamp behavior (jump *and* play), not just a
-  // seek left sitting on the paused frame.
+  // Jumps to a specific position — used by a comment's linkified timestamp
+  // (e.g. "12:34"). Also resumes playback if paused, matching YouTube's own
+  // comment-timestamp behavior (jump *and* play).
   seekTo: (seconds: number) => void
 }
 
@@ -225,12 +220,12 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           if (payload.info === 0) {
             void window.chronicle.setResumePosition(video.videoId, null)
           }
-          // B-038: quality only takes effect once playback actually starts —
+          // Quality only takes effect once playback actually starts (B-038) —
           // requesting it on ready alone isn't enough, YouTube can still pick
           // a bandwidth-heuristic default the moment the stream begins.
           if (payload.info === 1) {
             command('setPlaybackQuality', ['highres'])
-            // D-038: same reissue-on-start safety net as quality above.
+            // Same reissue-on-start safety net as quality above (D-038).
             if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
           }
           // Paused: a natural checkpoint to persist how far the user got,
@@ -249,17 +244,14 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         if (payload.event === 'infoDelivery') {
           const info = payload.info as { currentTime?: number; playerState?: number } | undefined
           if (typeof info?.currentTime === 'number') currentTimeRef.current = info.currentTime
-          // B-111: infoDelivery also carries playerState, and (like the D-038
-          // rate-reissue fix) is a steady heartbeat rather than a one-shot
-          // transition event — a state change triggered by clicking the
-          // embed's own native controls (as opposed to one of our own
-          // command() calls) isn't guaranteed to produce an onStateChange
-          // round trip we actually observe, the same unreliability already
-          // documented above for isStillGoing(). This keeps playerStateRef
-          // correct even when that specific onStateChange is missed, without
-          // touching the transition-only side effects (ended overlay, resume
-          // checkpoint, quality/rate reissue) below, which must still fire
-          // exactly once per real transition, not once per heartbeat tick.
+          // playerStateRef also updates from infoDelivery's steady heartbeat,
+          // not just the one-shot onStateChange event, since a state change
+          // the embed initiates on its own (e.g. clicking its native
+          // controls) isn't guaranteed to produce an observed onStateChange
+          // round trip (B-111). This doesn't touch the transition-only side
+          // effects below (ended overlay, resume checkpoint, quality/rate
+          // reissue), which must still fire exactly once per real
+          // transition, not once per heartbeat tick.
           if (typeof info?.playerState === 'number') playerStateRef.current = info.playerState
         }
       }
@@ -272,13 +264,13 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         JSON.stringify({ event: 'listening', id: 'chronicle', channel: 'widget' }),
         PLAYER_ORIGIN
       )
-      // B-038: request the highest quality up front too, so it's already
-      // set once playback starts (the onStateChange re-issue is the fallback
-      // for the case YouTube resets it when the stream actually begins).
+      // Request the highest quality up front too, so it's already set once
+      // playback starts (the onStateChange re-issue above is the fallback
+      // for when YouTube resets it as the stream begins) (B-038).
       command('setPlaybackQuality', ['highres'])
-      // D-038: default playback speed, set from Settings. Applied here and
-      // re-issued on actual playback start (above) for the same reason quality
-      // is — YouTube can reset it once the stream begins.
+      // Default playback speed, set from Settings. Applied here and
+      // re-issued on actual playback start (above), since YouTube can reset
+      // it once the stream begins (D-038).
       if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
     }, [command, defaultPlaybackRate])
 
@@ -289,25 +281,22 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       void window.chronicle.openInBrowser(video.videoId)
     }
 
-    // B-045: "is it still going" for the dock-vs-close decision — deliberately
+    // "Is it still going" for the dock-vs-close decision (B-045) — deliberately
     // lenient (true unless we have positive evidence otherwise: explicitly
-    // ended (0) or paused (2)) rather than a strict `=== 1` (playing) check.
-    // `playerStateRef` only updates once the iframe posts back its own
-    // `onStateChange`, and that round trip firing promptly (or at all) for the
-    // *autoplay-initiated* state, as opposed to a state change our own
-    // `command()` calls triggered, isn't something to gate a core feature on —
-    // treating unstarted/buffering/cued the same as playing means a real
-    // in-progress video still docks even if that event happened to be slow,
-    // dropped, or never distinctly observed.
+    // ended (0) or paused (2)) rather than a strict `=== 1` (playing) check,
+    // since the autoplay-initiated onStateChange round trip isn't guaranteed
+    // to land promptly or at all. Treating unstarted/buffering/cued the same
+    // as playing means a real in-progress video still docks even if that
+    // event was slow, dropped, or never distinctly observed.
     const isStillGoing = useCallback(() => {
       return playerStateRef.current !== 0 && playerStateRef.current !== 2
     }, [])
 
     // Leaving the full view while the video is still going docks to the
-    // miniplayer instead of stopping it — but only from the outermost level of
-    // the queue stack (a "Back" deeper in the stack still means "go to the
-    // previous video," same as it always has). Explicitly paused/ended, or
-    // deeper in the stack, closes exactly as before.
+    // miniplayer instead of stopping it — but only from the outermost level
+    // of the queue stack (a "Back" deeper in the stack means "go to the
+    // previous video"). Explicitly paused/ended, or deeper in the stack,
+    // just closes.
     const closeOrDock = useCallback(() => {
       if (stackDepth === 1 && isStillGoing()) onDock()
       else onClose()
@@ -318,10 +307,8 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       () => ({
         getPlaybackSnapshot: () => ({
           currentTimeSeconds: currentTimeRef.current,
-          // Same lenient check as isStillGoing(), not a strict `=== 1`: the
-          // autoplay-initiated onStateChange round trip isn't guaranteed to
-          // have landed yet at the moment the user hits Extract, and a false
-          // negative here means the handed-off window opens paused.
+          // Same lenient check as isStillGoing(), not a strict `=== 1`: a
+          // false negative here means the handed-off window opens paused.
           playing: isStillGoing()
         }),
         requestClose: () => closeOrDock(),
@@ -335,11 +322,10 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
             command('playVideo')
             playerStateRef.current = 1
           }
-          // B-113: a comment timestamp is typically clicked from way down in
-          // the (scrolled) comments section, below the video itself — jump
-          // the scroll container (`.player-view`, same one B-108's own notes
-          // identify) back to the top so the now-seeked video is actually
-          // back on screen, not just playing off-screen.
+          // A comment timestamp is typically clicked from way down in the
+          // (scrolled) comments section, below the video itself — jump the
+          // scroll container (`.player-view`) back to the top so the
+          // now-seeked video is actually back on screen (B-113).
           alignTarget?.closest<HTMLElement>('.player-view')?.scrollTo({ top: 0, behavior: 'smooth' })
         }
       }),
@@ -367,15 +353,11 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         }
         switch (event.key) {
           case ' ': {
-            // playerStateRef only updates once the iframe posts back its own
-            // onStateChange — a round trip that isn't guaranteed to land
-            // before the next keypress. Waiting for it made a second, rapid
-            // Space press read the still-stale pre-command state and reissue
-            // the same command as a no-op. Updating the ref optimistically,
-            // right when the command is sent, means every subsequent press
-            // toggles correctly regardless of that round trip's timing; the
-            // real onStateChange event still arrives and reconciles it either
-            // way, same as it always did.
+            // Updates playerStateRef optimistically right when the command is
+            // sent, rather than waiting for the onStateChange round trip —
+            // otherwise a second, rapid Space press would read the stale
+            // pre-command state and reissue the same command as a no-op. The
+            // real onStateChange event still arrives and reconciles it.
             const playing = playerStateRef.current === 1
             command(playing ? 'pauseVideo' : 'playVideo')
             playerStateRef.current = playing ? 2 : 1
@@ -404,11 +386,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
             onFocusSearch()
             break
           // m/w/i/f mirror the feed's own single-key bindings for the video
-          // currently open (parity gap identified alongside the `?` bug: these
-          // already had a mouse path in PlayerDetails' action bar, just no
-          // keyboard one while the player owned the keydown map). `f` is free
-          // to reuse here — Chronicle's own fullscreen shortcut was removed
-          // (bugs.md B-089).
+          // currently open (these already had a mouse path in PlayerDetails'
+          // action bar). Chronicle has no fullscreen shortcut, so `f` is free
+          // to reuse here (B-089).
           case 'm':
             void window.chronicle
               .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
@@ -481,9 +461,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       onToggleHelp
     ])
 
-    // B-039: the mouse "back" side button (XButton1, event.button === 3) exits
-    // the player, same as Esc/the visible Back button — mirrors what browsers
-    // do with history-back. Full-view only, same reasoning as the keyboard map.
+    // The mouse "back" side button (XButton1, event.button === 3) exits the
+    // player, same as Esc/the visible Back button — mirrors browser
+    // history-back (B-039). Full-view only, same reasoning as the keyboard map.
     useEffect(() => {
       if (!active) return
       function onMouseUp(event: MouseEvent): void {

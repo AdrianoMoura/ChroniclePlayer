@@ -1,8 +1,8 @@
 import { en } from './en'
 
-// B-017: all UI copy lives here, not inline in components. Only English
-// ships today; a future locale is a new dict matching `Dict`'s keys (TS
-// enforces parity) plus a line in `activeDict` below — no component change.
+// All UI copy lives here, not inline in components. Only English ships
+// today; a future locale is a new dict matching `Dict`'s keys (TS enforces
+// parity) plus a line in `activeDict` below — no component change.
 type Dict = typeof en
 export type MessageKey = keyof Dict
 
