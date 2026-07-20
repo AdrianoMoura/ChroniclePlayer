@@ -192,8 +192,11 @@ Resolved entries add:
 
 ### B-086 — Members-only videos never show up in the feed
 - **Type:** bug · **Severity:** major
-- **Status:** Open (research done 2026-07-15; recommendation below needs the owner's live
-  confirmation, not more code, to move further) · **Reported:** 2026-07-15 · **Target:**
+- **Status:** Won't fix for now — the open research question is resolved (2026-07-20):
+  the authenticated `playlistItems.list` path does not surface members-only content
+  either, and no other TOS-compliant endpoint exists. No code path currently identifies
+  these videos reliably. Revisit if a different, official solution ever becomes
+  available. · **Reported:** 2026-07-15 · **Target:**
   0.4.9 (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, and 0.4.8 all shipped without this)
 - **Area:** sync
 - **What happens:** a video restricted to channel members doesn't appear in
@@ -277,6 +280,31 @@ Resolved entries add:
   above with a cheaper trigger than "every channel every cycle" (e.g. only for channels
   with an active membership, a small subset of the total), which may sidestep the quota
   objection that ruled out the blanket version.
+  **Owner update (2026-07-20) — the open research question is now answered:** a real
+  case arrived again (a channel the owner has an active paid membership on posted a
+  members-only video ~1h before this was written, then a public Short ~16 min before),
+  and this time it was tested directly — with the owner's explicit authorization, a
+  one-off diagnostic reused the app's own already-stored OAuth credentials (the existing
+  refresh token from `secrets.json`, no new consent flow) to mint an access token exactly
+  the way `GoogleAuthProvider` does, then called `playlistItems.list`
+  (part=snippet,contentDetails, 3 pages/60 items) on that channel's uploads playlist
+  directly — the same authenticated call `backfillGap`/`backfillArchive` already make.
+  Result: every item came back already
+  known — no `secret` or `refresh_token` value was ever printed, only the resulting
+  video listing. The newest item returned was the Short the RSS diff had already found; the very
+  next item was two days older, with no video in between — meaning the members-only
+  upload, chronologically sitting right between those two, was not in the response at
+  all. This resolves the question left open on 2026-07-15/07-17: the uploads playlist an
+  authenticated call reads from reflects the channel's **public** upload history only,
+  not a per-viewer view filtered by the caller's own membership — a member's own OAuth
+  token does not unlock anything extra here. **Conclusion:** within the YouTube Data API
+  v3's documented, TOS-compliant surface (no Innertube/undocumented endpoints,
+  `youtube-api.md` §Terms-of-service constraints), there is currently no way to identify
+  members-only videos reliably — not a gating bug in `possibleGap`/`backfillGap`, a
+  genuine data-source limitation. Closing the research thread as **Won't fix for now**:
+  if a different, official solution ever surfaces (a new documented endpoint, a change
+  in what the uploads playlist returns, etc.), this should be revisited and could improve
+  the experience — but nothing implementable exists today.
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
