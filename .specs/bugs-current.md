@@ -465,6 +465,27 @@ Resolved entries add:
 
 ## Resolved
 
+### B-123 — Player screen shows "0:00" duration for a currently-airing live/Premiere
+- **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-20 · **Target:** 0.4.8
+- **Area:** player
+- **What happens:** the owner caught this live-testing [[B-122]]: the full-view player's
+  meta line (channel · relative-time label · duration) still showed a duration for a
+  currently-airing live video/Premiere — always "0:00", since `durationSeconds` has no
+  real value while a broadcast is still live. Per the owner: duration doesn't make sense
+  to show there at all, live or not, since the embedded YouTube player itself already
+  shows the same information in its own controls, directly above.
+- **Expected:** no duration in the player screen's meta line, for any video.
+- **Code refs:** `src/ui/PlayerDetails.tsx` (`player-meta` block).
+- **Resolved:** 2026-07-20 · **Commit:** 454791f · **Outcome:** Fixed
+- **Resolution:** `FeedList.tsx`'s feed-card duration display already guarded on
+  `liveContent !== 'live'` (pre-existing) — that guard was never present in
+  `PlayerDetails.tsx`, so a live video's duration slipped through here. Rather than add
+  the same guard, removed the duration entirely from the player screen's meta line per
+  the owner's own call: it's redundant with what the embed's own controls already show
+  for a normal video, on top of being wrong (always zero) for a live/Premiere. Checked
+  via `npm run typecheck && npm run lint && npm test` (233/233, no UI test suite exists
+  for this component to extend); not run live.
+
 ### B-122 — Feed shows "0 min ago" for a currently-airing live/Premiere instead of how long it's been running
 - **Type:** adjustment · **Status:** Fixed · **Reported:** 2026-07-20 · **Target:** 0.4.8
 - **Area:** feed
