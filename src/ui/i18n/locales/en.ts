@@ -412,6 +412,7 @@ export const dict = {
   'feed.card.premiereBadge': 'Premiere',
   'feed.card.upcomingBadge': 'Upcoming',
   'feed.loadingMore': 'Loading more…',
+  'feed.dropAppend': 'Drop here to move to the end',
 
   // PlayerView
   'player.topbar.back': '← Back',
