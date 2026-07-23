@@ -39,6 +39,11 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
 }
 const HEADER_HEIGHT = 38
 
+// D-057: which side of the hovered row/card the dragged video would land on
+// — 'before' if the pointer is over the near half (top for a list row, left
+// for a grid card), 'after' for the far half.
+export type DropEdge = 'before' | 'after'
+
 // liveContent alone doesn't distinguish "airing now" from "broadcast has
 // since ended" — it reverts to 'none' once a stream wraps, same as a normal
 // upload, so no badge shows for the ended case. An ended broadcast still
@@ -129,9 +134,10 @@ interface FeedListProps {
   loadingMore: boolean
   // D-057: Watch Later's own drag-and-drop reorder, list and grid alike.
   // Native HTML5 DnD — no explicit grab handle, the whole row/card is the
-  // drag source, same as any file-manager list.
+  // drag source, same as any file-manager list. toIndex is the row/card the
+  // video was dropped on; edge says which side of it.
   reorderable?: boolean
-  onReorder?: (fromIndex: number, toIndex: number) => void
+  onReorder?: (fromIndex: number, toIndex: number, edge: DropEdge) => void
 }
 
 export function FeedList({
@@ -152,7 +158,7 @@ export function FeedList({
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ index: number; edge: DropEdge } | null>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
   const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
@@ -254,19 +260,25 @@ export function FeedList({
               ? {
                   reorderable: true,
                   dragging: videoIndex === dragIndex,
-                  dragOver: videoIndex === dragOverIndex && videoIndex !== dragIndex,
+                  dropEdge:
+                    dropTarget?.index === videoIndex && videoIndex !== dragIndex
+                      ? dropTarget.edge
+                      : null,
                   onDragStart: () => setDragIndex(videoIndex),
-                  onDragOverItem: () => {
-                    if (dragOverIndex !== videoIndex) setDragOverIndex(videoIndex)
+                  onDragOverItem: (edge: DropEdge) => {
+                    if (videoIndex === dragIndex) return
+                    if (dropTarget?.index !== videoIndex || dropTarget.edge !== edge)
+                      setDropTarget({ index: videoIndex, edge })
                   },
-                  onDropItem: () => {
-                    if (dragIndex !== null) onReorder?.(dragIndex, videoIndex)
+                  onDropItem: (edge: DropEdge) => {
+                    if (dragIndex !== null && videoIndex !== dragIndex)
+                      onReorder?.(dragIndex, videoIndex, edge)
                     setDragIndex(null)
-                    setDragOverIndex(null)
+                    setDropTarget(null)
                   },
                   onDragEndItem: () => {
                     setDragIndex(null)
-                    setDragOverIndex(null)
+                    setDropTarget(null)
                   }
                 }
               : {}
@@ -331,15 +343,20 @@ interface VideoRowProps {
   // other keyboard path to it, so they opt in.
   focusable?: boolean
   // D-057: the whole row/card is the native HTML5 drag source and drop
-  // target — no separate grab handle. `dragging`/`dragOver` are this item's
-  // own current drag state (for CSS feedback only); the reorder decision
-  // itself happens in FeedList, which owns the dragged/hovered index.
+  // target — no separate grab handle. `dragging` is this item's own current
+  // drag state (for CSS feedback only). `dropEdge` renders a line between
+  // this item and its neighbor on that side, so the reorder decision (owned
+  // by FeedList, which tracks the dragged/hovered index) has an obvious
+  // landing spot instead of just a highlight on the hovered item itself.
+  // Edge is computed here (pointer position within this item's own
+  // bounding box), since that's orientation-specific (vertical for a list
+  // row, horizontal for a grid card) in a way FeedList's shared code isn't.
   reorderable?: boolean
   dragging?: boolean
-  dragOver?: boolean
+  dropEdge?: DropEdge | null
   onDragStart?: () => void
-  onDragOverItem?: () => void
-  onDropItem?: () => void
+  onDragOverItem?: (edge: DropEdge) => void
+  onDropItem?: (edge: DropEdge) => void
   onDragEndItem?: () => void
 }
 
@@ -347,6 +364,18 @@ interface VideoRowProps {
 // renderer never talks to Google hosts directly (architecture.md).
 function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
+}
+
+// D-057: which half of the hovered element the pointer is over — top/bottom
+// for a stacked list row, left/right for a side-by-side grid card.
+function verticalEdge(event: DragEvent<HTMLDivElement>): DropEdge {
+  const rect = event.currentTarget.getBoundingClientRect()
+  return event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+}
+
+function horizontalEdge(event: DragEvent<HTMLDivElement>): DropEdge {
+  const rect = event.currentTarget.getBoundingClientRect()
+  return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
 }
 
 export function VideoRow({
@@ -360,7 +389,7 @@ export function VideoRow({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dragOver = false,
+  dropEdge = null,
   onDragStart,
   onDragOverItem,
   onDropItem,
@@ -382,7 +411,7 @@ export function VideoRow({
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
         dragging ? ' dragging' : ''
-      }${dragOver ? ' drag-over' : ''}`}
+      }`}
       onClick={onOpen}
       draggable={reorderable}
       {...(reorderable
@@ -390,11 +419,11 @@ export function VideoRow({
             onDragStart,
             onDragOver: (event: DragEvent<HTMLDivElement>) => {
               event.preventDefault()
-              onDragOverItem?.()
+              onDragOverItem?.(verticalEdge(event))
             },
             onDrop: (event: DragEvent<HTMLDivElement>) => {
               event.preventDefault()
-              onDropItem?.()
+              onDropItem?.(verticalEdge(event))
             },
             onDragEnd: onDragEndItem
           }
@@ -412,6 +441,7 @@ export function VideoRow({
           }
         : {})}
     >
+      {dropEdge !== null && <div className={`drop-line horizontal ${dropEdge}`} />}
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
         <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />
@@ -497,7 +527,7 @@ export function VideoCard({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dragOver = false,
+  dropEdge = null,
   onDragStart,
   onDragOverItem,
   onDropItem,
@@ -519,7 +549,7 @@ export function VideoCard({
     <div
       className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
         dragging ? ' dragging' : ''
-      }${dragOver ? ' drag-over' : ''}`}
+      }`}
       onClick={onOpen}
       draggable={reorderable}
       {...(reorderable
@@ -527,11 +557,11 @@ export function VideoCard({
             onDragStart,
             onDragOver: (event: DragEvent<HTMLDivElement>) => {
               event.preventDefault()
-              onDragOverItem?.()
+              onDragOverItem?.(horizontalEdge(event))
             },
             onDrop: (event: DragEvent<HTMLDivElement>) => {
               event.preventDefault()
-              onDropItem?.()
+              onDropItem?.(horizontalEdge(event))
             },
             onDragEnd: onDragEndItem
           }
@@ -549,6 +579,7 @@ export function VideoCard({
           }
         : {})}
     >
+      {dropEdge !== null && <div className={`drop-line vertical ${dropEdge}`} />}
       <div className="card-thumb-wrap">
         {video.thumbnailUrl !== null ? (
           <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />

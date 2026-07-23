@@ -1053,20 +1053,59 @@ button.primary:disabled {
 
 /* D-057: Watch Later's drag-and-drop reorder — the whole row/card is the
    drag source, no separate handle, so the "you can drag this" affordance is
-   just the grab cursor plus feedback while a drag is actually happening. */
+   just the grab cursor plus feedback while a drag is actually happening.
+   position: relative anchors .drop-line to the row/card's own box rather
+   than the further-up .feed-item (already position: absolute). */
+.row,
+.card {
+  position: relative;
+}
+
 .row.dragging,
 .card.dragging {
   opacity: 0.4;
 }
 
-.row.drag-over,
-.card.drag-over {
-  box-shadow: inset 0 2px 0 var(--accent);
-}
-
 .row[draggable='true']:active,
 .card[draggable='true']:active {
   cursor: grabbing;
+}
+
+/* A line between two items, not a highlight on the hovered one — shows
+   exactly where the dragged video would land. */
+.drop-line {
+  position: absolute;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.drop-line.horizontal {
+  left: 8px;
+  right: 8px;
+  height: 3px;
+}
+
+.drop-line.horizontal.before {
+  top: -3px;
+}
+
+.drop-line.horizontal.after {
+  bottom: -3px;
+}
+
+.drop-line.vertical {
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+}
+
+.drop-line.vertical.before {
+  left: -9px;
+}
+
+.drop-line.vertical.after {
+  right: -9px;
 }
 
 .group-header {

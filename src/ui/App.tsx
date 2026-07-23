@@ -27,6 +27,7 @@ import {
   ITEM_SIZES,
   VideoCard,
   VideoRow,
+  type DropEdge,
   type FeedRow,
   type VideoActions
 } from './FeedList'
@@ -1332,18 +1333,22 @@ export function App() {
 
   // D-057: drag-and-drop reorder in the Watch Later view. fromIndex/toIndex
   // are positions in `videos` (bucket-less there, so a video's index already
-  // matches its queue position) — reorder locally first so the drop feels
-  // instant, then persist. The IPC call carries the whole queue's new order;
-  // reorderWatchLater on the backend ignores anything no longer watch_later.
-  const reorderWatchLater = useCallback((fromIndex: number, toIndex: number) => {
+  // matches its queue position); edge says which side of toIndex the video
+  // was dropped on (FeedList's own drop-line indicator). Reorder locally
+  // first so the drop feels instant, then persist. The IPC call carries the
+  // whole queue's new order; reorderWatchLater on the backend ignores
+  // anything no longer watch_later.
+  const reorderWatchLater = useCallback((fromIndex: number, toIndex: number, edge: DropEdge) => {
     setVideos((current) => {
-      if (fromIndex === toIndex) return current
+      const insertAt = edge === 'before' ? toIndex : toIndex + 1
+      // Removing the dragged item shifts every later index down by one, so
+      // landing it exactly on the indicated side of toIndex needs that
+      // adjusted whenever the drag moved forward.
+      const adjustedInsertAt = insertAt > fromIndex ? insertAt - 1 : insertAt
+      if (adjustedInsertAt === fromIndex) return current
       const next = [...current]
       const [moved] = next.splice(fromIndex, 1)
-      // Removing the dragged item shifts every later index down by one, so
-      // landing it exactly at the dropped-on row (rather than just after it)
-      // needs toIndex adjusted when the drag moved forward.
-      next.splice(toIndex > fromIndex ? toIndex - 1 : toIndex, 0, moved)
+      next.splice(adjustedInsertAt, 0, moved)
       void window.chronicle.reorderWatchLater(next.map((v) => v.videoId))
       return next
     })
