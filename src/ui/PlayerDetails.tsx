@@ -168,7 +168,22 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
             <div ref={slotRef} className="player-stage-slot" />
             {chatSurface === 'column' && (
               <div className="player-chat-column">
-                <div className="player-chat-header">
+                <iframe
+                  className="player-chat-iframe"
+                  src={`https://www.youtube.com/live_chat?v=${video.videoId}&embed_domain=localhost&dark_theme=1`}
+                  title={t('player.chat.toggle')}
+                />
+                <div className="player-chat-footer">
+                  <p className="player-chat-signin-hint">
+                    {t('player.chat.signInHint')}{' '}
+                    <button
+                      type="button"
+                      className="player-chat-signin-link"
+                      onClick={() => void window.chronicle.openYouTubeSignIn()}
+                    >
+                      {t('player.chat.signInLink')}
+                    </button>
+                  </p>
                   <button
                     type="button"
                     className="player-chat-extract"
@@ -178,21 +193,6 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                     ⧉
                   </button>
                 </div>
-                <iframe
-                  className="player-chat-iframe"
-                  src={`https://www.youtube.com/live_chat?v=${video.videoId}&dark_theme=1`}
-                  title={t('player.chat.toggle')}
-                />
-                <p className="player-chat-signin-hint">
-                  {t('player.chat.signInHint')}{' '}
-                  <button
-                    type="button"
-                    className="player-chat-signin-link"
-                    onClick={() => void window.chronicle.openYouTubeSignIn()}
-                  >
-                    {t('player.chat.signInLink')}
-                  </button>
-                </p>
               </div>
             )}
           </div>

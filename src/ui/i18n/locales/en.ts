@@ -437,7 +437,7 @@ export const dict = {
   'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
   'player.upNext.label': 'Up next from Watch Later',
   'player.upNext.dismiss': 'Dismiss',
-  'player.chat.toggle': 'Chat',
+  'player.chat.toggle': 'View live chat',
   'player.chat.extractTitle': 'Pop out chat into its own window',
   'player.chat.signInHint': 'To comment, sign in to YouTube:',
   'player.chat.signInLink': 'Sign in to YouTube',

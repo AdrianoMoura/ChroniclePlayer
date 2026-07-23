@@ -431,7 +431,7 @@ export const dict: Partial<Dict> = {
     'Shorts abrem no navegador (o Chronicle nunca reproduz Shorts)',
   'player.upNext.label': 'A seguir em Assistir mais tarde',
   'player.upNext.dismiss': 'Dispensar',
-  'player.chat.toggle': 'Chat',
+  'player.chat.toggle': 'Ver chat ao vivo',
   'player.chat.extractTitle': 'Destacar o chat em janela própria',
   'player.chat.signInHint': 'Para comentar, entre no YouTube:',
   'player.chat.signInLink': 'Entrar no YouTube',
