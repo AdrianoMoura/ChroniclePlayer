@@ -322,6 +322,84 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+### B-125 — Removing a video from a playlist has no undo, unlike ignore
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-23 · **Target:** 0.8.1
+- **Area:** ui-shell
+- **What happens:** removing a video from inside a playlist's own video list
+  (`PlaylistDetailView`'s per-row "remove from playlist" action) removes it immediately
+  and permanently, with no way to undo a misclick.
+- **Expected:** the same inline undo affordance ignore already has (D-058's playlist
+  scope was built to mirror existing patterns) — a brief window where the action can be
+  reversed before it's final, matching `ui.md`'s States & feedback section.
+- **Code refs:** `src/ui/App.tsx` (`ignoreVideo`/`undoIgnore`/`undoLast`/`clearUndo`/
+  `undoInfo`/`undoable` — the existing ignore-undo mechanism to mirror;
+  `removeVideoFromCurrentPlaylist`, the action to extend). `src/ui/PlaylistDetailView.tsx`
+  (`fullActions`, where `removeFromPlaylist` is wired into `FeedList`).
+- **Notes:** ignore's undo restores `readStatus` (a single field); removing from a
+  playlist restores membership *and* position (`playlistVideos` order) — an undo here
+  needs to restore both, which the ignore mechanism as it stands doesn't need to handle.
+
+### B-126 — Favoriting a video from inside a playlist's video list doesn't update its icon immediately
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-23 · **Target:** 0.8.1
+- **Area:** ui-shell
+- **What happens:** toggling favorite on a video row/card while viewing a playlist's own
+  video list does persist (the video correctly shows up in the Favorites view
+  afterwards) but the ★ glyph on that row inside the playlist list itself doesn't update
+  until the playlist is reopened/reloaded.
+- **Expected:** the icon reflects the new state immediately, same as it does everywhere
+  else the same toggle is used (main feed, channel view, Watch Later, etc.).
+- **Code refs:** `src/ui/App.tsx` — `patch()` (~line 892) only writes into `videos` and
+  `playerStack`, never into `playlistVideos` (a separate `useState<FeedVideoDto[]>`,
+  fetched once via `window.chronicle.getPlaylistVideos` when a playlist opens);
+  `actions.toggleFavorite` goes through `patch()`. `FeedList` renders the ★ glyph
+  straight from each row's `video.state.favorite`, so a stale `playlistVideos` entry
+  shows a stale icon.
+- **Notes:** same root cause as [[B-127]] and part of [[B-128]] — `patch()` has no
+  `playlistVideos` branch at all. A fix likely wants `patch()` (or a wrapper called
+  alongside it) to also map over `playlistVideos` when it's non-empty/relevant, the same
+  way it already does for `playerStack`.
+
+### B-127 — Adding a video to Watch Later from inside a playlist's video list doesn't update its icon immediately
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-23 · **Target:** 0.8.1
+- **Area:** ui-shell
+- **What happens:** same as [[B-126]] but for the Watch Later toggle — persists
+  correctly, but the row's icon inside the playlist's own video list stays stale until
+  the playlist is reopened.
+- **Expected:** immediate icon update, matching every other list in the app.
+- **Code refs:** `src/ui/App.tsx` — `actions.toggleWatchLater`, same `patch()` gap as
+  [[B-126]].
+- **Notes:** identical root cause to [[B-126]] — likely the same fix.
+
+### B-128 — Ignoring a video from inside a playlist's video list has no visible effect there; is the action appropriate in that context at all?
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-23 · **Target:** 0.8.1
+- **Area:** ui-shell
+- **What happens:** the per-row ignore action is reachable from a playlist's own video
+  list (`FeedList` inside `PlaylistDetailView`) and does persist the `ignored` status,
+  but nothing in the playlist list itself reflects it — the row doesn't gray out, get
+  removed, or show the undo affordance the way ignoring a video does in the main feed
+  views. Same stale-`playlistVideos` root cause as [[B-126]]/[[B-127]] (`ignoreVideo`
+  also goes through `patch()`), compounded by the fact that the "remove after
+  `UNDO_WINDOW_MS`" logic in `ignoreVideo` only ever filters the main `videos` array
+  (gated on `viewRef.current === 'all' || 'unread'`), never `playlistVideos` — so even a
+  correct icon fix wouldn't be enough here.
+- **Expected:** not decided yet — the owner raised a genuine design question alongside
+  the bug report, worth resolving before just wiring up the same fix as B-126/B-127:
+  does "ignore" belong in a playlist's video list at all? A video was deliberately added
+  to a playlist by the user, which reads as the opposite intent from "ignore" (hide this,
+  I don't want to see it). Options: (a) fix it like B-126/B-127 so it behaves
+  consistently everywhere, (b) drop the ignore action from playlist video-list rows
+  specifically (D-058 already has precedent for playlists behaving differently from
+  Watch Later — opening a video never auto-removes it, unlike Watch Later's opt-in
+  auto-remove), or (c) something else. Needs the owner's call, not a default pick.
+- **Code refs:** `src/ui/App.tsx` (`ignoreVideo`), `src/ui/PlaylistDetailView.tsx`
+  (`fullActions`, which currently passes the shared `actions.ignore` straight through
+  unchanged).
+- **Notes:** related design precedent: D-058 already draws a line between Watch Later's
+  consumption-queue semantics and a playlist's curated-collection semantics (e.g. the
+  up-next card doesn't wrap around for playlists). The same lens probably applies here.
+
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
