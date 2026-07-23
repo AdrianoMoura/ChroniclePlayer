@@ -381,6 +381,27 @@ function createExtractWindow(
   })
 }
 
+// D-056: a bare top-level navigation to YouTube's own `live_chat` embed —
+// unlike createExtractWindow above, there's no live playback state to keep
+// in sync, so no preload/postMessage bridge is needed at all, same pattern
+// as the plain Sign In window. The page is YouTube's own, so it naturally
+// carries YouTube's own title (Electron mirrors document.title into the
+// native window title) — already distinct from "Chronicle," no override
+// needed the way the video extract window required one (D-051).
+function createChatWindow(videoId: string): void {
+  if (chatWindow !== null && !chatWindow.isDestroyed()) {
+    chatWindow.destroy()
+  }
+  const window = new BrowserWindow({ width: 420, height: 600 })
+  window.removeMenu()
+  void window.loadURL(`https://www.youtube.com/live_chat?v=${videoId}&dark_theme=1`)
+  chatWindow = window
+  window.on('closed', () => {
+    if (chatWindow === window) chatWindow = null
+    broadcast({ type: 'chat:extractWindowClosed', videoId })
+  })
+}
+
 function broadcast(event: ChronicleEventDto): void {
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send(IpcChannel.events, event)
@@ -410,6 +431,9 @@ let isQuitting = false
 // (B-112).
 let extractWindow: BrowserWindow | null = null
 let extractWindowVideoId: string | null = null
+// D-056: the extracted live-chat popup (if any) — fully independent of
+// extractWindow above, so both can be open at once for different purposes.
+let chatWindow: BrowserWindow | null = null
 // Mirrors settings.backgroundMode (boot()-local) so the module-level
 // createWindow()'s close handler can read it without needing boot()'s whole
 // closure — kept in sync by applyBackgroundMode() every time it runs.
@@ -1630,6 +1654,10 @@ async function boot(): Promise<void> {
       title: label
     })
     return true
+  })
+
+  ipcMain.handle(IpcChannel.extractChat, (_event, videoId: unknown) => {
+    createChatWindow(parseVideoId(videoId))
   })
 
   ipcMain.handle(IpcChannel.exportData, async (): Promise<

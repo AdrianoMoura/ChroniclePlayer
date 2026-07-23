@@ -36,6 +36,13 @@ interface PlayerDetailsProps {
   // nothing to measure/align to for a render pass.
   hidden: boolean
   slotRef: (element: HTMLDivElement | null) => void
+  // D-056: owned by App.tsx, not local state here — restoring the docked
+  // column when the extracted popup closes needs to cross-reference the
+  // miniplayer/current-video state App.tsx already tracks, so the whole
+  // three-way surface lives up there instead of split across components.
+  chatSurface: 'closed' | 'column' | 'extracted'
+  onToggleChat: () => void
+  onExtractChat: () => void
   onClose: () => void
   onExtract: () => void
   onOpenVideo: (videoId: string) => void
@@ -59,6 +66,9 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       stackDepth,
       hidden,
       slotRef,
+      chatSurface,
+      onToggleChat,
+      onExtractChat,
       onClose,
       onExtract,
       onOpenVideo,
@@ -154,10 +164,52 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               ⧉
             </button>
           </div>
-          <div ref={slotRef} className="player-stage-slot" />
+          <div className={chatSurface === 'column' ? 'player-stage-row' : undefined}>
+            <div ref={slotRef} className="player-stage-slot" />
+            {chatSurface === 'column' && (
+              <div className="player-chat-column">
+                <div className="player-chat-header">
+                  <button
+                    type="button"
+                    className="player-chat-extract"
+                    title={t('player.chat.extractTitle')}
+                    onClick={onExtractChat}
+                  >
+                    ⧉
+                  </button>
+                </div>
+                <iframe
+                  className="player-chat-iframe"
+                  src={`https://www.youtube.com/live_chat?v=${video.videoId}&dark_theme=1`}
+                  title={t('player.chat.toggle')}
+                />
+                <p className="player-chat-signin-hint">
+                  {t('player.chat.signInHint')}{' '}
+                  <button
+                    type="button"
+                    className="player-chat-signin-link"
+                    onClick={() => void window.chronicle.openYouTubeSignIn()}
+                  >
+                    {t('player.chat.signInLink')}
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="player-info">
-            <h1 className="player-title">{video.title}</h1>
+            <div className="player-title-row">
+              <h1 className="player-title">{video.title}</h1>
+              {video.liveContent === 'live' && chatSurface !== 'extracted' && (
+                <button
+                  type="button"
+                  className={`primary player-chat-toggle${chatSurface === 'column' ? ' active' : ''}`}
+                  onClick={onToggleChat}
+                >
+                  {t('player.chat.toggle')}
+                </button>
+              )}
+            </div>
             <div className="player-meta">
               <button
                 type="button"

@@ -312,6 +312,13 @@ export type ChronicleEventDto =
   // renderer decides whether to pop the current video out or pause it, per
   // SettingsDto.popOutOnClose.
   | { type: 'app:closedToTray' }
+  // D-056: the extracted live-chat popup closed (any reason — user closed
+  // it, or a new extractChat() call replaced it). The renderer restores the
+  // docked chat column if the full player view for this video is still open;
+  // otherwise it just marks chat closed, same as the video's own restore-vs-
+  // just-close split above, but unconditional (no `auto` flag — the chat
+  // popup is never auto-opened, so there's nothing to distinguish).
+  | { type: 'chat:extractWindowClosed'; videoId: string }
 
 export const IpcChannel = {
   getFeed: 'feed:get',
@@ -365,6 +372,7 @@ export const IpcChannel = {
   openYouTubeSignIn: 'auth:openYouTubeSignIn',
   extractPlayer: 'player:extract',
   loadInExtractWindow: 'player:loadInExtract',
+  extractChat: 'chat:extract',
   events: 'chronicle:event'
 } as const
 
@@ -452,6 +460,13 @@ export interface ChronicleApi {
   // extract window is open (a race), so the caller falls back to opening
   // normally in the main window.
   loadInExtractWindow(videoId: string, title: string): Promise<boolean>
+  // D-056: opens the video's live chat (YouTube's own `live_chat` embed) in
+  // its own always-on-top-free popup window — a bare top-level navigation to
+  // youtube.com, not a Chronicle-authored page, so no postMessage bridge and
+  // no title override are needed (the window naturally takes YouTube's own
+  // page title, already distinct from "Chronicle"). Manual only — never
+  // auto-opened, and fully independent of extractPlayer above.
+  extractChat(videoId: string): Promise<void>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

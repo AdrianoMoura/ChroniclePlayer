@@ -115,6 +115,7 @@ const api: ChronicleApi = {
     ),
   loadInExtractWindow: (videoId: string, title: string) =>
     ipcRenderer.invoke(IpcChannel.loadInExtractWindow, videoId, title),
+  extractChat: (videoId: string) => ipcRenderer.invoke(IpcChannel.extractChat, videoId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

@@ -206,6 +206,11 @@ export function App() {
   // the current video ends. Cleared whenever the video changes or the card
   // is dismissed/opened; never drives playback itself.
   const [upNext, setUpNext] = useState<FeedVideoDto | null>(null)
+  // D-056: the live-chat panel's surface. Lives here, not in PlayerDetails,
+  // because restoring the docked column when the extracted popup closes
+  // needs to cross-reference miniplayer/current-video state this component
+  // already owns.
+  const [chatSurface, setChatSurface] = useState<'closed' | 'column' | 'extracted'>('closed')
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
   const playerDetailsRef = useRef<PlayerDetailsHandle>(null)
 
@@ -290,9 +295,52 @@ export function App() {
   // latest value without resubscribing on every video/refresh-cycle change.
   const feedEmptyRef = useRef(true)
   const emptyFeedLoadTriggeredRef = useRef(false)
+  // D-056: mirrors of miniplayer/currentPlayerVideo's id, kept in sync by the
+  // effects below purely so the onEvent listener (a stable subscription, not
+  // resubscribed per render) can read their latest values when the chat
+  // popup closes, without needing them in its own dependency array.
+  const miniplayerRef = useRef(false)
+  const currentPlayerVideoIdRef = useRef<string | null>(null)
 
   const playerOpen = playerStack.length > 0
   const currentPlayerVideo = playerStack.at(-1)
+
+  useEffect(() => {
+    miniplayerRef.current = miniplayer
+  }, [miniplayer])
+
+  useEffect(() => {
+    currentPlayerVideoIdRef.current = currentPlayerVideo?.videoId ?? null
+  }, [currentPlayerVideo])
+
+  // D-056: chat always starts closed — no persisted preference, the user
+  // opens it fresh for whichever video is currently playing. Keyed on the
+  // video's id, not just "a video is open," so switching videos while chat
+  // is open (docked or extracted) also resets it.
+  useEffect(() => {
+    setChatSurface('closed')
+  }, [currentPlayerVideo?.videoId])
+
+  // The one deliberate auto-close in this design: the miniplayer has no
+  // room for the chat column. The extracted popup is untouched here — once
+  // popped out, it stays open regardless of miniplayer/extract-video/close,
+  // only the user's own action on that window ends it (see the
+  // chat:extractWindowClosed handler below).
+  useEffect(() => {
+    if (miniplayer) {
+      setChatSurface((current) => (current === 'column' ? 'closed' : current))
+    }
+  }, [miniplayer])
+
+  const toggleChat = useCallback(() => {
+    setChatSurface((current) => (current === 'column' ? 'closed' : 'column'))
+  }, [])
+
+  const extractChat = useCallback(() => {
+    if (currentPlayerVideo === undefined) return
+    void window.chronicle.extractChat(currentPlayerVideo.videoId)
+    setChatSurface('extracted')
+  }, [currentPlayerVideo])
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed((collapsed) => !collapsed), [])
 
@@ -1064,6 +1112,14 @@ export function App() {
           break
         case 'app:closedToTray':
           handleClosedToTray()
+          break
+        case 'chat:extractWindowClosed':
+          setChatSurface((current) => {
+            if (current !== 'extracted') return current
+            return !miniplayerRef.current && currentPlayerVideoIdRef.current === event.videoId
+              ? 'column'
+              : 'closed'
+          })
           break
       }
     })
@@ -2030,6 +2086,9 @@ export function App() {
                       stackDepth={playerStack.length}
                       hidden={miniplayer}
                       slotRef={setFullSlot}
+                      chatSurface={chatSurface}
+                      onToggleChat={toggleChat}
+                      onExtractChat={extractChat}
                       onClose={() => playerSurfaceRef.current?.requestClose()}
                       onExtract={extractToWindow}
                       onOpenVideo={(videoId) => openVideo(videoId)}
