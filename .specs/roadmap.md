@@ -294,6 +294,11 @@ Dates are deliberately absent — this is sequencing, not scheduling.
 - **0.6.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
   (renumbered past 0.4.0 through 0.4.8, 0.5.0, and 0.6.0 — see above, none touched this
   batch). No batch of its own yet — new items reported after 0.6.0 shipped land here.
+  D-056 (the live chat panel) merged to `main` 2026-07-23, live-tested and confirmed
+  working by the owner — real new scope, not from `tracker-current.md`, same pattern as
+  D-050–D-055. Full narrative in `decisions.md` D-056. Not yet reflected in
+  `package.json`'s version; which release it ships under is still to be decided (a
+  version bump wasn't part of this merge).
 
 ## M0 — Walking skeleton
 
