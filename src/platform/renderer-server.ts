@@ -10,7 +10,10 @@ import { extname, join, normalize, sep } from 'node:path'
 // its own opaque origin, which is exactly that case. Dev mode already
 // works because electron-vite serves the renderer from its own
 // http://localhost dev server; this gives the packaged build the same
-// kind of origin.
+// kind of origin. The hostname specifically has to be `localhost`, not just
+// any loopback address — D-056's docked live chat iframe (`live_chat?...
+// &embed_domain=localhost`) needs the embedding page's own origin to match
+// that literal value, and YouTube checks it exactly.
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -53,13 +56,14 @@ export function startRendererServer(rendererDir: string): Promise<RendererServer
   })
 
   return new Promise((resolve) => {
-    // 127.0.0.1 only (never 0.0.0.0) — this serves no secrets, but there's
-    // no reason to expose it past loopback either. Port 0 = OS-assigned,
-    // so packaging never has to reserve one.
-    server.listen(0, '127.0.0.1', () => {
+    // localhost only (never 0.0.0.0) — this serves no secrets, but there's
+    // no reason to expose it past loopback either; Node resolves the
+    // hostname to a loopback address the same as an explicit 127.0.0.1
+    // would. Port 0 = OS-assigned, so packaging never has to reserve one.
+    server.listen(0, 'localhost', () => {
       const address = server.address()
       const port = typeof address === 'object' && address !== null ? address.port : 0
-      resolve({ url: `http://127.0.0.1:${port}`, close: () => server.close() })
+      resolve({ url: `http://localhost:${port}`, close: () => server.close() })
     })
   })
 }

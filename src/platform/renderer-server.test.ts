@@ -22,7 +22,7 @@ describe('renderer server', () => {
 
   it('serves a real http:// origin, not file:// (playback.md — Error 153 fix)', async () => {
     server = await startRendererServer(fixtureDir())
-    expect(server.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
+    expect(server.url).toMatch(/^http:\/\/localhost:\d+$/)
   })
 
   it('serves index.html at the root', async () => {
