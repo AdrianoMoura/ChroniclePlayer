@@ -16,12 +16,20 @@ export type FeedRow =
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
 
 // A display row is what actually gets virtualized: in list layout it's
-// FeedRow unchanged; in grid layout, consecutive video rows within a bucket
-// are chunked into a single "card-row" of N columns (B-007).
+// FeedRow unchanged (plus D-057's own 'gap' rows, see below); in grid
+// layout, consecutive video rows within a bucket are chunked into a single
+// "card-row" of N columns (B-007).
 type DisplayRow =
   | { kind: 'header'; key: string; label: string }
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
   | { kind: 'card-row'; key: string; items: { video: FeedVideoDto; videoIndex: number }[] }
+  // D-057: a dedicated drop target between two list rows (or before the
+  // first / after the last) — a real virtualized row of its own, not an
+  // overlay guessed from a neighboring row's box, so its position is
+  // automatically exact and equidistant regardless of item size. List
+  // layout only; grid's equivalent lives inside each card-row (see
+  // GRID_DROP_GAP_WIDTH below).
+  | { kind: 'gap'; key: string; insertAt: number }
 
 // File-explorer-style item size, shared by list rows and grid cards.
 // Medium is the default. The xl/xxl steps are deliberately bigger jumps
@@ -37,6 +45,15 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
   xxl: 208
 }
 const HEADER_HEIGHT = 38
+
+// D-057: fixed regardless of item size — a small, reliable hit target
+// between list rows, real estate reserved in the virtualized layout itself
+// rather than an overlay squeezed into a per-size margin.
+const GAP_ROW_HEIGHT = 14
+// Width of the vertical indicator between two grid cards, in the CSS grid's
+// own gap track (see GRID_GAP below) — centered there by the pixel formula
+// in renderGridDropGaps, not guessed via a negative CSS offset.
+const GRID_DROP_GAP_WIDTH = 6
 
 // liveContent alone doesn't distinguish "airing now" from "broadcast has
 // since ended" — it reverts to 'none' once a stream wraps, same as a normal
@@ -103,6 +120,25 @@ function buildCardRows(
   return out
 }
 
+// D-057: interleaves a 'gap' row before every video row, plus one trailing
+// gap after the very last video — list layout only (grid's gaps live inside
+// each card-row instead, see renderGridDropGaps).
+function withGapRows(rows: FeedRow[]): DisplayRow[] {
+  const out: DisplayRow[] = []
+  let lastVideoIndex = -1
+  for (const row of rows) {
+    if (row.kind === 'video') {
+      out.push({ kind: 'gap', key: `gap-${row.videoIndex}`, insertAt: row.videoIndex })
+      out.push(row)
+      lastVideoIndex = row.videoIndex
+    } else {
+      out.push(row)
+    }
+  }
+  if (lastVideoIndex >= 0) out.push({ kind: 'gap', key: 'gap-end', insertAt: lastVideoIndex + 1 })
+  return out
+}
+
 export interface VideoActions {
   markRead: (video: FeedVideoDto) => void
   toggleRead: (video: FeedVideoDto) => void
@@ -130,7 +166,7 @@ interface FeedListProps {
   // Native HTML5 DnD — no explicit grab handle, the whole row/card is the
   // drag source, same as any file-manager list. insertAt is the position in
   // the (bucket-less, so index-is-position) video list to drop the dragged
-  // video at — see the dedicated drop-gap elements below.
+  // video at.
   reorderable?: boolean
   onReorder?: (fromIndex: number, insertAt: number) => void
 }
@@ -153,16 +189,21 @@ export function FeedList({
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // D-057: dragIndex is the video being dragged; dropTarget is an insertion
-  // position (0..videoCount) — there's one more gap than there are videos,
-  // since a gap sits both before the first one and after the last one. Kept
-  // as plain state (not per-row) since only one gap is ever "active" at a
-  // time and every row/card needs to know whether *it's* the one.
+  // position (0..videoCount) — there's one more possible target than there
+  // are videos, since one sits before the first video and one after the
+  // last. Kept as plain state (not per-row) since only one target is ever
+  // highlighted at a time and every drop zone just needs to know whether
+  // it's the one.
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
   const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
   const [cardRowHeight, setCardRowHeight] = useState(gridCardSize.height)
+  // Actual rendered width of one card — same value driving the CSS grid's
+  // own `1fr` columns, kept in state so D-057's drop-gap indicators can be
+  // positioned by the exact same formula instead of guessing from CSS.
+  const [cardWidth, setCardWidth] = useState(gridCardSize.minWidth)
 
   // Column count follows the scroll container's width so the grid reflows
   // instead of overflowing or leaving dead space. Row height is recomputed
@@ -181,10 +222,11 @@ export function FeedList({
         Math.floor((width + GRID_GAP) / (gridCardSize.minWidth + GRID_GAP))
       )
       setColumns(cols)
-      const cardWidth = (width - GRID_GAP * (cols - 1)) / cols
+      const width1fr = (width - GRID_GAP * (cols - 1)) / cols
+      setCardWidth(width1fr)
       const thumbHeightAtMinWidth = gridCardSize.minWidth * (9 / 16)
       const nonThumbHeight = gridCardSize.height - thumbHeightAtMinWidth
-      setCardRowHeight(cardWidth * (9 / 16) + nonThumbHeight)
+      setCardRowHeight(width1fr * (9 / 16) + nonThumbHeight)
     }
     observe(el.clientWidth)
     const observer = new ResizeObserver((entries) => observe(entries[0].contentRect.width))
@@ -192,17 +234,20 @@ export function FeedList({
     return () => observer.disconnect()
   }, [layout, gridCardSize.minWidth, gridCardSize.height])
 
-  const displayRows = useMemo<DisplayRow[]>(
-    () => (layout === 'grid' ? buildCardRows(rows, columns) : rows),
-    [rows, layout, columns]
-  )
+  const displayRows = useMemo<DisplayRow[]>(() => {
+    if (layout === 'grid') return buildCardRows(rows, columns)
+    return reorderable ? withGapRows(rows) : rows
+  }, [rows, layout, columns, reorderable])
 
   const virtualizer = useVirtualizer({
     count: displayRows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: (index) => {
       const row = displayRows[index]
-      return row.kind === 'header' ? HEADER_HEIGHT : row.kind === 'card-row' ? cardRowHeight : rowHeight
+      if (row.kind === 'header') return HEADER_HEIGHT
+      if (row.kind === 'card-row') return cardRowHeight
+      if (row.kind === 'gap') return GAP_ROW_HEIGHT
+      return rowHeight
     },
     overscan: 12
   })
@@ -244,15 +289,13 @@ export function FeedList({
     if (cursorRowIndex >= 0) virtualizer.scrollToIndex(cursorRowIndex, { align: 'auto' })
   }, [cursorRowIndex, virtualizer])
 
-  // The very last video's own trailing gap is the only one that represents
-  // "insert at the end" — every other position is some video's leading gap.
+  // Grid's own last video overall — its card-row also renders one trailing
+  // drop-gap past it, the equivalent of the list's own final 'gap' row.
   const lastVideoIndex = useMemo(() => {
     let max = -1
     for (const row of rows) if (row.kind === 'video' && row.videoIndex > max) max = row.videoIndex
     return max
   }, [rows])
-
-  const dragActive = reorderable && dragIndex !== null
 
   const commitReorder = (insertAt: number) => {
     if (dragIndex !== null) onReorder?.(dragIndex, insertAt)
@@ -260,33 +303,25 @@ export function FeedList({
     setDropTarget(null)
   }
 
-  // Gap props for the video at `videoIndex` — a leading gap (always) plus a
-  // trailing one only on the last video, so "drop after everything" has an
-  // actual element to land on instead of empty space past the last row.
-  const gapProps = (videoIndex: number) =>
-    reorderable
-      ? {
-          reorderable: true,
-          dragging: videoIndex === dragIndex,
-          dragActive,
-          isLastItem: videoIndex === lastVideoIndex,
-          leadingGapOver: dropTarget === videoIndex,
-          trailingGapOver: dropTarget === videoIndex + 1,
-          onDragStart: () => setDragIndex(videoIndex),
-          onLeadingGapOver: () => {
-            if (dropTarget !== videoIndex) setDropTarget(videoIndex)
-          },
-          onLeadingGapDrop: () => commitReorder(videoIndex),
-          onTrailingGapOver: () => {
-            if (dropTarget !== videoIndex + 1) setDropTarget(videoIndex + 1)
-          },
-          onTrailingGapDrop: () => commitReorder(videoIndex + 1),
-          onDragEndItem: () => {
-            setDragIndex(null)
-            setDropTarget(null)
-          }
-        }
-      : {}
+  // D-057: one drop-gap indicator, positioned by pixel formula (exact,
+  // since it's the same arithmetic driving the grid's own `1fr` columns —
+  // no guessing from CSS offsets). `col` is this gap's position within its
+  // own card-row (0 = before the first card in the row).
+  const renderGridDropGap = (key: string, col: number, insertAt: number) => (
+    <div
+      key={key}
+      className={`grid-drop-gap${dropTarget === insertAt ? ' over' : ''}`}
+      style={{ left: col * (cardWidth + GRID_GAP) - GRID_GAP / 2 - GRID_DROP_GAP_WIDTH / 2 }}
+      onDragOver={(event) => {
+        event.preventDefault()
+        if (dropTarget !== insertAt) setDropTarget(insertAt)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        commitReorder(insertAt)
+      }}
+    />
+  )
 
   return (
     <div
@@ -305,8 +340,25 @@ export function FeedList({
             >
               {row.kind === 'header' ? (
                 <h2 className="group-header">{row.label}</h2>
+              ) : row.kind === 'gap' ? (
+                <div
+                  className={`drop-gap-row${dropTarget === row.insertAt ? ' over' : ''}`}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    if (dropTarget !== row.insertAt) setDropTarget(row.insertAt)
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    commitReorder(row.insertAt)
+                  }}
+                >
+                  <div className="drop-gap-line" />
+                </div>
               ) : row.kind === 'card-row' ? (
-                <div className="grid-row" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+                <div
+                  className="grid-row"
+                  style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+                >
                   {row.items.map(({ video, videoIndex }) => (
                     <VideoCard
                       key={video.videoId}
@@ -317,9 +369,21 @@ export function FeedList({
                       onOpen={() => onOpen(videoIndex)}
                       onOpenChannel={onOpenChannel}
                       showViewCounts={showViewCounts}
-                      {...gapProps(videoIndex)}
+                      reorderable={reorderable}
+                      dragging={videoIndex === dragIndex}
+                      onDragStart={() => setDragIndex(videoIndex)}
+                      onDragEndItem={() => {
+                        setDragIndex(null)
+                        setDropTarget(null)
+                      }}
                     />
                   ))}
+                  {reorderable &&
+                    row.items.map(({ videoIndex }, col) =>
+                      renderGridDropGap(`gap-${videoIndex}`, col, videoIndex)
+                    )}
+                  {reorderable && row.items.some((it) => it.videoIndex === lastVideoIndex) &&
+                    renderGridDropGap('gap-end', row.items.length, lastVideoIndex + 1)}
                 </div>
               ) : (
                 <VideoRow
@@ -330,7 +394,13 @@ export function FeedList({
                   onOpen={() => onOpen(row.videoIndex)}
                   onOpenChannel={onOpenChannel}
                   showViewCounts={showViewCounts}
-                  {...gapProps(row.videoIndex)}
+                  reorderable={reorderable}
+                  dragging={row.videoIndex === dragIndex}
+                  onDragStart={() => setDragIndex(row.videoIndex)}
+                  onDragEndItem={() => {
+                    setDragIndex(null)
+                    setDropTarget(null)
+                  }}
                 />
               )}
             </div>
@@ -357,28 +427,13 @@ interface VideoRowProps {
   // cursor-navigated list — the priority section, search results — have no
   // other keyboard path to it, so they opt in.
   focusable?: boolean
-  // D-057: the whole row/card is the native HTML5 drag source (draggable,
-  // starts on mousedown-and-hold anywhere on it) — but the *drop target* is
-  // a dedicated gap element rendered as its own child, not the row/card
-  // itself, so there's exactly one obvious landing spot per boundary rather
-  // than the ambiguity of splitting the whole item into "top/bottom halves".
-  // Every item gets a leading gap (drop here = insert right before this
-  // video); only the very last item also gets a trailing gap (insert at the
-  // very end — otherwise there'd be no element to drop onto past the last
-  // row). `dragActive` reveals both kinds of gap for the length of any drag
-  // in progress; `leadingGapOver`/`trailingGapOver` highlight the specific
-  // one currently under the pointer.
+  // D-057: the whole row/card is the native HTML5 drag source — draggable,
+  // starts on mousedown-and-hold anywhere on it. The *drop targets*
+  // themselves (dedicated gap elements, list rows or grid overlays) are
+  // owned and rendered by FeedList, not by VideoRow/VideoCard.
   reorderable?: boolean
   dragging?: boolean
-  dragActive?: boolean
-  isLastItem?: boolean
-  leadingGapOver?: boolean
-  trailingGapOver?: boolean
   onDragStart?: () => void
-  onLeadingGapOver?: () => void
-  onLeadingGapDrop?: () => void
-  onTrailingGapOver?: () => void
-  onTrailingGapDrop?: () => void
   onDragEndItem?: () => void
 }
 
@@ -399,15 +454,7 @@ export function VideoRow({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dragActive = false,
-  isLastItem = false,
-  leadingGapOver = false,
-  trailingGapOver = false,
   onDragStart,
-  onLeadingGapOver,
-  onLeadingGapDrop,
-  onTrailingGapOver,
-  onTrailingGapDrop,
   onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
@@ -444,21 +491,6 @@ export function VideoRow({
           }
         : {})}
     >
-      {reorderable && (
-        <div
-          className={`drop-gap horizontal leading${dragActive ? ' active' : ''}${
-            leadingGapOver ? ' over' : ''
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            onLeadingGapOver?.()
-          }}
-          onDrop={(event) => {
-            event.preventDefault()
-            onLeadingGapDrop?.()
-          }}
-        />
-      )}
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
         <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />
@@ -520,21 +552,6 @@ export function VideoRow({
       {video.durationSeconds !== null && video.liveContent !== 'live' && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}
-      {reorderable && isLastItem && (
-        <div
-          className={`drop-gap horizontal trailing${dragActive ? ' active' : ''}${
-            trailingGapOver ? ' over' : ''
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            onTrailingGapOver?.()
-          }}
-          onDrop={(event) => {
-            event.preventDefault()
-            onTrailingGapDrop?.()
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -559,15 +576,7 @@ export function VideoCard({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dragActive = false,
-  isLastItem = false,
-  leadingGapOver = false,
-  trailingGapOver = false,
   onDragStart,
-  onLeadingGapOver,
-  onLeadingGapDrop,
-  onTrailingGapOver,
-  onTrailingGapDrop,
   onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
@@ -604,36 +613,6 @@ export function VideoCard({
           }
         : {})}
     >
-      {reorderable && (
-        <div
-          className={`drop-gap vertical leading${dragActive ? ' active' : ''}${
-            leadingGapOver ? ' over' : ''
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            onLeadingGapOver?.()
-          }}
-          onDrop={(event) => {
-            event.preventDefault()
-            onLeadingGapDrop?.()
-          }}
-        />
-      )}
-      {reorderable && isLastItem && (
-        <div
-          className={`drop-gap vertical trailing${dragActive ? ' active' : ''}${
-            trailingGapOver ? ' over' : ''
-          }`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            onTrailingGapOver?.()
-          }}
-          onDrop={(event) => {
-            event.preventDefault()
-            onTrailingGapDrop?.()
-          }}
-        />
-      )}
       <div className="card-thumb-wrap">
         {video.thumbnailUrl !== null ? (
           <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />

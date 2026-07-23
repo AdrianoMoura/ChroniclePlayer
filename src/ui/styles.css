@@ -1052,15 +1052,9 @@ button.primary:disabled {
 }
 
 /* D-057: Watch Later's drag-and-drop reorder — the whole row/card is the
-   drag source, no separate handle, so the "you can drag this" affordance is
-   just the grab cursor plus feedback while a drag is actually happening.
-   position: relative anchors .drop-gap to the row/card's own box rather
-   than the further-up .feed-item (already position: absolute). */
-.row,
-.card {
-  position: relative;
-}
-
+   drag source, no separate handle (click-and-hold anywhere on it starts the
+   drag); the *drop targets* are dedicated elements of their own, not an
+   overlay guessed from a neighboring item's box. */
 .row.dragging,
 .card.dragging {
   opacity: 0.4;
@@ -1071,55 +1065,48 @@ button.primary:disabled {
   cursor: grabbing;
 }
 
-/* A dedicated element sitting in the gap between two items, not a highlight
-   on either one — invisible and inert until a drag is actually in progress
-   (.active), then a faint strip showing exactly where a drop would land,
-   brightening (.over) under the pointer. Every row/card has a "leading" gap
-   (drop = insert right before it); only the very last one also gets a
-   "trailing" gap, so "insert at the very end" has a real element to drop
-   onto instead of empty space past the last item. */
-.drop-gap {
-  position: absolute;
+/* List layout: a real virtualized row of its own sitting between two video
+   rows (or before the first / after the last) — its position comes from the
+   same layout math as every other row, so it's automatically exact and
+   equidistant regardless of item size, not a pixel offset guessed from a
+   neighboring row's margin. Invisible until the pointer is actually over it
+   (.over) — the reserved height is a real, always-there hit target either
+   way, just visually quiet at rest. */
+.drop-gap-row {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.drop-gap-line {
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
   background: var(--accent);
-  border-radius: 3px;
   opacity: 0;
-  pointer-events: none;
 }
 
-.drop-gap.horizontal {
-  left: 8px;
-  right: 8px;
-  height: 10px;
+.drop-gap-row.over .drop-gap-line {
+  opacity: 1;
 }
 
-.drop-gap.horizontal.leading {
-  top: -6px;
-}
-
-.drop-gap.horizontal.trailing {
-  bottom: -6px;
-}
-
-.drop-gap.vertical {
+/* Grid layout: one vertical bar per boundary between cards, positioned by
+   the exact pixel formula that also drives the grid's own `1fr` columns
+   (FeedList's renderGridDropGap) — not a CSS offset guessed relative to a
+   card's own box, which can't stay centered once the grid reflows. Also
+   invisible until hovered. */
+.grid-drop-gap {
+  position: absolute;
   top: 4px;
   bottom: 4px;
-  width: 10px;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0;
 }
 
-.drop-gap.vertical.leading {
-  left: -9px;
-}
-
-.drop-gap.vertical.trailing {
-  right: -9px;
-}
-
-.drop-gap.active {
-  opacity: 0.25;
-  pointer-events: auto;
-}
-
-.drop-gap.active.over {
+.grid-drop-gap.over {
   opacity: 1;
 }
 
@@ -1309,6 +1296,8 @@ button.primary:disabled {
   display: grid;
   gap: 16px;
   height: 100%;
+  /* D-057: anchors .grid-drop-gap's pixel-formula positioning. */
+  position: relative;
 }
 
 .card {
