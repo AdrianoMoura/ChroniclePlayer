@@ -406,7 +406,6 @@ export const dict = {
   'feed.card.ignoreTitle': 'Ignore (i)',
   'feed.card.toggleFavoriteTitle': 'Toggle favorite (f)',
   'feed.card.toggleWatchLaterTitle': 'Toggle watch later (w)',
-  'feed.card.dragHandleTitle': 'Drag to reorder',
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Live',

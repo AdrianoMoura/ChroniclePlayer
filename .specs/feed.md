@@ -182,8 +182,8 @@ features (Favorites view, Watch Later view) trivial queries. Schema in `local-da
 
 Watch Later is an ordered queue (user-arrangeable), default order = insertion order.
 Stored as an explicit position column, not a timestamp sort (`local-data.md`). User-
-arrangeable means drag-and-drop, list layout only, in the Watch Later view itself
-(**D-057**).
+arrangeable means drag-and-drop directly on the row/card itself (no separate grab
+handle), in either list or grid layout, in the Watch Later view itself (**D-057**).
 
 ### Watch Later auto-remove on open
 

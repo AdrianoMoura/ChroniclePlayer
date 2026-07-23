@@ -127,10 +127,9 @@ interface FeedListProps {
   layout: 'list' | 'grid'
   showViewCounts: boolean
   loadingMore: boolean
-  // D-057: Watch Later's own drag-and-drop reorder. Native HTML5 DnD, list
-  // layout only — a card-row groups several cards into one virtualized row
-  // (buildCardRows), and wiring per-card drag inside that group isn't worth
-  // it for what's normally a short, user-curated queue.
+  // D-057: Watch Later's own drag-and-drop reorder, list and grid alike.
+  // Native HTML5 DnD — no explicit grab handle, the whole row/card is the
+  // drag source, same as any file-manager list.
   reorderable?: boolean
   onReorder?: (fromIndex: number, toIndex: number) => void
 }
@@ -152,7 +151,6 @@ export function FeedList({
   onReorder
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const dragEnabled = reorderable && layout === 'list'
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
@@ -249,36 +247,34 @@ export function FeedList({
       <div className="feed-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = displayRows[item.index]
-          const rowDraggable = dragEnabled && row.kind === 'video'
+          // Reorder props for one video at `videoIndex` — shared by both the
+          // list row and grid card branches below.
+          const reorderProps = (videoIndex: number) =>
+            reorderable
+              ? {
+                  reorderable: true,
+                  dragging: videoIndex === dragIndex,
+                  dragOver: videoIndex === dragOverIndex && videoIndex !== dragIndex,
+                  onDragStart: () => setDragIndex(videoIndex),
+                  onDragOverItem: () => {
+                    if (dragOverIndex !== videoIndex) setDragOverIndex(videoIndex)
+                  },
+                  onDropItem: () => {
+                    if (dragIndex !== null) onReorder?.(dragIndex, videoIndex)
+                    setDragIndex(null)
+                    setDragOverIndex(null)
+                  },
+                  onDragEndItem: () => {
+                    setDragIndex(null)
+                    setDragOverIndex(null)
+                  }
+                }
+              : {}
           return (
             <div
               key={row.key}
-              className={`feed-item${row.kind === 'card-row' ? ' card-row' : ''}${
-                rowDraggable && row.videoIndex === dragIndex ? ' dragging' : ''
-              }${
-                rowDraggable && row.videoIndex === dragOverIndex && row.videoIndex !== dragIndex
-                  ? ' drag-over'
-                  : ''
-              }`}
+              className={`feed-item${row.kind === 'card-row' ? ' card-row' : ''}`}
               style={{ height: item.size, transform: `translateY(${item.start}px)` }}
-              {...(rowDraggable
-                ? {
-                    onDragOver: (event: DragEvent<HTMLDivElement>) => {
-                      event.preventDefault()
-                      if (dragOverIndex !== row.videoIndex) setDragOverIndex(row.videoIndex)
-                    },
-                    onDrop: (event: DragEvent<HTMLDivElement>) => {
-                      event.preventDefault()
-                      if (dragIndex !== null) onReorder?.(dragIndex, row.videoIndex)
-                      setDragIndex(null)
-                      setDragOverIndex(null)
-                    },
-                    onDragEnd: () => {
-                      setDragIndex(null)
-                      setDragOverIndex(null)
-                    }
-                  }
-                : {})}
             >
               {row.kind === 'header' ? (
                 <h2 className="group-header">{row.label}</h2>
@@ -294,6 +290,7 @@ export function FeedList({
                       onOpen={() => onOpen(videoIndex)}
                       onOpenChannel={onOpenChannel}
                       showViewCounts={showViewCounts}
+                      {...reorderProps(videoIndex)}
                     />
                   ))}
                 </div>
@@ -306,8 +303,7 @@ export function FeedList({
                   onOpen={() => onOpen(row.videoIndex)}
                   onOpenChannel={onOpenChannel}
                   showViewCounts={showViewCounts}
-                  dragHandle={rowDraggable}
-                  onDragHandleStart={() => setDragIndex(row.videoIndex)}
+                  {...reorderProps(row.videoIndex)}
                 />
               )}
             </div>
@@ -334,11 +330,17 @@ interface VideoRowProps {
   // cursor-navigated list — the priority section, search results — have no
   // other keyboard path to it, so they opt in.
   focusable?: boolean
-  // D-057: renders a grab handle that starts the row's native HTML5 drag
-  // (the drop target itself is the FeedList wrapper, which owns dragover/
-  // drop/dragend). Undefined onDragHandleStart means "not reorderable here".
-  dragHandle?: boolean
-  onDragHandleStart?: () => void
+  // D-057: the whole row/card is the native HTML5 drag source and drop
+  // target — no separate grab handle. `dragging`/`dragOver` are this item's
+  // own current drag state (for CSS feedback only); the reorder decision
+  // itself happens in FeedList, which owns the dragged/hovered index.
+  reorderable?: boolean
+  dragging?: boolean
+  dragOver?: boolean
+  onDragStart?: () => void
+  onDragOverItem?: () => void
+  onDropItem?: () => void
+  onDragEndItem?: () => void
 }
 
 // Thumbnails go through the backend cache (thumb:// protocol) — the
@@ -356,8 +358,13 @@ export function VideoRow({
   onOpenChannel,
   showViewCounts,
   focusable = false,
-  dragHandle = false,
-  onDragHandleStart
+  reorderable = false,
+  dragging = false,
+  dragOver = false,
+  onDragStart,
+  onDragOverItem,
+  onDropItem,
+  onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
     return (
@@ -373,8 +380,25 @@ export function VideoRow({
   const liveBadge = liveBadgeState(video)
   return (
     <div
-      className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
+      className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
+        dragging ? ' dragging' : ''
+      }${dragOver ? ' drag-over' : ''}`}
       onClick={onOpen}
+      draggable={reorderable}
+      {...(reorderable
+        ? {
+            onDragStart,
+            onDragOver: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              onDragOverItem?.()
+            },
+            onDrop: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              onDropItem?.()
+            },
+            onDragEnd: onDragEndItem
+          }
+        : {})}
       {...(focusable
         ? {
             role: 'button',
@@ -388,20 +412,9 @@ export function VideoRow({
           }
         : {})}
     >
-      {dragHandle && (
-        <span
-          className="drag-handle"
-          draggable
-          title={t('feed.card.dragHandleTitle')}
-          onClick={(e) => e.stopPropagation()}
-          onDragStart={onDragHandleStart}
-        >
-          ⠿
-        </span>
-      )}
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
-        <img className="thumb" loading="lazy" alt="" src={thumbSrc(video.thumbnailUrl)} />
+        <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />
       ) : (
         <div className="thumb" />
       )}
@@ -481,7 +494,14 @@ export function VideoCard({
   onOpen,
   onOpenChannel,
   showViewCounts,
-  focusable = false
+  focusable = false,
+  reorderable = false,
+  dragging = false,
+  dragOver = false,
+  onDragStart,
+  onDragOverItem,
+  onDropItem,
+  onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
     return (
@@ -497,8 +517,25 @@ export function VideoCard({
   const liveBadge = liveBadgeState(video)
   return (
     <div
-      className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}`}
+      className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
+        dragging ? ' dragging' : ''
+      }${dragOver ? ' drag-over' : ''}`}
       onClick={onOpen}
+      draggable={reorderable}
+      {...(reorderable
+        ? {
+            onDragStart,
+            onDragOver: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              onDragOverItem?.()
+            },
+            onDrop: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              onDropItem?.()
+            },
+            onDragEnd: onDragEndItem
+          }
+        : {})}
       {...(focusable
         ? {
             role: 'button',
@@ -514,7 +551,7 @@ export function VideoCard({
     >
       <div className="card-thumb-wrap">
         {video.thumbnailUrl !== null ? (
-          <img className="thumb" loading="lazy" alt="" src={thumbSrc(video.thumbnailUrl)} />
+          <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />
         ) : (
           <div className="thumb" />
         )}

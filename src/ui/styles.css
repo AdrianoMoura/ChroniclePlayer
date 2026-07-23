@@ -1051,23 +1051,21 @@ button.primary:disabled {
   right: 0;
 }
 
-/* D-057: Watch Later's drag-and-drop reorder. */
-.feed-item.dragging {
+/* D-057: Watch Later's drag-and-drop reorder — the whole row/card is the
+   drag source, no separate handle, so the "you can drag this" affordance is
+   just the grab cursor plus feedback while a drag is actually happening. */
+.row.dragging,
+.card.dragging {
   opacity: 0.4;
 }
 
-.feed-item.drag-over {
+.row.drag-over,
+.card.drag-over {
   box-shadow: inset 0 2px 0 var(--accent);
 }
 
-.drag-handle {
-  flex-shrink: 0;
-  color: var(--text-dim);
-  cursor: grab;
-  padding: 0 2px;
-}
-
-.drag-handle:active {
+.row[draggable='true']:active,
+.card[draggable='true']:active {
   cursor: grabbing;
 }
 

@@ -399,7 +399,6 @@ export const dict: Partial<Dict> = {
   'feed.card.ignoreTitle': 'Ignorar (i)',
   'feed.card.toggleFavoriteTitle': 'Alternar favorito (f)',
   'feed.card.toggleWatchLaterTitle': 'Alternar assistir mais tarde (w)',
-  'feed.card.dragHandleTitle': 'Arraste para reordenar',
   'feed.card.openInBrowserTitle': 'Abrir no navegador (b)',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Ao vivo',
