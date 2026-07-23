@@ -152,10 +152,18 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   Full narrative in `decisions.md` D-055, not a dedicated tracker-history note of its
   own. Shipped as a **minor** version, per the owner's own explicit direction (real new
   scope — a new UI surface and IPC, not a bug-fix batch). Shipped 2026-07-22.
+- [`tracker-history/v0.7.0.md`](tracker-history/v0.7.0.md) — a single entry, [[B-124]]
+  (Fixed — the Comments section no longer renders on a currently-live video or
+  Premiere). [[B-108]], [[B-022]], [[B-101]] didn't make it in and carried their
+  **Target** forward again. Shipped as a **minor** version, driven by D-056 (the live
+  chat panel — a toggle on the player screen opens a docked column showing the video's
+  YouTube live chat, with its own extract-to-window and a one-time separate sign-in)
+  rather than by this batch. Full narrative in `decisions.md` D-056, not a dedicated
+  tracker-history note of its own. Shipped 2026-07-23.
 
-**Current target: 0.6.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
-the three made it into 0.5.0 or 0.6.0 either (see above — both shipped driven by a
-direct product-owner decision instead).
+**Current target: 0.7.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
+the three made it into 0.5.0, 0.6.0, or 0.7.0 either (see above — all three shipped
+driven by a direct product-owner decision instead).
 
 ## Entry template
 
@@ -183,8 +191,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.6.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.7.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, and 0.7.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -209,8 +217,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.6.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.7.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, and 0.7.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -309,8 +317,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.6.1 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.7.1 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, and 0.7.0 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -394,26 +402,4 @@ Resolved entries add:
 
 ## Resolved
 
-### B-124 — Comments section shows on an active live/Premiere, but regular comments aren't active there
-- **Type:** bug · **Severity:** minor
-- **Status:** Fixed · **Reported:** 2026-07-23 · **Target:** 0.6.1
-- **Area:** player
-- **What happens:** the player screen's `CommentsSection` (`commentThreads.list`/`.insert`,
-  D-032) renders for every video, including one that's currently airing as a live
-  broadcast or Premiere — but YouTube doesn't have regular comments active on a video
-  while it's live, so the section shows up non-functional/empty for something the user
-  can't actually use yet.
-- **Expected:** the Comments section doesn't render while a video is currently live —
-  `video.liveContent === 'live'` already covers both an ordinary live broadcast and an
-  airing Premiere (the same field D-056's live-chat button gates on; `isPremiere` only
-  picks the badge, not this), so no new signal is needed. Once the broadcast ends
-  (`liveContent` reverts to `'none'`) comments should appear normally, same as any other
-  video.
-- **Code refs:** `src/ui/PlayerDetails.tsx` (`<CommentsSection>`), `src/ipc/contract.ts`
-  (`liveContent`).
-- **Notes:** found while designing [[D-056]] (the live-chat panel), but independent of
-  whether that feature ships.
-- **Resolved:** 2026-07-23 · **Commit:** 45256d6 · **Outcome:** Fixed
-- **Resolution:** `PlayerDetails.tsx` now wraps `<CommentsSection>` in
-  `video.liveContent !== 'live'`. Checked via `npm run typecheck && npm run lint && npm
-  test` (238/238); not run live, per [[no-live-app-verification]].
+(none yet this cycle)
