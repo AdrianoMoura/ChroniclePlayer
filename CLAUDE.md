@@ -362,6 +362,74 @@ it first. Checked via `npm run typecheck && npm run lint && npm test`; not yet
 live-verified past the owner's own catch above. Full narrative in `decisions.md` D-055 —
 no `tracker-history/` file, since this didn't come through the bug tracker.
 
+**D-056 (a live chat panel on the player screen) shipped in `0.7.0`, 2026-07-23** — via
+YouTube's own public `live_chat` embed iframe (zero quota cost, no new scope): a toggle
+next to the title (shown only while `liveContent === 'live'`, covering Premieres too)
+opens a 500px docked column, always starting closed. Closes automatically only when the
+video docks to the miniplayer; a separate manual "extract chat" action pops it to its
+own titled window, fully decoupled from the video's own extract (D-051). Typing
+requires the same signed-in embedded-player session (B-093) — a hint links to the
+existing sign-in IPC. **Fixed during the owner's own live test:** the docked column
+rendered blank — the iframe was missing `embed_domain` (required when framed,
+`embed_domain=localhost`, since Chronicle's renderer always runs there). Also relabeled
+the toggle, repositioned the column's own extract button, and added a tooltip
+explaining the separate sign-in. Shipped as a **minor** version — real new scope, driving
+the `0.7.0` release even though its only accompanying bug-tracker item, B-124 (Comments
+no longer rendering on an active live video/Premiere, where regular comments aren't
+active anyway), was a single Fixed entry. Full narrative in `decisions.md` D-056; the
+`0.7.0` batch itself is in `tracker-history/v0.7.0.md`.
+
+**D-057 (three Watch Later refinements) landed 2026-07-23, all direct product-owner
+requests in the same session** — after `0.7.0` shipped, not yet reflected in a version
+bump of its own. (1) `SettingsDto.watchLaterAutoRemove` (default off) — opening a
+queued video removes it from Watch Later immediately, the same effect a manual
+untoggle has. (2) The up-next card (D-055) now wraps around past the last queued video
+instead of going silent once the user reaches the end of the queue. (3) Drag-and-drop
+reorder in the Watch Later view, list and grid alike — the whole row/card is the drag
+source; drop-target hit-testing lives on `FeedList`'s own per-item wrapper (the exact
+virtualized slot, no dead zone), with a container-level fallback for empty space past
+the last item. Each video's own drop zone means "insert after it"; only the first video
+also accepts "insert before" (nothing else can become the new first item). Went through
+several same-day revision rounds live before landing on this shape (an earlier pass's
+separate end-of-list drop zone and two-indicators-per-video design were both dropped as
+unnecessary once the simpler version proved to work). Confirmed working live. Full
+narrative in `decisions.md` D-057 — no `tracker-history/` file, since this didn't come
+through the bug tracker.
+
+**D-058 (user-created local Playlists) landed 2026-07-23, a direct product-owner
+request, same pattern as D-050–D-057** — built and live-tested in its own worktree, then
+merged straight to `main`; also not yet reflected in a version bump. A new sidebar
+screen at position 4 (`Sidebar.tsx`'s `NAV_ORDER` interleaves it with the five
+`FeedView`s so keyboard `1`-`6` still map 1:1 to the rendered list): every local
+playlist as a card/row (name, video count, `h:mm` total duration, a composite cover
+built from its own first 1-6 video thumbnails arranged in a grid inside the same
+`.thumb` footprint a single video occupies at every itemSize). Playlists are 100% local
+(schema v17) — never a YouTube playlist, never synced, same Chronicle-only-state rule
+as D-003. A playlist's own detail screen mirrors `ChannelHeader`'s compact style with
+inline name/description editing and a delete confirm; its video list reuses `FeedList`
+directly with drag-and-drop reorder (D-057's same mechanism). Opening a video from a
+playlist never removes it (unlike Watch Later's opt-in auto-remove, D-057) — only an
+explicit "remove from playlist" action does. Every video card/row everywhere, plus the
+player, gained a new "Add to Playlist" action opening a checklist dialog with an inline
+create-and-add field. The player's "up next" card (D-055) now also covers a playlist
+context, suggesting that playlist's own next video instead of Watch Later's — but
+deliberately does **not** wrap around like Watch Later's own up-next does: a playlist is
+a curated collection with a real end, not a rotation, so its last video ending suggests
+nothing further. **Two real bugs caught only via the owner's own live testing, not
+guessable from code alone:** the Playlists screen had started as its own top-level
+render branch with its own copy of the player JSX, which meant the live YouTube iframe
+literally unmounted and remounted (a visible reload) every time the screen switched
+between the main feed and Playlists while a video was docked, and the miniplayer's own
+`e`/`x` shortcuts (B-105) were unreachable from the Playlists screen entirely — fixed by
+unifying both screens into one shared, always-mounted layout with the player as a single
+stable element within it; and every dialog's Escape handling (Add to Playlist, Help,
+write-scope consent, Add Account) only worked if focus happened to already be inside it
+(an autoFocus text input), so a dialog opened via a plain click or keyboard shortcut with
+no such input left focus on a sibling element and Escape bubbled straight past it —
+fixed by having each dialog focus its own container on mount. Full narrative in
+`decisions.md` D-058 — no `tracker-history/` file, since this didn't come through the
+bug tracker.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
@@ -375,19 +443,23 @@ previously-documented-but-never-built per-channel RSS retry-with-backoff was act
 implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
-entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054), and
-`0.6.0`'s driving decision (D-055, above) all shipped real new scope with no
-bug-tracker batch of their own — `0.4.0`, `0.4.6`, and `0.6.0` have no
-`tracker-history/` file at all; `0.5.0` has one, but only because B-086 also happened
-to close out during the same cycle, not because the batch itself drove the version
+entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054),
+`0.6.0`'s driving decision (D-055, above), and `0.7.0`'s driving decision (D-056,
+above) all shipped real new scope with no bug-tracker batch of their own — `0.4.0`,
+`0.4.6`, and `0.6.0` have no `tracker-history/` file at all; `0.5.0` and `0.7.0` each
+have one, but only because a single unrelated bug (B-086, B-124 respectively) happened
+to close out during the same cycle, not because either batch drove its own version
 bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
 not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
 owner's own explicit direction, even though each lands a new Settings toggle rather
 than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, and `0.4.8` (all
 above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
-describes. `tracker-current.md` now targets **0.6.1**, carrying [[B-108]], [[B-022]],
-[[B-101]] forward untouched (B-086, the fourth item carried since 0.3.0, closed as
-Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't always
-minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for
-batches that land real new scope, but the owner's own explicit call on a given release
-always wins. See `.specs/roadmap.md` §Release status for the summary.
+describes. `tracker-current.md` now targets **0.7.1**, carrying [[B-108]], [[B-022]],
+[[B-101]] forward untouched since `0.7.0` shipped (B-086, the fourth item carried since
+0.3.0, closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). D-057 (Watch
+Later refinements) and D-058 (Playlists, above) both landed after `0.7.0` shipped and
+aren't reflected in any version bump yet — which release they ship under is still to be
+decided, same open question D-056 had before `0.7.0`'s own prep folded it in. Version
+bumps aren't always minor — a pure bug-fix batch ships as a patch release, a minor bump
+is reserved for batches that land real new scope, but the owner's own explicit call on
+a given release always wins. See `.specs/roadmap.md` §Release status for the summary.
