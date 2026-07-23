@@ -4,6 +4,7 @@ import {
   effectiveDate,
   groupFeed,
   isCaughtUp,
+  nextWatchLaterAfter,
   recentWindowStart,
   startOfToday,
   unreadCount,
@@ -338,6 +339,29 @@ describe('unreadCount', () => {
         })
       ])
     ).toBe(2)
+  })
+})
+
+describe('nextWatchLaterAfter', () => {
+  const at = new Date(2026, 6, 8, 9)
+  // listWatchLaterQueue's own order: oldest-queued first.
+  const queue = [entry('oldest', at), entry('middle', at), entry('newest', at)]
+
+  it('suggests the oldest queued video when the video that ended is not itself queued', () => {
+    expect(nextWatchLaterAfter(queue, 'unrelated-video')?.video.videoId).toBe('oldest')
+  })
+
+  it('suggests whichever entry follows a queued video that just ended', () => {
+    expect(nextWatchLaterAfter(queue, 'oldest')?.video.videoId).toBe('middle')
+    expect(nextWatchLaterAfter(queue, 'middle')?.video.videoId).toBe('newest')
+  })
+
+  it('is null once the queued video that ended was the last one', () => {
+    expect(nextWatchLaterAfter(queue, 'newest')).toBeNull()
+  })
+
+  it('is null for an empty queue, queued or not', () => {
+    expect(nextWatchLaterAfter([], 'anything')).toBeNull()
   })
 })
 

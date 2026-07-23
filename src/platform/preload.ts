@@ -69,6 +69,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.bulkSetChannelNotifyForFavorites, enable),
   getPriorityFeed: (accountId?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getPriorityFeed, accountId ?? null),
+  getNextWatchLater: (currentVideoId: string) =>
+    ipcRenderer.invoke(IpcChannel.getNextWatchLater, currentVideoId),
   backfillChannelArchive: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.backfillChannelArchive, channelId),
   searchYouTube: (query: string, pageToken?: string | null) =>

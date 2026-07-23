@@ -345,6 +345,7 @@ export const IpcChannel = {
   toggleChannelNotify: 'channel:toggleNotify',
   bulkSetChannelNotifyForFavorites: 'channel:bulkSetNotifyForFavorites',
   getPriorityFeed: 'feed:priority',
+  getNextWatchLater: 'feed:nextWatchLater',
   backfillChannelArchive: 'channel:backfillArchive',
   subscribeChannel: 'channel:subscribe',
   getChannelDetail: 'channel:getDetail',
@@ -482,6 +483,10 @@ export interface ChronicleApi {
   // B-042: unread videos from favorited channels, capped and bucket-less
   // (D-039) — additive to, not a filter over, the main feed.
   getPriorityFeed(accountId?: string | null): Promise<FeedVideoDto[]>
+  // D-055: the player's "up next" card on video end — the Watch Later
+  // queue's FIFO suggestion for whatever just finished. Null once there's
+  // nothing left to suggest.
+  getNextWatchLater(currentVideoId: string): Promise<FeedVideoDto | null>
   // B-002: on-demand back-catalog fetch (uploads playlist paging + hydration,
   // ~2 units/call) — triggered when scrolling past the local archive in a
   // channel-filtered view. Resumable across calls; exhausted once the

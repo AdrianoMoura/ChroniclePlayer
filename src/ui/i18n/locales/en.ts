@@ -435,6 +435,8 @@ export const dict = {
   'player.description.showMore': 'Show more',
   'player.description.showLess': 'Show less',
   'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
+  'player.upNext.label': 'Up next from Watch Later',
+  'player.upNext.dismiss': 'Dismiss',
 
   // Sidebar
   'sidebar.collapseTitle': 'Collapse sidebar',

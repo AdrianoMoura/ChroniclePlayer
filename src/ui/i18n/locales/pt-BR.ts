@@ -429,6 +429,8 @@ export const dict: Partial<Dict> = {
   'player.description.showLess': 'Mostrar menos',
   'player.description.shortsLinkTitle':
     'Shorts abrem no navegador (o Chronicle nunca reproduz Shorts)',
+  'player.upNext.label': 'A seguir em Assistir mais tarde',
+  'player.upNext.dismiss': 'Dispensar',
 
   // Sidebar
   'sidebar.collapseTitle': 'Recolher barra lateral',

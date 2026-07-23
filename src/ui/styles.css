@@ -1541,6 +1541,81 @@ button.primary:disabled {
   background: var(--surface-2);
 }
 
+/* D-055: the "up next" Watch Later card, full view only — never coexists
+   with .miniplayer (also bottom/16px/right/16px), which only shows docked. */
+.up-next-card {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 22;
+  display: flex;
+  align-items: stretch;
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: pill-in 0.1s ease-out;
+}
+
+.up-next-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.up-next-open:hover .up-next-title {
+  color: var(--accent);
+}
+
+.up-next-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  background: #000;
+}
+
+.up-next-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.up-next-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.up-next-title {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.up-next-dismiss {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 4px 8px;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.up-next-dismiss:hover {
+  color: var(--text);
+}
+
 /* B-045: the extract-to-window flow loads this exact same renderer bundle
    in a second BrowserWindow with a bare iframe filling it — no Chronicle
    chrome at all in that window. */

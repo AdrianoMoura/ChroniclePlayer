@@ -793,6 +793,13 @@ async function boot(): Promise<void> {
   ipcMain.handle(IpcChannel.getPriorityFeed, (_event, accountId: unknown): FeedVideoDto[] =>
     feedService.getPriorityVideos(settings.showShorts, parseAccountId(accountId)).map(toVideoDto)
   )
+  ipcMain.handle(
+    IpcChannel.getNextWatchLater,
+    (_event, currentVideoId: unknown): FeedVideoDto | null => {
+      const item = feedService.getNextWatchLater(parseVideoId(currentVideoId), settings.showShorts)
+      return item ? toVideoDto(item) : null
+    }
+  )
   const backfillingChannels = new Set<string>()
   ipcMain.handle(
     IpcChannel.backfillChannelArchive,

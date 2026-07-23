@@ -93,6 +93,9 @@ interface PlayerSurfaceProps {
   onToggleComments: () => void
   onExtract: () => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
+  // D-055: fires once per real ended transition — App.tsx uses it to look up
+  // an "up next" Watch Later suggestion. Never drives auto-advance itself.
+  onEnded: () => void
 }
 
 export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>(
@@ -115,7 +118,8 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       onToggleSubscribe,
       onToggleComments,
       onExtract,
-      onStatePatched
+      onStatePatched,
+      onEnded
     },
     ref
   ) {
@@ -219,6 +223,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           playerStateRef.current = payload.info
           if (payload.info === 0) {
             void window.chronicle.setResumePosition(video.videoId, null)
+            onEnded()
           }
           // Quality only takes effect once playback actually starts (B-038) —
           // requesting it on ready alone isn't enough, YouTube can still pick
@@ -257,7 +262,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       }
       window.addEventListener('message', onMessage)
       return () => window.removeEventListener('message', onMessage)
-    }, [command, defaultPlaybackRate, video.videoId, video.durationSeconds])
+    }, [command, defaultPlaybackRate, video.videoId, video.durationSeconds, onEnded])
 
     const announce = useCallback(() => {
       iframeRef.current?.contentWindow?.postMessage(

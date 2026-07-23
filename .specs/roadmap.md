@@ -279,7 +279,11 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   Shipped as a **minor** version — D-054 is real new scope, not a bug-fix batch.
 - **0.5.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
   (renumbered past 0.4.0 through 0.4.8 and 0.5.0 — see above, none touched this
-  batch). No batch of its own yet — new items reported after 0.5.0 shipped land here.
+  batch). New items reported after 0.5.0 shipped land here. Also landed on top: D-055,
+  a direct product-owner request not sourced from `tracker-current.md` (same pattern as
+  D-050–D-054) — a floating "up next" card on video end, suggesting the next video from
+  the user's own Watch Later queue (FIFO), no autoplay. Full narrative in `decisions.md`
+  D-055. Not yet live-tested by the owner; not yet released under its own version.
 
 ## M0 — Walking skeleton
 

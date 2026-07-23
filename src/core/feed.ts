@@ -114,3 +114,18 @@ export function recentWindowStart(now: Date): Date {
 export function startOfToday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
+
+// Player "up next" card: `queue` is the Watch Later list in FIFO order
+// (oldest queued first, per `listWatchLaterQueue`'s `watch_later_pos ASC`).
+// The video that just finished isn't necessarily the one that opened the
+// player, so this looks it up by id rather than trusting navigation
+// context: not queued at all → the oldest queued video; queued → whichever
+// entry follows it. Null once there's nothing further to suggest.
+export function nextWatchLaterAfter(
+  queue: readonly FeedEntry[],
+  currentVideoId: string
+): FeedEntry | null {
+  const index = queue.findIndex((candidate) => candidate.video.videoId === currentVideoId)
+  const next = index === -1 ? queue[0] : queue[index + 1]
+  return next ?? null
+}

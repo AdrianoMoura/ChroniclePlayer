@@ -44,6 +44,7 @@ import {
   SearchVideoRow
 } from './SearchResults'
 import { Sidebar, VIEW_ORDER, viewLabel } from './Sidebar'
+import { UpNextCard } from './UpNextCard'
 import { UrlPrompt } from './UrlPrompt'
 import { useWriteScopeGate } from './useWriteScopeGate'
 import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
@@ -201,6 +202,10 @@ export function App() {
   const [miniplayer, setMiniplayer] = useState(false)
   const [fullSlot, setFullSlot] = useState<HTMLDivElement | null>(null)
   const [miniSlot, setMiniSlot] = useState<HTMLDivElement | null>(null)
+  // D-055: the player's "up next" card — a Watch Later suggestion shown once
+  // the current video ends. Cleared whenever the video changes or the card
+  // is dismissed/opened; never drives playback itself.
+  const [upNext, setUpNext] = useState<FeedVideoDto | null>(null)
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
   const playerDetailsRef = useRef<PlayerDetailsHandle>(null)
 
@@ -801,6 +806,7 @@ export function App() {
   // Opening the player marks the video read immediately (playback.md).
   const openVideo = useCallback(
     (videoId: string, mode: 'push' | 'replace' = 'push', startMini = false) => {
+      setUpNext(null)
       void window.chronicle.getVideo(videoId).then(async (result) => {
         if (!result.ok) {
           setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
@@ -855,6 +861,7 @@ export function App() {
   const closePlayer = useCallback(() => {
     setPlayerStack((stack) => stack.slice(0, -1))
     setMiniplayer(false)
+    setUpNext(null)
   }, [])
 
   // Called automatically by PlayerSurface's own Esc/Back dock-vs-close
@@ -948,6 +955,17 @@ export function App() {
     queue.index += 1
     openVideo(queue.ids[queue.index], 'replace')
   }, [openVideo])
+
+  // D-055: on video end, look up a Watch Later suggestion by the video's own
+  // id (not navigation context, unlike nextInQueue above) — works whether or
+  // not the video that just ended was itself opened from the queue.
+  const handleVideoEnded = useCallback((endedVideoId: string) => {
+    void window.chronicle.getNextWatchLater(endedVideoId).then(setUpNext)
+  }, [])
+
+  const openUpNext = useCallback(() => {
+    if (upNext) openVideo(upNext.videoId, 'replace')
+  }, [upNext, openVideo])
 
   const hasQueueNext =
     playerStack.length === 1 &&
@@ -1996,7 +2014,15 @@ export function App() {
                       onToggleComments={() => playerDetailsRef.current?.toggleComments()}
                       onExtract={extractToWindow}
                       onStatePatched={patch}
+                      onEnded={() => handleVideoEnded(currentPlayerVideo.videoId)}
                     />
+                    {upNext && !miniplayer && (
+                      <UpNextCard
+                        video={upNext}
+                        onOpen={openUpNext}
+                        onDismiss={() => setUpNext(null)}
+                      />
+                    )}
                     <PlayerDetails
                       ref={playerDetailsRef}
                       video={currentPlayerVideo}

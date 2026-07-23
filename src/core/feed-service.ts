@@ -1,6 +1,7 @@
 import {
   bucketOf,
   effectiveDate,
+  nextWatchLaterAfter,
   recentWindowStart,
   type FeedBucket,
   type FeedEntry
@@ -80,5 +81,13 @@ export class FeedService {
     return this.repository
       .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts, accountId)
       .map((entry) => ({ entry, bucket: null }))
+  }
+
+  // The player's "up next" card on video end (D-055): a suggestion from the
+  // user's own Watch Later queue, never algorithmic, never automatic —
+  // opening it is always a deliberate click. See `nextWatchLaterAfter`.
+  getNextWatchLater(currentVideoId: string, showShorts = true): FeedItem | null {
+    const next = nextWatchLaterAfter(this.repository.listWatchLaterQueue(showShorts), currentVideoId)
+    return next ? { entry: next, bucket: null } : null
   }
 }

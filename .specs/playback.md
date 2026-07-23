@@ -125,9 +125,17 @@ Data handling for externally opened videos (Final):
   duration, description (collapsed by default, links rendered per D-029 rules) +
   Chronicle's local action bar (read/unread toggle, favorite, watch later, ignore, open
   in browser).
-- On `ended`, playback just stops — no overlay, no auto-advance into anything (D-021,
-  Final: off by default). If a video came from the Watch Later queue, jumping to the
-  next queued one is a deliberate action (`n`, below), never automatic.
+- On `ended`, playback just stops — no auto-advance into anything (D-021, Final: off by
+  default). If a video came from the Watch Later queue, jumping to the next queued one is
+  a deliberate action (`n`, below), never automatic.
+- **"Up next" card (D-055, Final):** a floating, bottom-right, non-modal card — thumbnail
+  + title + an explicit Open button, plus a dismiss (×) — offering the next video from
+  the user's own Watch Later queue, if one exists: the oldest-queued video when the video
+  that just ended wasn't itself queued, or whichever entry follows it when it was
+  (`nextWatchLaterAfter`, `core/feed.ts`). Full player view only, never the miniplayer or
+  extract window. No timer, no countdown, no autoplay — opening it is a click like any
+  other navigation, and it's the only thing that can dismiss it besides the × or a new
+  video starting.
 - Keyboard: space play/pause, ←/→ seek, esc back to feed/exit fullscreen, b open in
   browser, `/` focus search. **Extended in the B-102/B-103 audit (2026-07-15)** with the
   rest of the player's own action bar: `m` toggle read/unread, `i` ignore (closes/docks
