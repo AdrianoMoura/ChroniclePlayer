@@ -472,8 +472,8 @@ export function VideoRow({
   return (
     <div
       className={`row${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
-        dragging ? ' dragging' : ''
-      }`}
+        reorderable ? ' reorderable' : ''
+      }${dragging ? ' dragging' : ''}`}
       onClick={onOpen}
       draggable={reorderable}
       onDragStart={reorderable ? onDragStart : undefined}
@@ -594,8 +594,8 @@ export function VideoCard({
   return (
     <div
       className={`card${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${
-        dragging ? ' dragging' : ''
-      }`}
+        reorderable ? ' reorderable' : ''
+      }${dragging ? ' dragging' : ''}`}
       onClick={onOpen}
       draggable={reorderable}
       onDragStart={reorderable ? onDragStart : undefined}

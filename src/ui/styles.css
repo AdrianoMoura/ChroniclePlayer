@@ -1054,7 +1054,22 @@ button.primary:disabled {
 /* D-057: Watch Later's drag-and-drop reorder — the whole row/card is the
    drag source, no separate handle (click-and-hold anywhere on it starts the
    drag); the *drop targets* are dedicated elements of their own, not an
-   overlay guessed from a neighboring item's box. */
+   overlay guessed from a neighboring item's box.
+   .reorderable's user-select: none is load-bearing, not cosmetic: without
+   it, starting the drag gesture on top of the title/meta text (most of a
+   row's/card's surface) makes Chromium begin a native text-selection drag
+   instead of respecting the ancestor's draggable=true — our own dragstart
+   never fires, so the video being "dragged" is never actually captured,
+   even though a real HTML5 drag session is in progress and can still fire
+   dragover on the drop-gap elements below it (showing a highlight for a
+   drag that, from this component's own state, never started — explaining
+   an intermittent-looking highlight with a drop that silently no-ops). */
+.row.reorderable,
+.card.reorderable {
+  user-select: none;
+  -webkit-user-drag: element;
+}
+
 .row.dragging,
 .card.dragging {
   opacity: 0.4;
