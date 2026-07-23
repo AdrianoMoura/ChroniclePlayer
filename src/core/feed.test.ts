@@ -356,12 +356,16 @@ describe('nextWatchLaterAfter', () => {
     expect(nextWatchLaterAfter(queue, 'middle')?.video.videoId).toBe('newest')
   })
 
-  it('is null once the queued video that ended was the last one', () => {
-    expect(nextWatchLaterAfter(queue, 'newest')).toBeNull()
+  it('wraps back to the oldest queued video once the last one ends', () => {
+    expect(nextWatchLaterAfter(queue, 'newest')?.video.videoId).toBe('oldest')
   })
 
   it('is null for an empty queue, queued or not', () => {
     expect(nextWatchLaterAfter([], 'anything')).toBeNull()
+  })
+
+  it('is null rather than suggesting the video that just ended, for a one-item queue', () => {
+    expect(nextWatchLaterAfter([entry('only', at)], 'only')).toBeNull()
   })
 })
 

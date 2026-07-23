@@ -259,7 +259,8 @@ export function App() {
     notifyScope: 'all',
     notifyShorts: true,
     autoNotifyFavorites: false,
-    popOutOnClose: true
+    popOutOnClose: true,
+    watchLaterAutoRemove: false
   })
   const [appVersion, setAppVersion] = useState('')
 
@@ -860,7 +861,13 @@ export function App() {
           setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
           return
         }
-        const state = await window.chronicle.setReadStatus(videoId, 'read')
+        let state = await window.chronicle.setReadStatus(videoId, 'read')
+        // D-057: opening a queued video can double as "watch it and it's
+        // gone" — opt-in, since the default (queue only shrinks on a
+        // deliberate toggle) is what most Watch Later users expect.
+        if (settings.watchLaterAutoRemove && state.watchLater) {
+          state = await window.chronicle.toggleWatchLater(videoId)
+        }
         patch(videoId, state)
         // The extract window being open means the user already signaled
         // they want playback separate from the main window — send a newly
@@ -884,7 +891,7 @@ export function App() {
         setMiniplayer(startMini)
       })
     },
-    [patch]
+    [patch, settings.watchLaterAutoRemove]
   )
 
   const openFromFeed = useCallback(
@@ -1322,6 +1329,25 @@ export function App() {
     const video = lastId ? videos.find((v) => v.videoId === lastId) : undefined
     if (video) undoIgnore(video)
   }, [videos, undoIgnore])
+
+  // D-057: drag-and-drop reorder in the Watch Later view. fromIndex/toIndex
+  // are positions in `videos` (bucket-less there, so a video's index already
+  // matches its queue position) — reorder locally first so the drop feels
+  // instant, then persist. The IPC call carries the whole queue's new order;
+  // reorderWatchLater on the backend ignores anything no longer watch_later.
+  const reorderWatchLater = useCallback((fromIndex: number, toIndex: number) => {
+    setVideos((current) => {
+      if (fromIndex === toIndex) return current
+      const next = [...current]
+      const [moved] = next.splice(fromIndex, 1)
+      // Removing the dragged item shifts every later index down by one, so
+      // landing it exactly at the dropped-on row (rather than just after it)
+      // needs toIndex adjusted when the drag moved forward.
+      next.splice(toIndex > fromIndex ? toIndex - 1 : toIndex, 0, moved)
+      void window.chronicle.reorderWatchLater(next.map((v) => v.videoId))
+      return next
+    })
+  }, [])
 
   const actions = useMemo<VideoActions>(
     () => ({
@@ -2044,6 +2070,8 @@ export function App() {
                         layout={settings.layout}
                         showViewCounts={settings.showViewCounts}
                         loadingMore={loadingMore}
+                        reorderable={view === 'watch-later'}
+                        onReorder={reorderWatchLater}
                       />
                     )}
                   </>

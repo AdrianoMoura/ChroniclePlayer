@@ -205,6 +205,12 @@ export interface SettingsDto {
   // (same as pressing `p`), so closing that window stops it. False: closing
   // pauses the video in place instead.
   popOutOnClose: boolean
+  // D-057, default off. True: opening a video that's currently in the Watch
+  // Later queue removes it from the queue immediately (the same removal a
+  // manual toggle does, just triggered by opening rather than a click) —
+  // lets the queue double as a "watch and it's gone" list instead of
+  // requiring a separate untoggle per video.
+  watchLaterAutoRemove: boolean
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -329,6 +335,7 @@ export const IpcChannel = {
   markAllRead: 'state:markAllRead',
   toggleFavorite: 'state:toggleFavorite',
   toggleWatchLater: 'state:toggleWatchLater',
+  reorderWatchLater: 'state:reorderWatchLater',
   setResumePosition: 'state:setResumePosition',
   openInBrowser: 'system:openInBrowser',
   openExternalUrl: 'system:openExternalUrl',
@@ -402,6 +409,10 @@ export interface ChronicleApi {
   markAllRead(channelId: string | null, accountId?: string | null): Promise<number>
   toggleFavorite(videoId: string): Promise<VideoStateDto>
   toggleWatchLater(videoId: string): Promise<VideoStateDto>
+  // D-057: persists a drag-and-drop reorder of the Watch Later view.
+  // videoIds is the full queue in its new order; entries not currently in
+  // the queue are ignored.
+  reorderWatchLater(videoIds: string[]): Promise<void>
   // Persisted on pause/unmount, read back to resume playback. null clears
   // it (finished, or never played).
   setResumePosition(videoId: string, seconds: number | null): Promise<VideoStateDto>

@@ -210,6 +210,15 @@ export function SettingsView({
           </select>
         </label>
         <p className="settings-line dim">{t('settings.playback.note')}</p>
+        <label className="settings-row">
+          <span>{t('settings.playback.watchLaterAutoRemove')}</span>
+          <input
+            type="checkbox"
+            checked={settings.watchLaterAutoRemove}
+            onChange={(event) => set('watchLaterAutoRemove', event.target.checked)}
+          />
+        </label>
+        <p className="settings-line dim">{t('settings.playback.watchLaterAutoRemoveNote')}</p>
       </section>
 
       <section>

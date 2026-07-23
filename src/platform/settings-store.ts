@@ -64,6 +64,10 @@ export interface AppSettings {
   // closing *that* window is what actually stops it; false pauses the video
   // on close instead of popping it out (D-051).
   popOutOnClose: boolean
+  // Default off. True: opening a video currently in the Watch Later queue
+  // removes it from the queue right away, same effect as manually untoggling
+  // it (D-057).
+  watchLaterAutoRemove: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -84,7 +88,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyScope: 'all',
   notifyShorts: true,
   autoNotifyFavorites: false,
-  popOutOnClose: true
+  popOutOnClose: true,
+  watchLaterAutoRemove: false
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -108,6 +113,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const notifyShorts = source['notifyShorts']
   const autoNotifyFavorites = source['autoNotifyFavorites']
   const popOutOnClose = source['popOutOnClose']
+  const watchLaterAutoRemove = source['watchLaterAutoRemove']
   return {
     language: typeof language === 'string' && language.length > 0 ? language : DEFAULT_SETTINGS.language,
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
@@ -155,7 +161,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
         ? autoNotifyFavorites
         : DEFAULT_SETTINGS.autoNotifyFavorites,
     popOutOnClose:
-      typeof popOutOnClose === 'boolean' ? popOutOnClose : DEFAULT_SETTINGS.popOutOnClose
+      typeof popOutOnClose === 'boolean' ? popOutOnClose : DEFAULT_SETTINGS.popOutOnClose,
+    watchLaterAutoRemove:
+      typeof watchLaterAutoRemove === 'boolean'
+        ? watchLaterAutoRemove
+        : DEFAULT_SETTINGS.watchLaterAutoRemove
   }
 }
 

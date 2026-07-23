@@ -160,6 +160,30 @@ describe('SqliteStateRepository', () => {
     expect(feed.listWatchLaterQueue().map((e) => e.video.videoId)).toEqual(['a', 'c', 'b'])
   })
 
+  it('reorderWatchLater (D-057) persists a drag-and-drop reorder', () => {
+    addVideo('a', '2026-07-08T10:00:00Z')
+    addVideo('b', '2026-07-08T11:00:00Z')
+    addVideo('c', '2026-07-08T12:00:00Z')
+    states.toggleWatchLater('a')
+    states.toggleWatchLater('b')
+    states.toggleWatchLater('c')
+
+    states.reorderWatchLater(['c', 'a', 'b'])
+    expect(feed.listWatchLaterQueue().map((e) => e.video.videoId)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('reorderWatchLater ignores ids no longer in the queue', () => {
+    addVideo('a', '2026-07-08T10:00:00Z')
+    addVideo('b', '2026-07-08T11:00:00Z')
+    states.toggleWatchLater('a')
+    states.toggleWatchLater('b')
+    states.toggleWatchLater('a') // leaves the queue before the reorder lands
+
+    states.reorderWatchLater(['a', 'b'])
+    expect(feed.listWatchLaterQueue().map((e) => e.video.videoId)).toEqual(['b'])
+    expect(states.get('a').watchLater).toBe(false)
+  })
+
   it('setResumePosition persists and clears independently of other flags', () => {
     addVideo('v1', '2026-07-08T10:00:00Z')
     states.toggleFavorite('v1')

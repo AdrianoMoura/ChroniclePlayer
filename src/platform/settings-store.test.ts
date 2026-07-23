@@ -36,7 +36,8 @@ describe('settings store', () => {
       notifyScope: 'selected',
       notifyShorts: false,
       autoNotifyFavorites: true,
-      popOutOnClose: false
+      popOutOnClose: false,
+      watchLaterAutoRemove: true
     } as const
     saveSettings(file, custom)
     expect(loadSettings(file)).toEqual({ settings: custom, warning: null })
@@ -68,7 +69,8 @@ describe('settings store', () => {
         notifyScope: 'everything',
         notifyShorts: 'yes',
         autoNotifyFavorites: 'yes',
-        popOutOnClose: 'yes'
+        popOutOnClose: 'yes',
+        watchLaterAutoRemove: 'yes'
       })
     ).toEqual({
       language: 'system',
@@ -88,13 +90,19 @@ describe('settings store', () => {
       notifyScope: 'all',
       notifyShorts: true,
       autoNotifyFavorites: false,
-      popOutOnClose: true
+      popOutOnClose: true,
+      watchLaterAutoRemove: false
     })
   })
 
   it('accepts popOutOnClose=false (D-051)', () => {
     expect(normalizeSettings({ popOutOnClose: false }).popOutOnClose).toBe(false)
     expect(normalizeSettings({}).popOutOnClose).toBe(true)
+  })
+
+  it('accepts watchLaterAutoRemove=true (D-057)', () => {
+    expect(normalizeSettings({ watchLaterAutoRemove: true }).watchLaterAutoRemove).toBe(true)
+    expect(normalizeSettings({}).watchLaterAutoRemove).toBe(false)
   })
 
   it('accepts notifyShorts=false (D-052)', () => {

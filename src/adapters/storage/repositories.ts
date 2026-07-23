@@ -516,6 +516,25 @@ export class SqliteStateRepository implements StateRepository {
     return next
   }
 
+  // D-057: drag-and-drop reorder from the Watch Later view. videoIds is the
+  // full queue in its new order; only rows still watch_later=1 are touched,
+  // so a ended-drag race against a manual untoggle can't resurrect the flag.
+  reorderWatchLater(videoIds: readonly string[]): void {
+    const now = this.clock.now().toISOString()
+    const stmt = this.db.prepare(
+      `UPDATE video_state SET watch_later_pos = :pos, updated_at = :now
+       WHERE video_id = :id AND watch_later = 1`
+    )
+    this.db.exec('BEGIN')
+    try {
+      videoIds.forEach((id, index) => stmt.run({ id, pos: index + 1, now }))
+      this.db.exec('COMMIT')
+    } catch (cause) {
+      this.db.exec('ROLLBACK')
+      throw cause
+    }
+  }
+
   private currentPosition(videoId: string): number | null {
     const row = this.db
       .prepare(`SELECT watch_later_pos AS pos FROM video_state WHERE video_id = ?`)

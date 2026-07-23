@@ -134,6 +134,9 @@ export const dict = {
   'settings.playback.speedNormal': 'Normal',
   'settings.playback.note':
     "The player opens already set to this speed. You can still change it per video from the embed's own controls — that never changes this default.",
+  'settings.playback.watchLaterAutoRemove': 'Remove from Watch Later when opened',
+  'settings.playback.watchLaterAutoRemoveNote':
+    "Opening a video that's in your Watch Later queue takes it off the queue right away, the same as untoggling it yourself — off by default, so the queue only shrinks when you say so.",
   'settings.appearance.heading': 'Appearance',
   'settings.appearance.theme': 'Theme',
   'settings.appearance.themeSystem': 'Follow system',
@@ -403,6 +406,7 @@ export const dict = {
   'feed.card.ignoreTitle': 'Ignore (i)',
   'feed.card.toggleFavoriteTitle': 'Toggle favorite (f)',
   'feed.card.toggleWatchLaterTitle': 'Toggle watch later (w)',
+  'feed.card.dragHandleTitle': 'Drag to reorder',
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Live',

@@ -181,7 +181,18 @@ features (Favorites view, Watch Later view) trivial queries. Schema in `local-da
 ### Watch Later ordering
 
 Watch Later is an ordered queue (user-arrangeable), default order = insertion order.
-Stored as an explicit position column, not a timestamp sort (`local-data.md`).
+Stored as an explicit position column, not a timestamp sort (`local-data.md`). User-
+arrangeable means drag-and-drop, list layout only, in the Watch Later view itself
+(**D-057**).
+
+### Watch Later auto-remove on open
+
+**Final decision (D-057).** `Settings → Playback → "Remove from Watch Later when
+opened"`, default off. While on, opening a video that's currently queued removes it from
+Watch Later immediately — the same effect a manual untoggle has, just triggered by
+opening rather than a click. Lets the queue double as a "watch it and it's gone" list for
+users who want that, without changing the default (manual untoggle only) for everyone
+else.
 
 ## Feed item presentation
 

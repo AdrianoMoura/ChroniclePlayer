@@ -132,10 +132,14 @@ Data handling for externally opened videos (Final):
   + title + an explicit Open button, plus a dismiss (×) — offering the next video from
   the user's own Watch Later queue, if one exists: the oldest-queued video when the video
   that just ended wasn't itself queued, or whichever entry follows it when it was
-  (`nextWatchLaterAfter`, `core/feed.ts`). Full player view only, never the miniplayer or
-  extract window. No timer, no countdown, no autoplay — opening it is a click like any
-  other navigation, and it's the only thing that can dismiss it besides the × or a new
-  video starting.
+  (`nextWatchLaterAfter`, `core/feed.ts`). **Wraps around (D-057, Final):** past the last
+  queued entry, it suggests the oldest one again rather than going silent — the user can
+  start watching from anywhere in the queue, not just the front, so stopping at the end
+  would cut a full pass short. Suppressed rather than looping onto the very video that
+  just ended (a one-item queue). Full player view only, never the miniplayer or extract
+  window. No timer, no countdown, no autoplay — opening it is a click like any other
+  navigation, and it's the only thing that can dismiss it besides the × or a new video
+  starting.
 - Keyboard: space play/pause, ←/→ seek, esc back to feed/exit fullscreen, b open in
   browser, `/` focus search. **Extended in the B-102/B-103 audit (2026-07-15)** with the
   rest of the player's own action bar: `m` toggle read/unread, `i` ignore (closes/docks

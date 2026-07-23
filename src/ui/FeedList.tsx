@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
 import { feedItemLabel, formatDuration, formatViews } from './format'
@@ -119,6 +127,12 @@ interface FeedListProps {
   layout: 'list' | 'grid'
   showViewCounts: boolean
   loadingMore: boolean
+  // D-057: Watch Later's own drag-and-drop reorder. Native HTML5 DnD, list
+  // layout only — a card-row groups several cards into one virtualized row
+  // (buildCardRows), and wiring per-card drag inside that group isn't worth
+  // it for what's normally a short, user-curated queue.
+  reorderable?: boolean
+  onReorder?: (fromIndex: number, toIndex: number) => void
 }
 
 export function FeedList({
@@ -133,9 +147,14 @@ export function FeedList({
   itemSize,
   layout,
   showViewCounts,
-  loadingMore
+  loadingMore,
+  reorderable = false,
+  onReorder
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const dragEnabled = reorderable && layout === 'list'
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
   const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
@@ -230,11 +249,36 @@ export function FeedList({
       <div className="feed-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = displayRows[item.index]
+          const rowDraggable = dragEnabled && row.kind === 'video'
           return (
             <div
               key={row.key}
-              className={`feed-item${row.kind === 'card-row' ? ' card-row' : ''}`}
+              className={`feed-item${row.kind === 'card-row' ? ' card-row' : ''}${
+                rowDraggable && row.videoIndex === dragIndex ? ' dragging' : ''
+              }${
+                rowDraggable && row.videoIndex === dragOverIndex && row.videoIndex !== dragIndex
+                  ? ' drag-over'
+                  : ''
+              }`}
               style={{ height: item.size, transform: `translateY(${item.start}px)` }}
+              {...(rowDraggable
+                ? {
+                    onDragOver: (event: DragEvent<HTMLDivElement>) => {
+                      event.preventDefault()
+                      if (dragOverIndex !== row.videoIndex) setDragOverIndex(row.videoIndex)
+                    },
+                    onDrop: (event: DragEvent<HTMLDivElement>) => {
+                      event.preventDefault()
+                      if (dragIndex !== null) onReorder?.(dragIndex, row.videoIndex)
+                      setDragIndex(null)
+                      setDragOverIndex(null)
+                    },
+                    onDragEnd: () => {
+                      setDragIndex(null)
+                      setDragOverIndex(null)
+                    }
+                  }
+                : {})}
             >
               {row.kind === 'header' ? (
                 <h2 className="group-header">{row.label}</h2>
@@ -262,6 +306,8 @@ export function FeedList({
                   onOpen={() => onOpen(row.videoIndex)}
                   onOpenChannel={onOpenChannel}
                   showViewCounts={showViewCounts}
+                  dragHandle={rowDraggable}
+                  onDragHandleStart={() => setDragIndex(row.videoIndex)}
                 />
               )}
             </div>
@@ -288,6 +334,11 @@ interface VideoRowProps {
   // cursor-navigated list — the priority section, search results — have no
   // other keyboard path to it, so they opt in.
   focusable?: boolean
+  // D-057: renders a grab handle that starts the row's native HTML5 drag
+  // (the drop target itself is the FeedList wrapper, which owns dragover/
+  // drop/dragend). Undefined onDragHandleStart means "not reorderable here".
+  dragHandle?: boolean
+  onDragHandleStart?: () => void
 }
 
 // Thumbnails go through the backend cache (thumb:// protocol) — the
@@ -304,7 +355,9 @@ export function VideoRow({
   onOpen,
   onOpenChannel,
   showViewCounts,
-  focusable = false
+  focusable = false,
+  dragHandle = false,
+  onDragHandleStart
 }: VideoRowProps) {
   if (undoable) {
     return (
@@ -335,6 +388,17 @@ export function VideoRow({
           }
         : {})}
     >
+      {dragHandle && (
+        <span
+          className="drag-handle"
+          draggable
+          title={t('feed.card.dragHandleTitle')}
+          onClick={(e) => e.stopPropagation()}
+          onDragStart={onDragHandleStart}
+        >
+          ⠿
+        </span>
+      )}
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
         <img className="thumb" loading="lazy" alt="" src={thumbSrc(video.thumbnailUrl)} />

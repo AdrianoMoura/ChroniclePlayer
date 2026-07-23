@@ -131,6 +131,9 @@ export const dict: Partial<Dict> = {
   'settings.playback.speedNormal': 'Normal',
   'settings.playback.note':
     'O player já abre nessa velocidade. Você ainda pode mudá-la por vídeo pelos próprios controles do player — isso nunca altera este padrão.',
+  'settings.playback.watchLaterAutoRemove': 'Remover do Assistir Mais Tarde ao abrir',
+  'settings.playback.watchLaterAutoRemoveNote':
+    'Abrir um vídeo que está na sua fila de Assistir Mais Tarde já o remove da fila na hora, igual a desmarcar manualmente — desligado por padrão, então a fila só diminui quando você decidir.',
   'settings.appearance.heading': 'Aparência',
   'settings.appearance.theme': 'Tema',
   'settings.appearance.themeSystem': 'Seguir o sistema',
@@ -396,6 +399,7 @@ export const dict: Partial<Dict> = {
   'feed.card.ignoreTitle': 'Ignorar (i)',
   'feed.card.toggleFavoriteTitle': 'Alternar favorito (f)',
   'feed.card.toggleWatchLaterTitle': 'Alternar assistir mais tarde (w)',
+  'feed.card.dragHandleTitle': 'Arraste para reordenar',
   'feed.card.openInBrowserTitle': 'Abrir no navegador (b)',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Ao vivo',

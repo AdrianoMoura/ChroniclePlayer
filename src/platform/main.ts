@@ -1008,6 +1008,10 @@ async function boot(): Promise<void> {
   ipcMain.handle(IpcChannel.toggleWatchLater, (_event, videoId: unknown) =>
     toStateDto(stateRepository.toggleWatchLater(parseVideoId(videoId)))
   )
+  ipcMain.handle(IpcChannel.reorderWatchLater, (_event, videoIds: unknown) => {
+    if (!Array.isArray(videoIds)) throw new Error('invalid video id list')
+    stateRepository.reorderWatchLater(videoIds.map(parseVideoId))
+  })
   ipcMain.handle(IpcChannel.setResumePosition, (_event, videoId: unknown, seconds: unknown) => {
     const value = typeof seconds === 'number' ? seconds : null
     return toStateDto(stateRepository.setResumePosition(parseVideoId(videoId), value))

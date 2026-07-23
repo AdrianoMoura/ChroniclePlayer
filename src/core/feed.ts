@@ -120,12 +120,17 @@ export function startOfToday(now: Date): Date {
 // The video that just finished isn't necessarily the one that opened the
 // player, so this looks it up by id rather than trusting navigation
 // context: not queued at all → the oldest queued video; queued → whichever
-// entry follows it. Null once there's nothing further to suggest.
+// entry follows it, wrapping back to the start past the last one (the user
+// can start watching from anywhere in the queue, not just the front, so
+// stopping at the last entry would silently cut the suggestion short of a
+// full pass). Null when the queue is empty or the wrapped result would just
+// be the video that already ended (a one-item queue).
 export function nextWatchLaterAfter(
   queue: readonly FeedEntry[],
   currentVideoId: string
 ): FeedEntry | null {
+  if (queue.length === 0) return null
   const index = queue.findIndex((candidate) => candidate.video.videoId === currentVideoId)
-  const next = index === -1 ? queue[0] : queue[index + 1]
-  return next ?? null
+  const next = index === -1 ? queue[0] : queue[(index + 1) % queue.length]
+  return next.video.videoId === currentVideoId ? null : next
 }
