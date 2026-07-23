@@ -603,7 +603,7 @@ input:focus-visible,
 .refresh {
   font-size: 16px;
   color: var(--text-dim);
-  padding: 2px 6px;
+  padding: 2px 2px;
   border-radius: 6px;
 }
 
@@ -907,12 +907,18 @@ input:focus-visible,
 }
 
 .refresh-icon {
-  display: inline-block;
+  display: flex;
+  line-height: 0;
+  width: 14px;
+  height: 14px;
+  justify-content: center;
+  align-items: center;
+  padding: 0 0 0 3px;
 }
 
 /* B-027: only the glyph spins, not the button's background/border/hit-area. */
 .refresh-icon.spinning {
-  transform-origin: 5px 5px;
+  transform-origin: 7px 7px;
   animation: spin 1.2s linear infinite;
 }
 
