@@ -98,9 +98,9 @@ export interface StateRepository {
   setReadStatus(videoId: string, status: ReadStatus): VideoState
   toggleFavorite(videoId: string): VideoState
   toggleWatchLater(videoId: string): VideoState
-  // D-057: persists a drag-and-drop reorder of the Watch Later view.
-  // videoIds is the full queue in its new order; ids no longer in the queue
-  // (or never queued) are ignored rather than erroring.
+  // Persists a drag-and-drop reorder of the Watch Later view. videoIds is
+  // the full queue in its new order; ids no longer in the queue (or never
+  // queued) are ignored rather than erroring.
   reorderWatchLater(videoIds: readonly string[]): void
   setResumePosition(videoId: string, seconds: number | null): VideoState
 }

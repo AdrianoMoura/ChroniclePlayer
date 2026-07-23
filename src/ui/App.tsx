@@ -862,9 +862,9 @@ export function App() {
           return
         }
         let state = await window.chronicle.setReadStatus(videoId, 'read')
-        // D-057: opening a queued video can double as "watch it and it's
-        // gone" — opt-in, since the default (queue only shrinks on a
-        // deliberate toggle) is what most Watch Later users expect.
+        // Opening a queued video can double as "watch it and it's gone" —
+        // opt-in, since the default (queue only shrinks on a deliberate
+        // toggle) is what most Watch Later users expect.
         if (settings.watchLaterAutoRemove && state.watchLater) {
           state = await window.chronicle.toggleWatchLater(videoId)
         }
@@ -1330,13 +1330,10 @@ export function App() {
     if (video) undoIgnore(video)
   }, [videos, undoIgnore])
 
-  // D-057: drag-and-drop reorder in the Watch Later view. fromIndex/insertAt
-  // are positions in `videos` (bucket-less there, so a video's index already
-  // matches its queue position) — insertAt comes from FeedList's own
-  // dedicated drop-gap elements (one before every video, plus one trailing
-  // gap after the last), so it's already the exact target index, not a
-  // row/card to disambiguate a side of. Reorder locally first so the drop
-  // feels instant, then persist. The IPC call carries the whole queue's new
+  // Drag-and-drop reorder in the Watch Later view. fromIndex/insertAt are
+  // positions in `videos` (bucket-less there, so a video's index already
+  // matches its queue position). Reorder locally first so the drop feels
+  // instant, then persist. The IPC call carries the whole queue's new
   // order; reorderWatchLater on the backend ignores anything no longer
   // watch_later.
   const reorderWatchLater = useCallback((fromIndex: number, insertAt: number) => {
@@ -1678,7 +1675,7 @@ export function App() {
           onSyncAccountNow={syncAccountNow}
         />
       )}
-      <main className="feed">
+      <main className={`feed ${screen === 'feed' ? view : screen}`}>
         {screen === 'settings' ? (
           <>
             {banner !== null && (

@@ -499,6 +499,12 @@ input:focus-visible,
   min-width: 0;
 }
 
+/* Feed Styles per view screen */
+
+.feed.watch-later .feed-inner {
+  margin: 20px 0 0 0;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -906,6 +912,7 @@ input:focus-visible,
 
 /* B-027: only the glyph spins, not the button's background/border/hit-area. */
 .refresh-icon.spinning {
+  transform-origin: 5px 5px;
   animation: spin 1.2s linear infinite;
 }
 
@@ -1051,15 +1058,13 @@ button.primary:disabled {
   right: 0;
 }
 
-/* D-057: Watch Later's drag-and-drop reorder. The whole row/card is *both*
-   the drag source and its own drop target (dragover/drop on the same
-   element that's draggable) — the one arrangement confirmed working live;
-   moving the drop target onto small separate child elements broke
-   reordering entirely and was reverted (decisions-history/D-057.md).
-   .reorderable's user-select: none matters, not just cosmetic: without it,
-   starting the drag gesture on top of the title/meta text (most of a
-   row's/card's surface) makes Chromium begin a native text-selection drag
-   instead of respecting draggable=true. */
+/* Watch Later's drag-and-drop reorder: the row/card is the drag source
+   (draggable, click-and-hold anywhere on it starts the drag).
+   position: relative anchors the .drop-indicator child below.
+   user-select: none matters, not just cosmetic: without it, starting the
+   drag gesture on top of the title/meta text (most of a row's/card's
+   surface) makes Chromium begin a native text-selection drag instead of
+   respecting draggable=true. */
 .row.reorderable,
 .card.reorderable {
   position: relative;
@@ -1090,29 +1095,29 @@ button.primary:disabled {
 .drop-indicator.horizontal {
   left: 8px;
   right: 8px;
-  height: 3px;
+  height: 2px;
 }
 
 .drop-indicator.horizontal.before {
-  top: -1.5px;
+  top: -10%;
 }
 
 .drop-indicator.horizontal.after {
-  bottom: -1.5px;
+  bottom: -10%;
 }
 
 .drop-indicator.vertical {
   top: 4px;
   bottom: 4px;
-  width: 3px;
+  width: 2px;
 }
 
 .drop-indicator.vertical.before {
-  left: -1.5px;
+  left: -10px;
 }
 
 .drop-indicator.vertical.after {
-  right: -1.5px;
+  right: -10px;
 }
 
 .group-header {
@@ -2119,7 +2124,6 @@ button.primary.active {
 
 :is(.feed-scroll, .priority-section, .search-results).size-xl .row {
   height: 132px;
-  gap: 18px;
 }
 
 :is(.feed-scroll, .priority-section, .search-results).size-xl .row .thumb {
@@ -2136,7 +2140,6 @@ button.primary.active {
 
 :is(.feed-scroll, .priority-section, .search-results).size-xxl .row {
   height: 180px;
-  gap: 22px;
 }
 
 :is(.feed-scroll, .priority-section, .search-results).size-xxl .row .thumb {

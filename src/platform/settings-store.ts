@@ -66,7 +66,7 @@ export interface AppSettings {
   popOutOnClose: boolean
   // Default off. True: opening a video currently in the Watch Later queue
   // removes it from the queue right away, same effect as manually untoggling
-  // it (D-057).
+  // it.
   watchLaterAutoRemove: boolean
 }
 

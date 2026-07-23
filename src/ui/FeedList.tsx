@@ -127,15 +127,10 @@ interface FeedListProps {
   layout: 'list' | 'grid'
   showViewCounts: boolean
   loadingMore: boolean
-  // D-057: Watch Later's own drag-and-drop reorder, list and grid alike.
-  // Native HTML5 DnD, no new dependency. The whole row/card is both the drag
-  // source (draggable, click-and-hold anywhere on it) *and* the drop target
-  // (dragover/drop on that same element) — this is the one arrangement
-  // confirmed working end to end live; a later attempt at moving the drop
-  // target onto small separate child elements broke reordering entirely
-  // (see decisions-history/D-057.md) and was reverted. insertAt is the
-  // position in the (bucket-less, so index-is-position) video list to drop
-  // the dragged video at.
+  // Watch Later's own drag-and-drop reorder, list and grid alike. Native
+  // HTML5 DnD, no new dependency. insertAt is the position in the
+  // (bucket-less, so index-is-position) video list to drop the dragged
+  // video at.
   reorderable?: boolean
   onReorder?: (fromIndex: number, insertAt: number) => void
 }
@@ -157,16 +152,12 @@ export function FeedList({
   onReorder
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  // D-057: dragIndex is the video being dragged. dropTarget is whichever
+  // dragIndex is the video being dragged. dropTarget is whichever
   // video is currently hovered, plus which side of it — only one row/card
   // is ever hovered at a time in native DnD, so this alone is enough to
-  // drive a single, unambiguous indicator. Per the owner's own simplified
-  // model: every video's own drop zone means "insert after this video" —
-  // there's no separate "before" zone on every item, since that would just
-  // be the same position as the previous item's "after" (two indicators for
-  // one gap, and a boundary between them that made drops flaky). The one
-  // exception is the very first video, which also needs a "before" zone —
-  // otherwise nothing could ever become the new first item.
+  // drive a single, unambiguous indicator. Every video's own drop zone means
+  // "insert after this video"; only the very first video also accepts
+  // "insert before" (nothing else can become the new first item).
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<{ videoIndex: number; edge: 'before' | 'after' } | null>(
     null
@@ -264,52 +255,113 @@ export function FeedList({
     return min
   }, [rows])
 
+  // Fallback for empty space below all items (e.g. a list/grid shorter than
+  // the scrollable area) — resolves any drag reaching the container itself
+  // to "insert after the last video". Wrapper-level handlers below call
+  // stopPropagation so this only fires when the pointer isn't over any
+  // specific item.
+  const lastVideoIndex = useMemo(() => {
+    let max = -1
+    for (const row of rows) if (row.kind === 'video' && row.videoIndex > max) max = row.videoIndex
+    return max
+  }, [rows])
+
   const commitReorder = (videoIndex: number, edge: 'before' | 'after') => {
     if (dragIndex !== null) onReorder?.(dragIndex, edge === 'before' ? videoIndex : videoIndex + 1)
     setDragIndex(null)
     setDropTarget(null)
   }
 
-  // Gap props for the video at `videoIndex` — shared by both the list row
-  // and grid card branches below. VideoRow/VideoCard always report the raw
-  // edge the pointer is over (top/bottom or left/right half); every video
-  // except the first one collapses that down to always 'after', since it
-  // has no "before" zone of its own.
-  const dragProps = (videoIndex: number) => {
-    if (!reorderable) return {}
-    const acceptsBefore = videoIndex === firstVideoIndex
-    return {
-      reorderable: true,
-      dragging: videoIndex === dragIndex,
-      dropEdge: dropTarget?.videoIndex === videoIndex ? dropTarget.edge : null,
-      onDragStart: () => setDragIndex(videoIndex),
-      onDragOverItem: (edge: 'before' | 'after') => {
-        const resolved = acceptsBefore ? edge : 'after'
-        if (dropTarget?.videoIndex !== videoIndex || dropTarget.edge !== resolved)
-          setDropTarget({ videoIndex, edge: resolved })
-      },
-      onDropItem: (edge: 'before' | 'after') => commitReorder(videoIndex, acceptsBefore ? edge : 'after'),
-      onDragEndItem: () => {
-        setDragIndex(null)
-        setDropTarget(null)
-      }
-    }
-  }
+  // Presentational + drag-source props for the video at `videoIndex` —
+  // shared by both the list row and grid card branches below. Drop-target
+  // hit-testing itself lives on the wrapper in the render loop below, not
+  // on the row/card's own element: a list row has its own margin, a grid
+  // card its own gap/padding, so the row/card alone doesn't cover its whole
+  // virtualized slot.
+  const resolveEdge = (videoIndex: number, rawEdge: 'before' | 'after'): 'before' | 'after' =>
+    videoIndex === firstVideoIndex ? rawEdge : 'after'
+
+  const dragProps = (videoIndex: number) =>
+    reorderable
+      ? {
+          reorderable: true,
+          dragging: videoIndex === dragIndex,
+          dropEdge: dropTarget?.videoIndex === videoIndex ? dropTarget.edge : null,
+          onDragStart: () => setDragIndex(videoIndex),
+          onDragEndItem: () => {
+            setDragIndex(null)
+            setDropTarget(null)
+          }
+        }
+      : {}
 
   return (
     <div
       className={`feed-scroll size-${itemSize}`}
       ref={scrollRef}
       onScroll={(event) => onAtTopChange(event.currentTarget.scrollTop < 40)}
+      {...(reorderable && lastVideoIndex >= 0
+        ? {
+            onDragOver: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              if (dropTarget?.videoIndex !== lastVideoIndex || dropTarget.edge !== 'after')
+                setDropTarget({ videoIndex: lastVideoIndex, edge: 'after' })
+            },
+            onDrop: (event: DragEvent<HTMLDivElement>) => {
+              event.preventDefault()
+              commitReorder(lastVideoIndex, 'after')
+            }
+          }
+        : {})}
     >
       <div className="feed-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = displayRows[item.index]
+          // Drop-target hit-testing lives on this wrapper — the exact
+          // virtualized slot, no dead zones — rather than on the row/card
+          // rendered inside it (see the dragProps comment above).
+          const wrapperDropProps =
+            reorderable && row.kind === 'video'
+              ? {
+                  onDragOver: (event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const videoIndex = row.videoIndex
+                    const edge = resolveEdge(videoIndex, verticalEdge(event))
+                    if (dropTarget?.videoIndex !== videoIndex || dropTarget.edge !== edge)
+                      setDropTarget({ videoIndex, edge })
+                  },
+                  onDrop: (event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const videoIndex = row.videoIndex
+                    commitReorder(videoIndex, resolveEdge(videoIndex, verticalEdge(event)))
+                  }
+                }
+              : reorderable && row.kind === 'card-row'
+                ? {
+                    onDragOver: (event: DragEvent<HTMLDivElement>) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      const { videoIndex, rawEdge } = resolveGridColumn(event, row, columns)
+                      const edge = resolveEdge(videoIndex, rawEdge)
+                      if (dropTarget?.videoIndex !== videoIndex || dropTarget.edge !== edge)
+                        setDropTarget({ videoIndex, edge })
+                    },
+                    onDrop: (event: DragEvent<HTMLDivElement>) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      const { videoIndex, rawEdge } = resolveGridColumn(event, row, columns)
+                      commitReorder(videoIndex, resolveEdge(videoIndex, rawEdge))
+                    }
+                  }
+                : {}
           return (
             <div
               key={row.key}
               className={`feed-item${row.kind === 'card-row' ? ' card-row' : ''}`}
               style={{ height: item.size, transform: `translateY(${item.start}px)` }}
+              {...wrapperDropProps}
             >
               {row.kind === 'header' ? (
                 <h2 className="group-header">{row.label}</h2>
@@ -365,17 +417,17 @@ interface VideoRowProps {
   // cursor-navigated list — the priority section, search results — have no
   // other keyboard path to it, so they opt in.
   focusable?: boolean
-  // D-057: this row/card is both the native HTML5 drag source and its own
-  // drop target — dragover/drop directly on it, not on a separate child
-  // element (the arrangement confirmed working live; see FeedListProps).
-  // dropEdge is which half of *this* item is currently hovered, purely for
-  // the visual indicator — the hit-testing itself is the whole element.
+  // This row/card is the native HTML5 drag source (draggable, click-and-hold
+  // anywhere on it). The drop *target* lives one level up,
+  // on FeedList's own virtualized wrapper — that wrapper is the exact
+  // slot with no dead zone, whereas this element has its own margin/gap
+  // around it that isn't covered by any drag handler. dropEdge is which
+  // side of *this* item is currently hovered, purely for the visual
+  // indicator (computed and owned by FeedList).
   reorderable?: boolean
   dragging?: boolean
   dropEdge?: 'before' | 'after' | null
   onDragStart?: () => void
-  onDragOverItem?: (edge: 'before' | 'after') => void
-  onDropItem?: (edge: 'before' | 'after') => void
   onDragEndItem?: () => void
 }
 
@@ -385,16 +437,29 @@ function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
 }
 
-// D-057: which half of the hovered element the pointer is over — top/bottom
-// for a stacked list row, left/right for a side-by-side grid card.
+// Which half of the hovered *wrapper* (the exact virtualized slot, not the
+// row itself — see the dragProps comment in FeedList) the pointer is over —
+// top/bottom for a stacked list row.
 function verticalEdge(event: DragEvent<HTMLDivElement>): 'before' | 'after' {
   const rect = event.currentTarget.getBoundingClientRect()
   return event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
 }
 
-function horizontalEdge(event: DragEvent<HTMLDivElement>): 'before' | 'after' {
+// Grid equivalent: a card-row's wrapper holds several cards side by side,
+// so this also has to figure out *which* card the pointer's x falls
+// nearest to (there's no per-card element to ask, by design — the wrapper
+// is the only thing with no dead zone around/between cards).
+function resolveGridColumn(
+  event: DragEvent<HTMLDivElement>,
+  row: { items: { videoIndex: number }[] },
+  columns: number
+): { videoIndex: number; rawEdge: 'before' | 'after' } {
   const rect = event.currentTarget.getBoundingClientRect()
-  return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+  const relativeX = event.clientX - rect.left
+  const colWidth = rect.width / columns
+  const col = Math.min(row.items.length - 1, Math.max(0, Math.floor(relativeX / colWidth)))
+  const rawEdge = relativeX - col * colWidth < colWidth / 2 ? 'before' : 'after'
+  return { videoIndex: row.items[col].videoIndex, rawEdge }
 }
 
 export function VideoRow({
@@ -410,8 +475,6 @@ export function VideoRow({
   dragging = false,
   dropEdge = null,
   onDragStart,
-  onDragOverItem,
-  onDropItem,
   onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
@@ -435,22 +498,6 @@ export function VideoRow({
       draggable={reorderable}
       onDragStart={reorderable ? onDragStart : undefined}
       onDragEnd={reorderable ? onDragEndItem : undefined}
-      onDragOver={
-        reorderable
-          ? (event) => {
-              event.preventDefault()
-              onDragOverItem?.(verticalEdge(event))
-            }
-          : undefined
-      }
-      onDrop={
-        reorderable
-          ? (event) => {
-              event.preventDefault()
-              onDropItem?.(verticalEdge(event))
-            }
-          : undefined
-      }
       {...(focusable
         ? {
             role: 'button',
@@ -552,8 +599,6 @@ export function VideoCard({
   dragging = false,
   dropEdge = null,
   onDragStart,
-  onDragOverItem,
-  onDropItem,
   onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
@@ -577,22 +622,6 @@ export function VideoCard({
       draggable={reorderable}
       onDragStart={reorderable ? onDragStart : undefined}
       onDragEnd={reorderable ? onDragEndItem : undefined}
-      onDragOver={
-        reorderable
-          ? (event) => {
-              event.preventDefault()
-              onDragOverItem?.(horizontalEdge(event))
-            }
-          : undefined
-      }
-      onDrop={
-        reorderable
-          ? (event) => {
-              event.preventDefault()
-              onDropItem?.(horizontalEdge(event))
-            }
-          : undefined
-      }
       {...(focusable
         ? {
             role: 'button',
