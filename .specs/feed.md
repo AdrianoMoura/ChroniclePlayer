@@ -196,6 +196,21 @@ opening rather than a click. Lets the queue double as a "watch it and it's gone"
 users who want that, without changing the default (manual untoggle only) for everyone
 else.
 
+### Playlists (D-058)
+
+User-created, named, local-only ordered queues — distinct from the single built-in
+Watch Later queue above, and not a `FeedView` (`views.ts`'s five views are unaffected).
+Same drag-and-drop reorder mechanism as Watch Later (D-057); same "never syncs to
+YouTube" rule as every other Chronicle-only state (D-003). Unlike Watch Later, opening a
+video from a playlist never removes it — membership only shrinks via an explicit
+"remove from this playlist" action, since a playlist is a curated collection, not a
+to-watch-then-clear queue. The player's "up next" card (D-055) also covers a playlist
+context: finishing a video opened from a playlist's own screen suggests that playlist's
+own next video (`core/playlist.ts`'s `nextInPlaylist`) instead of falling back to Watch
+Later — unlike `nextWatchLaterAfter` (D-057), this deliberately does **not** wrap around:
+a playlist is a curated collection with a real end, not a rotation to dip in and out of,
+so its last video ending suggests nothing further.
+
 ## Feed item presentation
 
 Each feed row shows (see `ui.md` for layout): thumbnail, title, channel name, duration

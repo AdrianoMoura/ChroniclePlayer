@@ -91,6 +91,7 @@ interface PlayerSurfaceProps {
   onToggleLike: () => void
   onToggleSubscribe: () => void
   onToggleComments: () => void
+  onAddToPlaylist: () => void
   onExtract: () => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
   // D-055: fires once per real ended transition — App.tsx uses it to look up
@@ -117,6 +118,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       onToggleLike,
       onToggleSubscribe,
       onToggleComments,
+      onAddToPlaylist,
       onExtract,
       onStatePatched,
       onEnded
@@ -457,6 +459,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           case 'n':
             if (hasQueueNext) onNextInQueue()
             break
+          case 'a':
+            onAddToPlaylist()
+            break
           case 'p':
             onExtract()
             break
@@ -487,6 +492,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       onToggleLike,
       onToggleSubscribe,
       onToggleComments,
+      onAddToPlaylist,
       helpOpen,
       onToggleHelp
     ])

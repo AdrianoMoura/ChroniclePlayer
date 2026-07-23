@@ -299,6 +299,12 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   D-050–D-055. Full narrative in `decisions.md` D-056. Not yet reflected in
   `package.json`'s version; which release it ships under is still to be decided (a
   version bump wasn't part of this merge).
+  D-058 (user-created local Playlists — a new sidebar screen at position 4, per-video
+  "Add to Playlist," drag-and-drop reorder, and a playlist-aware "up next" card) built
+  in its own worktree, same pattern as D-050–D-057 (direct product-owner request, not
+  from `tracker-current.md`). Not yet merged to `main` or reflected in `package.json`'s
+  version — the product owner is testing it live in the worktree first. Full narrative
+  in `decisions.md` D-058.
 
 ## M0 — Walking skeleton
 

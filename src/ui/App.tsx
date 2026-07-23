@@ -10,6 +10,7 @@ import type {
   FeedVideoDto,
   FeedViewDto,
   PlayerVideoDto,
+  PlaylistDto,
   ReadStatusDto,
   SearchResultDto,
   SearchVideoResultDto,
@@ -19,6 +20,7 @@ import type {
   WizardStateDto
 } from '../ipc/contract'
 import { AddAccount } from './AddAccount'
+import { AddToPlaylistDialog } from './AddToPlaylistDialog'
 import { ChannelHeader } from './ChannelHeader'
 import { ConnectPanel } from './ConnectPanel'
 import {
@@ -36,6 +38,8 @@ import { setLocale, t } from './i18n'
 import { MiniPlayerBar } from './MiniPlayerBar'
 import { PlayerDetails, type PlayerDetailsHandle } from './PlayerDetails'
 import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
+import { PlaylistDetailView } from './PlaylistDetailView'
+import { PlaylistsView } from './PlaylistsView'
 import { SettingsView } from './SettingsView'
 import {
   SearchChannelCard,
@@ -43,7 +47,7 @@ import {
   SearchVideoCard,
   SearchVideoRow
 } from './SearchResults'
-import { Sidebar, VIEW_ORDER, viewLabel } from './Sidebar'
+import { NAV_ORDER, Sidebar, viewLabel } from './Sidebar'
 import { UpNextCard } from './UpNextCard'
 import { UrlPrompt } from './UrlPrompt'
 import { useWriteScopeGate } from './useWriteScopeGate'
@@ -206,6 +210,9 @@ export function App() {
   // the current video ends. Cleared whenever the video changes or the card
   // is dismissed/opened; never drives playback itself.
   const [upNext, setUpNext] = useState<FeedVideoDto | null>(null)
+  // Set only when upNext came from a playlist's own screen rather than the
+  // Watch Later queue — drives the card's "Next in {name}" label variant.
+  const [upNextPlaylistName, setUpNextPlaylistName] = useState<string | null>(null)
   // D-056: the live-chat panel's surface. Lives here, not in PlayerDetails,
   // because restoring the docked column when the extracted popup closes
   // needs to cross-reference miniplayer/current-video state this component
@@ -233,7 +240,18 @@ export function App() {
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
-  const [screen, setScreen] = useState<'feed' | 'settings'>('feed')
+  const [screen, setScreen] = useState<'feed' | 'settings' | 'playlists'>('feed')
+  // Playlists (local-only, never synced to YouTube). playlistFilter mirrors
+  // channelFilter's own null-means-list-view pattern: null shows the
+  // PlaylistsView list, a playlistId shows that playlist's own detail screen.
+  const [playlists, setPlaylists] = useState<PlaylistDto[]>([])
+  const [playlistFilter, setPlaylistFilter] = useState<string | null>(null)
+  const [currentPlaylist, setCurrentPlaylist] = useState<PlaylistDto | null>(null)
+  const [playlistVideos, setPlaylistVideos] = useState<FeedVideoDto[]>([])
+  // The video whose "Add to Playlist" button was clicked — reachable from
+  // every video card/row everywhere (feed, channel, watch later, player), so
+  // this dialog is global rather than owned by any one screen.
+  const [addToPlaylistVideo, setAddToPlaylistVideo] = useState<FeedVideoDto | null>(null)
   // B-010: topbar Unsubscribe arms on first click, fires on the second
   // (mirrors Settings' delete-all confirmation), auto-disarms after 6s.
   const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
@@ -276,6 +294,17 @@ export function App() {
   const channelPreviewRef = useRef<HTMLDivElement>(null)
   const atTopRef = useRef(true)
   const queueRef = useRef<{ ids: string[]; index: number } | null>(null)
+  // Set when the currently-open video was opened from a playlist's own
+  // screen (openFromPlaylistDetail) — read by handleVideoEnded to offer a
+  // "Next in {name}" suggestion instead of the default Watch Later one.
+  // videoIds guards against a stale context (opening something unrelated
+  // afterward without this ever being explicitly cleared): the ended video
+  // must actually be a member, or handleVideoEnded falls back to Watch Later.
+  const playlistContextRef = useRef<{
+    playlistId: string
+    playlistName: string
+    videoIds: string[]
+  } | null>(null)
   // B-112: true while the always-on-top extract window is open — openVideo
   // reads this to decide whether a newly selected video should load into
   // that window instead of the main window's own player.
@@ -413,9 +442,39 @@ export function App() {
     void window.chronicle.listAccounts().then(setAccounts)
   }, [])
 
+  const loadPlaylists = useCallback(() => {
+    void window.chronicle.listPlaylists().then(setPlaylists)
+  }, [])
+
+  // Re-fetches the whole (small, unpaginated) playlist list rather than a
+  // single-playlist lookup — there's no dedicated IPC for that, and this
+  // keeps the PlaylistsView list and the open detail screen's own header
+  // stats (video count, duration, composite thumb) in sync from one call.
+  const loadPlaylistDetail = useCallback((playlistId: string) => {
+    void window.chronicle.listPlaylists().then((list) => {
+      setPlaylists(list)
+      setCurrentPlaylist(list.find((p) => p.playlistId === playlistId) ?? null)
+    })
+    void window.chronicle.getPlaylistVideos(playlistId).then(setPlaylistVideos)
+  }, [])
+
   useEffect(() => {
     loadView(view, channelFilter, accountFilter)
   }, [view, channelFilter, accountFilter, loadView])
+
+  // Mirrors channelFilter's own null-means-list pattern: entering the
+  // Playlists screen, or picking a different playlist within it, (re)loads
+  // whatever that state now points to.
+  useEffect(() => {
+    if (screen !== 'playlists') return
+    if (playlistFilter === null) {
+      loadPlaylists()
+      setCurrentPlaylist(null)
+      setPlaylistVideos([])
+    } else {
+      loadPlaylistDetail(playlistFilter)
+    }
+  }, [screen, playlistFilter, loadPlaylists, loadPlaylistDetail])
 
   useEffect(() => {
     feedEmptyRef.current = videos.length === 0
@@ -856,6 +915,7 @@ export function App() {
   const openVideo = useCallback(
     (videoId: string, mode: 'push' | 'replace' = 'push', startMini = false) => {
       setUpNext(null)
+      setUpNextPlaylistName(null)
       void window.chronicle.getVideo(videoId).then(async (result) => {
         if (!result.ok) {
           setBanner({ text: t('app.banner.openVideoFailed', { message: result.message }) })
@@ -904,6 +964,8 @@ export function App() {
         viewRef.current === 'watch-later'
           ? { ids: filteredList.map((v) => v.videoId), index: videoIndexInFiltered }
           : null
+      // Opening from the main feed is never playlist context.
+      playlistContextRef.current = null
       // 'replace', not the default 'push' — opening a video from the feed is
       // a fresh browsing action, not "diving deeper" from within a video's
       // own description (which is what 'push', the queue-stack model, is
@@ -913,10 +975,97 @@ export function App() {
     [openVideo]
   )
 
+  // Mirrors openFromFeed's own shape, for a playlist's own detail screen
+  // (PlaylistDetailView) instead of the main feed — sets playlistContextRef
+  // so handleVideoEnded can offer a "Next in {name}" suggestion once this
+  // video ends (D-055-style, but scoped to one playlist instead of Watch
+  // Later's global queue).
+  const openFromPlaylistDetail = useCallback(
+    (videoIndex: number) => {
+      const video = playlistVideos[videoIndex]
+      if (!video || currentPlaylist === null) return
+      queueRef.current = null
+      playlistContextRef.current = {
+        playlistId: currentPlaylist.playlistId,
+        playlistName: currentPlaylist.name,
+        videoIds: playlistVideos.map((v) => v.videoId)
+      }
+      openVideo(video.videoId, 'replace')
+    },
+    [playlistVideos, currentPlaylist, openVideo]
+  )
+
+  const createPlaylist = useCallback((playlist: PlaylistDto) => {
+    setPlaylists((current) => [playlist, ...current])
+  }, [])
+
+  const renameCurrentPlaylist = useCallback(
+    (name: string, description: string | null) => {
+      if (playlistFilter === null) return
+      void window.chronicle.updatePlaylist(playlistFilter, name, description).then((updated) => {
+        setCurrentPlaylist(updated)
+        setPlaylists((current) =>
+          current.map((p) => (p.playlistId === updated.playlistId ? updated : p))
+        )
+      })
+    },
+    [playlistFilter]
+  )
+
+  const deleteCurrentPlaylist = useCallback(() => {
+    if (playlistFilter === null) return
+    const id = playlistFilter
+    void window.chronicle.deletePlaylist(id).then(() => {
+      setPlaylists((current) => current.filter((p) => p.playlistId !== id))
+      setPlaylistFilter(null)
+    })
+  }, [playlistFilter])
+
+  const removeVideoFromCurrentPlaylist = useCallback(
+    (videoId: string) => {
+      if (playlistFilter === null) return
+      const id = playlistFilter
+      void window.chronicle.removeVideoFromPlaylist(id, videoId).then(() => {
+        setPlaylistVideos((current) => current.filter((v) => v.videoId !== videoId))
+        // The header's own stats (video count, duration, composite thumb)
+        // depend on membership, so they need a refresh too.
+        void window.chronicle.listPlaylists().then((list) => {
+          setPlaylists(list)
+          setCurrentPlaylist(list.find((p) => p.playlistId === id) ?? null)
+        })
+      })
+    },
+    [playlistFilter]
+  )
+
+  // Drag-and-drop reorder within a playlist's own screen — same local-first-
+  // then-persist shape as reorderWatchLater below, scoped to playlistVideos
+  // and the currently open playlist instead of the global Watch Later queue.
+  const reorderCurrentPlaylistVideos = useCallback(
+    (fromIndex: number, insertAt: number) => {
+      if (playlistFilter === null) return
+      const id = playlistFilter
+      setPlaylistVideos((current) => {
+        const adjustedInsertAt = insertAt > fromIndex ? insertAt - 1 : insertAt
+        if (adjustedInsertAt === fromIndex) return current
+        const next = [...current]
+        const [moved] = next.splice(fromIndex, 1)
+        next.splice(adjustedInsertAt, 0, moved)
+        void window.chronicle.reorderPlaylist(
+          id,
+          next.map((v) => v.videoId)
+        )
+        return next
+      })
+    },
+    [playlistFilter]
+  )
+
   const closePlayer = useCallback(() => {
     setPlayerStack((stack) => stack.slice(0, -1))
     setMiniplayer(false)
     setUpNext(null)
+    setUpNextPlaylistName(null)
   }, [])
 
   // Called automatically by PlayerSurface's own Esc/Back dock-vs-close
@@ -1004,6 +1153,16 @@ export function App() {
   // the player had no `?` case at all, so it never reached setHelpOpen).
   const toggleHelp = useCallback(() => setHelpOpen((open) => !open), [])
 
+  // Shared by the sidebar's Playlists nav button and its keyboard shortcut
+  // (`4`, NAV_ORDER) — always lands on the top-level list, same as clicking
+  // Settings always lands on the same screen regardless of prior state.
+  const openPlaylistsScreen = useCallback(() => {
+    closeSearch()
+    leavePlayerForNavigation()
+    setScreen('playlists')
+    setPlaylistFilter(null)
+  }, [closeSearch, leavePlayerForNavigation])
+
   const nextInQueue = useCallback(() => {
     const queue = queueRef.current
     if (queue === null || queue.index >= queue.ids.length - 1) return
@@ -1011,11 +1170,29 @@ export function App() {
     openVideo(queue.ids[queue.index], 'replace')
   }, [openVideo])
 
-  // D-055: on video end, look up a Watch Later suggestion by the video's own
-  // id (not navigation context, unlike nextInQueue above) — works whether or
-  // not the video that just ended was itself opened from the queue.
+  // D-055: on video end, look up a suggestion by the video's own id (not
+  // navigation context, unlike nextInQueue above) — works whether or not the
+  // video that just ended was itself opened from the queue/playlist. A
+  // playlist context (set by openFromPlaylistDetail) takes priority over the
+  // Watch Later queue when both could apply; videoIds guards against a
+  // stale context (e.g. the ref was never explicitly cleared after
+  // navigating elsewhere) by requiring the ended video to actually be a
+  // member before trusting it.
   const handleVideoEnded = useCallback((endedVideoId: string) => {
-    void window.chronicle.getNextWatchLater(endedVideoId).then(setUpNext)
+    const playlistContext = playlistContextRef.current
+    if (playlistContext !== null && playlistContext.videoIds.includes(endedVideoId)) {
+      void window.chronicle
+        .getNextInPlaylist(playlistContext.playlistId, endedVideoId)
+        .then((next) => {
+          setUpNext(next)
+          setUpNextPlaylistName(next ? playlistContext.playlistName : null)
+        })
+      return
+    }
+    void window.chronicle.getNextWatchLater(endedVideoId).then((next) => {
+      setUpNext(next)
+      setUpNextPlaylistName(null)
+    })
   }, [])
 
   const openUpNext = useCallback(() => {
@@ -1109,6 +1286,7 @@ export function App() {
         case 'player:restoreFromExtract':
           extractWindowOpenRef.current = false
           queueRef.current = null
+          playlistContextRef.current = null
           openVideo(event.videoId, 'replace', true)
           break
         case 'player:extractWindowClosed':
@@ -1374,7 +1552,8 @@ export function App() {
         // Opening counts as reading (feed.md §Semantics).
         void window.chronicle.openInBrowser(video.videoId)
         setStatus(video, 'read')
-      }
+      },
+      addToPlaylist: (video) => setAddToPlaylistVideo(video)
     }),
     [setStatus, ignoreVideo, undoIgnore, patch, currentPlayerVideo]
   )
@@ -1395,6 +1574,81 @@ export function App() {
       if ((playerOpen && !miniplayer) || urlPromptOpen) return
       if (screen === 'settings') {
         if (event.key === 'Escape') setScreen('feed')
+        return
+      }
+      // The Playlists screen renders (and stays interactive) regardless of
+      // whether a video is also docked over it (App.tsx's own screen ===
+      // 'playlists' branch always shows PlaylistsView/PlaylistDetailView,
+      // same as the main feed staying visible under its own docked
+      // miniplayer) — the early return above already excludes the one case
+      // where it wouldn't be visible (a full-view player covering
+      // everything). So this owns the keyboard whenever screen is
+      // 'playlists', docked video or not.
+      if (screen === 'playlists') {
+        // Editing a playlist's name/description (PlaylistDetailView) needs
+        // normal typing — same guard the main input-handling block below
+        // applies, just checked earlier since this branch returns before
+        // ever reaching that block.
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+          return
+        if (helpOpen) {
+          if (event.key === 'Escape' || event.key === '?') setHelpOpen(false)
+          return
+        }
+        // Per-video navigation (j/k/Enter/m/f/w/i/b) inside a playlist's own
+        // video list is owned by PlaylistDetailView's own keydown handler —
+        // it has the playlist-scoped cursor/video list this handler has no
+        // access to. Only the shortcuts that are meaningful regardless of
+        // screen live here, mirroring the main feed's own bindings below.
+        switch (event.key) {
+          case 'Escape':
+            // Mirrors channelFilter's own Escape behavior in the main feed
+            // (narrows back out one level rather than leaving the screen
+            // outright): a playlist's own detail screen steps back to the
+            // list first; the list itself then leaves to the main feed.
+            if (playlistFilter !== null) setPlaylistFilter(null)
+            else setScreen('feed')
+            break
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+          case '5':
+          case '6': {
+            const entry = NAV_ORDER[Number(event.key) - 1]
+            if (entry.kind === 'playlists') {
+              openPlaylistsScreen()
+            } else {
+              setScreen('feed')
+              setChannelFilter(null)
+              setView(entry.view)
+            }
+            break
+          }
+          case 's':
+            toggleSidebar()
+            break
+          case 'v':
+            changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
+            break
+          // Mirrors the main feed's own B-105 miniplayer shortcuts — the
+          // Playlists screen keeps the exact same docked-miniplayer
+          // behavior as every other view, so these need to be reachable
+          // here too, not just from the main switch further down (which
+          // this branch's early return never reaches).
+          case 'e':
+            if (playerOpen && miniplayer) setMiniplayer(false)
+            break
+          case 'x':
+            if (playerOpen && miniplayer) closePlayer()
+            break
+          case '?':
+            setHelpOpen(true)
+            break
+          default:
+            return
+        }
+        event.preventDefault()
         return
       }
 
@@ -1514,9 +1768,17 @@ export function App() {
         case '3':
         case '4':
         case '5':
-          setChannelFilter(null)
-          setView(VIEW_ORDER[Number(event.key) - 1])
+        case '6': {
+          const entry = NAV_ORDER[Number(event.key) - 1]
+          if (entry.kind === 'playlists') {
+            openPlaylistsScreen()
+          } else {
+            setScreen('feed')
+            setChannelFilter(null)
+            setView(entry.view)
+          }
           break
+        }
         default:
           handled = false
       }
@@ -1543,7 +1805,9 @@ export function App() {
     markAllRead,
     settings,
     changeSettings,
-    closePlayer
+    closePlayer,
+    openPlaylistsScreen,
+    playlistFilter
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
@@ -1636,6 +1900,7 @@ export function App() {
           channelFilter={channelFilter}
           channelQueryRef={channelQueryRef}
           settingsOpen={screen === 'settings'}
+          playlistsOpen={screen === 'playlists'}
           onSelectView={(next) => {
             closeSearch()
             leavePlayerForNavigation()
@@ -1662,6 +1927,7 @@ export function App() {
             // action (comment/like/subscribe/unsubscribe) taken since mount.
             void window.chronicle.getAuthStatus().then(setAuth)
           }}
+          onOpenPlaylists={openPlaylistsScreen}
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}
           onToggleFavorite={toggleChannelFavorite}
@@ -1709,58 +1975,10 @@ export function App() {
           </>
         ) : (
           <>
-            <header className="topbar">
-              <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
-                <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
-              </button>
-              <span className="topbar-view">
-                {viewLabel(view)}
-                {accountFilter !== null && (
-                  <span className="topbar-account-suffix">
-                    {' · '}
-                    {accounts.find((a) => a.accountId === accountFilter)?.label ??
-                      t('app.topbar.channelFallback')}
-                  </span>
-                )}
-              </span>
-              <span className="status">
-                {statusText}
-                {statusInfoTitle !== null && (
-                  <span className="status-info" title={statusInfoTitle}>
-                    ⓘ
-                  </span>
-                )}
-              </span>
-              {showMarkAllRead && (
-                <button className="mark-all-read" onClick={markAllRead}>
-                  {t('app.topbar.markAllRead')}
-                </button>
-              )}
-              <div className="field-wrap">
-                <input
-                  ref={filterInputRef}
-                  className="filter"
-                  placeholder={t('app.topbar.searchYouTubePlaceholder')}
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') runSearch(filter)
-                  }}
-                />
-                {filter !== '' && (
-                  <button
-                    className="field-clear"
-                    title={t('app.topbar.clearFilterTitle')}
-                    onClick={() => {
-                      closeSearch()
-                      filterInputRef.current?.focus()
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              {(!playerOpen || miniplayer) && (
+            {screen === 'playlists' ? (
+              <header className="topbar">
+                <span className="topbar-view">{t('sidebar.view.playlists')}</span>
+                <span className="topbar-spacer" />
                 <input
                   className="size-slider"
                   type="range"
@@ -1770,14 +1988,9 @@ export function App() {
                   value={ITEM_SIZES.indexOf(settings.itemSize)}
                   title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
                   onChange={(event) =>
-                    changeSettings({
-                      ...settings,
-                      itemSize: ITEM_SIZES[Number(event.target.value)]
-                    })
+                    changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
                   }
                 />
-              )}
-              {(!playerOpen || miniplayer) && (
                 <button
                   className="layout-toggle"
                   title={
@@ -1794,10 +2007,99 @@ export function App() {
                 >
                   {settings.layout === 'grid' ? '☰' : '⊞'}
                 </button>
-              )}
-            </header>
+              </header>
+            ) : (
+              <header className="topbar">
+                <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
+                  <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
+                </button>
+                <span className="topbar-view">
+                  {viewLabel(view)}
+                  {accountFilter !== null && (
+                    <span className="topbar-account-suffix">
+                      {' · '}
+                      {accounts.find((a) => a.accountId === accountFilter)?.label ??
+                        t('app.topbar.channelFallback')}
+                    </span>
+                  )}
+                </span>
+                <span className="status">
+                  {statusText}
+                  {statusInfoTitle !== null && (
+                    <span className="status-info" title={statusInfoTitle}>
+                      ⓘ
+                    </span>
+                  )}
+                </span>
+                {showMarkAllRead && (
+                  <button className="mark-all-read" onClick={markAllRead}>
+                    {t('app.topbar.markAllRead')}
+                  </button>
+                )}
+                <div className="field-wrap">
+                  <input
+                    ref={filterInputRef}
+                    className="filter"
+                    placeholder={t('app.topbar.searchYouTubePlaceholder')}
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') runSearch(filter)
+                    }}
+                  />
+                  {filter !== '' && (
+                    <button
+                      className="field-clear"
+                      title={t('app.topbar.clearFilterTitle')}
+                      onClick={() => {
+                        closeSearch()
+                        filterInputRef.current?.focus()
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {(!playerOpen || miniplayer) && (
+                  <input
+                    className="size-slider"
+                    type="range"
+                    min={0}
+                    max={ITEM_SIZES.length - 1}
+                    step={1}
+                    value={ITEM_SIZES.indexOf(settings.itemSize)}
+                    title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
+                    onChange={(event) =>
+                      changeSettings({
+                        ...settings,
+                        itemSize: ITEM_SIZES[Number(event.target.value)]
+                      })
+                    }
+                  />
+                )}
+                {(!playerOpen || miniplayer) && (
+                  <button
+                    className="layout-toggle"
+                    title={
+                      settings.layout === 'grid'
+                        ? t('app.topbar.switchToListView')
+                        : t('app.topbar.switchToGridView')
+                    }
+                    onClick={() =>
+                      changeSettings({
+                        ...settings,
+                        layout: settings.layout === 'grid' ? 'list' : 'grid'
+                      })
+                    }
+                  >
+                    {settings.layout === 'grid' ? '☰' : '⊞'}
+                  </button>
+                )}
+              </header>
+            )}
 
-            {(!playerOpen || miniplayer) &&
+            {screen === 'feed' &&
+              (!playerOpen || miniplayer) &&
               channelFilter !== null &&
               searchResults === null &&
               (() => {
@@ -1846,20 +2148,53 @@ export function App() {
               />
             )}
 
-            {showConnectPanel ? (
-              <ConnectPanel
-                auth={auth}
-                connecting={connecting}
-                onImportSecret={(json) => {
-                  void window.chronicle.importClientSecret(json).then((result) => {
-                    if (result.ok) setAuth(result.value)
-                    else setBanner({ text: result.message })
-                  })
-                }}
-                onConnect={connect}
-              />
-            ) : (
-              <div className="feed-region">
+            <div className="feed-region">
+              {screen === 'playlists' ? (
+                playlistFilter === null ? (
+                  <PlaylistsView
+                    playlists={playlists}
+                    layout={settings.layout}
+                    itemSize={settings.itemSize}
+                    onOpen={setPlaylistFilter}
+                    onCreated={createPlaylist}
+                    helpOpen={helpOpen}
+                    playerFullView={playerOpen && !miniplayer}
+                  />
+                ) : (
+                  currentPlaylist !== null && (
+                    <PlaylistDetailView
+                      playlist={currentPlaylist}
+                      videos={playlistVideos}
+                      itemSize={settings.itemSize}
+                      layout={settings.layout}
+                      showViewCounts={settings.showViewCounts}
+                      undoable={undoable}
+                      actions={actions}
+                      onOpen={openFromPlaylistDetail}
+                      onOpenChannel={navigateToChannel}
+                      onReorder={reorderCurrentPlaylistVideos}
+                      onRemoveVideo={removeVideoFromCurrentPlaylist}
+                      onRename={renameCurrentPlaylist}
+                      onDelete={deleteCurrentPlaylist}
+                      helpOpen={helpOpen}
+                      playerFullView={playerOpen && !miniplayer}
+                    />
+                  )
+                )
+              ) : showConnectPanel ? (
+                <ConnectPanel
+                  auth={auth}
+                  connecting={connecting}
+                  onImportSecret={(json) => {
+                    void window.chronicle.importClientSecret(json).then((result) => {
+                      if (result.ok) setAuth(result.value)
+                      else setBanner({ text: result.message })
+                    })
+                  }}
+                  onConnect={connect}
+                />
+              ) : (
+                <>
                 {newVideosPill !== null && (
                   <button className="new-videos-pill" onClick={() => loadView()}>
                     {t('app.banner.newVideos', {
@@ -2078,7 +2413,9 @@ export function App() {
                     )}
                   </>
                 )}
-                {playerOpen && currentPlayerVideo && (
+                </>
+              )}
+              {playerOpen && currentPlayerVideo && (
                   <>
                     <PlayerSurface
                       ref={playerSurfaceRef}
@@ -2098,6 +2435,7 @@ export function App() {
                       onToggleLike={() => playerDetailsRef.current?.toggleLike()}
                       onToggleSubscribe={() => playerDetailsRef.current?.toggleSubscribe()}
                       onToggleComments={() => playerDetailsRef.current?.toggleComments()}
+                      onAddToPlaylist={() => playerDetailsRef.current?.openAddToPlaylist()}
                       onExtract={extractToWindow}
                       onStatePatched={patch}
                       onEnded={() => handleVideoEnded(currentPlayerVideo.videoId)}
@@ -2105,8 +2443,16 @@ export function App() {
                     {upNext && !miniplayer && (
                       <UpNextCard
                         video={upNext}
+                        label={
+                          upNextPlaylistName !== null
+                            ? t('player.upNext.labelPlaylist', { name: upNextPlaylistName })
+                            : t('player.upNext.label')
+                        }
                         onOpen={openUpNext}
-                        onDismiss={() => setUpNext(null)}
+                        onDismiss={() => {
+                          setUpNext(null)
+                          setUpNextPlaylistName(null)
+                        }}
                       />
                     )}
                     <PlayerDetails
@@ -2142,7 +2488,6 @@ export function App() {
                   </>
                 )}
               </div>
-            )}
           </>
         )}
       </main>
@@ -2161,9 +2506,24 @@ export function App() {
         <UrlPrompt
           onOpenVideo={(videoId) => {
             queueRef.current = null
+            playlistContextRef.current = null
             openVideo(videoId, 'replace')
           }}
           onClose={() => setUrlPromptOpen(false)}
+        />
+      )}
+      {addToPlaylistVideo && (
+        <AddToPlaylistDialog
+          videoId={addToPlaylistVideo.videoId}
+          videoTitle={addToPlaylistVideo.title}
+          onClose={() => setAddToPlaylistVideo(null)}
+          onPlaylistsChanged={() => {
+            // The dialog can add/remove/create playlists while this
+            // playlist's own detail screen happens to be open behind it —
+            // keep its header stats and video list in sync rather than
+            // waiting for the next unrelated reload.
+            if (playlistFilter !== null) loadPlaylistDetail(playlistFilter)
+          }}
         />
       )}
     </div>

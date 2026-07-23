@@ -10,6 +10,7 @@ import {
   SqliteFeedRepository,
   SqliteStateRepository
 } from '../adapters/storage/repositories'
+import { SqlitePlaylistRepository } from '../adapters/storage/playlist-repository'
 import { SqliteSyncRepository } from '../adapters/storage/sync-repository'
 import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-secret-store'
 import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
@@ -23,6 +24,7 @@ import { GithubReleaseSource } from '../adapters/updates/github-release-source'
 import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
+import { nextInPlaylist, type PlaylistSummary } from '../core/playlist'
 import { QuotaCounter, type Clock } from '../core/ports'
 import { isNewerVersion } from '../core/version'
 import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
@@ -38,6 +40,7 @@ import type {
   FeedSliceDto,
   FeedVideoDto,
   PlayerVideoDto,
+  PlaylistDto,
   ReadStatusDto,
   ResultDto,
   SearchResultDto,
@@ -47,7 +50,12 @@ import type {
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
-import { IpcChannel, PLAYBACK_RATES } from '../ipc/contract'
+import {
+  IpcChannel,
+  PLAYBACK_RATES,
+  PLAYLIST_DESCRIPTION_MAX_LENGTH,
+  PLAYLIST_NAME_MAX_LENGTH
+} from '../ipc/contract'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
 import { setLinuxAutostart } from './linux-autostart'
@@ -136,6 +144,19 @@ function toSliceDto(slice: FeedSlice): FeedSliceDto {
   }
 }
 
+function toPlaylistDto(playlist: PlaylistSummary): PlaylistDto {
+  return {
+    playlistId: playlist.playlistId,
+    name: playlist.name,
+    description: playlist.description,
+    createdAt: playlist.createdAt,
+    updatedAt: playlist.updatedAt,
+    videoCount: playlist.videoCount,
+    totalDurationSeconds: playlist.totalDurationSeconds,
+    thumbnailUrls: playlist.thumbnailUrls
+  }
+}
+
 function toReportDto(report: SyncReport): SyncReportDto {
   return {
     outcome: report.outcome,
@@ -183,6 +204,24 @@ function parseAccountId(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined
   if (typeof value === 'string' && value.length > 0 && value.length <= 128) return value
   throw new Error('invalid account id')
+}
+
+function parsePlaylistId(value: unknown): string {
+  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
+  throw new Error('invalid playlist id')
+}
+
+function parsePlaylistName(value: unknown): string {
+  const name = typeof value === 'string' ? value.trim() : ''
+  if (name === '' || name.length > PLAYLIST_NAME_MAX_LENGTH) throw new Error('invalid playlist name')
+  return name
+}
+
+function parsePlaylistDescription(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  const description = typeof value === 'string' ? value.trim() : ''
+  if (description.length > PLAYLIST_DESCRIPTION_MAX_LENGTH) throw new Error('invalid playlist description')
+  return description === '' ? null : description
 }
 
 function parseCursor(value: unknown): FeedCursorDto | null {
@@ -486,6 +525,7 @@ async function boot(): Promise<void> {
   const stateRepository = new SqliteStateRepository(db, clock)
   const catalogRepository = new SqliteCatalogRepository(db, clock)
   const syncRepository = new SqliteSyncRepository(db)
+  const playlistRepository = new SqlitePlaylistRepository(db)
   const feedService = new FeedService(feedRepository, clock)
 
   const secrets = chooseSecretStore(join(dataDir, 'secrets.json'))
@@ -824,6 +864,82 @@ async function boot(): Promise<void> {
       return item ? toVideoDto(item) : null
     }
   )
+
+  // Playlists (local-only, never synced to YouTube) — see decisions.md.
+  function requirePlaylistSummary(playlistId: string): PlaylistSummary {
+    const summary = playlistRepository.getPlaylistSummary(playlistId)
+    if (summary === null) throw new Error('playlist not found')
+    return summary
+  }
+  ipcMain.handle(IpcChannel.listPlaylists, (): PlaylistDto[] =>
+    playlistRepository.listPlaylists().map(toPlaylistDto)
+  )
+  ipcMain.handle(
+    IpcChannel.createPlaylist,
+    (_event, name: unknown, description: unknown): PlaylistDto => {
+      const playlist = playlistRepository.createPlaylist(
+        randomUUID(),
+        parsePlaylistName(name),
+        parsePlaylistDescription(description),
+        clock.now().toISOString()
+      )
+      return toPlaylistDto({ ...playlist, videoCount: 0, totalDurationSeconds: 0, thumbnailUrls: [] })
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.updatePlaylist,
+    (_event, playlistId: unknown, name: unknown, description: unknown): PlaylistDto => {
+      const id = parsePlaylistId(playlistId)
+      const updated = playlistRepository.updatePlaylist(
+        id,
+        parsePlaylistName(name),
+        parsePlaylistDescription(description),
+        clock.now().toISOString()
+      )
+      if (updated === null) throw new Error('playlist not found')
+      return toPlaylistDto(requirePlaylistSummary(id))
+    }
+  )
+  ipcMain.handle(IpcChannel.deletePlaylist, (_event, playlistId: unknown) => {
+    playlistRepository.deletePlaylist(parsePlaylistId(playlistId))
+  })
+  ipcMain.handle(IpcChannel.getPlaylistVideos, (_event, playlistId: unknown): FeedVideoDto[] =>
+    playlistRepository
+      .listPlaylistVideos(parsePlaylistId(playlistId))
+      .map((entry) => toVideoDto({ entry, bucket: null }))
+  )
+  ipcMain.handle(
+    IpcChannel.addVideoToPlaylist,
+    (_event, playlistId: unknown, videoId: unknown) => {
+      playlistRepository.addVideoToPlaylist(
+        parsePlaylistId(playlistId),
+        parseVideoId(videoId),
+        clock.now().toISOString()
+      )
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.removeVideoFromPlaylist,
+    (_event, playlistId: unknown, videoId: unknown) => {
+      playlistRepository.removeVideoFromPlaylist(parsePlaylistId(playlistId), parseVideoId(videoId))
+    }
+  )
+  ipcMain.handle(IpcChannel.getPlaylistsForVideo, (_event, videoId: unknown): string[] =>
+    playlistRepository.listPlaylistsForVideo(parseVideoId(videoId))
+  )
+  ipcMain.handle(IpcChannel.reorderPlaylist, (_event, playlistId: unknown, videoIds: unknown) => {
+    if (!Array.isArray(videoIds)) throw new Error('invalid video id list')
+    playlistRepository.reorderPlaylist(parsePlaylistId(playlistId), videoIds.map(parseVideoId))
+  })
+  ipcMain.handle(
+    IpcChannel.getNextInPlaylist,
+    (_event, playlistId: unknown, currentVideoId: unknown): FeedVideoDto | null => {
+      const videos = playlistRepository.listPlaylistVideos(parsePlaylistId(playlistId))
+      const next = nextInPlaylist(videos, parseVideoId(currentVideoId))
+      return next ? toVideoDto({ entry: next, bucket: null }) : null
+    }
+  )
+
   const backfillingChannels = new Set<string>()
   ipcMain.handle(
     IpcChannel.backfillChannelArchive,

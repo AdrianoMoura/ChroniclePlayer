@@ -72,6 +72,25 @@ export interface FeedSliceDto {
   caughtUp: boolean
 }
 
+// Local-only user-created playlists (never synced to YouTube). name/
+// description share these caps between the renderer's own input limits and
+// main.ts's boundary validation (same pattern as PLAYBACK_RATES above).
+export const PLAYLIST_NAME_MAX_LENGTH = 100
+export const PLAYLIST_DESCRIPTION_MAX_LENGTH = 500
+
+export interface PlaylistDto {
+  playlistId: string
+  name: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+  videoCount: number
+  totalDurationSeconds: number
+  // Up to 6 thumbnail URLs (playlist order) — the renderer arranges these
+  // into the composite grid inside the same thumb area a video card uses.
+  thumbnailUrls: string[]
+}
+
 export interface FeedMetaDto {
   unreadCount: number
   caughtUp: boolean
@@ -380,6 +399,16 @@ export const IpcChannel = {
   extractPlayer: 'player:extract',
   loadInExtractWindow: 'player:loadInExtract',
   extractChat: 'chat:extract',
+  listPlaylists: 'playlist:list',
+  createPlaylist: 'playlist:create',
+  updatePlaylist: 'playlist:update',
+  deletePlaylist: 'playlist:delete',
+  getPlaylistVideos: 'playlist:getVideos',
+  addVideoToPlaylist: 'playlist:addVideo',
+  removeVideoFromPlaylist: 'playlist:removeVideo',
+  getPlaylistsForVideo: 'playlist:getForVideo',
+  reorderPlaylist: 'playlist:reorder',
+  getNextInPlaylist: 'playlist:getNext',
   events: 'chronicle:event'
 } as const
 
@@ -482,6 +511,27 @@ export interface ChronicleApi {
   // page title, already distinct from "Chronicle"). Manual only — never
   // auto-opened, and fully independent of extractPlayer above.
   extractChat(videoId: string): Promise<void>
+  // Playlists (local-only, never synced to YouTube) — newest-created first.
+  listPlaylists(): Promise<PlaylistDto[]>
+  createPlaylist(name: string, description: string | null): Promise<PlaylistDto>
+  // Covers both the name and description edit affordances (ui.md) — always
+  // sends both fields, whichever one the user actually touched.
+  updatePlaylist(playlistId: string, name: string, description: string | null): Promise<PlaylistDto>
+  deletePlaylist(playlistId: string): Promise<void>
+  // Ordered by position, like the Watch Later queue — not a paged,
+  // chronological feed view.
+  getPlaylistVideos(playlistId: string): Promise<FeedVideoDto[]>
+  // Idempotent — the Add to Playlist dialog just calls this per checkbox.
+  addVideoToPlaylist(playlistId: string, videoId: string): Promise<void>
+  removeVideoFromPlaylist(playlistId: string, videoId: string): Promise<void>
+  // Drives the Add to Playlist dialog's checkbox state.
+  getPlaylistsForVideo(videoId: string): Promise<string[]>
+  // Persists a drag-and-drop reorder — same shape as reorderWatchLater.
+  reorderPlaylist(playlistId: string, videoIds: string[]): Promise<void>
+  // The player's "up next" card when the ended video was opened from this
+  // playlist (mirrors getNextWatchLater, D-055) — null once there's nothing
+  // left to suggest.
+  getNextInPlaylist(playlistId: string, currentVideoId: string): Promise<FeedVideoDto | null>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>

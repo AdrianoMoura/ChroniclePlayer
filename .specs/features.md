@@ -120,6 +120,19 @@ channel's notify flag in sync with its favorite status. Notifications respect th
 toggle. A fourth toggle, "Start minimized to tray," only applies when auto-start and
 background mode are both on.
 
+### Playlists (D-058)
+Multiple named, user-ordered, local-only queues — beyond what Watch Later's one single
+queue covers. Never a YouTube playlist (readonly scope, D-003) — a Chronicle-only
+concept, same rule as read/favorite/watch-later. A playlist has a name, an optional
+description (both editable in place from its own screen), a video list (drag-and-drop
+reorderable, same mechanism as D-057's Watch Later reorder), and a composite cover built
+from its own first 1-6 video thumbnails. Every video card/row everywhere gained an "Add
+to Playlist" action opening a checklist dialog (create-and-add inline, no need to set up
+a destination first). Unlike Watch Later, opening a video from a playlist never removes
+it — removal is its own explicit action. The player's existing "up next" card (D-055)
+also covers a playlist context: finishing a video opened from a playlist's own screen
+suggests that playlist's own next video instead of Watch Later's.
+
 ## Future features (sketches — build nothing yet)
 
 Ordered roughly by expected value. Each must re-pass the `non-goals.md` checklist at
@@ -151,10 +164,6 @@ would be part of the user-data export and never pruned.
 is a sketch for a separate, DB-wide local search (SQLite FTS across
 titles/descriptions/notes) — a different surface from `/`, not an upgrade to it. Never
 touches YouTube search (see `non-goals.md`).
-
-### Playlist management (local)
-Beyond Watch Later: multiple named local queues. Only if users ask; Watch Later covers
-the core need. (YouTube-side playlist management is out — readonly scope, D-003.)
 
 ### Offline metadata cache hardening
 The app already works offline on local data; this would be deliberate offline-first

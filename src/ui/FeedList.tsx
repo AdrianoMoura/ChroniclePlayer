@@ -112,6 +112,16 @@ export interface VideoActions {
   toggleFavorite: (video: FeedVideoDto) => void
   toggleWatchLater: (video: FeedVideoDto) => void
   openInBrowser: (video: FeedVideoDto) => void
+  // Opens the Add to Playlist dialog for this video — shown on every video
+  // card/row everywhere (feed, channel, watch-later, search, player), so
+  // it's effectively always provided rather than truly optional; kept
+  // optional only so call sites outside App.tsx's own `actions` object
+  // (none currently exist) aren't forced to stub it.
+  addToPlaylist?: (video: FeedVideoDto) => void
+  // Only provided inside a specific playlist's own detail screen — removes
+  // just this membership, never the video itself (distinct from `ignore`,
+  // which is a global read-status change).
+  removeFromPlaylist?: (video: FeedVideoDto) => void
 }
 
 interface FeedListProps {
@@ -551,6 +561,22 @@ export function VideoRow({
         >
           ★
         </button>
+        {actions.addToPlaylist && (
+          <button
+            title={t('feed.card.addToPlaylistTitle')}
+            onClick={(e) => stop(e, () => actions.addToPlaylist!(video))}
+          >
+            ⊕
+          </button>
+        )}
+        {actions.removeFromPlaylist && (
+          <button
+            title={t('feed.card.removeFromPlaylistTitle')}
+            onClick={(e) => stop(e, () => actions.removeFromPlaylist!(video))}
+          >
+            ⊖
+          </button>
+        )}
         <button
           title={t('feed.card.toggleWatchLaterTitle')}
           onClick={(e) => stop(e, () => actions.toggleWatchLater(video))}
@@ -668,6 +694,22 @@ export function VideoCard({
           >
             ★
           </button>
+          {actions.addToPlaylist && (
+            <button
+              title={t('feed.card.addToPlaylistTitle')}
+              onClick={(e) => stop(e, () => actions.addToPlaylist!(video))}
+            >
+              ⊕
+            </button>
+          )}
+          {actions.removeFromPlaylist && (
+            <button
+              title={t('feed.card.removeFromPlaylistTitle')}
+              onClick={(e) => stop(e, () => actions.removeFromPlaylist!(video))}
+            >
+              ⊖
+            </button>
+          )}
           <button
             title={t('feed.card.toggleWatchLaterTitle')}
             onClick={(e) => stop(e, () => actions.toggleWatchLater(video))}

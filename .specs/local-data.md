@@ -115,6 +115,23 @@ CREATE TABLE video_state (               -- D-010 model: status + orthogonal fla
 );
 CREATE INDEX idx_state_status ON video_state (read_status);
 
+CREATE TABLE playlists (                 -- D-058: user-created, local-only, never synced
+  playlist_id       TEXT PRIMARY KEY,
+  name              TEXT NOT NULL,
+  description       TEXT,
+  created_at        TEXT NOT NULL,
+  updated_at        TEXT NOT NULL
+);
+
+CREATE TABLE playlist_videos (           -- membership + user-set order (D-058)
+  playlist_id       TEXT NOT NULL REFERENCES playlists(playlist_id) ON DELETE CASCADE,
+  video_id          TEXT NOT NULL REFERENCES videos(video_id),
+  position          INTEGER NOT NULL,      -- 1-based; user-ordered, like watch_later_pos
+  added_at          TEXT NOT NULL,
+  PRIMARY KEY (playlist_id, video_id)
+);
+CREATE INDEX idx_playlist_videos_playlist ON playlist_videos (playlist_id, position ASC);
+
 CREATE TABLE sync_log (                  -- observability without telemetry: local only
   id                INTEGER PRIMARY KEY,
   started_at        TEXT NOT NULL,
@@ -162,6 +179,12 @@ Design notes:
 - Future tables already anticipated (do not build yet): `categories`,
   `channel_categories`, `notes(video_id, body, updated_at)` with FTS5, `filters`.
   Nothing in v1 blocks them.
+- **Playlists (D-058) are a Chronicle-only concept, same rule as `video_state`** — never a
+  YouTube playlist, never synced. `playlist_videos.video_id` references `videos` the same
+  way `video_state.video_id` does: a video must already be known locally (already in the
+  feed, or hydrated on demand via `getVideo`, D-029) before it can join a playlist.
+  `ON DELETE CASCADE` means deleting a playlist drops its own membership rows for free;
+  the videos themselves, and any other playlist's membership, are untouched.
 
 ## Migrations (Final)
 

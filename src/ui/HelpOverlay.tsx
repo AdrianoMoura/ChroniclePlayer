@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { t } from './i18n'
 
 // Two groups rather than one flat list: several keys mean different things
@@ -33,6 +34,7 @@ const PLAYER_SHORTCUTS: readonly [string, () => string][] = [
   ['i', () => t('help.action.ignorePlayer')],
   ['f', () => t('help.action.toggleFavorite')],
   ['w', () => t('help.action.toggleWatchLater')],
+  ['a', () => t('help.action.addToPlaylist')],
   ['l', () => t('help.action.toggleLike')],
   ['s', () => t('help.action.toggleSubscribe')],
   ['c', () => t('help.action.toggleComments')],
@@ -71,9 +73,33 @@ function ShortcutTable({ rows }: { rows: readonly [string, () => string][] }) {
 }
 
 export function HelpOverlay({ onClose }: { onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // No text input here to naturally take focus on open (usually triggered
+  // by `?` alone) — without this, a keydown handler on this container would
+  // never actually receive Escape (it'd bubble from whatever had focus
+  // before, a sibling of this dialog, not through it). See
+  // AddToPlaylistDialog's own copy of this comment for the full reasoning.
+  useEffect(() => {
+    containerRef.current?.focus()
+  }, [])
+
   return (
     <div className="overlay-backdrop" onClick={onClose}>
-      <div className="overlay" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={containerRef}
+        tabIndex={-1}
+        className="overlay"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          // A dialog on top of the content owns Escape while it's open —
+          // never let it bubble to whatever's listening underneath (the
+          // full-view player's own Esc-to-close/dock map, the feed's own
+          // keydown handler), regardless of which element inside has focus.
+          event.stopPropagation()
+          if (event.key === 'Escape') onClose()
+        }}
+      >
         <h2>{t('help.title')}</h2>
         <h3>{t('help.section.feed')}</h3>
         <ShortcutTable rows={FEED_SHORTCUTS} />

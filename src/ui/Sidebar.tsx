@@ -58,12 +58,20 @@ function ContextMenu({
   )
 }
 
-export const VIEW_ORDER: readonly FeedViewDto[] = [
-  'all',
-  'unread',
-  'watch-later',
-  'favorites',
-  'ignored'
+// The sidebar's nav list interleaves the five FeedViews with the Playlists
+// screen (its own screen, not a FeedView — a playlist has no read/unread
+// concept) at position 4, per the product owner's own placement. Keyboard
+// digit shortcuts (App.tsx) index into this same array, so its order is the
+// single source of truth for both the rendered list and `1`-`6`.
+export type NavEntry = { kind: 'view'; view: FeedViewDto } | { kind: 'playlists' }
+
+export const NAV_ORDER: readonly NavEntry[] = [
+  { kind: 'view', view: 'all' },
+  { kind: 'view', view: 'unread' },
+  { kind: 'view', view: 'watch-later' },
+  { kind: 'playlists' },
+  { kind: 'view', view: 'favorites' },
+  { kind: 'view', view: 'ignored' }
 ]
 
 // A function, not a module-level object — the label must resolve against
@@ -93,9 +101,11 @@ interface SidebarProps {
   channelFilter: string | null
   channelQueryRef: RefObject<HTMLInputElement | null>
   settingsOpen: boolean
+  playlistsOpen: boolean
   onSelectView: (view: FeedViewDto) => void
   onSelectChannel: (channelId: string | null) => void
   onOpenSettings: () => void
+  onOpenPlaylists: () => void
   onToggleCollapse: () => void
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
@@ -120,9 +130,11 @@ export function Sidebar({
   channelFilter,
   channelQueryRef,
   settingsOpen,
+  playlistsOpen,
   onSelectView,
   onSelectChannel,
   onOpenSettings,
+  onOpenPlaylists,
   onToggleCollapse,
   onUnsubscribe,
   onToggleFavorite,
@@ -200,22 +212,33 @@ export function Sidebar({
         </button>
       </div>
       <nav>
-        {VIEW_ORDER.map((candidate, index) => (
-          <button
-            key={candidate}
-            className={`view${candidate === view && channelFilter === null ? ' active' : ''}`}
-            onClick={() => onSelectView(candidate)}
-          >
-            <span className="view-key">{index + 1}</span>
-            <span className="view-label">{viewLabel(candidate)}</span>
-            {candidate === 'unread' && unreadCount > 0 && (
-              <span className="view-count">{unreadCount}</span>
-            )}
-            {candidate === 'watch-later' && watchLaterCount > 0 && (
-              <span className="view-count">{watchLaterCount}</span>
-            )}
-          </button>
-        ))}
+        {NAV_ORDER.map((entry, index) =>
+          entry.kind === 'playlists' ? (
+            <button
+              key="playlists"
+              className={`view${playlistsOpen ? ' active' : ''}`}
+              onClick={onOpenPlaylists}
+            >
+              <span className="view-key">{index + 1}</span>
+              <span className="view-label">{t('sidebar.view.playlists')}</span>
+            </button>
+          ) : (
+            <button
+              key={entry.view}
+              className={`view${entry.view === view && channelFilter === null && !playlistsOpen ? ' active' : ''}`}
+              onClick={() => onSelectView(entry.view)}
+            >
+              <span className="view-key">{index + 1}</span>
+              <span className="view-label">{viewLabel(entry.view)}</span>
+              {entry.view === 'unread' && unreadCount > 0 && (
+                <span className="view-count">{unreadCount}</span>
+              )}
+              {entry.view === 'watch-later' && watchLaterCount > 0 && (
+                <span className="view-count">{watchLaterCount}</span>
+              )}
+            </button>
+          )
+        )}
       </nav>
 
       <div className="channel-list">

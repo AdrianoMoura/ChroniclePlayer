@@ -207,6 +207,33 @@ const SCHEMA_V16 = `
 ALTER TABLE videos ADD COLUMN live_started_at TEXT;
 `
 
+// v17: user-created local playlists (decisions.md) — never synced to
+// YouTube. playlist_videos references videos(video_id) like video_state
+// does: a video must already be known locally (the feed, or hydrated
+// on-demand via getVideo, D-029) before it can join a playlist.
+// ON DELETE CASCADE on the playlist side (foreign_keys = ON, database.ts)
+// means deleting a playlist drops its membership rows for free; videos
+// themselves are untouched, same as removing a video from Watch Later
+// never deletes the video.
+const SCHEMA_V17 = `
+CREATE TABLE playlists (
+  playlist_id  TEXT PRIMARY KEY,
+  name         TEXT NOT NULL,
+  description  TEXT,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE playlist_videos (
+  playlist_id  TEXT NOT NULL REFERENCES playlists(playlist_id) ON DELETE CASCADE,
+  video_id     TEXT NOT NULL REFERENCES videos(video_id),
+  position     INTEGER NOT NULL,
+  added_at     TEXT NOT NULL,
+  PRIMARY KEY (playlist_id, video_id)
+);
+CREATE INDEX idx_playlist_videos_playlist ON playlist_videos (playlist_id, position ASC);
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -223,7 +250,8 @@ const migrations: readonly string[] = [
   SCHEMA_V13,
   SCHEMA_V14,
   SCHEMA_V15,
-  SCHEMA_V16
+  SCHEMA_V16,
+  SCHEMA_V17
 ]
 
 export function migrate(db: DatabaseSync): void {

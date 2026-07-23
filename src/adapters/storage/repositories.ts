@@ -25,8 +25,11 @@ import {
 import type { Channel, Video } from '../../core/video'
 
 // Rows joined for the feed. COALESCEs encode "absent state row = default
-// state" (local-data.md: video_state rows are created lazily).
-const FEED_SELECT = `
+// state" (local-data.md: video_state rows are created lazily). Exported so
+// playlist-repository.ts (a user-ordered queue over the same videos/state
+// tables, same shape as the Watch Later queue below) can reuse the join
+// instead of duplicating it.
+export const FEED_SELECT = `
   SELECT
     v.video_id          AS video_id,
     v.channel_id        AS channel_id,
@@ -110,7 +113,7 @@ function viewPredicate(view: FeedView, accountId?: string): string {
 // which rows a page contains.
 const FEED_ORDER = `ORDER BY v.published_at DESC, c.title ASC, v.video_id ASC`
 
-interface FeedRow {
+export interface FeedRow {
   video_id: string
   channel_id: string
   title: string
@@ -130,7 +133,7 @@ interface FeedRow {
   resume_position_seconds: number | bigint | null
 }
 
-function toEntry(row: FeedRow): FeedEntry {
+export function toEntry(row: FeedRow): FeedEntry {
   return {
     channelTitle: row.channel_title,
     state: {

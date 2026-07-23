@@ -16,8 +16,9 @@ Three-region desktop layout:
 │ Unread   │           Channel · 3 h ago                   │
 │ Watch    │  ▢ thumb  Another video               8:02   │
 │  Later   │           Channel · 5 h ago                   │
-│ Favorites│  YESTERDAY                                    │
-│ Ignored  │  …                                            │
+│ Playlists│  YESTERDAY                                    │
+│ Favorites│  …                                            │
+│ Ignored  │                                               │
 │ ────────│  THIS WEEK                                    │
 │ Channels │  …                                            │
 │  (list)  │  EARLIER          (loads as you scroll ·      │
@@ -27,7 +28,9 @@ Three-region desktop layout:
 └──────────┴──────────────────────────────────────────────┘
 ```
 
-- **Sidebar**: views (All, Unread, Watch Later, Favorites, Ignored), then the channel
+- **Sidebar**: views (All, Unread, Watch Later, **Playlists** (D-058, position 4 —
+  user-created local playlists; its own screen, not a `FeedView`, so it sits between
+  the five views without being one of them), Favorites, Ignored), then the channel
   list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
   Unsubscribe — B-010/B-042), then an **Accounts** section (B-003, implemented
   2026-07-12: connected accounts, each with a `…` menu for Sync now/Remove, click =
@@ -81,7 +84,7 @@ with a visible cursor row.
 | `e` | maximize the docked miniplayer back to the full player (only while docked) — B-104 |
 | `x` | close the docked miniplayer (only while docked) — B-104 |
 | `gg` / `G` | top / end of loaded feed |
-| `1…5` | switch view (All, Unread, WL, Fav, Ignored) |
+| `1…6` | switch view/screen (All, Unread, WL, **Playlists** — D-058, opens the Playlists screen's list rather than a `FeedView` — Fav, Ignored) |
 | `r` | refresh |
 | `Ctrl+O` | open a YouTube video by URL (D-029) |
 | `/` | focus the search field — Enter searches YouTube directly (D-031); also works while a video is playing, exiting fully back to the feed first |

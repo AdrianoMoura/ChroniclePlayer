@@ -118,6 +118,24 @@ const api: ChronicleApi = {
   loadInExtractWindow: (videoId: string, title: string) =>
     ipcRenderer.invoke(IpcChannel.loadInExtractWindow, videoId, title),
   extractChat: (videoId: string) => ipcRenderer.invoke(IpcChannel.extractChat, videoId),
+  listPlaylists: () => ipcRenderer.invoke(IpcChannel.listPlaylists),
+  createPlaylist: (name: string, description: string | null) =>
+    ipcRenderer.invoke(IpcChannel.createPlaylist, name, description),
+  updatePlaylist: (playlistId: string, name: string, description: string | null) =>
+    ipcRenderer.invoke(IpcChannel.updatePlaylist, playlistId, name, description),
+  deletePlaylist: (playlistId: string) => ipcRenderer.invoke(IpcChannel.deletePlaylist, playlistId),
+  getPlaylistVideos: (playlistId: string) =>
+    ipcRenderer.invoke(IpcChannel.getPlaylistVideos, playlistId),
+  addVideoToPlaylist: (playlistId: string, videoId: string) =>
+    ipcRenderer.invoke(IpcChannel.addVideoToPlaylist, playlistId, videoId),
+  removeVideoFromPlaylist: (playlistId: string, videoId: string) =>
+    ipcRenderer.invoke(IpcChannel.removeVideoFromPlaylist, playlistId, videoId),
+  getPlaylistsForVideo: (videoId: string) =>
+    ipcRenderer.invoke(IpcChannel.getPlaylistsForVideo, videoId),
+  reorderPlaylist: (playlistId: string, videoIds: string[]) =>
+    ipcRenderer.invoke(IpcChannel.reorderPlaylist, playlistId, videoIds),
+  getNextInPlaylist: (playlistId: string, currentVideoId: string) =>
+    ipcRenderer.invoke(IpcChannel.getNextInPlaylist, playlistId, currentVideoId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

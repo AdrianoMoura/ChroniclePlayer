@@ -78,6 +78,15 @@ export function formatSubscriberCount(count: number): string {
   })
 }
 
+// Playlist card meta (ui.md): hours:minutes, no seconds — coarser than a
+// single video's own mm:ss/h:mm:ss duration since this is a running total.
+export function formatPlaylistDuration(totalSeconds: number): string {
+  const totalMinutes = Math.round(totalSeconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${hours}:${String(minutes).padStart(2, '0')}`
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

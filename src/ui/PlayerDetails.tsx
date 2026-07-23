@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
+import { AddToPlaylistDialog } from './AddToPlaylistDialog'
 import { CommentsSection, type CommentsSectionHandle } from './Comments'
 import { feedItemLabel } from './format'
 import { t } from './i18n'
@@ -18,13 +19,15 @@ import { useWriteScopeGate } from './useWriteScopeGate'
 // in PlayerSurface) — there's deliberately no manual "dock" button here.
 
 export interface PlayerDetailsHandle {
-  // The player's own keyboard shortcuts (l/s/c) live in PlayerSurface, a
+  // The player's own keyboard shortcuts (l/s/c/a) live in PlayerSurface, a
   // sibling component — these actions are write-scope-gated (like,
-  // subscribe) or own local state (comments' open/closed), both of which
-  // live here, so a plain callback prop can't reach them from outside.
+  // subscribe) or own local state (comments' open/closed, the Add to
+  // Playlist dialog), both of which live here, so a plain callback prop
+  // can't reach them from outside.
   toggleLike: () => void
   toggleSubscribe: () => void
   toggleComments: () => void
+  openAddToPlaylist: () => void
 }
 
 interface PlayerDetailsProps {
@@ -87,6 +90,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     const [rating, setRating] = useState<VideoRatingDto>('none')
     const [subscribed, setSubscribed] = useState(video.isSubscribed)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
     const writeScopeGate = useWriteScopeGate()
 
     useEffect(() => {
@@ -95,6 +99,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       setRating('none')
       setSubscribed(video.isSubscribed)
       setActionError(null)
+      setAddToPlaylistOpen(false)
       void window.chronicle.getVideoRating(video.videoId).then((result) => {
         if (result.ok) setRating(result.value)
       })
@@ -145,7 +150,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     useImperativeHandle(ref, () => ({
       toggleLike,
       toggleSubscribe,
-      toggleComments: () => commentsRef.current?.toggle()
+      toggleComments: () => commentsRef.current?.toggle(),
+      openAddToPlaylist: () => setAddToPlaylistOpen(true)
     }))
 
     return (
@@ -252,6 +258,10 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 onClick={() => void window.chronicle.toggleWatchLater(video.videoId).then(patch)}
               />
               <ActionButton
+                label={t('player.action.addToPlaylist')}
+                onClick={() => setAddToPlaylistOpen(true)}
+              />
+              <ActionButton
                 label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
                 active={rating === 'like'}
                 onClick={toggleLike}
@@ -307,6 +317,14 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
           </div>
         </div>
         {writeScopeGate.dialog}
+        {addToPlaylistOpen && (
+          <AddToPlaylistDialog
+            videoId={video.videoId}
+            videoTitle={video.title}
+            onClose={() => setAddToPlaylistOpen(false)}
+            onPlaylistsChanged={() => {}}
+          />
+        )}
       </>
     )
   }

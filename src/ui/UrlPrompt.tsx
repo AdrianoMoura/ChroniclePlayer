@@ -38,7 +38,18 @@ export function UrlPrompt({ onOpenVideo, onClose }: UrlPromptProps) {
 
   return (
     <div className="overlay-backdrop" onClick={onClose}>
-      <div className="overlay url-prompt" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="overlay url-prompt"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          // A dialog on top of the content owns Escape while it's open —
+          // never let it bubble to whatever's underneath. The input below
+          // already handles Escape/Enter itself; this is the safety net for
+          // anything else in the dialog that might have focus.
+          event.stopPropagation()
+          if (event.key === 'Escape') onClose()
+        }}
+      >
         <h2>{t('urlPrompt.title')}</h2>
         <input
           autoFocus

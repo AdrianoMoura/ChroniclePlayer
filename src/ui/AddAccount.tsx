@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { t } from './i18n'
 
 // Adding an account skips the Google-console walkthrough — the OAuth client
@@ -15,15 +15,15 @@ interface AddAccountProps {
 export function AddAccount({ onConnected, onCancel }: AddAccountProps) {
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Esc closes it, matching every other overlay (Help, URL prompt).
+  // No text input here to naturally take focus on open — without this, the
+  // dialog's own keydown handler (Escape) would never actually receive it
+  // (see AddToPlaylistDialog's own copy of this comment for the full
+  // reasoning).
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') onCancel()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
+    containerRef.current?.focus()
+  }, [])
 
   function connect(): void {
     setConnecting(true)
@@ -42,7 +42,19 @@ export function AddAccount({ onConnected, onCancel }: AddAccountProps) {
 
   return (
     <div className="overlay-backdrop" onClick={onCancel}>
-      <div className="overlay add-account" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={containerRef}
+        tabIndex={-1}
+        className="overlay add-account"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          // A dialog on top of the content owns Escape while it's open —
+          // never let it bubble to whatever's underneath (the player's own
+          // Esc-to-close/dock map, the feed's own keydown handler).
+          event.stopPropagation()
+          if (event.key === 'Escape') onCancel()
+        }}
+      >
         <h2>{t('addAccount.title')}</h2>
         <p>{t('addAccount.instructions')}</p>
         <a

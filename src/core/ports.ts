@@ -3,6 +3,7 @@
 
 import type { FeedEntry } from './feed'
 import type { FeedView } from './views'
+import type { Playlist, PlaylistSummary } from './playlist'
 import type { ReadStatus, VideoState } from './state'
 import type { Channel, Video } from './video'
 
@@ -315,4 +316,34 @@ export interface SyncRepository {
   lastSyncStartedAt(): string | null
   getMeta(key: string): string | null
   setMeta(key: string, value: string): void
+}
+
+// ── Playlists (local-only, never synced to YouTube) ────────────────
+
+export interface PlaylistRepository {
+  // Newest-created first (ui.md: predictable, no engagement-driven sort).
+  listPlaylists(): PlaylistSummary[]
+  getPlaylist(playlistId: string): Playlist | null
+  // Same shape listPlaylists() returns, for a single playlist — used to
+  // refresh the DTO after a create/rename/membership change without
+  // re-listing every playlist.
+  getPlaylistSummary(playlistId: string): PlaylistSummary | null
+  createPlaylist(playlistId: string, name: string, description: string | null, now: string): Playlist
+  // Covers both the name and description edit affordances (ui.md) — the UI
+  // always sends both fields, whichever one the user actually touched.
+  updatePlaylist(playlistId: string, name: string, description: string | null, now: string): Playlist | null
+  deletePlaylist(playlistId: string): void
+  // Ordered by position ASC — a playlist is a user-ordered queue, not a
+  // chronological view, same as Watch Later.
+  listPlaylistVideos(playlistId: string): FeedEntry[]
+  // Appends at the end of the queue; no-ops if the video is already a member
+  // (idempotent — the Add to Playlist dialog just calls this per checkbox).
+  addVideoToPlaylist(playlistId: string, videoId: string, now: string): void
+  removeVideoFromPlaylist(playlistId: string, videoId: string): void
+  // Every playlist id that currently contains this video — drives the Add to
+  // Playlist dialog's checkbox state.
+  listPlaylistsForVideo(videoId: string): string[]
+  // Drag-and-drop reorder (mirrors StateRepository.reorderWatchLater):
+  // videoIds is the full playlist in its new order.
+  reorderPlaylist(playlistId: string, videoIds: readonly string[]): void
 }

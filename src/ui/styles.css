@@ -2084,75 +2084,75 @@ button.primary.active {
    grid's `.card-thumb-wrap .thumb`, which must always stay width:100% so the
    thumbnail fills its card at every size instead of collapsing to a fixed
    pixel width (B-037 grid-thumbnail-sizing bug). */
-:is(.feed-scroll, .priority-section, .search-results).size-xs .row {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .row {
   height: 36px;
   gap: 8px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .row .thumb {
   width: 56px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .row-text {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .row-text {
   gap: 0;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .title,
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card .title {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .title,
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card .title {
   font-size: 12px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .row {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .row {
   height: 48px;
   gap: 10px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .row .thumb {
   width: 72px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .row-text {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .row-text {
   gap: 1px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-large .row {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-large .row {
   height: 92px;
   gap: 14px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-large .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-large .row .thumb {
   width: 160px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-large .title {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-large .title {
   font-size: 15px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xl .row {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xl .row {
   height: 132px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xl .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xl .row .thumb {
   width: 240px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xl .title {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xl .title {
   font-size: 16px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .card .title {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card .title {
   font-size: 12.5px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xxl .row {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xxl .row {
   height: 180px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xxl .row .thumb {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xxl .row .thumb {
   width: 320px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xxl .title {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xxl .title {
   font-size: 17px;
 }
 
@@ -2162,57 +2162,57 @@ button.primary.active {
    thumbnail itself is barely taller than the badges, so the full-size
    versions collide with each other. Shrunk and pulled closer to the corner
    at these two sizes only; medium and up have always had enough headroom. */
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-thumb-wrap .unread-dot {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-thumb-wrap .unread-dot {
   top: 3px;
   left: 3px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-short-badge,
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-live-badge {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-short-badge,
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-live-badge {
   top: 3px;
   right: 3px;
   font-size: 9px;
   padding: 1px 4px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-duration {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-duration {
   bottom: 3px;
   right: 3px;
   font-size: 10px;
   padding: 2px 3px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-actions {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-actions {
   bottom: 3px;
   left: 3px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-xs .card-actions button {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-xs .card-actions button {
   padding: 2px;
   font-size: 10px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .card-short-badge,
-:is(.feed-scroll, .priority-section, .search-results).size-small .card-live-badge {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card-short-badge,
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card-live-badge {
   top: 4px;
   right: 4px;
   font-size: 10px;
   padding: 1px 5px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .card-duration {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card-duration {
   bottom: 6px;
   right: 4px;
   font-size: 11px;
   padding: 3px 4px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .card-actions {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card-actions {
   bottom: 6px;
   left: 4px;
 }
 
-:is(.feed-scroll, .priority-section, .search-results).size-small .card-actions button {
+:is(.feed-scroll, .priority-section, .search-results, .playlists-list).size-small .card-actions button {
   padding: 4px;
   font-size: 11px;
 }
@@ -2567,6 +2567,14 @@ button.primary.danger {
   min-width: 420px;
 }
 
+/* Dialogs with no natural autoFocus element (e.g. no text input) focus
+   their own container on mount instead, purely so Escape/keydown handling
+   actually receives events (see AddToPlaylistDialog's own comment) — not a
+   real, visible focus target, so no ring. */
+.overlay:focus {
+  outline: none;
+}
+
 .overlay h2 {
   font-size: 14px;
   margin-bottom: 12px;
@@ -2634,4 +2642,267 @@ button.primary.danger {
   display: flex;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* ── Playlists (local-only, never synced to YouTube) ───────────── */
+
+.topbar-spacer {
+  flex: 1;
+}
+
+/* Non-virtualized (a small, fully-loaded list, same reasoning as
+   .search-results) — same scroll/padding/grid treatment as that container,
+   plus every :is(.feed-scroll, .priority-section, .search-results,
+   .playlists-list) per-itemSize rule above already targets this class too. */
+.playlists-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+}
+
+.playlists-list .grid-row {
+  height: auto;
+  padding-bottom: 12px;
+}
+
+/* This screen's list mode is a plain flow list, unlike the main feed's
+   virtualized rows (whose gap comes from the virtualizer's own fixed slot
+   height, not CSS margin) — .row's shared margin-top (4px, styles.css
+   above) is the *only* real gap here, and a flat 4px reads as barely-there
+   once the row itself is 130-180px tall at the larger sizes. Scaled to
+   roughly track each size's own row height/thumb width instead. */
+.playlists-list.size-xs .row {
+  margin-top: 3px;
+}
+.playlists-list.size-small .row {
+  margin-top: 4px;
+}
+.playlists-list .row {
+  margin-top: 6px;
+}
+.playlists-list.size-large .row {
+  margin-top: 8px;
+}
+.playlists-list.size-xl .row {
+  margin-top: 10px;
+}
+.playlists-list.size-xxl .row {
+  margin-top: 12px;
+}
+
+/* The shared .size-xl .row height (132px, above) is a few pixels shorter
+   than a 240px-wide 16:9 thumb (135px) — the overflow ate into the next
+   row's own margin, reading as "glued together." Only corrected here; the
+   virtualized main feed doesn't depend on .row's own box height for its
+   layout (it positions each row via the virtualizer's fixed slot instead),
+   so it was never affected by this. */
+.playlists-list.size-xl .row {
+  height: 140px;
+}
+
+.playlists-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 10px;
+}
+
+.playlists-empty-hint {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* The composite cover (PlaylistThumb): 1-6 of the playlist's own videos'
+   thumbnails, arranged inside the exact same `.thumb` footprint a single
+   video's thumbnail takes at every size — `.thumb`'s own width/aspect-ratio/
+   border-radius/background rules (above) apply unchanged since this is a
+   modifier on top of that class, not a replacement for it. */
+.playlist-thumb-grid {
+  display: grid;
+  gap: 1.5px;
+  overflow: hidden;
+}
+
+.playlist-thumb-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.playlist-thumb-grid.count-1 {
+  grid-template-columns: 1fr;
+}
+
+.playlist-thumb-grid.count-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.playlist-thumb-grid.count-3,
+.playlist-thumb-grid.count-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* Big first thumbnail on the left, two stacked on the right — 4 fills all
+   four cells evenly instead. */
+.playlist-thumb-grid.count-3 img:first-child {
+  grid-row: span 2;
+}
+
+.playlist-thumb-grid.count-5,
+.playlist-thumb-grid.count-6 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+}
+
+/* 5 images into a 3x2 (6-cell) grid otherwise leaves one cell blank — same
+   "big first thumbnail" fix as count-3 above, filling all 6 cells with 5
+   images (1 double-height + 4 singles) instead. count-6 needs no such fix,
+   it already fills the grid exactly. */
+.playlist-thumb-grid.count-5 img:first-child {
+  grid-row: span 2;
+}
+
+.create-playlist,
+.add-to-playlist {
+  min-width: 360px;
+  max-width: 440px;
+}
+
+.create-playlist-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 12px 0 4px;
+}
+
+.create-playlist-label:first-of-type {
+  margin-top: 0;
+}
+
+.create-playlist-description {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.add-to-playlist-video-title {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-to-playlist-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.add-to-playlist-list {
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.add-to-playlist-list li {
+  padding: 4px 0;
+}
+
+.add-to-playlist-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.add-to-playlist-create {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.add-to-playlist-create .filter {
+  flex: 1;
+}
+
+/* Right-aligned action row, matching the established dialog pattern
+   (.write-scope-dialog-actions) rather than the player's own centered
+   .overlay-actions (a different, unrelated element despite the similar
+   name — the end-of-video overlay's title+button group). */
+.add-to-playlist-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.create-playlist-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* A playlist's own screen header — same compact strip as ChannelHeader
+   (channel-header/-scrim/-info/-actions), with in-place name/description
+   editing instead of a fixed title. */
+.playlist-detail-header {
+  margin-bottom: 14px;
+}
+
+.playlist-detail-info {
+  gap: 2px;
+}
+
+.playlist-detail-editable-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.playlist-detail-edit-btn {
+  opacity: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.playlist-detail-editable-row:hover .playlist-detail-edit-btn {
+  opacity: 1;
+}
+
+.playlist-detail-edit-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.playlist-detail-name-input {
+  font-weight: 600;
+  font-size: 14px;
+  max-width: 320px;
+}
+
+.playlist-detail-description-input {
+  width: 100%;
+  max-width: 420px;
+  min-height: 44px;
+  resize: vertical;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
