@@ -95,7 +95,7 @@ const api: ChronicleApi = {
   connectAccount: (accountId: string) => ipcRenderer.invoke(IpcChannel.connectAccount, accountId),
   removeAccount: (accountId: string) => ipcRenderer.invoke(IpcChannel.removeAccount, accountId),
   syncAccountNow: (accountId: string) => ipcRenderer.invoke(IpcChannel.syncAccountNow, accountId),
-  openYouTubeSignIn: () => ipcRenderer.invoke(IpcChannel.openYouTubeSignIn),
+  openYouTubeSignIn: (title?: string) => ipcRenderer.invoke(IpcChannel.openYouTubeSignIn, title),
   extractPlayer: (
     videoId: string,
     title: string,

@@ -628,6 +628,7 @@ input:focus-visible,
 .status-info {
   margin-left: 4px;
   opacity: 0.7;
+  cursor: pointer;
 }
 
 .status-info:hover {
@@ -1484,6 +1485,16 @@ button.primary:disabled {
 .player-chat-signin-hint {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+/* Same native-title-tooltip pattern as .status-info (B-105). */
+.player-chat-info {
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.player-chat-info:hover {
+  opacity: 1;
 }
 
 .player-chat-signin-link {

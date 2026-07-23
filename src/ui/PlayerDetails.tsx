@@ -175,11 +175,16 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 />
                 <div className="player-chat-footer">
                   <p className="player-chat-signin-hint">
+                    <span className="player-chat-info" title={t('player.chat.signInInfo')}>
+                      ⓘ
+                    </span>{' '}
                     {t('player.chat.signInHint')}{' '}
                     <button
                       type="button"
                       className="player-chat-signin-link"
-                      onClick={() => void window.chronicle.openYouTubeSignIn()}
+                      onClick={() =>
+                        void window.chronicle.openYouTubeSignIn(t('player.chat.signInWindowTitle'))
+                      }
                     >
                       {t('player.chat.signInLink')}
                     </button>

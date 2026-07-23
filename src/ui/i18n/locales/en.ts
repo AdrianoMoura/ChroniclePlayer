@@ -439,8 +439,11 @@ export const dict = {
   'player.upNext.dismiss': 'Dismiss',
   'player.chat.toggle': 'View live chat',
   'player.chat.extractTitle': 'Pop out chat into its own window',
-  'player.chat.signInHint': 'To comment, sign in to YouTube:',
+  'player.chat.signInInfo':
+    "Live chat is loaded directly from YouTube, so Chronicle's own sign-in doesn't carry over to it — you'll need to sign in here separately, just once.",
+  'player.chat.signInHint': "Want to chat? You'll need to sign in to YouTube here too:",
   'player.chat.signInLink': 'Sign in to YouTube',
+  'player.chat.signInWindowTitle': 'Sign in for Live Chat',
 
   // Sidebar
   'sidebar.collapseTitle': 'Collapse sidebar',

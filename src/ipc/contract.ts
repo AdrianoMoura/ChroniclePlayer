@@ -437,8 +437,12 @@ export interface ChronicleApi {
   // app's own persistent session — the same one the embedded player's iframe
   // uses, since the OAuth connect flow (D-001/D-012) runs in the system
   // browser and never touches this one. Signing in here is what lets the
-  // player pass YouTube's bot-check (B-093).
-  openYouTubeSignIn(): Promise<void>
+  // player pass YouTube's bot-check (B-093). `title`, when given, overrides
+  // the window's OS-level title (it would otherwise just mirror youtube.com's
+  // own page title, indistinguishable from any other plain YouTube window —
+  // e.g. the live chat sign-in link, D-056 — in a taskbar/compositor context,
+  // same reasoning as `extractPlayer`'s own `title` param).
+  openYouTubeSignIn(title?: string): Promise<void>
   // Pops the player into its own always-on-top OS window (B-045). There's no
   // way to move the live iframe's DOM node into a different renderer process,
   // so this hands off a snapshot (position, playing/paused) to a fresh

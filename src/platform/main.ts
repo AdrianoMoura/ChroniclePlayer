@@ -1610,10 +1610,17 @@ async function boot(): Promise<void> {
 
   // No automation, no credential handling — a plain window at youtube.com,
   // sharing the default session the player's iframe already uses (B-093).
-  // The user signs in (or not) exactly like they would in any browser.
-  ipcMain.handle(IpcChannel.openYouTubeSignIn, () => {
+  // The user signs in (or not) exactly like they would in any browser. An
+  // explicit `title` (e.g. from the live chat sign-in link, D-056) is pinned
+  // against youtube.com's own page-title-updated events, which would
+  // otherwise overwrite it back to "YouTube" the moment the page loads.
+  ipcMain.handle(IpcChannel.openYouTubeSignIn, (_event, title: unknown) => {
     const signInWindow = new BrowserWindow({ width: 480, height: 720 })
     signInWindow.removeMenu()
+    if (typeof title === 'string' && title.length > 0) {
+      signInWindow.setTitle(title)
+      signInWindow.on('page-title-updated', (event) => event.preventDefault())
+    }
     void signInWindow.loadURL('https://www.youtube.com')
   })
 

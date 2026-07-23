@@ -433,8 +433,11 @@ export const dict: Partial<Dict> = {
   'player.upNext.dismiss': 'Dispensar',
   'player.chat.toggle': 'Ver chat ao vivo',
   'player.chat.extractTitle': 'Destacar o chat em janela própria',
-  'player.chat.signInHint': 'Para comentar, entre no YouTube:',
+  'player.chat.signInInfo':
+    'O chat é carregado direto do YouTube, então a sessão ativa no Chronicle não vale por lá — é preciso entrar aqui também, só essa vez.',
+  'player.chat.signInHint': 'Quer comentar? Entre no YouTube aqui também:',
   'player.chat.signInLink': 'Entrar no YouTube',
+  'player.chat.signInWindowTitle': 'Entrar para o Chat ao Vivo',
 
   // Sidebar
   'sidebar.collapseTitle': 'Recolher barra lateral',
