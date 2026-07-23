@@ -18,7 +18,7 @@ substantive, in `decisions.md`.
 4. **Release** — when the owner ships the version this file is targeting, this whole
    file (Open/In progress items still outstanding get their **Target** bumped to the
    next release and stay; everything else) is archived into
-   `bug-history/v<version>.md` and a fresh, empty `bugs-current.md` is started for the
+   `tracker-history/v<version>.md` and a fresh, empty `tracker-current.md` is started for the
    next release. See **History** below.
 
 ## Conventions
@@ -39,7 +39,7 @@ substantive, in `decisions.md`.
   release than it actually did.
 - An item that doesn't make it into this release simply stays *Open*/*In progress* when
   the file is archived — its Target is bumped to the next version number and it carries
-  forward into the new `bugs-current.md` untouched, noted as "carried over."
+  forward into the new `tracker-current.md` untouched, noted as "carried over."
 - Version numbers aren't always a minor bump: a batch that's pure bug fixes/adjustments
   (no new milestone-sized feature) ships as a **patch** release (0.2.0 → 0.2.1 → 0.2.2
   → …); a minor bump is reserved for batches that land real new scope. This file's own
@@ -48,12 +48,12 @@ substantive, in `decisions.md`.
 
 ## History
 
-Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
+Closed-out batches live one per release in **[`tracker-history/`](tracker-history/)**:
 
-- [`bug-history/v0.1.0.md`](bug-history/v0.1.0.md) — everything resolved from the
+- [`tracker-history/v0.1.0.md`](tracker-history/v0.1.0.md) — everything resolved from the
   project's start through 2026-07-14 (the first two dogfooding batches, B-001–B-017 and
   B-054–B-066). Shipped 2026-07-11.
-- [`bug-history/v0.2.0.md`](bug-history/v0.2.0.md) — the third dogfooding batch
+- [`tracker-history/v0.2.0.md`](tracker-history/v0.2.0.md) — the third dogfooding batch
   (B-085–B-104, reported 2026-07-15) plus three items carried over from before 0.1.0
   shipped (B-051, B-046, B-045): 20 entries Fixed, 1 Won't fix (B-046 — hover-preview
   would require exactly the undocumented-endpoint use `youtube-api.md` bans). Shipped
@@ -61,11 +61,11 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
 - **v0.2.1** — no bug-tracker batch of its own: a single same-day product-owner request
   (raise the miniplayer's max resizable width from 640px to 1024px) tagged on its own
   right after 0.2.0, folded into [[B-045]]'s "eighth round" narrative in
-  `bug-history/v0.2.0.md` rather than getting a new B-NNN entry. Shipped 2026-07-15.
-- [`bug-history/v0.2.2.md`](bug-history/v0.2.2.md) — B-105, B-106, B-107 (all Fixed,
+  `tracker-history/v0.2.0.md` rather than getting a new B-NNN entry. Shipped 2026-07-15.
+- [`tracker-history/v0.2.2.md`](tracker-history/v0.2.2.md) — B-105, B-106, B-107 (all Fixed,
   each needing a same-day follow-up once the owner's live test caught a second instance
   of the same bug). Shipped 2026-07-16.
-- [`bug-history/v0.3.0.md`](bug-history/v0.3.0.md) — B-109, B-110 (both Fixed; B-110
+- [`tracker-history/v0.3.0.md`](tracker-history/v0.3.0.md) — B-109, B-110 (both Fixed; B-110
   needed several same-day follow-ups: a live investigation into a high RSS failure
   rate, implementing a previously-documented-but-missing retry, a UX change to how
   sync failures are surfaced, and two tuning follow-ups). Originally tracked toward a
@@ -76,7 +76,7 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
 - **v0.4.0** — no bug-tracker batch of its own, same pattern as `v0.2.1`: driven
   entirely by D-050 (tray-resident mode, auto-start, opt-in notifications), a whole new
   feature the product owner asked for directly rather than an item reported here. Full
-  history is in `decisions.md` D-050, not a `bug-history/` file. Shipped as a **minor**
+  history is in `decisions.md` D-050, not a `tracker-history/` file. Shipped as a **minor**
   version (real new scope, not a bug-fix batch). Shipped 2026-07-16.
 - **v0.4.1** — no bug-tracker batch of its own, same pattern as `v0.2.1`/`v0.4.0`: a
   same-day revert, not a fix for any item in this file's own batch. [[B-108]]'s round 2
@@ -91,9 +91,9 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   with no easy way to stop it). New `SettingsDto.popOutOnClose` pops the video into the
   always-on-top extract window on tray-close (default) or pauses it, per the toggle;
   `extractPlayer` gained an `auto` flag and a `title` parameter. Full history is in
-  `decisions.md` D-051, not a `bug-history/` file. Shipped as a **patch** version, per
+  `decisions.md` D-051, not a `tracker-history/` file. Shipped as a **patch** version, per
   the owner's own explicit direction. Shipped 2026-07-16.
-- [`bug-history/v0.4.3.md`](bug-history/v0.4.3.md) — a single entry, [[B-111]] (Fixed
+- [`tracker-history/v0.4.3.md`](tracker-history/v0.4.3.md) — a single entry, [[B-111]] (Fixed
   same day it was reported): leaving the full-view player or closing the window to the
   tray while the video was genuinely paused still docked/popped it out as if it were
   playing, because `playerStateRef` only updated from the `onStateChange` postMessage
@@ -104,15 +104,15 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   conversation rather than reported here — turning off "Show Shorts" hid Shorts from
   the feed but didn't stop them from triggering new-video notifications. Fixed
   (`SyncRepository.countShorts`), plus a new independent `notifyShorts` toggle (default
-  on). Full history is in `decisions.md` D-052, not a `bug-history/` file. Shipped as a
+  on). Full history is in `decisions.md` D-052, not a `tracker-history/` file. Shipped as a
   **patch** version, per the owner's own explicit direction. Shipped 2026-07-17.
-- [`bug-history/v0.4.5.md`](bug-history/v0.4.5.md) — five entries, all Fixed: B-116
+- [`tracker-history/v0.4.5.md`](tracker-history/v0.4.5.md) — five entries, all Fixed: B-116
   (all-Shorts channel never backfills older uploads), B-112 (pop-out window video
   switching), B-113 (clickable comment timestamps), B-114 (live badge/duration stuck
   after stream ends), B-115 (Premiere vs. Live badge distinction). Shipped as a
   **patch** version (pure bug-fix/adjustment batch, no new `D-NNN` scope alongside it).
   Shipped 2026-07-17.
-- [`bug-history/v0.4.6.md`](bug-history/v0.4.6.md) — no B-NNN entries, driven entirely
+- [`tracker-history/v0.4.6.md`](tracker-history/v0.4.6.md) — no B-NNN entries, driven entirely
   by D-053, a direct product-owner request raised in conversation rather than reported
   here (same pattern as D-050/D-051/D-052 before it). A currently-live video now sorts
   to the top of its date bucket; an ended broadcast sorts and buckets by when it
@@ -121,12 +121,12 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   after they already ended (e.g. via gap-backfill), which also now get the correct feed
   badge. Full narrative in `decisions.md` D-053. Shipped as a **patch** version, per the
   owner's own explicit direction. Shipped 2026-07-19.
-- [`bug-history/v0.4.7.md`](bug-history/v0.4.7.md) — B-117 (Fixed — removed the
+- [`tracker-history/v0.4.7.md`](tracker-history/v0.4.7.md) — B-117 (Fixed — removed the
   unreliable Premiere-vs-live badge distinction outright, no replacement signal
   confirmed against real data) and B-118 (Won't fix — confirmed YouTube's own RSS/CDN
   latency, not a Chronicle bug). Shipped as a **patch** version (a pure bug-fix batch,
   no new `D-NNN` scope alongside it). Shipped 2026-07-19.
-- [`bug-history/v0.4.8.md`](bug-history/v0.4.8.md) — five entries, all Fixed: B-119 (a
+- [`tracker-history/v0.4.8.md`](tracker-history/v0.4.8.md) — five entries, all Fixed: B-119 (a
   finished Premiere no longer gets stuck with the "ended live broadcast" treatment),
   B-120 (feed bucket headers/labels now agree with each other around live/ended
   broadcasts — needed a same-day round 2), B-121 (opening the active video in the
@@ -136,14 +136,14 @@ Closed-out batches live one per release in **[`bug-history/`](bug-history/)**:
   owner while live-testing B-122). Shipped as a **patch** version (a pure bug-fix/
   adjustment batch, no new `D-NNN` scope alongside it). Shipped 2026-07-20.
 
-- [`bug-history/v0.5.0.md`](bug-history/v0.5.0.md) — a single entry, [[B-086]] (Won't
+- [`tracker-history/v0.5.0.md`](tracker-history/v0.5.0.md) — a single entry, [[B-086]] (Won't
   fix — the open research question is resolved: an authenticated `playlistItems.list`
   call, live-tested against a real membership, does not surface members-only content
   either, and no other TOS-compliant endpoint exists). [[B-108]], [[B-022]], [[B-101]]
   didn't make it in and carried their **Target** forward again. Shipped as a **minor**
   version, driven by D-054 (the language/localization system: Settings dropdown,
   locale registry, PT-BR translation) rather than by this batch — full narrative in
-  `decisions.md`, not a dedicated bug-history note of its own. Shipped 2026-07-20.
+  `decisions.md`, not a dedicated tracker-history note of its own. Shipped 2026-07-20.
 
 **Current target: 0.5.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
 the three made it into 0.5.0 either (see above — 0.5.0 shipped driven by D-054

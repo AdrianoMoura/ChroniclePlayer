@@ -14,7 +14,7 @@ silently pick a version number or push without an explicit yes.
 Ask the product owner what version this release will be (`X.Y.Z`, no `v` prefix yet —
 that gets added in step 5). Don't guess it.
 
-You can help them decide by skimming `.specs/bugs-current.md` (which entries are
+You can help them decide by skimming `.specs/tracker-current.md` (which entries are
 Resolved/Fixed) and any `D-NNN` entries added to `.specs/decisions.md` since the last
 tag. Per `CLAUDE.md`'s versioning rule: a batch that's pure bug fixes ships as a
 **patch**; a batch landing real new scope (a new Settings toggle, a new subsystem)
@@ -23,7 +23,7 @@ Mention what you see, but still ask rather than deciding for them.
 
 ## 2. Rotate the bug tracker
 
-Read `.specs/bugs-current.md` and follow the exact procedure already documented at the
+Read `.specs/tracker-current.md` and follow the exact procedure already documented at the
 top of that file (its own "Release" step):
 
 - Every item still **Open** or **In progress** carries forward: bump its **Target** to
@@ -31,12 +31,12 @@ top of that file (its own "Release" step):
   target, ask, or infer the obvious next patch (e.g. this release is `0.4.5` → carried
   items target `0.4.6`) and say so.
 - Everything else (Resolved/Fixed, Won't fix, etc.) gets archived as-is into a new
-  `.specs/bug-history/v<version>.md`. Match the header convention already used by the
+  `.specs/tracker-history/v<version>.md`. Match the header convention already used by the
   other files in that directory: title (`# Bug & Adjustment Tracker — v<version>
   (shipped <date>)`), the "Archived batch" boilerplate + link back to
-  `bugs-current.md`, a short summary of what's in the batch and whether it shipped as
+  `tracker-current.md`, a short summary of what's in the batch and whether it shipped as
   a patch or minor bump.
-- Rewrite `.specs/bugs-current.md`: keep its own "How this file is used" /
+- Rewrite `.specs/tracker-current.md`: keep its own "How this file is used" /
   "Conventions" sections unchanged, list only the carried-forward items.
 
 ## 3. Bump the version
@@ -96,7 +96,7 @@ Rules for the text:
   implementation. Call out a relevant Settings toggle if one was added.
 - Only include the sections that apply (`**New**`, `**Fixed**`, `**Changed**` — omit
   empty ones).
-- Source content from the `bug-history/v<version>.md` file just written and any
+- Source content from the `tracker-history/v<version>.md` file just written and any
   `D-NNN` decisions dated this release — not from raw commit messages.
 - Skip anything purely internal (refactors, spec cleanup, test-only changes) — these
   notes are for the owner's own tracking/announcement, not a commit log.

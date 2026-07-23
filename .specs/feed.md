@@ -44,7 +44,7 @@ Later).
   plain "Live"/"Upcoming", same as before B-115 ever shipped. **Reintroduced 2026-07-19
   (B-119), this time verified against the real API for real videos:** `status.uploadStatus`
   is `'processed'` for a Premiere vs. `'uploaded'` for a genuine broadcast, while
-  `liveContent === 'live'` — see `bugs-current.md` B-119 for the full trail. `isPremiere`
+  `liveContent === 'live'` — see `tracker-current.md` B-119 for the full trail. `isPremiere`
   (`Video`/schema v14) is sticky, captured only while `liveContent === 'live'`; telling a
   Premiere apart from a genuine livestream while `upcoming` (before either has started) is
   still unsolved.

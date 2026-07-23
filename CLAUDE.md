@@ -125,7 +125,7 @@ apply regardless of the final stack; refine them once the stack is confirmed.)
 **M0–M5 implemented on 2026-07-11** (M2 exit verified with the product owner's real
 account: 229 subs, 76 quota units, 937 Shorts excluded; M3 in dogfooding; M4 awaiting
 console screenshots + external acid-testers; M5 done — the MVP is feature-complete
-from source). Bugs found while dogfooding go to `.specs/bugs-current.md` as B-NNN entries and
+from source). Bugs found while dogfooding go to `.specs/tracker-current.md` as B-NNN entries and
 are only fixed when the product owner says so — stack: Electron (D-005) +
 React/TypeScript (D-009) via electron-vite, **node:sqlite** (D-034 as amended — no
 native modules), npm (D-034 — the product owner uses npm, never pnpm). Layers per
@@ -155,7 +155,7 @@ committing.
 
 **D-050 (tray-resident mode, OS auto-start, opt-in per-channel notifications, "Start
 minimized to tray") shipped in `0.4.0`, 2026-07-16** — a post-MVP feature the product
-owner asked for directly, not sourced from `bugs-current.md`. Three independent
+owner asked for directly, not sourced from `tracker-current.md`. Three independent
 Settings toggles (none gates another); per-channel `notify` is its own property (schema
 v9), scoped All Channels/Selected Channels, with an auto-sync-on-favorite convenience
 (confirm-on-disable dialog) rather than a separate "Favorites" scope. Landed in
@@ -169,20 +169,20 @@ auto-start bugs — dev mode's bare-Electron-binary launch, an AppImage's
 temporary-mount `process.execPath` (would have silently broken on the very next login),
 and the platform-split "was this launch from autostart" detection (`wasOpenedAtLogin`
 on macOS, a `--hidden` arg on Windows/Linux) needed for "Start minimized." Full
-narrative in `decisions.md` D-050 — no `bug-history/` file, since this didn't come
+narrative in `decisions.md` D-050 — no `tracker-history/` file, since this didn't come
 through the bug tracker. See `.specs/roadmap.md` §Release status for the exact shipped
 scope.
 
-**`0.4.1` shipped 2026-07-16 as a same-day revert, no `bug-history/` file of its own**
+**`0.4.1` shipped 2026-07-16 as a same-day revert, no `tracker-history/` file of its own**
 (same pattern as `0.4.0`/`0.2.1`): B-108's round 2 fix (a frozen-position
 `.player-scroll-catcher` strip added to forward wheel scroll into the embedded video)
 turned out to sit over the app's own top-of-screen controls during/after a scroll
 gesture, silently swallowing clicks meant for them. Removed the whole mechanism on the
 owner's request — B-108 reverts to Open, the original cross-origin-iframe scroll gap
-unaddressed again. Full narrative in `bugs-current.md`'s B-108 entry.
+unaddressed again. Full narrative in `tracker-current.md`'s B-108 entry.
 
 **D-051 (pop-out-or-pause on tray-close) shipped in `0.4.2`, 2026-07-16** — another
-direct product-owner request, not sourced from `bugs-current.md`, same pattern as
+direct product-owner request, not sourced from `tracker-current.md`, same pattern as
 D-050. Prompted by a real bug the owner hit live: closing the window to the tray
 (`backgroundMode`, D-050) just hides it, so a still-playing video kept playing silently
 with no easy way to stop it short of reopening from the tray. New
@@ -201,7 +201,7 @@ binding forwards React's `MouseEvent` to the handler regardless of its declared 
 and that event isn't structured-cloneable over IPC. Fixed by splitting the logic into a
 parameterized `extractToWindowInternal` plus a permanent zero-arg `extractToWindow`
 wrapper safe to bind to any click/key handler. Full narrative in `decisions.md` D-051 —
-no `bug-history/` file, since this didn't come through the bug tracker. See
+no `tracker-history/` file, since this didn't come through the bug tracker. See
 `.specs/roadmap.md` §Release status for the exact shipped scope.
 
 **B-111 (dock/pop-out firing on a genuinely paused video) shipped in `0.4.3`,
@@ -220,11 +220,11 @@ field and fires as a steady heartbeat rather than a one-shot transition, so
 `playerStateRef` (`src/ui/PlayerSurface.tsx`) now also updates from it on every tick,
 without touching the transition-only side effects (ended overlay, resume checkpoint,
 quality/rate reissue) that must still fire exactly once per real transition. Full
-narrative in `bug-history/v0.4.3.md`'s B-111 entry.
+narrative in `tracker-history/v0.4.3.md`'s B-111 entry.
 
 **D-052 (notifications now respect Shorts, plus a notifyShorts toggle) shipped in
 `0.4.4`, 2026-07-17** — raised directly by the product owner in conversation, not
-sourced from `bugs-current.md`, same pattern as D-050/D-051. The owner asked whether
+sourced from `tracker-current.md`, same pattern as D-050/D-051. The owner asked whether
 turning off "Show Shorts" (`showShorts`) also silenced Shorts notifications — it
 didn't: `SyncService.refresh()`'s `newVideosByChannel` tally (D-050) was built from
 RSS-discovery counts *before* `confirmShorts()` ever ran, so a notification counted a
@@ -240,7 +240,7 @@ can't express — some channels post Shorts often enough that a user wants them 
 in the feed but silent for notifications, without hiding them outright. Combined rule:
 `includeShorts = settings.showShorts && settings.notifyShorts` — a Short hidden from
 the feed never notifies regardless of `notifyShorts`. Full narrative in `decisions.md`
-D-052 — no `bug-history/` file, since this didn't come through the bug tracker. See
+D-052 — no `tracker-history/` file, since this didn't come through the bug tracker. See
 `.specs/roadmap.md` §Release status for the exact shipped scope.
 
 **`0.4.5` shipped 2026-07-17** — a normal bug-tracker batch, five entries all Fixed the
@@ -256,10 +256,10 @@ videos every cycle for free), B-112 (opening a new video while the extract/pop-o
 window is open now loads into that window instead of double-playing in the main
 window), and B-113 (clickable `mm:ss` comment timestamps that seek the player, plus
 scrolling back to the top on click, per the owner's same-day follow-up). Shipped as a
-**patch** version. Full narrative in `bug-history/v0.4.5.md`.
+**patch** version. Full narrative in `tracker-history/v0.4.5.md`.
 
 **D-053 (live-sort ordering) shipped in `0.4.6`, 2026-07-19** — a direct
-product-owner request, not sourced from `bugs-current.md`, same pattern as D-050–D-052.
+product-owner request, not sourced from `tracker-current.md`, same pattern as D-050–D-052.
 A currently-live video now sorts to the top of its date bucket instead of sinking under
 its original (possibly hours-old) `publishedAt`; an ended broadcast sorts and buckets
 by when it actually ended (`liveStreamingDetails.actualEndTime`, new sticky
@@ -274,7 +274,7 @@ now)` value driving both bucket assignment and sort order, applied display-only 
 `FeedService.getSlice()` — never touching the keyset pagination cursor itself (D-027),
 which deliberately stays on raw `publishedAt`. Shipped as a **patch** version, per the
 owner's own explicit direction. Full narrative in `decisions.md` D-053 — no
-`bug-history/` file, since this didn't come through the bug tracker.
+`tracker-history/` file, since this didn't come through the bug tracker.
 
 **`0.4.7` shipped 2026-07-19** — a normal bug-tracker batch, two entries: B-117 (a
 genuine live broadcast was transiently misidentified as a Premiere right as it went
@@ -285,7 +285,7 @@ the feed shows only "Live"/"Upcoming"/ended again) and B-118 (a video the owner
 reported missing 11 minutes after upload turned out to be genuine YouTube RSS/CDN
 latency, confirmed by checking the raw feed directly — Won't fix, not a Chronicle
 bug). Shipped as a **patch** version (a pure bug-fix batch, no new `D-NNN` scope
-alongside it). Full narrative in `bug-history/v0.4.7.md`.
+alongside it). Full narrative in `tracker-history/v0.4.7.md`.
 
 **`0.4.8` shipped 2026-07-20** — a normal bug-tracker batch, five entries all Fixed:
 B-119 (the flip side of B-117's removal — a finished Premiere kept the "ended live
@@ -311,10 +311,10 @@ hydration call), and B-123 (the player screen no longer shows a duration at all,
 by the owner while live-testing B-122 — always wrong for a live/Premiere and redundant
 with the embed's own controls otherwise). Shipped as a **patch** version (a pure
 bug-fix/adjustment batch, no new `D-NNN` scope alongside it). Full narrative in
-`bug-history/v0.4.8.md`.
+`tracker-history/v0.4.8.md`.
 
 **D-054 (localization: a Language setting) shipped in `0.5.0`, 2026-07-20** — a direct
-product-owner request, not sourced from `bugs-current.md`, same pattern as D-050–D-053.
+product-owner request, not sourced from `tracker-current.md`, same pattern as D-050–D-053.
 Turns the existing single-locale `t(key, vars)` lookup (B-017) into a real multi-locale
 system: a Settings dropdown (first section on the screen), defaulting to "Follow
 system," backed by a locale registry discovered at build time via `import.meta.glob`
@@ -336,15 +336,15 @@ affected. **Also added, prompted by the owner noticing they had no way to change
 language before ever reaching Settings:** a language dropdown on the onboarding
 wizard's own Welcome screen. Checked via `npm run typecheck && npm run lint && npm
 test` plus a production build. Shipped as a **minor** version (real new scope, not a
-bug-fix batch). Full narrative in `decisions.md` D-054 — no `bug-history/` file, since
+bug-fix batch). Full narrative in `decisions.md` D-054 — no `tracker-history/` file, since
 this didn't come through the bug tracker.
 
-**Bugs/adjustments are tracked one file per release**: `.specs/bugs-current.md` holds
-the batch being worked toward the next release, `.specs/bug-history/vX.Y.Z.md` holds
+**Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
+the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
-`0.4.5`, `0.4.7`, `0.4.8`, and `0.5.0` have shipped and are archived in `bug-history/`
+`0.4.5`, `0.4.7`, `0.4.8`, and `0.5.0` have shipped and are archived in `tracker-history/`
 (`0.2.1` was a single one-off patch with no batch of its own — see
-`bug-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
+`tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
 originally tracked toward a `0.2.3` patch but grew into real new scope along the way —
 D-048 removed a whole failure-handling subsystem (channels no longer get permanently
 marked "unavailable" off a single transient RSS 404), a
@@ -354,16 +354,16 @@ how sync failures are surfaced (no more banner for ordinary per-cycle noise, onl
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050), `0.4.6` (D-053), and `0.5.0`'s driving decision (D-054,
 above) all shipped real new scope with no bug-tracker batch of their own — `0.4.0` and
-`0.4.6` have no `bug-history/` file at all; `0.5.0` has one, but only because B-086
+`0.4.6` have no `tracker-history/` file at all; `0.5.0` has one, but only because B-086
 also happened to close out during the same cycle, not because the batch itself drove
 the version bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
 not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
 owner's own explicit direction, even though each lands a new Settings toggle rather
 than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, and `0.4.8` (all
 above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
-describes. `bugs-current.md` now targets **0.5.1**, carrying [[B-108]], [[B-022]],
+describes. `tracker-current.md` now targets **0.5.1**, carrying [[B-108]], [[B-022]],
 [[B-101]] forward untouched (B-086, the fourth item carried since 0.3.0, closed as
-Won't fix in `0.5.0` — see `bug-history/v0.5.0.md`). Version bumps aren't always
+Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't always
 minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for
 batches that land real new scope, but the owner's own explicit call on a given release
 always wins. See `.specs/roadmap.md` §Release status for the summary.

@@ -11,15 +11,15 @@ Dates are deliberately absent — this is sequencing, not scheduling.
 - **0.1.0 — delivered.** M0 through M5 are fully implemented and dogfooded, and M6's
   packaging/CI plumbing is built and working (`package.json` carries `0.1.0`). This is
   everything documented as done in the milestones below, plus the two dogfooding
-  batches (`bug-history/v0.1.0.md` B-001–B-017 and B-054–B-066), all of which are
+  batches (`tracker-history/v0.1.0.md` B-001–B-017 and B-054–B-066), all of which are
   Resolved. Two M6
   loose ends remain outstanding but don't block calling the app itself done at this
   version: wizard screenshots (open since M4) and cutting the actual GitHub tag/release
   (the workflow is built and locally verified, just never exercised end-to-end).
-- **0.2.0 — delivered.** Driven by the third dogfooding batch, `bug-history/v0.2.0.md`
+- **0.2.0 — delivered.** Driven by the third dogfooding batch, `tracker-history/v0.2.0.md`
   B-085–B-104 (reported 2026-07-15), plus everything carried over from before 0.1.0
   that never got fixed: B-051, B-046, B-045 (Open) and B-022 (In progress). See
-  `bug-history/v0.2.0.md` and §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
+  `tracker-history/v0.2.0.md` and §Dogfooding backlog below for the batch breakdown. **Attacked 2026-07-15 in two
   passes.** First pass: B-098 (Fixed same day it was reported), then B-085, B-087,
   B-088, B-089, B-090, B-091, B-092, B-094, B-095, B-096, B-097, and B-051 (carried
   over from before 0.1.0) — all Fixed. **Second pass**, once the owner reviewed what
@@ -49,7 +49,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   maximize/close buttons — B-104, Fixed same day (`e`/`x`, a third "Miniplayer" overlay
   section). All checked via `npm run typecheck && npm run lint && npm test`. **Shipped
   2026-07-15** — `package.json` bumped to `0.2.0`; the batch was archived to
-  `bug-history/v0.2.0.md` with the final commit hashes. Three entries didn't make it in and carried their Target forward:
+  `tracker-history/v0.2.0.md` with the final commit hashes. Three entries didn't make it in and carried their Target forward:
   B-022 (In progress, needs the owner's live confirmation), B-086 (Open, blocked on one
   of the owner's membership channels publishing something to test against), B-101
   (Open, the fullscreen-widget-protocol research spike, not yet started).
@@ -57,8 +57,8 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   product-owner request (raise the miniplayer's max resizable width from 640px to
   1024px) shipped as its own patch tag right after 0.2.0, rather than waiting for a
   future batch. Folded into [[B-045]]'s "eighth round" narrative in
-  `bug-history/v0.2.0.md`; no new B-NNN entry, no `bugs-current.md` batch of its own.
-- **0.2.2 — delivered, 2026-07-16.** Three Fixed entries, `bug-history/v0.2.2.md`:
+  `tracker-history/v0.2.0.md`; no new B-NNN entry, no `tracker-current.md` batch of its own.
+- **0.2.2 — delivered, 2026-07-16.** Three Fixed entries, `tracker-history/v0.2.2.md`:
   B-105 (first-sync unread videos), B-106 (full-view player video rendering over the
   topbar and the write-scope consent dialog — needed a same-day follow-up once the
   owner's live test caught a second, independent instance of the dialog bug in
@@ -71,7 +71,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   it in and carry forward again; B-108 (new this cycle — mouse-wheel scroll doesn't
   work while hovering the embedded player — two rounds landed but the owner's own call
   was to pause and rethink the coverage approach, not ship what exists) joins them.
-- **0.3.0 — delivered, 2026-07-16.** Two Fixed entries, `bug-history/v0.3.0.md`: B-109
+- **0.3.0 — delivered, 2026-07-16.** Two Fixed entries, `tracker-history/v0.3.0.md`: B-109
   (channel-list scroll-to-load-more could stall permanently on an all-duplicates
   `backfillArchive` batch — fixed with a self-continuing loop) and B-110 (a single
   transient RSS 404 permanently and silently froze a channel's sync forever, with no
@@ -99,9 +99,9 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   (tray-resident mode, OS auto-start, opt-in per-channel new-video notifications, "Start
   minimized to tray"), a whole new post-MVP feature the product owner asked for directly,
   same pattern as `0.2.1`/`0.3.0` (a scope-driven release bypasses whatever
-  `bugs-current.md` batch happens to be in flight — none of its items are touched by
+  `tracker-current.md` batch happens to be in flight — none of its items are touched by
   this version). Full design history lives in `decisions.md` D-050 rather than a
-  `bug-history/` file: three independent Settings toggles (none gates another),
+  `tracker-history/` file: three independent Settings toggles (none gates another),
   per-channel notify as its own property (All Channels/Selected Channels scope,
   auto-sync-on-favorite convenience with a confirm-on-disable dialog), and a run of
   live-tested fixes the owner's own hands-on testing caught — a missing
@@ -117,7 +117,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   B-086, B-101 are untouched by this release and carry forward to `0.4.1`, renumbered
   from the `0.3.1` placeholder since this version shipped ahead of that batch.
 - **0.4.1 — delivered, 2026-07-16.** Not a bug-tracker batch — a same-day revert, same
-  pattern as `0.2.1`/`0.4.0`, not a fix for any item in the `bugs-current.md` batch that
+  pattern as `0.2.1`/`0.4.0`, not a fix for any item in the `tracker-current.md` batch that
   was in flight. [[B-108]]'s round 2 fix (the frozen-position `.player-scroll-catcher`
   strip added to forward wheel scroll into the embedded video) turned out to sit over
   the app's own top-of-screen controls during/after a scroll gesture, silently
@@ -156,7 +156,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `onExtract()` explicitly with no argument. Fixed by splitting the logic into a
   parameterized `extractToWindowInternal(auto)` plus a permanent zero-arg
   `extractToWindow` wrapper safe to bind to any click/key handler. Full narrative in
-  `decisions.md` D-051 — no `bug-history/` file, since this didn't come through the bug
+  `decisions.md` D-051 — no `tracker-history/` file, since this didn't come through the bug
   tracker (same pattern as `0.4.0`/`0.4.1`). All checked via `npm run typecheck && npm
   run lint && npm test` (209/209); not run live, per [[no-live-app-verification]] — the
   window-title fix in particular still needs the owner's own check (whether niri's
@@ -166,7 +166,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   bug-fix batch). B-108, B-022, B-086, B-101 are untouched by this release and carry
   forward to `0.4.3`, renumbered from the `0.4.2` placeholder since this version shipped
   ahead of that batch.
-- **0.4.3 — delivered, 2026-07-16.** One Fixed entry, `bug-history/v0.4.3.md`: B-111,
+- **0.4.3 — delivered, 2026-07-16.** One Fixed entry, `tracker-history/v0.4.3.md`: B-111,
   reported and fixed the same day. Leaving the full-view player or closing the window to
   the tray while the video was genuinely paused still docked/popped it out as if it were
   playing — the owner narrowed the repro live: it happened when pausing by clicking the
@@ -203,7 +203,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   enough that a user wants them visible in the feed but silent for notifications,
   without hiding them outright. Combined rule: `includeShorts = showShorts &&
   notifyShorts` — a Short hidden from the feed never notifies regardless of
-  `notifyShorts`. Full narrative in `decisions.md` D-052 — no `bug-history/` file, since
+  `notifyShorts`. Full narrative in `decisions.md` D-052 — no `tracker-history/` file, since
   this didn't come through the bug tracker (same pattern as `0.4.0`/`0.4.1`/`0.4.2`).
   Checked via `npm run typecheck && npm run lint && npm test` (212/212); not run live,
   per [[no-live-app-verification]] — needs the owner's own check that turning off "Show
@@ -213,7 +213,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   Settings toggle rather than being a pure bug-fix batch). B-108, B-022, B-086, B-101 are
   untouched by this release and carry forward to `0.4.5`, renumbered from the `0.4.4`
   placeholder since this version shipped ahead of that batch.
-- **0.4.5 — delivered, 2026-07-17.** Five Fixed entries, `bug-history/v0.4.5.md`:
+- **0.4.5 — delivered, 2026-07-17.** Five Fixed entries, `tracker-history/v0.4.5.md`:
   B-116 (an all-Shorts channel with "Show Shorts" off showed empty and never
   backfilled further back — fixed with a dedicated empty-state effect in `App.tsx`
   since `FeedList`'s own scroll-triggered `loadMore` never ran with nothing rendered),
@@ -238,14 +238,14 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   touching the keyset pagination cursor itself (D-027). B-108, B-022, B-086, B-101
   carried forward, untouched. Full narrative in `decisions.md` D-053. Shipped as a
   **patch** version, per the owner's own explicit direction.
-- **0.4.7 — delivered, 2026-07-19.** Two entries, `bug-history/v0.4.7.md`: B-117
+- **0.4.7 — delivered, 2026-07-19.** Two entries, `tracker-history/v0.4.7.md`: B-117
   (Fixed — removed the unreliable Premiere-vs-live badge distinction outright, no
   replacement signal confirmed against real data) and B-118 (Won't fix — a video the
   owner reported missing 11 minutes after upload was confirmed to be genuine YouTube
   RSS/CDN latency, not a Chronicle bug). B-108, B-022, B-086, B-101 carried forward,
   untouched. Shipped as a **patch** version (a pure bug-fix batch, no new `D-NNN`
   scope alongside it).
-- **0.4.8 — delivered, 2026-07-20.** Five Fixed entries, `bug-history/v0.4.8.md`:
+- **0.4.8 — delivered, 2026-07-20.** Five Fixed entries, `tracker-history/v0.4.8.md`:
   B-119 (a finished Premiere no longer gets stuck with the "ended live broadcast"
   treatment — fixed via a newly-confirmed signal, `status.uploadStatus ===
   'processed'` while `liveContent === 'live'`, verified against real API data through
@@ -264,14 +264,14 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   carried forward, untouched. Shipped as a **patch** version (a pure bug-fix/
   adjustment batch, no new `D-NNN` scope alongside it).
 - **0.5.0 — delivered, 2026-07-20.** Driven by D-054, a direct product-owner request
-  not sourced from `bugs-current.md` (same pattern as D-050–D-053): a Language setting
+  not sourced from `tracker-current.md` (same pattern as D-050–D-053): a Language setting
   (Settings dropdown, first section on the screen, defaulting to "Follow system"),
   backed by a locale registry discovered at build time via `import.meta.glob` — adding
   a translation is only a PR adding one file. Ships with English and Portuguese
   (Brazil) at launch. Same-day fixes for module-level `t()` calls that had gone stale
   on a language switch (sidebar view labels, feed bucket headers, wizard console
   steps), plus a language picker added to the onboarding wizard's own Welcome screen.
-  Full narrative in `decisions.md` D-054. Alongside it, `bug-history/v0.5.0.md`
+  Full narrative in `decisions.md` D-054. Alongside it, `tracker-history/v0.5.0.md`
   closes B-086 (Won't fix — live-tested: an authenticated `playlistItems.list` call
   doesn't surface members-only content either, no TOS-compliant endpoint exists).
   B-108, B-022, B-101 carried forward, untouched, now targeting **0.5.1** (renumbered
@@ -461,7 +461,7 @@ which is the off state; the optional setting can ship post-MVP.
 *(Re-sequenced 2026-07-11 by the product owner: M6 moves to the **end**, after the
 dogfooding batches below — release prep only starts once the application is functional
 and the owner is happy with it. The MVP-from-source milestone (M5) already holds; the
-bug-tracker batches (`bugs-current.md` / `bug-history/`) are the path to "happy with
+bug-tracker batches (`tracker-current.md` / `tracker-history/`) are the path to "happy with
 it".)*
 
 - Packaging for Linux (AppImage — D-024, resolved 2026-07-13: AppImage only, Flatpak
@@ -512,13 +512,13 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 ## Dogfooding backlog
 
 **Status: the first two batches below are complete** — every item in B-001–B-017 and
-B-054–B-066 is Resolved in `bug-history/v0.1.0.md` (shipped as part of 0.1.0), except B-022 which is
+B-054–B-066 is Resolved in `tracker-history/v0.1.0.md` (shipped as part of 0.1.0), except B-022 which is
 still In progress. B-046 was carried over too but is now Resolved (Won't fix, researched
 2026-07-15); B-045 was carried over and is now Resolved (implemented and owner-confirmed
 live 2026-07-15); B-051 was carried over and is now Resolved (Fixed
 2026-07-15). Kept here for history.
 
-**First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `bug-history/v0.1.0.md` (reported 2026-07-11;
+**First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `tracker-history/v0.1.0.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
 (all batches precede M6, per the re-sequencing note there): batch 1 = local polish
 (B-001, B-005, B-013, B-004, B-008, B-011+B-012, B-014; B-016 was closed by M5 during
@@ -546,7 +546,7 @@ Roadmap-relevant signals from the list:
 - The remainder are UI/UX polish and small bugs (B-001, B-002, B-004, B-005, B-007,
   B-008, B-011–B-014, B-016) — batchable independently of the above.
 
-**Second dogfooding batch, B-054–B-066 (reported 2026-07-12), added to `bug-history/v0.1.0.md`.**
+**Second dogfooding batch, B-054–B-066 (reported 2026-07-12), added to `tracker-history/v0.1.0.md`.**
 Reported after using the search (B-009) and multi-account (B-003) features shipped in
 the first batch — this batch is largely about tightening those two surfaces plus a
 handful of standalone UX gaps, not new scope:
@@ -574,7 +574,7 @@ handful of standalone UX gaps, not new scope:
 All of the above shipped as part of 0.1.0, except B-058 which needed the Pending
 decision it called for (resolved as D-042) before it could be fixed — also shipped.
 
-**Third dogfooding batch, B-085–B-097 (reported 2026-07-15), added to `bug-history/v0.2.0.md`,
+**Third dogfooding batch, B-085–B-097 (reported 2026-07-15), added to `tracker-history/v0.2.0.md`,
 targeting 0.2.0.** Reported from continued daily use post-0.1.0 — no single theme,
 mostly correctness gaps and interaction polish surfaced by living with the app:
 - **Live/discovery gaps rooted in the RSS design** (B-085, B-086): `upcoming` videos

@@ -21,8 +21,8 @@ and spec disagree, either the code is wrong or the spec must be updated in the s
 | [features.md](features.md) | MVP feature specifications + future feature sketches |
 | [roadmap.md](roadmap.md) | Milestones, sequencing, and what blocks what |
 | [decisions.md](decisions.md) | Decision log — the authoritative status of every choice |
-| [bugs-current.md](bugs-current.md) | Bug & adjustment tracker for the release in progress — items found while testing, worked in batches |
-| [bug-history/](bug-history/) | Archived bug batches, one file per shipped release |
+| [tracker-current.md](tracker-current.md) | Bug & adjustment tracker for the release in progress — items found while testing, worked in batches |
+| [tracker-history/](tracker-history/) | Archived bug batches, one file per shipped release |
 
 ## Statement labels
 
