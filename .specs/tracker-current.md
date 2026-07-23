@@ -144,10 +144,18 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   version, driven by D-054 (the language/localization system: Settings dropdown,
   locale registry, PT-BR translation) rather than by this batch — full narrative in
   `decisions.md`, not a dedicated tracker-history note of its own. Shipped 2026-07-20.
+- **v0.6.0** — no bug-tracker batch of its own, same pattern as `v0.4.0`/`v0.4.2`/
+  `v0.4.4`/`v0.4.6`: driven entirely by D-055 (a player "up next" card on video end,
+  suggesting the next video from the user's own Watch Later queue, FIFO, no autoplay),
+  a direct product-owner request rather than an item reported here. [[B-108]],
+  [[B-022]], [[B-101]] didn't make it in and carried their **Target** forward again.
+  Full narrative in `decisions.md` D-055, not a dedicated tracker-history note of its
+  own. Shipped as a **minor** version, per the owner's own explicit direction (real new
+  scope — a new UI surface and IPC, not a bug-fix batch). Shipped 2026-07-22.
 
-**Current target: 0.5.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
-the three made it into 0.5.0 either (see above — 0.5.0 shipped driven by D-054
-instead).
+**Current target: 0.6.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
+the three made it into 0.5.0 or 0.6.0 either (see above — both shipped driven by a
+direct product-owner decision instead).
 
 ## Entry template
 
@@ -175,8 +183,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.5.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.6.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -201,8 +209,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.5.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.6.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -301,8 +309,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.5.1 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, and 0.5.0 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.6.1 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, and 0.6.0 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh

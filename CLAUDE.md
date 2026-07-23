@@ -339,6 +339,29 @@ test` plus a production build. Shipped as a **minor** version (real new scope, n
 bug-fix batch). Full narrative in `decisions.md` D-054 — no `tracker-history/` file, since
 this didn't come through the bug tracker.
 
+**D-055 (a Watch Later "up next" card on video end) shipped in `0.6.0`, 2026-07-22** — a
+direct product-owner request, not sourced from `tracker-current.md`, same pattern as
+D-050–D-054. On video end, a floating, dismissible, bottom-right card — thumbnail +
+title + an explicit Open button — suggests the next video from the user's own Watch
+Later queue, if one exists: the oldest-queued video (FIFO) when the video that just
+ended wasn't itself queued, otherwise whichever entry follows it
+(`nextWatchLaterAfter`, `core/feed.ts`, unit tested offline). Distinct from the
+existing `n`-key "next in queue" shortcut (D-021), which only works when the player was
+opened *from* the Watch Later feed view itself — this one is derived purely from data,
+so it also covers a video reached by any other path. Full player view only, never the
+miniplayer or the pop-out extract window; no timer, no countdown, no auto-advance — a
+click is the only way anything plays. **Fixed the same day, the owner's own live
+catch:** the card never appeared at all — reaching "ended" is always embed-initiated
+(Chronicle never issues a command to stop a video), and the one-shot `onStateChange`
+postMessage event doesn't reliably report state changes the embed initiates on its own,
+exactly the bug class B-111 already found for `isStillGoing()`. Fixed the same way:
+`PlayerSurface.tsx`'s `infoDelivery` heartbeat is now also a detection path for
+`playerState === 0`, guarded to fire the ended side effects (resume-checkpoint clear,
+the up-next lookup) exactly once per real transition regardless of which event notices
+it first. Checked via `npm run typecheck && npm run lint && npm test`; not yet
+live-verified past the owner's own catch above. Full narrative in `decisions.md` D-055 —
+no `tracker-history/` file, since this didn't come through the bug tracker.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
@@ -352,16 +375,17 @@ previously-documented-but-never-built per-channel RSS retry-with-backoff was act
 implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
-entirely. `0.4.0` (D-050), `0.4.6` (D-053), and `0.5.0`'s driving decision (D-054,
-above) all shipped real new scope with no bug-tracker batch of their own — `0.4.0` and
-`0.4.6` have no `tracker-history/` file at all; `0.5.0` has one, but only because B-086
-also happened to close out during the same cycle, not because the batch itself drove
-the version bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
+entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054), and
+`0.6.0`'s driving decision (D-055, above) all shipped real new scope with no
+bug-tracker batch of their own — `0.4.0`, `0.4.6`, and `0.6.0` have no
+`tracker-history/` file at all; `0.5.0` has one, but only because B-086 also happened
+to close out during the same cycle, not because the batch itself drove the version
+bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
 not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
 owner's own explicit direction, even though each lands a new Settings toggle rather
 than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, and `0.4.8` (all
 above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
-describes. `tracker-current.md` now targets **0.5.1**, carrying [[B-108]], [[B-022]],
+describes. `tracker-current.md` now targets **0.6.1**, carrying [[B-108]], [[B-022]],
 [[B-101]] forward untouched (B-086, the fourth item carried since 0.3.0, closed as
 Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't always
 minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved for

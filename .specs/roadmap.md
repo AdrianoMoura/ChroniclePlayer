@@ -277,13 +277,23 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   B-108, B-022, B-101 carried forward, untouched, now targeting **0.5.1** (renumbered
   from `0.4.5`/`0.4.9`, since 0.4.5–0.4.8 and 0.5.0 all shipped ahead of them).
   Shipped as a **minor** version — D-054 is real new scope, not a bug-fix batch.
-- **0.5.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
-  (renumbered past 0.4.0 through 0.4.8 and 0.5.0 — see above, none touched this
-  batch). New items reported after 0.5.0 shipped land here. Also landed on top: D-055,
-  a direct product-owner request not sourced from `tracker-current.md` (same pattern as
-  D-050–D-054) — a floating "up next" card on video end, suggesting the next video from
-  the user's own Watch Later queue (FIFO), no autoplay. Full narrative in `decisions.md`
-  D-055. Not yet live-tested by the owner; not yet released under its own version.
+- **0.6.0 — delivered, 2026-07-22.** Driven by D-055, a direct product-owner request not
+  sourced from `tracker-current.md` (same pattern as D-050–D-054): a floating,
+  dismissible "up next" card on video end — thumbnail + title + an explicit Open
+  button, no autoplay, no timer — suggesting the next video from the user's own Watch
+  Later queue (FIFO: the oldest-queued video if the one that ended wasn't itself
+  queued, otherwise whichever follows it). Full player view only. Same-day fix once the
+  owner's own live test found the card never appeared at all: reaching "ended" is
+  always embed-initiated, which the one-shot `onStateChange` postMessage event doesn't
+  reliably report (same bug class as B-111) — fixed by also detecting it off the
+  `infoDelivery` heartbeat. Full narrative in `decisions.md` D-055. B-108, B-022, B-101
+  carried forward, untouched, now targeting **0.6.1** (renumbered from `0.5.1`, since
+  0.6.0 shipped ahead of them, same pattern as every prior renumbering). Shipped as a
+  **minor** version, per the owner's own explicit direction — real new scope (a new UI
+  surface and IPC), not a bug-fix batch.
+- **0.6.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+  (renumbered past 0.4.0 through 0.4.8, 0.5.0, and 0.6.0 — see above, none touched this
+  batch). No batch of its own yet — new items reported after 0.6.0 shipped land here.
 
 ## M0 — Walking skeleton
 
