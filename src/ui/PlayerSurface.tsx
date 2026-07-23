@@ -211,6 +211,21 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
 
     // IFrame widget protocol: announce we're listening, then consume events.
     useEffect(() => {
+      // Reaching "ended" is always embed-initiated — Chronicle never issues a
+      // command to stop a video, YouTube's own player just decides it's
+      // done — so, per B-111, the one-shot onStateChange round trip for it
+      // isn't guaranteed to arrive. Guards firing the ended side effects
+      // (resume-checkpoint clear, the up-next lookup) more than once per
+      // real transition, since the infoDelivery heartbeat below also drives
+      // this and ticks continuously while state stays at 0.
+      let endedHandled = false
+      function handleEnded(): void {
+        if (endedHandled) return
+        endedHandled = true
+        void window.chronicle.setResumePosition(video.videoId, null)
+        onEnded()
+      }
+
       function onMessage(event: MessageEvent): void {
         if (event.origin !== PLAYER_ORIGIN || typeof event.data !== 'string') return
         let payload: { event?: string; info?: unknown }
@@ -222,8 +237,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
           playerStateRef.current = payload.info
           if (payload.info === 0) {
-            void window.chronicle.setResumePosition(video.videoId, null)
-            onEnded()
+            handleEnded()
+          } else {
+            endedHandled = false
           }
           // Quality only takes effect once playback actually starts (B-038) —
           // requesting it on ready alone isn't enough, YouTube can still pick
@@ -254,10 +270,19 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           // the embed initiates on its own (e.g. clicking its native
           // controls) isn't guaranteed to produce an observed onStateChange
           // round trip (B-111). This doesn't touch the transition-only side
-          // effects below (ended overlay, resume checkpoint, quality/rate
-          // reissue), which must still fire exactly once per real
-          // transition, not once per heartbeat tick.
-          if (typeof info?.playerState === 'number') playerStateRef.current = info.playerState
+          // effects above (resume checkpoint, quality/rate reissue), which
+          // must still fire exactly once per real transition, not once per
+          // heartbeat tick — except "ended", where this heartbeat is the
+          // primary detection path (handleEnded's own guard keeps it a
+          // one-shot regardless of which event notices the transition first).
+          if (typeof info?.playerState === 'number') {
+            playerStateRef.current = info.playerState
+            if (info.playerState === 0) {
+              handleEnded()
+            } else {
+              endedHandled = false
+            }
+          }
         }
       }
       window.addEventListener('message', onMessage)
