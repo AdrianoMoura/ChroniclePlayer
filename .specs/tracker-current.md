@@ -305,6 +305,26 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+### B-124 — Comments section shows on an active live/Premiere, but regular comments aren't active there
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-07-23 · **Target:** 0.6.1
+- **Area:** player
+- **What happens:** the player screen's `CommentsSection` (`commentThreads.list`/`.insert`,
+  D-032) renders for every video, including one that's currently airing as a live
+  broadcast or Premiere — but YouTube doesn't have regular comments active on a video
+  while it's live, so the section shows up non-functional/empty for something the user
+  can't actually use yet.
+- **Expected:** the Comments section doesn't render while a video is currently live —
+  `video.liveContent === 'live'` already covers both an ordinary live broadcast and an
+  airing Premiere (the same field D-056's live-chat button gates on; `isPremiere` only
+  picks the badge, not this), so no new signal is needed. Once the broadcast ends
+  (`liveContent` reverts to `'none'`) comments should appear normally, same as any other
+  video.
+- **Code refs:** `src/ui/PlayerDetails.tsx` (`<CommentsSection>`), `src/ipc/contract.ts`
+  (`liveContent`).
+- **Notes:** found while designing [[D-056]] (the live-chat panel), but independent of
+  whether that feature ships — this is wrong today regardless.
+
 ## In progress
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state

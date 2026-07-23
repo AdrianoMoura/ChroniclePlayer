@@ -238,13 +238,15 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               </div>
             )}
 
-            <CommentsSection
-              ref={commentsRef}
-              key={video.videoId}
-              videoId={video.videoId}
-              runWithWriteScope={writeScopeGate.run}
-              onSeekTo={onSeekTo}
-            />
+            {video.liveContent !== 'live' && (
+              <CommentsSection
+                ref={commentsRef}
+                key={video.videoId}
+                videoId={video.videoId}
+                runWithWriteScope={writeScopeGate.run}
+                onSeekTo={onSeekTo}
+              />
+            )}
           </div>
         </div>
         {writeScopeGate.dialog}
