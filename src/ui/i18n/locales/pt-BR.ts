@@ -405,7 +405,6 @@ export const dict: Partial<Dict> = {
   'feed.card.premiereBadge': 'Estreia',
   'feed.card.upcomingBadge': 'Em breve',
   'feed.loadingMore': 'Carregando mais…',
-  'feed.dropAppend': 'Solte aqui para mover para o final',
 
   // PlayerView
   'player.topbar.back': '← Voltar',

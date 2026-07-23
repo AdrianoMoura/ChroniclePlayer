@@ -158,9 +158,15 @@ export function FeedList({
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // D-057: dragIndex is the video being dragged. dropTarget is whichever
-  // video's own leading/trailing half the pointer is currently over, plus
-  // which half — only one row/card is ever hovered at a time in native DnD,
-  // so this alone is enough to drive a single, unambiguous indicator.
+  // video is currently hovered, plus which side of it — only one row/card
+  // is ever hovered at a time in native DnD, so this alone is enough to
+  // drive a single, unambiguous indicator. Per the owner's own simplified
+  // model: every video's own drop zone means "insert after this video" —
+  // there's no separate "before" zone on every item, since that would just
+  // be the same position as the previous item's "after" (two indicators for
+  // one gap, and a boundary between them that made drops flaky). The one
+  // exception is the very first video, which also needs a "before" zone —
+  // otherwise nothing could ever become the new first item.
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dropTarget, setDropTarget] = useState<{ videoIndex: number; edge: 'before' | 'after' } | null>(
     null
@@ -250,15 +256,12 @@ export function FeedList({
     if (cursorRowIndex >= 0) virtualizer.scrollToIndex(cursorRowIndex, { align: 'auto' })
   }, [cursorRowIndex, virtualizer])
 
-  // The last video overall gets its own explicit "append at the end" zone
-  // below the whole list/grid — dropping in its own trailing half is *also*
-  // "insert at the end" and works the same way, but a freestanding zone with
-  // real, comfortable size is a more reliable target than the last few
-  // pixels of a virtualized row that may sit right at the viewport edge.
-  const lastVideoIndex = useMemo(() => {
-    let max = -1
-    for (const row of rows) if (row.kind === 'video' && row.videoIndex > max) max = row.videoIndex
-    return max
+  // Only the first video needs its own "before" zone (see the dropTarget
+  // comment above) — every other video only ever means "after".
+  const firstVideoIndex = useMemo(() => {
+    let min = -1
+    for (const row of rows) if (row.kind === 'video' && (min === -1 || row.videoIndex < min)) min = row.videoIndex
+    return min
   }, [rows])
 
   const commitReorder = (videoIndex: number, edge: 'before' | 'after') => {
@@ -268,27 +271,30 @@ export function FeedList({
   }
 
   // Gap props for the video at `videoIndex` — shared by both the list row
-  // and grid card branches below.
-  const dragProps = (videoIndex: number) =>
-    reorderable
-      ? {
-          reorderable: true,
-          dragging: videoIndex === dragIndex,
-          dropEdge: dropTarget?.videoIndex === videoIndex ? dropTarget.edge : null,
-          onDragStart: () => setDragIndex(videoIndex),
-          onDragOverItem: (edge: 'before' | 'after') => {
-            if (dropTarget?.videoIndex !== videoIndex || dropTarget.edge !== edge)
-              setDropTarget({ videoIndex, edge })
-          },
-          onDropItem: (edge: 'before' | 'after') => commitReorder(videoIndex, edge),
-          onDragEndItem: () => {
-            setDragIndex(null)
-            setDropTarget(null)
-          }
-        }
-      : {}
-
-  const appendOver = dropTarget?.videoIndex === lastVideoIndex && dropTarget.edge === 'after'
+  // and grid card branches below. VideoRow/VideoCard always report the raw
+  // edge the pointer is over (top/bottom or left/right half); every video
+  // except the first one collapses that down to always 'after', since it
+  // has no "before" zone of its own.
+  const dragProps = (videoIndex: number) => {
+    if (!reorderable) return {}
+    const acceptsBefore = videoIndex === firstVideoIndex
+    return {
+      reorderable: true,
+      dragging: videoIndex === dragIndex,
+      dropEdge: dropTarget?.videoIndex === videoIndex ? dropTarget.edge : null,
+      onDragStart: () => setDragIndex(videoIndex),
+      onDragOverItem: (edge: 'before' | 'after') => {
+        const resolved = acceptsBefore ? edge : 'after'
+        if (dropTarget?.videoIndex !== videoIndex || dropTarget.edge !== resolved)
+          setDropTarget({ videoIndex, edge: resolved })
+      },
+      onDropItem: (edge: 'before' | 'after') => commitReorder(videoIndex, acceptsBefore ? edge : 'after'),
+      onDragEndItem: () => {
+        setDragIndex(null)
+        setDropTarget(null)
+      }
+    }
+  }
 
   return (
     <div
@@ -339,21 +345,6 @@ export function FeedList({
           )
         })}
       </div>
-      {reorderable && lastVideoIndex >= 0 && (
-        <div
-          className={`drop-append${appendOver ? ' over' : ''}`}
-          onDragOver={(event) => {
-            event.preventDefault()
-            if (!appendOver) setDropTarget({ videoIndex: lastVideoIndex, edge: 'after' })
-          }}
-          onDrop={(event) => {
-            event.preventDefault()
-            commitReorder(lastVideoIndex, 'after')
-          }}
-        >
-          {t('feed.dropAppend')}
-        </div>
-      )}
       {loadingMore && <div className="feed-loading-more">{t('feed.loadingMore')}</div>}
     </div>
   )
