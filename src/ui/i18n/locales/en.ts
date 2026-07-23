@@ -109,7 +109,7 @@ export const dict = {
   'settings.connection.keychainFallback':
     'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it.',
   'settings.connection.playerSessionNote':
-    "The embedded player uses its own separate browser session, distinct from the Google connection above — sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
+    "The embedded player — and a video's live chat, also a YouTube embed — use their own separate browser session, distinct from the Google connection above. Sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall, or to be able to type in a live chat; it's a one-time step. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
   'settings.connection.signInToYouTubeButton': 'Sign in to YouTube',
   // Names the account explicitly — this action only ever touches the
   // primary account, which is otherwise ambiguous now that multiple

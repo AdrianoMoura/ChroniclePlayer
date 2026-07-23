@@ -109,7 +109,7 @@ export const dict: Partial<Dict> = {
   'settings.connection.keychainFallback':
     'Nenhum chaveiro do sistema detectado: seu token é guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário pode lê-lo.',
   'settings.connection.playerSessionNote':
-    'O player incorporado usa sua própria sessão de navegador, separada da conexão com o Google acima — entre por lá se a reprodução mostrar a tela do YouTube "Confirme que você não é um robô". É também ali que a reprodução sem anúncios do YouTube Premium se aplicaria, caso você esteja conectado ao Premium.',
+    'O player incorporado — e o chat ao vivo de um vídeo, também um embed do YouTube — usam sua própria sessão de navegador, separada da conexão com o Google acima. Entre por lá se a reprodução mostrar a tela do YouTube "Confirme que você não é um robô", ou para conseguir comentar no chat ao vivo; é só uma vez. É também ali que a reprodução sem anúncios do YouTube Premium se aplicaria, caso você esteja conectado ao Premium.',
   'settings.connection.signInToYouTubeButton': 'Entrar no YouTube',
   'settings.connection.reconnectButton': 'Reconectar "{account}"',
   'settings.connection.replaceKeyButton': 'Substituir chave de API',
