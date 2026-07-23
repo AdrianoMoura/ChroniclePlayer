@@ -27,7 +27,6 @@ import {
   ITEM_SIZES,
   VideoCard,
   VideoRow,
-  type DropEdge,
   type FeedRow,
   type VideoActions
 } from './FeedList'
@@ -1331,19 +1330,20 @@ export function App() {
     if (video) undoIgnore(video)
   }, [videos, undoIgnore])
 
-  // D-057: drag-and-drop reorder in the Watch Later view. fromIndex/toIndex
+  // D-057: drag-and-drop reorder in the Watch Later view. fromIndex/insertAt
   // are positions in `videos` (bucket-less there, so a video's index already
-  // matches its queue position); edge says which side of toIndex the video
-  // was dropped on (FeedList's own drop-line indicator). Reorder locally
-  // first so the drop feels instant, then persist. The IPC call carries the
-  // whole queue's new order; reorderWatchLater on the backend ignores
-  // anything no longer watch_later.
-  const reorderWatchLater = useCallback((fromIndex: number, toIndex: number, edge: DropEdge) => {
+  // matches its queue position) — insertAt comes from FeedList's own
+  // dedicated drop-gap elements (one before every video, plus one trailing
+  // gap after the last), so it's already the exact target index, not a
+  // row/card to disambiguate a side of. Reorder locally first so the drop
+  // feels instant, then persist. The IPC call carries the whole queue's new
+  // order; reorderWatchLater on the backend ignores anything no longer
+  // watch_later.
+  const reorderWatchLater = useCallback((fromIndex: number, insertAt: number) => {
     setVideos((current) => {
-      const insertAt = edge === 'before' ? toIndex : toIndex + 1
       // Removing the dragged item shifts every later index down by one, so
-      // landing it exactly on the indicated side of toIndex needs that
-      // adjusted whenever the drag moved forward.
+      // landing it exactly at insertAt needs that adjusted whenever the drag
+      // moved forward.
       const adjustedInsertAt = insertAt > fromIndex ? insertAt - 1 : insertAt
       if (adjustedInsertAt === fromIndex) return current
       const next = [...current]

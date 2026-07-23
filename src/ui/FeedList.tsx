@@ -3,7 +3,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
   type KeyboardEvent,
   type MouseEvent
 } from 'react'
@@ -38,11 +37,6 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
   xxl: 208
 }
 const HEADER_HEIGHT = 38
-
-// D-057: which side of the hovered row/card the dragged video would land on
-// — 'before' if the pointer is over the near half (top for a list row, left
-// for a grid card), 'after' for the far half.
-export type DropEdge = 'before' | 'after'
 
 // liveContent alone doesn't distinguish "airing now" from "broadcast has
 // since ended" — it reverts to 'none' once a stream wraps, same as a normal
@@ -134,10 +128,11 @@ interface FeedListProps {
   loadingMore: boolean
   // D-057: Watch Later's own drag-and-drop reorder, list and grid alike.
   // Native HTML5 DnD — no explicit grab handle, the whole row/card is the
-  // drag source, same as any file-manager list. toIndex is the row/card the
-  // video was dropped on; edge says which side of it.
+  // drag source, same as any file-manager list. insertAt is the position in
+  // the (bucket-less, so index-is-position) video list to drop the dragged
+  // video at — see the dedicated drop-gap elements below.
   reorderable?: boolean
-  onReorder?: (fromIndex: number, toIndex: number, edge: DropEdge) => void
+  onReorder?: (fromIndex: number, insertAt: number) => void
 }
 
 export function FeedList({
@@ -157,8 +152,13 @@ export function FeedList({
   onReorder
 }: FeedListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // D-057: dragIndex is the video being dragged; dropTarget is an insertion
+  // position (0..videoCount) — there's one more gap than there are videos,
+  // since a gap sits both before the first one and after the last one. Kept
+  // as plain state (not per-row) since only one gap is ever "active" at a
+  // time and every row/card needs to know whether *it's* the one.
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ index: number; edge: DropEdge } | null>(null)
+  const [dropTarget, setDropTarget] = useState<number | null>(null)
   const rowHeight = ROW_HEIGHTS[itemSize]
   const gridCardSize = GRID_CARD_SIZES[itemSize]
   const [columns, setColumns] = useState(1)
@@ -244,6 +244,50 @@ export function FeedList({
     if (cursorRowIndex >= 0) virtualizer.scrollToIndex(cursorRowIndex, { align: 'auto' })
   }, [cursorRowIndex, virtualizer])
 
+  // The very last video's own trailing gap is the only one that represents
+  // "insert at the end" — every other position is some video's leading gap.
+  const lastVideoIndex = useMemo(() => {
+    let max = -1
+    for (const row of rows) if (row.kind === 'video' && row.videoIndex > max) max = row.videoIndex
+    return max
+  }, [rows])
+
+  const dragActive = reorderable && dragIndex !== null
+
+  const commitReorder = (insertAt: number) => {
+    if (dragIndex !== null) onReorder?.(dragIndex, insertAt)
+    setDragIndex(null)
+    setDropTarget(null)
+  }
+
+  // Gap props for the video at `videoIndex` — a leading gap (always) plus a
+  // trailing one only on the last video, so "drop after everything" has an
+  // actual element to land on instead of empty space past the last row.
+  const gapProps = (videoIndex: number) =>
+    reorderable
+      ? {
+          reorderable: true,
+          dragging: videoIndex === dragIndex,
+          dragActive,
+          isLastItem: videoIndex === lastVideoIndex,
+          leadingGapOver: dropTarget === videoIndex,
+          trailingGapOver: dropTarget === videoIndex + 1,
+          onDragStart: () => setDragIndex(videoIndex),
+          onLeadingGapOver: () => {
+            if (dropTarget !== videoIndex) setDropTarget(videoIndex)
+          },
+          onLeadingGapDrop: () => commitReorder(videoIndex),
+          onTrailingGapOver: () => {
+            if (dropTarget !== videoIndex + 1) setDropTarget(videoIndex + 1)
+          },
+          onTrailingGapDrop: () => commitReorder(videoIndex + 1),
+          onDragEndItem: () => {
+            setDragIndex(null)
+            setDropTarget(null)
+          }
+        }
+      : {}
+
   return (
     <div
       className={`feed-scroll size-${itemSize}`}
@@ -253,35 +297,6 @@ export function FeedList({
       <div className="feed-inner" style={{ height: virtualizer.getTotalSize() }}>
         {items.map((item) => {
           const row = displayRows[item.index]
-          // Reorder props for one video at `videoIndex` — shared by both the
-          // list row and grid card branches below.
-          const reorderProps = (videoIndex: number) =>
-            reorderable
-              ? {
-                  reorderable: true,
-                  dragging: videoIndex === dragIndex,
-                  dropEdge:
-                    dropTarget?.index === videoIndex && videoIndex !== dragIndex
-                      ? dropTarget.edge
-                      : null,
-                  onDragStart: () => setDragIndex(videoIndex),
-                  onDragOverItem: (edge: DropEdge) => {
-                    if (videoIndex === dragIndex) return
-                    if (dropTarget?.index !== videoIndex || dropTarget.edge !== edge)
-                      setDropTarget({ index: videoIndex, edge })
-                  },
-                  onDropItem: (edge: DropEdge) => {
-                    if (dragIndex !== null && videoIndex !== dragIndex)
-                      onReorder?.(dragIndex, videoIndex, edge)
-                    setDragIndex(null)
-                    setDropTarget(null)
-                  },
-                  onDragEndItem: () => {
-                    setDragIndex(null)
-                    setDropTarget(null)
-                  }
-                }
-              : {}
           return (
             <div
               key={row.key}
@@ -302,7 +317,7 @@ export function FeedList({
                       onOpen={() => onOpen(videoIndex)}
                       onOpenChannel={onOpenChannel}
                       showViewCounts={showViewCounts}
-                      {...reorderProps(videoIndex)}
+                      {...gapProps(videoIndex)}
                     />
                   ))}
                 </div>
@@ -315,7 +330,7 @@ export function FeedList({
                   onOpen={() => onOpen(row.videoIndex)}
                   onOpenChannel={onOpenChannel}
                   showViewCounts={showViewCounts}
-                  {...reorderProps(row.videoIndex)}
+                  {...gapProps(row.videoIndex)}
                 />
               )}
             </div>
@@ -342,21 +357,28 @@ interface VideoRowProps {
   // cursor-navigated list — the priority section, search results — have no
   // other keyboard path to it, so they opt in.
   focusable?: boolean
-  // D-057: the whole row/card is the native HTML5 drag source and drop
-  // target — no separate grab handle. `dragging` is this item's own current
-  // drag state (for CSS feedback only). `dropEdge` renders a line between
-  // this item and its neighbor on that side, so the reorder decision (owned
-  // by FeedList, which tracks the dragged/hovered index) has an obvious
-  // landing spot instead of just a highlight on the hovered item itself.
-  // Edge is computed here (pointer position within this item's own
-  // bounding box), since that's orientation-specific (vertical for a list
-  // row, horizontal for a grid card) in a way FeedList's shared code isn't.
+  // D-057: the whole row/card is the native HTML5 drag source (draggable,
+  // starts on mousedown-and-hold anywhere on it) — but the *drop target* is
+  // a dedicated gap element rendered as its own child, not the row/card
+  // itself, so there's exactly one obvious landing spot per boundary rather
+  // than the ambiguity of splitting the whole item into "top/bottom halves".
+  // Every item gets a leading gap (drop here = insert right before this
+  // video); only the very last item also gets a trailing gap (insert at the
+  // very end — otherwise there'd be no element to drop onto past the last
+  // row). `dragActive` reveals both kinds of gap for the length of any drag
+  // in progress; `leadingGapOver`/`trailingGapOver` highlight the specific
+  // one currently under the pointer.
   reorderable?: boolean
   dragging?: boolean
-  dropEdge?: DropEdge | null
+  dragActive?: boolean
+  isLastItem?: boolean
+  leadingGapOver?: boolean
+  trailingGapOver?: boolean
   onDragStart?: () => void
-  onDragOverItem?: (edge: DropEdge) => void
-  onDropItem?: (edge: DropEdge) => void
+  onLeadingGapOver?: () => void
+  onLeadingGapDrop?: () => void
+  onTrailingGapOver?: () => void
+  onTrailingGapDrop?: () => void
   onDragEndItem?: () => void
 }
 
@@ -364,18 +386,6 @@ interface VideoRowProps {
 // renderer never talks to Google hosts directly (architecture.md).
 function thumbSrc(url: string): string {
   return `thumb://img/${encodeURIComponent(url)}`
-}
-
-// D-057: which half of the hovered element the pointer is over — top/bottom
-// for a stacked list row, left/right for a side-by-side grid card.
-function verticalEdge(event: DragEvent<HTMLDivElement>): DropEdge {
-  const rect = event.currentTarget.getBoundingClientRect()
-  return event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
-}
-
-function horizontalEdge(event: DragEvent<HTMLDivElement>): DropEdge {
-  const rect = event.currentTarget.getBoundingClientRect()
-  return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
 }
 
 export function VideoRow({
@@ -389,10 +399,15 @@ export function VideoRow({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dropEdge = null,
+  dragActive = false,
+  isLastItem = false,
+  leadingGapOver = false,
+  trailingGapOver = false,
   onDragStart,
-  onDragOverItem,
-  onDropItem,
+  onLeadingGapOver,
+  onLeadingGapDrop,
+  onTrailingGapOver,
+  onTrailingGapDrop,
   onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
@@ -414,20 +429,8 @@ export function VideoRow({
       }`}
       onClick={onOpen}
       draggable={reorderable}
-      {...(reorderable
-        ? {
-            onDragStart,
-            onDragOver: (event: DragEvent<HTMLDivElement>) => {
-              event.preventDefault()
-              onDragOverItem?.(verticalEdge(event))
-            },
-            onDrop: (event: DragEvent<HTMLDivElement>) => {
-              event.preventDefault()
-              onDropItem?.(verticalEdge(event))
-            },
-            onDragEnd: onDragEndItem
-          }
-        : {})}
+      onDragStart={reorderable ? onDragStart : undefined}
+      onDragEnd={reorderable ? onDragEndItem : undefined}
       {...(focusable
         ? {
             role: 'button',
@@ -441,7 +444,21 @@ export function VideoRow({
           }
         : {})}
     >
-      {dropEdge !== null && <div className={`drop-line horizontal ${dropEdge}`} />}
+      {reorderable && (
+        <div
+          className={`drop-gap horizontal leading${dragActive ? ' active' : ''}${
+            leadingGapOver ? ' over' : ''
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            onLeadingGapOver?.()
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            onLeadingGapDrop?.()
+          }}
+        />
+      )}
       <span className={`unread-dot${state.readStatus === 'unread' ? ' on' : ''}`} />
       {video.thumbnailUrl !== null ? (
         <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />
@@ -503,6 +520,21 @@ export function VideoRow({
       {video.durationSeconds !== null && video.liveContent !== 'live' && (
         <span className="duration">{formatDuration(video.durationSeconds)}</span>
       )}
+      {reorderable && isLastItem && (
+        <div
+          className={`drop-gap horizontal trailing${dragActive ? ' active' : ''}${
+            trailingGapOver ? ' over' : ''
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            onTrailingGapOver?.()
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            onTrailingGapDrop?.()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -527,10 +559,15 @@ export function VideoCard({
   focusable = false,
   reorderable = false,
   dragging = false,
-  dropEdge = null,
+  dragActive = false,
+  isLastItem = false,
+  leadingGapOver = false,
+  trailingGapOver = false,
   onDragStart,
-  onDragOverItem,
-  onDropItem,
+  onLeadingGapOver,
+  onLeadingGapDrop,
+  onTrailingGapOver,
+  onTrailingGapDrop,
   onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
@@ -552,20 +589,8 @@ export function VideoCard({
       }`}
       onClick={onOpen}
       draggable={reorderable}
-      {...(reorderable
-        ? {
-            onDragStart,
-            onDragOver: (event: DragEvent<HTMLDivElement>) => {
-              event.preventDefault()
-              onDragOverItem?.(horizontalEdge(event))
-            },
-            onDrop: (event: DragEvent<HTMLDivElement>) => {
-              event.preventDefault()
-              onDropItem?.(horizontalEdge(event))
-            },
-            onDragEnd: onDragEndItem
-          }
-        : {})}
+      onDragStart={reorderable ? onDragStart : undefined}
+      onDragEnd={reorderable ? onDragEndItem : undefined}
       {...(focusable
         ? {
             role: 'button',
@@ -579,7 +604,36 @@ export function VideoCard({
           }
         : {})}
     >
-      {dropEdge !== null && <div className={`drop-line vertical ${dropEdge}`} />}
+      {reorderable && (
+        <div
+          className={`drop-gap vertical leading${dragActive ? ' active' : ''}${
+            leadingGapOver ? ' over' : ''
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            onLeadingGapOver?.()
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            onLeadingGapDrop?.()
+          }}
+        />
+      )}
+      {reorderable && isLastItem && (
+        <div
+          className={`drop-gap vertical trailing${dragActive ? ' active' : ''}${
+            trailingGapOver ? ' over' : ''
+          }`}
+          onDragOver={(event) => {
+            event.preventDefault()
+            onTrailingGapOver?.()
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            onTrailingGapDrop?.()
+          }}
+        />
+      )}
       <div className="card-thumb-wrap">
         {video.thumbnailUrl !== null ? (
           <img className="thumb" loading="lazy" alt="" draggable={false} src={thumbSrc(video.thumbnailUrl)} />

@@ -1054,7 +1054,7 @@ button.primary:disabled {
 /* D-057: Watch Later's drag-and-drop reorder — the whole row/card is the
    drag source, no separate handle, so the "you can drag this" affordance is
    just the grab cursor plus feedback while a drag is actually happening.
-   position: relative anchors .drop-line to the row/card's own box rather
+   position: relative anchors .drop-gap to the row/card's own box rather
    than the further-up .feed-item (already position: absolute). */
 .row,
 .card {
@@ -1071,41 +1071,56 @@ button.primary:disabled {
   cursor: grabbing;
 }
 
-/* A line between two items, not a highlight on the hovered one — shows
-   exactly where the dragged video would land. */
-.drop-line {
+/* A dedicated element sitting in the gap between two items, not a highlight
+   on either one — invisible and inert until a drag is actually in progress
+   (.active), then a faint strip showing exactly where a drop would land,
+   brightening (.over) under the pointer. Every row/card has a "leading" gap
+   (drop = insert right before it); only the very last one also gets a
+   "trailing" gap, so "insert at the very end" has a real element to drop
+   onto instead of empty space past the last item. */
+.drop-gap {
   position: absolute;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: 3px;
+  opacity: 0;
   pointer-events: none;
 }
 
-.drop-line.horizontal {
+.drop-gap.horizontal {
   left: 8px;
   right: 8px;
-  height: 3px;
+  height: 10px;
 }
 
-.drop-line.horizontal.before {
-  top: -3px;
+.drop-gap.horizontal.leading {
+  top: -6px;
 }
 
-.drop-line.horizontal.after {
-  bottom: -3px;
+.drop-gap.horizontal.trailing {
+  bottom: -6px;
 }
 
-.drop-line.vertical {
+.drop-gap.vertical {
   top: 4px;
   bottom: 4px;
-  width: 3px;
+  width: 10px;
 }
 
-.drop-line.vertical.before {
+.drop-gap.vertical.leading {
   left: -9px;
 }
 
-.drop-line.vertical.after {
+.drop-gap.vertical.trailing {
   right: -9px;
+}
+
+.drop-gap.active {
+  opacity: 0.25;
+  pointer-events: auto;
+}
+
+.drop-gap.active.over {
+  opacity: 1;
 }
 
 .group-header {
