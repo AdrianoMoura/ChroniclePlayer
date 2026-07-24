@@ -21,6 +21,12 @@ their publish date puts them.
 - **Layout and item size**: the topbar above the feed has a list/grid toggle
   and a size slider (xs → xl). These are display preferences for what you're
   currently looking at, so they live right there instead of in Settings.
+- **Live streams and Premieres**: a broadcast that's currently live (or a
+  Premiere) shows a "Live"/"Premiere" badge and "Started X ago" instead of a
+  duration, sorting to the top of its day's bucket. Once it ends, the badge
+  goes away and a duration appears like any other video — it settles into the
+  feed based on when it actually ended, not its original publish time, so it
+  doesn't jump around.
 
 ### Video states
 
@@ -32,6 +38,7 @@ Every video row supports:
 | Ignore | Removes it from view, with a few seconds to undo |
 | Favorite | Marks it for later reference (its own view in the sidebar) |
 | Watch Later | Adds it to an ordered queue (its own view in the sidebar) |
+| Add to Playlist | Opens a dialog to add/remove the video from your local playlists |
 | Open in browser | Opens the video on youtube.com instead of Chronicle's player |
 
 All of this is **local-only** state — it lives in your database, never on
@@ -68,6 +75,62 @@ come back to it later.
   Chronicle window. Useful for keeping a video visible while you do
   something else. Closing that window docks the video back into the main
   window rather than losing it.
+
+### Live chat
+
+While a video is live, a chat toggle appears next to the title in the full
+player view. Opening it docks a chat column beside the video, using YouTube's
+own live chat embed. Since that's YouTube's own iframe rather than an API
+call, it doesn't carry over your account connection from setup — to type,
+you sign in separately, once, in a plain browser window Chronicle opens for
+you (a link right under the chat explains this). A separate button extracts
+the chat into its own window, independent of the video's pop-out; closing
+that window brings chat back to the docked column (unless the video has
+since docked to the miniplayer, which has no room for a chat column and
+closes it automatically). Chat always starts closed for each video you open.
+
+## Watch Later
+
+Watch Later is an ordered queue with its own view in the sidebar (`w` adds or
+removes the current video from any context).
+
+- **Reorder**: drag a row or card to a new position. Dropping it on another
+  video inserts it right after that video; the first video in the queue is
+  also a drop target for "insert before," since nothing else can become the
+  new first item.
+- **Up next**: when a video opened from Watch Later ends, a small dismissible
+  card appears suggesting the next video in the queue — thumbnail, title, and
+  an explicit Open button. Nothing plays on its own; the card just offers
+  where to go next. Reaching the end of the queue wraps back around to the
+  first video.
+- **Remove when opened**: off by default. **Settings → Playback → Remove from
+  Watch Later when opened** makes opening a queued video remove it
+  automatically, the same as manually toggling it off.
+
+## Playlists
+
+Playlists are your own local collections — never a YouTube playlist, never
+synced anywhere. They have their own screen in the sidebar, alongside the
+feed views.
+
+- Each playlist shows as a card/row with its name, video count, total
+  duration, and a composite cover built from up to six of its own videos'
+  thumbnails.
+- Opening a playlist shows its videos (drag-and-drop reorder, same mechanics
+  as Watch Later above) with inline-editable name and description, and a
+  delete action that needs a second click to confirm.
+- **Add to Playlist**, available from any video row and from the player
+  (`a` in the full player view), opens a checklist of your playlists —
+  ticking one adds or removes the video immediately — plus a field to create
+  a new playlist and add the video to it in one step.
+- Opening a video from inside a playlist never removes it — only the
+  explicit "remove from playlist" action does. There's no ignore action
+  inside a playlist's own video list either, since adding a video there is
+  the opposite intent of hiding it.
+- The "up next" card also works here: finishing a video that came from a
+  playlist suggests that playlist's next video. Unlike Watch Later, it
+  doesn't wrap around — a playlist has a real end, so finishing the last
+  video suggests nothing further.
 
 ## Search and channels
 
@@ -143,6 +206,8 @@ Reconnect, replace your OAuth client file, fix the "reconnect weekly" issue
 ### Playback
 
 - **Default speed**: the playback rate new videos open at.
+- **Remove from Watch Later when opened**: off by default. See
+  [Watch Later](#watch-later) above.
 
 ### Appearance
 
@@ -208,7 +273,7 @@ visible on-screen control — nothing here is keyboard-only.
 | `e` | Maximize the docked miniplayer |
 | `x` | Close the docked miniplayer |
 | `gg` / `G` | Jump to top / end of the loaded feed |
-| `1`–`5` | Switch view (All, Unread, Watch Later, Favorites, Ignored) |
+| `1`–`6` | Switch view (All, Unread, Watch Later, Playlists, Favorites, Ignored) |
 | `r` | Refresh |
 | `Ctrl+O` | Open a YouTube video by URL |
 | `/` | Focus search |
@@ -229,6 +294,7 @@ visible on-screen control — nothing here is keyboard-only.
 | `c` | Show/hide comments |
 | `n` | Next in queue (only when one is queued) |
 | `p` | Pop out to the always-on-top window |
+| `a` | Add to Playlist |
 | `b` | Open in browser |
 | `/` | Focus search (exits the player back to the feed) |
 | `?` | Shortcut overlay |
