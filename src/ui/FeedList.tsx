@@ -107,7 +107,9 @@ function buildCardRows(
 export interface VideoActions {
   markRead: (video: FeedVideoDto) => void
   toggleRead: (video: FeedVideoDto) => void
-  ignore: (video: FeedVideoDto) => void
+  // Optional because a playlist's own video list omits it — a video was
+  // deliberately added there, the opposite intent from "hide this."
+  ignore?: (video: FeedVideoDto) => void
   undo: (video: FeedVideoDto) => void
   toggleFavorite: (video: FeedVideoDto) => void
   toggleWatchLater: (video: FeedVideoDto) => void
@@ -488,10 +490,17 @@ export function VideoRow({
   onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
+    // A playlist's own video list has no `ignore` action, so its rows are
+    // only ever undoable via removeFromPlaylist — reuse that same signal to
+    // pick the right copy (no "(u)" hint there; that shortcut only ever
+    // targets the ignore-undo above).
+    const isPlaylistRemoval = actions.ignore === undefined && actions.removeFromPlaylist !== undefined
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
-        <span>{t('feed.card.undoLabel')}</span>
-        <button onClick={() => actions.undo(video)}>{t('feed.card.undoButton')}</button>
+        <span>{t(isPlaylistRemoval ? 'feed.card.undoLabelPlaylist' : 'feed.card.undoLabel')}</span>
+        <button onClick={() => actions.undo(video)}>
+          {t(isPlaylistRemoval ? 'feed.card.undoButtonPlaylist' : 'feed.card.undoButton')}
+        </button>
       </div>
     )
   }
@@ -552,9 +561,14 @@ export function VideoRow({
         >
           ✓
         </button>
-        <button title={t('feed.card.ignoreTitle')} onClick={(e) => stop(e, () => actions.ignore(video))}>
-          ⊘
-        </button>
+        {actions.ignore && (
+          <button
+            title={t('feed.card.ignoreTitle')}
+            onClick={(e) => stop(e, () => actions.ignore!(video))}
+          >
+            ⊘
+          </button>
+        )}
         <button
           title={t('feed.card.toggleFavoriteTitle')}
           onClick={(e) => stop(e, () => actions.toggleFavorite(video))}
@@ -628,10 +642,13 @@ export function VideoCard({
   onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
+    const isPlaylistRemoval = actions.ignore === undefined && actions.removeFromPlaylist !== undefined
     return (
       <div className={`card undo-strip${selected ? ' selected' : ''}`}>
-        <span>{t('feed.card.undoLabel')}</span>
-        <button onClick={() => actions.undo(video)}>{t('feed.card.undoButton')}</button>
+        <span>{t(isPlaylistRemoval ? 'feed.card.undoLabelPlaylist' : 'feed.card.undoLabel')}</span>
+        <button onClick={() => actions.undo(video)}>
+          {t(isPlaylistRemoval ? 'feed.card.undoButtonPlaylist' : 'feed.card.undoButton')}
+        </button>
       </div>
     )
   }
@@ -685,9 +702,14 @@ export function VideoCard({
           >
             ✓
           </button>
-          <button title={t('feed.card.ignoreTitle')} onClick={(e) => stop(e, () => actions.ignore(video))}>
-            ⊘
-          </button>
+          {actions.ignore && (
+            <button
+              title={t('feed.card.ignoreTitle')}
+              onClick={(e) => stop(e, () => actions.ignore!(video))}
+            >
+              ⊘
+            </button>
+          )}
           <button
             title={t('feed.card.toggleFavoriteTitle')}
             onClick={(e) => stop(e, () => actions.toggleFavorite(video))}

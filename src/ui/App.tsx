@@ -165,6 +165,10 @@ export function App() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [urlPromptOpen, setUrlPromptOpen] = useState(false)
   const [undoable, setUndoable] = useState<ReadonlySet<string>>(new Set())
+  // Undo for "remove from playlist," scoped separately from the ignore-undo
+  // above — playlist rows never show the ignore action at all, so a video
+  // can only ever be undoable one way or the other.
+  const [playlistUndoable, setPlaylistUndoable] = useState<ReadonlySet<string>>(new Set())
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [failureDetailsOpen, setFailureDetailsOpen] = useState(false)
@@ -287,6 +291,7 @@ export function App() {
   const accountRef = useRef<string | null>(null)
   const loadingRef = useRef(false)
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
+  const playlistUndoInfo = useRef(new Map<string, { timer: number }>())
   const lastG = useRef(0)
   const filterInputRef = useRef<HTMLInputElement>(null)
   const channelQueryRef = useRef<HTMLInputElement>(null)
@@ -901,6 +906,12 @@ export function App() {
       setPlayerStack((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
+      // A playlist's own video list (playlistVideos) is a separate fetch
+      // from the main feed's `videos` — without this it stays stale until
+      // the playlist is reopened.
+      setPlaylistVideos((current) =>
+        current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+      )
       syncMeta()
       // The sidebar's per-channel unread badge is a separate data source
       // (channels state) from the topbar's count (meta) — a read/unread
@@ -1021,21 +1032,65 @@ export function App() {
     })
   }, [playlistFilter])
 
+  const clearPlaylistUndo = useCallback((videoId: string) => {
+    const info = playlistUndoInfo.current.get(videoId)
+    if (info) window.clearTimeout(info.timer)
+    playlistUndoInfo.current.delete(videoId)
+    setPlaylistUndoable((set) => {
+      const next = new Set(set)
+      next.delete(videoId)
+      return next
+    })
+  }, [])
+
+  // Mirrors ignoreVideo's inline-undo shape below — persists immediately,
+  // but keeps the row in `playlistVideos` (rendered as an undo strip by
+  // FeedList) until UNDO_WINDOW_MS actually removes it, so an undo needs
+  // only cancel the timer and restore the same position rather than
+  // reconstruct where the video used to sit.
   const removeVideoFromCurrentPlaylist = useCallback(
     (videoId: string) => {
       if (playlistFilter === null) return
       const id = playlistFilter
       void window.chronicle.removeVideoFromPlaylist(id, videoId).then(() => {
-        setPlaylistVideos((current) => current.filter((v) => v.videoId !== videoId))
         // The header's own stats (video count, duration, composite thumb)
         // depend on membership, so they need a refresh too.
         void window.chronicle.listPlaylists().then((list) => {
           setPlaylists(list)
           setCurrentPlaylist(list.find((p) => p.playlistId === id) ?? null)
         })
+        const timer = window.setTimeout(() => {
+          clearPlaylistUndo(videoId)
+          setPlaylistVideos((current) => current.filter((v) => v.videoId !== videoId))
+        }, UNDO_WINDOW_MS)
+        playlistUndoInfo.current.set(videoId, { timer })
+        setPlaylistUndoable((set) => new Set(set).add(videoId))
       })
     },
-    [playlistFilter]
+    [playlistFilter, clearPlaylistUndo]
+  )
+
+  const undoRemoveFromPlaylist = useCallback(
+    (video: FeedVideoDto) => {
+      if (playlistFilter === null || !playlistUndoInfo.current.has(video.videoId)) return
+      const id = playlistFilter
+      clearPlaylistUndo(video.videoId)
+      // The video never left `playlistVideos` locally, so its position is
+      // still correct there — just needs re-adding server-side (it was
+      // already removed from the DB) and the DB order needs to be told to
+      // match what's still on screen.
+      void window.chronicle.addVideoToPlaylist(id, video.videoId).then(() => {
+        void window.chronicle.reorderPlaylist(
+          id,
+          playlistVideos.map((v) => v.videoId)
+        )
+        void window.chronicle.listPlaylists().then((list) => {
+          setPlaylists(list)
+          setCurrentPlaylist(list.find((p) => p.playlistId === id) ?? null)
+        })
+      })
+    },
+    [playlistFilter, clearPlaylistUndo, playlistVideos]
   )
 
   // Drag-and-drop reorder within a playlist's own screen — same local-first-
@@ -1712,7 +1767,7 @@ export function App() {
           if (current) actions.toggleRead(current)
           break
         case 'i':
-          if (current) actions.ignore(current)
+          if (current) actions.ignore?.(current)
           break
         case 'u':
           undoLast()
@@ -2168,12 +2223,13 @@ export function App() {
                       itemSize={settings.itemSize}
                       layout={settings.layout}
                       showViewCounts={settings.showViewCounts}
-                      undoable={undoable}
+                      undoable={playlistUndoable}
                       actions={actions}
                       onOpen={openFromPlaylistDetail}
                       onOpenChannel={navigateToChannel}
                       onReorder={reorderCurrentPlaylistVideos}
                       onRemoveVideo={removeVideoFromCurrentPlaylist}
+                      onUndoRemoveVideo={undoRemoveFromPlaylist}
                       onRename={renameCurrentPlaylist}
                       onDelete={deleteCurrentPlaylist}
                       helpOpen={helpOpen}

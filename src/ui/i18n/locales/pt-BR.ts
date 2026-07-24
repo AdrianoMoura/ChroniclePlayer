@@ -394,6 +394,8 @@ export const dict: Partial<Dict> = {
   // FeedList — shared between list rows and grid cards
   'feed.card.undoLabel': 'Ignorado — vai sair desta view',
   'feed.card.undoButton': 'Desfazer (u)',
+  'feed.card.undoLabelPlaylist': 'Removido da playlist — vai sair desta lista',
+  'feed.card.undoButtonPlaylist': 'Desfazer',
   'feed.card.favoriteTitle': 'Favorito',
   'feed.card.watchLaterTitle': 'Assistir mais tarde',
   'feed.card.toggleReadTitle': 'Alternar lido (m)',

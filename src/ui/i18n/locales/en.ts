@@ -401,6 +401,8 @@ export const dict = {
   // FeedList — shared between list rows and grid cards
   'feed.card.undoLabel': 'Ignored — it will leave this view',
   'feed.card.undoButton': 'Undo (u)',
+  'feed.card.undoLabelPlaylist': 'Removed from playlist — it will leave this list',
+  'feed.card.undoButtonPlaylist': 'Undo',
   'feed.card.favoriteTitle': 'Favorite',
   'feed.card.watchLaterTitle': 'Watch Later',
   'feed.card.toggleReadTitle': 'Toggle read (m)',

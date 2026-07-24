@@ -12,14 +12,16 @@ interface PlaylistDetailViewProps {
   layout: 'list' | 'grid'
   showViewCounts: boolean
   undoable: ReadonlySet<string>
-  // Base actions (markRead/toggleRead/ignore/undo/toggleFavorite/
-  // toggleWatchLater/openInBrowser/addToPlaylist) already built by App.tsx —
-  // this view adds its own removeFromPlaylist on top.
+  // Base actions (markRead/toggleRead/toggleFavorite/toggleWatchLater/
+  // openInBrowser/addToPlaylist) already built by App.tsx — this view drops
+  // `ignore` (a video was deliberately added here, the opposite intent from
+  // "hide this") and adds its own removeFromPlaylist/undo on top instead.
   actions: VideoActions
   onOpen: (videoIndex: number) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onReorder: (fromIndex: number, insertAt: number) => void
   onRemoveVideo: (videoId: string) => void
+  onUndoRemoveVideo: (video: FeedVideoDto) => void
   onRename: (name: string, description: string | null) => void
   onDelete: () => void
   // So this screen's own keydown handler (below) can stay quiet while the
@@ -57,6 +59,7 @@ export function PlaylistDetailView({
   onOpenChannel,
   onReorder,
   onRemoveVideo,
+  onUndoRemoveVideo,
   onRename,
   onDelete,
   helpOpen,
@@ -74,8 +77,13 @@ export function PlaylistDetailView({
   }))
 
   const fullActions: VideoActions = useMemo(
-    () => ({ ...actions, removeFromPlaylist: (video) => onRemoveVideo(video.videoId) }),
-    [actions, onRemoveVideo]
+    () => ({
+      ...actions,
+      ignore: undefined,
+      removeFromPlaylist: (video) => onRemoveVideo(video.videoId),
+      undo: onUndoRemoveVideo
+    }),
+    [actions, onRemoveVideo, onUndoRemoveVideo]
   )
 
   // Own keydown handler, mirroring the main feed's j/k/gg/G/Enter/m/f/w/i/b
@@ -126,9 +134,6 @@ export function PlaylistDetailView({
           break
         case 'm':
           if (current) fullActions.toggleRead(current)
-          break
-        case 'i':
-          if (current) fullActions.ignore(current)
           break
         case 'f':
           if (current) fullActions.toggleFavorite(current)
