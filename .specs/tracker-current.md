@@ -169,10 +169,21 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   narrative in `decisions.md` D-057 and D-058, not a dedicated tracker-history note of
   its own. Shipped as a **minor** version, per the owner's own explicit direction (real
   new scope across two features, not a bug-fix batch). Shipped 2026-07-23.
+- [`tracker-history/v0.8.1.md`](tracker-history/v0.8.1.md) — four entries, all Fixed,
+  all reported and closed the same day: [[B-125]] (removing a video from a playlist now
+  has the same inline undo ignore already has), [[B-126]]/[[B-127]] (favorite and Watch
+  Later toggles now reflect immediately inside a playlist's own video list instead of
+  staying stale until it's reopened — same root cause, same fix), and [[B-128]] (the
+  ignore action was dropped from a playlist's video-list rows entirely, per the owner's
+  own call, rather than made to behave consistently there). [[B-108]], [[B-022]],
+  [[B-101]] didn't make it into 0.8.1 either and carried their **Target** forward again.
+  Shipped as a **patch** version (a pure bug-fix/adjustment batch, no new `D-NNN` scope
+  alongside it). Shipped 2026-07-23.
 
-**Current target: 0.8.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
-the three made it into 0.5.0, 0.6.0, 0.7.0, or 0.8.0 either (see above — all four
-shipped driven by a direct product-owner decision instead).
+**Current target: 0.8.2.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
+the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, or 0.8.1 either (see above — the
+first four shipped driven by a direct product-owner decision instead, and 0.8.1's own
+batch was a different set of items).
 
 ## Entry template
 
@@ -200,8 +211,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.8.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, and 0.8.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.8.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -226,8 +237,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.8.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, and 0.8.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.8.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -326,8 +337,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.8.1 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, and 0.8.0 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.8.2 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
@@ -411,85 +422,5 @@ Resolved entries add:
 
 ## Resolved
 
-### B-128 — Ignoring a video from inside a playlist's video list has no visible effect there; is the action appropriate in that context at all?
-- **Type:** adjustment · **Status:** Resolved · **Reported:** 2026-07-23 · **Target:** 0.8.1
-- **Area:** ui-shell
-- **What happens:** the per-row ignore action was reachable from a playlist's own video
-  list and did persist the `ignored` status, but nothing in the playlist list itself
-  reflected it — the row didn't gray out, get removed, or show the undo affordance the
-  way ignoring a video does in the main feed views.
-- **Expected:** the owner's call, given the design question this raised (a video was
-  deliberately added to a playlist, the opposite intent from "hide this"): drop the
-  ignore action from a playlist's video-list rows entirely rather than make it behave
-  consistently there.
-- **Code refs:** `src/ui/App.tsx` (`ignoreVideo`), `src/ui/PlaylistDetailView.tsx`
-  (`fullActions`), `src/ui/FeedList.tsx` (`VideoActions.ignore`, the ignore button in
-  `VideoRow`/`VideoCard`).
-- **Resolved:** 2026-07-23 · **Commit:** (pending) · **Outcome:** Fixed
-- **Resolution:** `VideoActions.ignore` is now optional; `FeedList` only renders the
-  ignore button when `actions.ignore` is provided. `PlaylistDetailView`'s `fullActions`
-  now explicitly sets `ignore: undefined`, and its own local `i` keydown case was
-  removed. No spec change needed — `ui.md` never named ignore as a playlist-specific
-  requirement.
+(none yet this cycle)
 
-### B-127 — Adding a video to Watch Later from inside a playlist's video list doesn't update its icon immediately
-- **Type:** bug · **Severity:** minor
-- **Status:** Resolved · **Reported:** 2026-07-23 · **Target:** 0.8.1
-- **Area:** ui-shell
-- **What happens:** same as [[B-126]] but for the Watch Later toggle — persisted
-  correctly, but the row's icon inside the playlist's own video list stayed stale until
-  the playlist was reopened.
-- **Expected:** immediate icon update, matching every other list in the app.
-- **Code refs:** `src/ui/App.tsx` — `actions.toggleWatchLater`, same `patch()` gap as
-  [[B-126]].
-- **Resolved:** 2026-07-23 · **Commit:** (pending) · **Outcome:** Fixed
-- **Resolution:** same fix as [[B-126]] — `patch()` now also updates `playlistVideos`.
-
-### B-126 — Favoriting a video from inside a playlist's video list doesn't update its icon immediately
-- **Type:** bug · **Severity:** minor
-- **Status:** Resolved · **Reported:** 2026-07-23 · **Target:** 0.8.1
-- **Area:** ui-shell
-- **What happens:** toggling favorite on a video row/card while viewing a playlist's own
-  video list did persist (the video correctly showed up in the Favorites view
-  afterwards) but the ★ glyph on that row inside the playlist list itself didn't update
-  until the playlist was reopened/reloaded.
-- **Expected:** the icon reflects the new state immediately, same as it does everywhere
-  else the same toggle is used (main feed, channel view, Watch Later, etc.).
-- **Code refs:** `src/ui/App.tsx` — `patch()` only wrote into `videos` and
-  `playerStack`, never into `playlistVideos` (a separate `useState<FeedVideoDto[]>`,
-  fetched once via `window.chronicle.getPlaylistVideos` when a playlist opens);
-  `actions.toggleFavorite` goes through `patch()`. `FeedList` renders the ★ glyph
-  straight from each row's `video.state.favorite`, so a stale `playlistVideos` entry
-  showed a stale icon.
-- **Resolved:** 2026-07-23 · **Commit:** (pending) · **Outcome:** Fixed
-- **Resolution:** `patch()` (`src/ui/App.tsx`) now also maps the updated state into
-  `playlistVideos`, the same way it already does for `playerStack` — fixes [[B-126]] and
-  [[B-127]] together, since both toggles go through `patch()`.
-
-### B-125 — Removing a video from a playlist has no undo, unlike ignore
-- **Type:** adjustment · **Status:** Resolved · **Reported:** 2026-07-23 · **Target:** 0.8.1
-- **Area:** ui-shell
-- **What happens:** removing a video from inside a playlist's own video list
-  (`PlaylistDetailView`'s per-row "remove from playlist" action) removed it immediately
-  and permanently, with no way to undo a misclick.
-- **Expected:** the same inline undo affordance ignore already has — a brief window
-  where the action can be reversed before it's final, matching `ui.md`'s States &
-  feedback section.
-- **Code refs:** `src/ui/App.tsx` (`ignoreVideo`/`undoIgnore`/`undoLast`/`clearUndo`/
-  `undoInfo`/`undoable` — the existing ignore-undo mechanism this mirrors;
-  `removeVideoFromCurrentPlaylist`, the action extended). `src/ui/PlaylistDetailView.tsx`
-  (`fullActions`, where `removeFromPlaylist`/`undo` are wired into `FeedList`).
-- **Resolved:** 2026-07-23 · **Commit:** (pending) · **Outcome:** Fixed
-- **Resolution:** added a parallel, playlist-scoped undo mechanism in `src/ui/App.tsx`
-  (`playlistUndoable`, `playlistUndoInfo`, `clearPlaylistUndo`, `undoRemoveFromPlaylist`),
-  separate from ignore's own — `removeVideoFromCurrentPlaylist` now persists the removal
-  immediately but keeps the row in local `playlistVideos` (rendered as an undo strip)
-  until `UNDO_WINDOW_MS` elapses; since the video never actually leaves the local array
-  until then, an undo only needs to cancel the timer and re-add it server-side
-  (`addVideoToPlaylist` + `reorderPlaylist` to restore its position), no separate
-  position bookkeeping needed. `PlaylistDetailView` passes this new `playlistUndoable`/
-  `onUndoRemoveVideo` instead of the shared ignore-undo state. `FeedList`'s undo strip
-  now shows distinct copy in this context (new locale keys `undoLabelPlaylist`/
-  `undoButtonPlaylist`, English + Portuguese) since there's no `(u)` keyboard shortcut
-  for it, unlike ignore's undo. Checked via `npm run typecheck && npm run lint && npm
-  test` (258/258); not yet live-verified.
