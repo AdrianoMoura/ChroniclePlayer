@@ -100,10 +100,12 @@ A funcionalidade atual inclui:
 
 * Feed cronológico de inscrições
 * Múltiplas contas do YouTube
+* Lives e Premieres no feed (indicador de "ao vivo", chat ao vivo, "iniciado há X")
 * Rastreamento de lido / não lido
 * Ignorar vídeos (com desfazer)
 * Favoritos
-* Assistir mais tarde
+* Assistir mais tarde, com sugestão de "próximo" quando um vídeo termina
+* Playlists locais — suas próprias coleções, com reordenação por arrastar e soltar
 * Busca completa no YouTube
 * Abrir qualquer URL do YouTube
 * Navegação por teclado

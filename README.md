@@ -100,10 +100,12 @@ Current functionality includes:
 
 * Chronological subscriptions feed
 * Multiple YouTube accounts
+* Live streams and Premieres in the feed (live badge, live chat panel, "started X ago")
 * Read / unread tracking
 * Ignore videos (with undo)
 * Favorites
-* Watch Later
+* Watch Later, with an "up next" suggestion when a video ends
+* Local playlists — your own collections, with drag-and-drop reordering
 * Full YouTube search
 * Open any YouTube URL
 * Keyboard navigation
