@@ -106,6 +106,7 @@ Current functionality includes:
 * Favorites
 * Watch Later, with an "up next" suggestion when a video ends
 * Local playlists — your own collections, with drag-and-drop reordering
+* Pop the video out into its own always-on-top window
 * Full YouTube search
 * Open any YouTube URL
 * Keyboard navigation

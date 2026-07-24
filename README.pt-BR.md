@@ -106,6 +106,7 @@ A funcionalidade atual inclui:
 * Favoritos
 * Assistir mais tarde, com sugestão de "próximo" quando um vídeo termina
 * Playlists locais — suas próprias coleções, com reordenação por arrastar e soltar
+* Destacar o vídeo em uma janela própria sempre visível (always-on-top)
 * Busca completa no YouTube
 * Abrir qualquer URL do YouTube
 * Navegação por teclado
