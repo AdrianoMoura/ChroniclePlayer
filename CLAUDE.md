@@ -379,9 +379,9 @@ no longer rendering on an active live video/Premiere, where regular comments are
 active anyway), was a single Fixed entry. Full narrative in `decisions.md` D-056; the
 `0.7.0` batch itself is in `tracker-history/v0.7.0.md`.
 
-**D-057 (three Watch Later refinements) landed 2026-07-23, all direct product-owner
-requests in the same session** — after `0.7.0` shipped, not yet reflected in a version
-bump of its own. (1) `SettingsDto.watchLaterAutoRemove` (default off) — opening a
+**D-057 (three Watch Later refinements) shipped in `0.8.0`, 2026-07-23, all direct
+product-owner requests in the same session** — after `0.7.0` shipped. (1)
+`SettingsDto.watchLaterAutoRemove` (default off) — opening a
 queued video removes it from Watch Later immediately, the same effect a manual
 untoggle has. (2) The up-next card (D-055) now wraps around past the last queued video
 instead of going silent once the user reaches the end of the queue. (3) Drag-and-drop
@@ -396,9 +396,9 @@ unnecessary once the simpler version proved to work). Confirmed working live. Fu
 narrative in `decisions.md` D-057 — no `tracker-history/` file, since this didn't come
 through the bug tracker.
 
-**D-058 (user-created local Playlists) landed 2026-07-23, a direct product-owner
-request, same pattern as D-050–D-057** — built and live-tested in its own worktree, then
-merged straight to `main`; also not yet reflected in a version bump. A new sidebar
+**D-058 (user-created local Playlists) shipped in `0.8.0`, 2026-07-23, a direct
+product-owner request, same pattern as D-050–D-057** — built and live-tested in its own
+worktree, then merged straight to `main`. A new sidebar
 screen at position 4 (`Sidebar.tsx`'s `NAV_ORDER` interleaves it with the five
 `FeedView`s so keyboard `1`-`6` still map 1:1 to the rendered list): every local
 playlist as a card/row (name, video count, `h:mm` total duration, a composite cover
@@ -430,11 +430,27 @@ fixed by having each dialog focus its own container on mount. Full narrative in
 `decisions.md` D-058 — no `tracker-history/` file, since this didn't come through the
 bug tracker.
 
+**`0.8.1` shipped 2026-07-23** — a normal bug-tracker batch, four entries all Fixed the
+same day they were reported: B-125 (removing a video from a playlist's own video list
+now has the same inline undo affordance ignore already has, via a dedicated
+playlist-scoped undo mechanism in `App.tsx` — `playlistUndoable`/`playlistUndoInfo`/
+`undoRemoveFromPlaylist`, separate from ignore's own since a playlist row is never
+undoable via ignore), B-126/B-127 (favoriting or adding to Watch Later from inside a
+playlist's own video list now updates that row's icon immediately — `patch()` now also
+writes into `playlistVideos`, the same way it already did for `playerStack`, instead of
+only reflecting the change once the playlist was reopened), and B-128 (per the owner's
+own call, made mid-report: dropped the ignore action from a playlist's video-list rows
+entirely — `VideoActions.ignore` is now optional — rather than fix its
+previously-stale-and-silent behavior there, since a video being in a playlist reads as
+the opposite intent from "hide this"). Shipped as a **patch** version (a pure bug-fix/
+adjustment batch, no new `D-NNN` scope alongside it). Full narrative in
+`tracker-history/v0.8.1.md`.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
-`0.4.5`, `0.4.7`, `0.4.8`, and `0.5.0` have shipped and are archived in `tracker-history/`
-(`0.2.1` was a single one-off patch with no batch of its own — see
+`0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, and `0.8.1` have shipped and are archived in
+`tracker-history/` (`0.2.1` was a single one-off patch with no batch of its own — see
 `tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
 originally tracked toward a `0.2.3` patch but grew into real new scope along the way —
 D-048 removed a whole failure-handling subsystem (channels no longer get permanently
@@ -444,22 +460,21 @@ implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-04
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054),
-`0.6.0`'s driving decision (D-055, above), and `0.7.0`'s driving decision (D-056,
-above) all shipped real new scope with no bug-tracker batch of their own — `0.4.0`,
-`0.4.6`, and `0.6.0` have no `tracker-history/` file at all; `0.5.0` and `0.7.0` each
-have one, but only because a single unrelated bug (B-086, B-124 respectively) happened
-to close out during the same cycle, not because either batch drove its own version
-bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert,
-not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
-owner's own explicit direction, even though each lands a new Settings toggle rather
-than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, and `0.4.8` (all
-above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
-describes. `tracker-current.md` now targets **0.7.1**, carrying [[B-108]], [[B-022]],
-[[B-101]] forward untouched since `0.7.0` shipped (B-086, the fourth item carried since
-0.3.0, closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). D-057 (Watch
-Later refinements) and D-058 (Playlists, above) both landed after `0.7.0` shipped and
-aren't reflected in any version bump yet — which release they ship under is still to be
-decided, same open question D-056 had before `0.7.0`'s own prep folded it in. Version
-bumps aren't always minor — a pure bug-fix batch ships as a patch release, a minor bump
-is reserved for batches that land real new scope, but the owner's own explicit call on
-a given release always wins. See `.specs/roadmap.md` §Release status for the summary.
+`0.6.0`'s driving decision (D-055, above), `0.7.0`'s driving decision (D-056, above),
+and `0.8.0`'s driving decisions (D-057 and D-058, above) all shipped real new scope
+with no bug-tracker batch of their own — `0.4.0`, `0.4.6`, `0.6.0`, and `0.8.0` have no
+`tracker-history/` file at all; `0.5.0` and `0.7.0` each have one, but only because a
+single unrelated bug (B-086, B-124 respectively) happened to close out during the same
+cycle, not because either batch drove its own version bump. `0.4.1` (the B-108 revert)
+shipped as a **patch** instead — a revert, not new scope. `0.4.2` (D-051) and `0.4.4`
+(D-052) also shipped as **patches**, per the owner's own explicit direction, even
+though each lands a new Settings toggle rather than being a pure bug-fix batch. `0.4.3`
+(B-111), `0.4.5`, `0.4.7`, `0.4.8`, and `0.8.1` (all above) are the normal case this
+file's "pure bug-fix batch ships as a patch" rule describes. `tracker-current.md` now
+targets **0.8.2**, carrying [[B-108]], [[B-022]], [[B-101]] forward untouched — none of
+the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, or 0.8.1 either (B-086, the fourth
+item carried since 0.3.0, closed as Won't fix in `0.5.0` — see
+`tracker-history/v0.5.0.md`). Version bumps aren't always minor — a pure bug-fix batch
+ships as a patch release, a minor bump is reserved for batches that land real new
+scope, but the owner's own explicit call on a given release always wins. See
+`.specs/roadmap.md` §Release status for the summary.

@@ -291,20 +291,59 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   0.6.0 shipped ahead of them, same pattern as every prior renumbering). Shipped as a
   **minor** version, per the owner's own explicit direction — real new scope (a new UI
   surface and IPC), not a bug-fix batch.
-- **0.6.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
-  (renumbered past 0.4.0 through 0.4.8, 0.5.0, and 0.6.0 — see above, none touched this
-  batch). No batch of its own yet — new items reported after 0.6.0 shipped land here.
-  D-056 (the live chat panel) merged to `main` 2026-07-23, live-tested and confirmed
-  working by the owner — real new scope, not from `tracker-current.md`, same pattern as
-  D-050–D-055. Full narrative in `decisions.md` D-056. Not yet reflected in
-  `package.json`'s version; which release it ships under is still to be decided (a
-  version bump wasn't part of this merge).
-  D-058 (user-created local Playlists — a new sidebar screen at position 4, per-video
-  "Add to Playlist," drag-and-drop reorder, and a playlist-aware "up next" card) built
-  in its own worktree, same pattern as D-050–D-057 (direct product-owner request, not
-  from `tracker-current.md`). Not yet merged to `main` or reflected in `package.json`'s
-  version — the product owner is testing it live in the worktree first. Full narrative
-  in `decisions.md` D-058.
+- **0.7.0 — delivered, 2026-07-23.** Driven by D-056, a direct product-owner request not
+  sourced from `tracker-current.md` (same pattern as D-050–D-055): a live chat panel on
+  the player screen, via YouTube's own public `live_chat` embed iframe (zero quota
+  cost). A toggle next to the title (shown only while a video is live, Premieres
+  included) opens a 500px docked column, always starting closed; a separate "extract
+  chat" action pops it to its own titled window, fully decoupled from the video's own
+  extract (D-051). Typing requires the same signed-in embedded-player session as
+  comments (B-093). Fixed during the owner's own live test: the docked column rendered
+  blank (missing `embed_domain=localhost`, required when framed). Full narrative in
+  `decisions.md` D-056; the release's own single bug-tracker item, B-124 (Comments no
+  longer rendering on a live video/Premiere, Fixed), is in `tracker-history/v0.7.0.md`.
+  Shipped as a **minor** version (real new scope, not a bug-fix batch). B-108, B-022,
+  B-101 carried forward, untouched.
+- **0.8.0 — delivered, 2026-07-23.** Driven by D-057 and D-058, both direct
+  product-owner requests not sourced from `tracker-current.md` (same pattern as
+  D-050–D-056). D-057: three Watch Later refinements — an opt-in
+  `watchLaterAutoRemove` setting (default off, removes a video from the queue the
+  moment it's opened), the up-next card (D-055) wrapping around past the last queued
+  video instead of going silent, and drag-and-drop reorder in the Watch Later view
+  (list and grid). D-058: user-created local Playlists — a new sidebar screen at
+  position 4 (100% local, schema v17, never a YouTube playlist), a detail screen
+  mirroring `ChannelHeader`'s compact style with inline editing and drag-and-drop
+  reorder, a new "Add to Playlist" action on every video card/row and the player, and
+  the player's up-next card now also covering a playlist context — but deliberately
+  without D-057's wraparound, since a playlist is a curated collection with a real end,
+  not a rotation. Two real bugs caught only via the owner's own live testing: the
+  Playlists screen had started as its own render branch with its own copy of the
+  player JSX, so the live YouTube iframe visibly unmounted/remounted when switching
+  screens while a video was docked (fixed by unifying both screens into one shared,
+  always-mounted layout); and every dialog's Escape handling only worked if focus
+  happened to already be inside it, so a dialog opened via click or shortcut left
+  Escape unable to close it (fixed by having each dialog focus its own container on
+  mount). Full narrative in `decisions.md` D-057 and D-058; no `tracker-history/` file
+  of its own. Shipped as a **minor** version, per the owner's own explicit direction
+  (real new scope across two features, not a bug-fix batch). B-108, B-022, B-101
+  carried forward, untouched.
+- **0.8.1 — delivered, 2026-07-23.** Four entries, all Fixed, `tracker-history/v0.8.1.md`:
+  B-125 (removing a video from a playlist's own video list now has the same inline undo
+  affordance ignore already has, via a dedicated playlist-scoped undo mechanism),
+  B-126/B-127 (favoriting or adding to Watch Later from inside a playlist's own video
+  list now updates that row's icon immediately — `patch()` in `src/ui/App.tsx` now also
+  writes into `playlistVideos`, the same way it already does for `playerStack`, rather
+  than only reflecting the change once the playlist is reopened), and B-128 (per the
+  owner's own call: dropped the ignore action from a playlist's video-list rows
+  entirely, rather than fix its previously-stale-and-silent behavior there — a video
+  was deliberately added to a playlist, the opposite intent from "hide this").
+  All checked via `npm run typecheck && npm run lint && npm test` (258/258); not yet
+  live-verified. Shipped as a **patch** version (a pure bug-fix/adjustment batch, no new
+  `D-NNN` scope alongside it). B-108, B-022, B-101 carried forward, untouched, now
+  targeting **0.8.2**.
+- **0.8.2 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+  (renumbered past every release from 0.4.0 through 0.8.1 — see above, none touched this
+  batch). No batch of its own yet — new items reported after 0.8.1 shipped land here.
 
 ## M0 — Walking skeleton
 
