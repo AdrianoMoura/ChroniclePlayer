@@ -179,11 +179,19 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   [[B-101]] didn't make it into 0.8.1 either and carried their **Target** forward again.
   Shipped as a **patch** version (a pure bug-fix/adjustment batch, no new `D-NNN` scope
   alongside it). Shipped 2026-07-23.
+- **v0.9.0** — no bug-tracker batch of its own, same pattern as `v0.4.0`/`v0.4.2`/
+  `v0.4.4`/`v0.4.6`/`v0.6.0`/`v0.7.0`/`v0.8.0`: driven entirely by D-059 (importing a
+  YouTube playlist into a local Playlist, plus an add-only Sync action on an imported
+  playlist's own screen), a direct product-owner request rather than an item reported
+  here. [[B-108]], [[B-022]], [[B-101]] didn't make it in and carried their **Target**
+  forward again. Full narrative in `decisions.md` D-059, not a dedicated
+  tracker-history note of its own. Shipped as a **minor** version, per the owner's own
+  explicit direction (real new scope, not a bug-fix batch). Shipped 2026-07-27.
 
-**Current target: 0.8.2.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
-the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, or 0.8.1 either (see above — the
-first four shipped driven by a direct product-owner decision instead, and 0.8.1's own
-batch was a different set of items).
+**Current target: 0.9.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
+the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, or 0.9.0 either (see above —
+0.5.0/0.6.0/0.7.0/0.8.0/0.9.0 all shipped driven by a direct product-owner decision
+instead, and 0.8.1's own batch was a different set of items).
 
 ## Entry template
 
@@ -211,8 +219,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.8.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.9.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, and 0.9.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -237,8 +245,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.8.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.9.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, and 0.9.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -337,8 +345,8 @@ Resolved entries add:
 
 ### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.8.2 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, and 0.8.1 all shipped without this)
+- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.9.1 (carried over —
+  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, and 0.9.0 all shipped without this)
 - **Area:** ui-shell / storage
 - **What happens:** Settings → delete all data wipes and restarts the app, but the
   relaunched app sits on a stuck/blank screen instead of coming back as a fresh
