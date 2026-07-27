@@ -341,9 +341,39 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   live-verified. Shipped as a **patch** version (a pure bug-fix/adjustment batch, no new
   `D-NNN` scope alongside it). B-108, B-022, B-101 carried forward, untouched, now
   targeting **0.8.2**.
-- **0.8.2 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
-  (renumbered past every release from 0.4.0 through 0.8.1 — see above, none touched this
-  batch). No batch of its own yet — new items reported after 0.8.1 shipped land here.
+- **0.9.0 — delivered, 2026-07-27.** Driven by D-059, a direct product-owner request not
+  sourced from `tracker-current.md` (same pattern as D-050–D-058): paste a YouTube
+  playlist URL from the Playlists screen and Chronicle creates a new local playlist —
+  pre-named from the source's own title/description — populated with the same videos in
+  the same order, reusing D-029's external-video hydration and the existing
+  channel-backfill `playlistItems.list` call unmodified. Deliberately a one-time
+  snapshot, not a background sync, consistent with D-058's "playlists are 100% local,
+  never synced" rule. A second piece, added mid-conversation once the owner asked for
+  it directly rather than being part of the original request: an imported playlist's
+  own screen gains a **Sync** action — checks live on open how many videos the source
+  has that the local copy is missing, and a click pulls just those in. Sync is
+  deliberately add-only (new `playlists.source_playlist_id` column, schema v18) — it
+  never removes, reorders, or renames anything the user has since done to their own
+  copy, matching D-058's existing "removal is its own explicit action" rule. Several
+  real issues surfaced only through the owner's own live testing, all fixed the same
+  session: an import with no visible feedback at all (turned out the app just needed a
+  restart, but the underlying gap was real regardless — fixed with a running progress
+  log fed by a new `playlist:importProgress` backend event, plus a missing `.catch()`
+  that could otherwise leave the dialog stuck mid-spinner on an unexpected error); the
+  new toolbar button not vertically aligning with "+ New Playlist" and reading as too
+  prominent for a secondary action (root-caused to `button.primary`'s own
+  `align-self`/`margin-top`, meant for column-flex dialogs, fighting `align-items:
+  center` in the toolbar's row layout); the same misalignment then confirmed to affect
+  *every* dialog's action row in the app (Create/Import Playlist, write-scope consent,
+  Add Account, Settings) once the owner asked to check, fixed with one consolidated
+  override; and the disabled "Up to date" Sync button still looking fully clickable,
+  since the base `button` reset never styles `:disabled` at all. Full narrative in
+  `decisions.md` D-059; no `tracker-history/` file of its own. Shipped as a **minor**
+  version, per the owner's own explicit direction (real new scope, not a bug-fix
+  batch). B-108, B-022, B-101 carried forward, untouched, now targeting **0.9.1**.
+- **0.9.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+  (renumbered past every release from 0.4.0 through 0.9.0 — see above, none touched this
+  batch). No batch of its own yet — new items reported after 0.9.0 shipped land here.
 
 ## M0 — Walking skeleton
 

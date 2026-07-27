@@ -446,6 +446,41 @@ the opposite intent from "hide this"). Shipped as a **patch** version (a pure bu
 adjustment batch, no new `D-NNN` scope alongside it). Full narrative in
 `tracker-history/v0.8.1.md`.
 
+**D-059 (import a YouTube playlist into a local Playlist, plus a Sync action) shipped
+in `0.9.0`, 2026-07-27** — a direct product-owner request, not sourced from
+`tracker-current.md`, same pattern as D-050–D-058. The Playlists screen gained a second
+toolbar action, "Import from YouTube": paste a playlist URL, and Chronicle creates a
+new local playlist — pre-named from the source's own title/description — populated
+with the same videos in the same order, reusing D-029's external-video hydration
+(`upsertExternalVideo`) and the existing channel-backfill `listUploads`
+(`playlistItems.list`) call completely unmodified, since it already worked against any
+public playlist id, not just an uploads playlist. Deliberately a one-time snapshot, not
+a background sync, matching D-058's "playlists are 100% local, never synced" rule. A
+second piece, added by the owner mid-conversation once the base import was already
+speced: an imported playlist's own screen gains a **Sync** action (new
+`playlists.source_playlist_id` column, schema v18, gates its visibility) — checks live
+whenever that screen opens how many videos the source has that the local copy is
+missing, and a click pulls just those in. Sync is deliberately add-only — never
+removes, reorders, or renames anything the user has since done to their own copy,
+consistent with D-058's "removal is its own explicit action" rule. **Several real
+issues surfaced only through the owner's own live testing, all fixed the same
+session:** an import that appeared to hang with zero feedback (the app turned out to
+just need a restart, but the underlying gap was real regardless) — fixed with a
+running progress log fed by a new `playlist:importProgress` backend→UI event (mirroring
+`refresh:progress`'s existing precedent) at each real step, plus a missing `.catch()`
+on the import call that could otherwise leave the dialog's spinner stuck forever on an
+unexpected rejection; the new toolbar button not vertically aligning with "+ New
+Playlist" and reading as too visually prominent for a secondary action — root-caused to
+`button.primary`'s own `align-self: flex-start`/`margin-top: 6px` (meant for a
+column-flex dialog context) fighting `align-items: center` in the toolbar's row layout,
+not a one-off fix but a bug confirmed to affect *every* dialog's action row in the app
+(Create/Import Playlist, write-scope consent, Add Account, Settings) once the owner
+asked to check further, resolved with one consolidated CSS override instead of four
+separate ones; and the disabled "Up to date" Sync button still looking fully clickable,
+since the base `button` reset never styles `:disabled` at all. Full narrative in
+`decisions.md` D-059 — no `tracker-history/` file, since this didn't come through the
+bug tracker. See `.specs/roadmap.md` §Release status for the exact shipped scope.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
@@ -461,20 +496,20 @@ how sync failures are surfaced (no more banner for ordinary per-cycle noise, onl
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054),
 `0.6.0`'s driving decision (D-055, above), `0.7.0`'s driving decision (D-056, above),
-and `0.8.0`'s driving decisions (D-057 and D-058, above) all shipped real new scope
-with no bug-tracker batch of their own — `0.4.0`, `0.4.6`, `0.6.0`, and `0.8.0` have no
-`tracker-history/` file at all; `0.5.0` and `0.7.0` each have one, but only because a
-single unrelated bug (B-086, B-124 respectively) happened to close out during the same
-cycle, not because either batch drove its own version bump. `0.4.1` (the B-108 revert)
-shipped as a **patch** instead — a revert, not new scope. `0.4.2` (D-051) and `0.4.4`
-(D-052) also shipped as **patches**, per the owner's own explicit direction, even
-though each lands a new Settings toggle rather than being a pure bug-fix batch. `0.4.3`
-(B-111), `0.4.5`, `0.4.7`, `0.4.8`, and `0.8.1` (all above) are the normal case this
-file's "pure bug-fix batch ships as a patch" rule describes. `tracker-current.md` now
-targets **0.8.2**, carrying [[B-108]], [[B-022]], [[B-101]] forward untouched — none of
-the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, or 0.8.1 either (B-086, the fourth
-item carried since 0.3.0, closed as Won't fix in `0.5.0` — see
-`tracker-history/v0.5.0.md`). Version bumps aren't always minor — a pure bug-fix batch
-ships as a patch release, a minor bump is reserved for batches that land real new
-scope, but the owner's own explicit call on a given release always wins. See
-`.specs/roadmap.md` §Release status for the summary.
+and `0.8.0`'s driving decisions (D-057 and D-058, above), and `0.9.0`'s driving decision
+(D-059, above) all shipped real new scope with no bug-tracker batch of their own —
+`0.4.0`, `0.4.6`, `0.6.0`, `0.8.0`, and `0.9.0` have no `tracker-history/` file at all;
+`0.5.0` and `0.7.0` each have one, but only because a single unrelated bug (B-086,
+B-124 respectively) happened to close out during the same cycle, not because either
+batch drove its own version bump. `0.4.1` (the B-108 revert) shipped as a **patch**
+instead — a revert, not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as
+**patches**, per the owner's own explicit direction, even though each lands a new
+Settings toggle rather than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`,
+`0.4.7`, `0.4.8`, and `0.8.1` (all above) are the normal case this file's "pure bug-fix
+batch ships as a patch" rule describes. `tracker-current.md` now targets **0.9.1**,
+carrying [[B-108]], [[B-022]], [[B-101]] forward untouched — none of the three made it
+into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, or 0.9.0 either (B-086, the fourth item carried
+since 0.3.0, closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version
+bumps aren't always minor — a pure bug-fix batch ships as a patch release, a minor bump
+is reserved for batches that land real new scope, but the owner's own explicit call on
+a given release always wins. See `.specs/roadmap.md` §Release status for the summary.
