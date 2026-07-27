@@ -463,8 +463,26 @@ export class YouTubeApiClient implements SubscriptionSource {
     }
   }
 
+  // playlists.list, part=snippet, single id — 1 unit. The source playlist's
+  // own title/description when importing it into a local Playlist (D-059).
+  async fetchPlaylistMeta(
+    playlistId: string
+  ): Promise<{ title: string; description: string | null } | null> {
+    const page = await this.get('playlists', { part: 'snippet', id: playlistId }, 1)
+    const snippet = page.items[0]?.['snippet'] as Record<string, unknown> | undefined
+    if (snippet === undefined) return null
+    const description = snippet['description']
+    return {
+      title: String(snippet['title']),
+      description: typeof description === 'string' && description !== '' ? description : null
+    }
+  }
+
   // playlistItems.list — 1 unit per 50-item page. Gap detection and
-  // on-demand archive backfill only (never a routine sync path).
+  // on-demand archive backfill only (never a routine sync path). Also the
+  // video-id-collection step of importing/syncing a YouTube playlist into a
+  // local Playlist (D-059) — this generic call works unmodified against any
+  // public playlist id, not just a channel's own uploads playlist.
   async listUploads(
     playlistId: string,
     pageToken?: string

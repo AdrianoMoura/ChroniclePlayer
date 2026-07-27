@@ -136,6 +136,10 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.reorderPlaylist, playlistId, videoIds),
   getNextInPlaylist: (playlistId: string, currentVideoId: string) =>
     ipcRenderer.invoke(IpcChannel.getNextInPlaylist, playlistId, currentVideoId),
+  importPlaylist: (url: string) => ipcRenderer.invoke(IpcChannel.importPlaylist, url),
+  checkPlaylistUpdates: (playlistId: string) =>
+    ipcRenderer.invoke(IpcChannel.checkPlaylistUpdates, playlistId),
+  syncPlaylist: (playlistId: string) => ipcRenderer.invoke(IpcChannel.syncPlaylist, playlistId),
   onEvent: (listener: (event: ChronicleEventDto) => void) => {
     const wrapped = (_event: IpcRendererEvent, payload: ChronicleEventDto): void => listener(payload)
     ipcRenderer.on(IpcChannel.events, wrapped)

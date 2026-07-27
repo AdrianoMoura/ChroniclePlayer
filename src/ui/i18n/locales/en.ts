@@ -533,6 +533,29 @@ export const dict = {
   'playlists.dialog.create': 'Create',
   'playlists.dialog.cancel': 'Cancel',
 
+  // Import a YouTube playlist (D-059) — a one-time snapshot, never an
+  // ongoing sync (see playlists.sync.* below for that).
+  'playlists.importButton': 'Import from YouTube',
+  'playlists.dialog.importTitle': 'Import a YouTube playlist',
+  'playlists.dialog.urlPlaceholder': 'Paste a YouTube playlist URL',
+  'playlists.dialog.import': 'Import',
+  'playlists.dialog.importing': 'Importing…',
+  // A running log of backend progress events (playlist:importProgress) —
+  // the only feedback during what can be a slow, multi-step operation.
+  'playlists.dialog.importLog.starting': 'Starting…',
+  'playlists.dialog.importLog.meta': 'Fetching playlist info…',
+  'playlists.dialog.importLog.collecting': 'Found {count} videos so far…',
+  'playlists.dialog.importLog.hydrating': 'Imported {count} of {total} videos…',
+  'playlists.dialog.importLog.stillWorking': 'Still working — this can take a while for a large playlist…',
+  'playlists.dialog.importLog.done': 'Done — imported {imported} of {total} videos.',
+
+  // Sync an imported playlist (D-059) — add-only, pulls in videos the
+  // source added since the import; never removes/reorders/renames anything.
+  'playlists.sync.upToDate': 'Up to date',
+  'playlists.sync.checkButton': 'Sync',
+  'playlists.sync.button': 'Sync ({count} new)',
+  'playlists.sync.syncing': 'Syncing…',
+
   'playlistDetail.editNameTitle': 'Edit name',
   'playlistDetail.editDescriptionTitle': 'Edit description',
   'playlistDetail.addDescriptionPlaceholder': 'Add a description…',

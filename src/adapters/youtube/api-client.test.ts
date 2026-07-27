@@ -255,6 +255,34 @@ describe('YouTubeApiClient', () => {
     expect(map.get('UCaaa')).toBe('UUaaa')
   })
 
+  it('fetches a playlist’s own title/description (D-059)', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, {
+          items: [{ id: 'PLxxx', snippet: { title: 'A course', description: 'Learn things' } }]
+        })
+      )
+    const meta = await new YouTubeApiClient(auth, fetchFn, quota).fetchPlaylistMeta('PLxxx')
+    expect(meta).toEqual({ title: 'A course', description: 'Learn things' })
+    expect(quota.spent).toBe(1)
+  })
+
+  it('treats an empty description as null and a missing playlist as null', async () => {
+    const withEmptyDescription: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, { items: [{ id: 'PLxxx', snippet: { title: 'A course', description: '' } }] })
+      )
+    const meta = await new YouTubeApiClient(auth, withEmptyDescription, new QuotaCounter()).fetchPlaylistMeta(
+      'PLxxx'
+    )
+    expect(meta).toEqual({ title: 'A course', description: null })
+
+    const notFound: FetchFn = () => Promise.resolve(jsonResponse(200, { items: [] }))
+    const missing = await new YouTubeApiClient(auth, notFound, new QuotaCounter()).fetchPlaylistMeta('PLmissing')
+    expect(missing).toBeNull()
+  })
+
   it('unsubscribe DELETEs subscriptions?id= and counts 50 units', async () => {
     const quota = new QuotaCounter()
     let method = ''

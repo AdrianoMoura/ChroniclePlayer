@@ -1023,6 +1023,17 @@ export function App() {
     [playlistFilter]
   )
 
+  // D-059: the actual sync IPC call is made by PlaylistDetailView itself
+  // (it owns the button's own syncing/error state) — this just reconciles
+  // the result into the state this component owns, same shape as
+  // renameCurrentPlaylist's callback, plus re-fetching playlistVideos since
+  // sync appends new videos to the tail.
+  const onPlaylistSynced = useCallback((updated: PlaylistDto) => {
+    setCurrentPlaylist(updated)
+    setPlaylists((current) => current.map((p) => (p.playlistId === updated.playlistId ? updated : p)))
+    void window.chronicle.getPlaylistVideos(updated.playlistId).then(setPlaylistVideos)
+  }, [])
+
   const deleteCurrentPlaylist = useCallback(() => {
     if (playlistFilter === null) return
     const id = playlistFilter
@@ -2232,6 +2243,7 @@ export function App() {
                       onUndoRemoveVideo={undoRemoveFromPlaylist}
                       onRename={renameCurrentPlaylist}
                       onDelete={deleteCurrentPlaylist}
+                      onSynced={onPlaylistSynced}
                       helpOpen={helpOpen}
                       playerFullView={playerOpen && !miniplayer}
                     />

@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { PLAYLIST_DESCRIPTION_MAX_LENGTH, PLAYLIST_NAME_MAX_LENGTH, type PlaylistDto } from '../ipc/contract'
+import {
+  PLAYLIST_DESCRIPTION_MAX_LENGTH,
+  PLAYLIST_NAME_MAX_LENGTH,
+  type ChronicleEventDto,
+  type PlaylistDto
+} from '../ipc/contract'
 import { GRID_CARD_SIZES, type ItemSize } from './FeedList'
 import { formatPlaylistDuration } from './format'
 import { t } from './i18n'
@@ -37,6 +42,7 @@ export function PlaylistsView({
   playerFullView
 }: PlaylistsViewProps) {
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [cursorIdx, setCursorIdx] = useState(0)
   const effectiveCursor = playlists.length === 0 ? -1 : Math.min(cursorIdx, playlists.length - 1)
   const lastG = useRef(0)
@@ -46,7 +52,7 @@ export function PlaylistsView({
   // see App.tsx's screen === 'playlists' branch).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      if (playerFullView || helpOpen || creating) return
+      if (playerFullView || helpOpen || creating || importing) return
       const target = event.target as HTMLElement | null
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
       if (event.ctrlKey || event.metaKey || event.altKey) return
@@ -84,11 +90,14 @@ export function PlaylistsView({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [playlists, effectiveCursor, helpOpen, playerFullView, creating, onOpen])
+  }, [playlists, effectiveCursor, helpOpen, playerFullView, creating, importing, onOpen])
 
   return (
     <div className={`playlists-list size-${itemSize}`}>
       <div className="playlists-toolbar">
+        <button className="subtle-btn" onClick={() => setImporting(true)}>
+          {t('playlists.importButton')}
+        </button>
         <button className="primary" onClick={() => setCreating(true)}>
           {t('playlists.createButton')}
         </button>
@@ -129,6 +138,15 @@ export function PlaylistsView({
           onCancel={() => setCreating(false)}
           onCreated={(playlist) => {
             setCreating(false)
+            onCreated(playlist)
+          }}
+        />
+      )}
+      {importing && (
+        <ImportPlaylistDialog
+          onCancel={() => setImporting(false)}
+          onImported={(playlist) => {
+            setImporting(false)
             onCreated(playlist)
           }}
         />
@@ -253,6 +271,126 @@ function CreatePlaylistDialog({
           <button onClick={onCancel}>{t('playlists.dialog.cancel')}</button>
           <button className="primary" disabled={name.trim() === '' || saving} onClick={submit}>
             {t('playlists.dialog.create')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// D-059: paste any YouTube playlist URL, creates a new local Playlist
+// pre-named from the source's own title/description, populated with the
+// same videos in the same order — a one-time snapshot, never an ongoing
+// sync (see the playlist's own Sync action, PlaylistDetailView, for that).
+// One line per progress event (playlist:importProgress) — the import is a
+// single long-running IPC call with no other way to show what it's doing
+// meanwhile, so the log below is built entirely from this backend→UI stream.
+function importProgressLine(
+  event: Extract<ChronicleEventDto, { type: 'playlist:importProgress' }>
+): string {
+  switch (event.phase) {
+    case 'meta':
+      return t('playlists.dialog.importLog.meta')
+    case 'collecting':
+      return t('playlists.dialog.importLog.collecting', { count: event.count })
+    case 'hydrating':
+      return t('playlists.dialog.importLog.hydrating', { count: event.count, total: event.total })
+  }
+}
+
+function ImportPlaylistDialog({
+  onCancel,
+  onImported
+}: {
+  onCancel: () => void
+  onImported: (playlist: PlaylistDto) => void
+}) {
+  const [url, setUrl] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [log, setLog] = useState<string[]>([])
+  const logRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    logRef.current?.scrollTo(0, logRef.current.scrollHeight)
+  }, [log])
+
+  function submit(): void {
+    const trimmed = url.trim()
+    if (trimmed === '' || submitting) return
+    setSubmitting(true)
+    setLog([t('playlists.dialog.importLog.starting')])
+    const unsubscribe = window.chronicle.onEvent((event) => {
+      if (event.type !== 'playlist:importProgress') return
+      setLog((current) => [...current, importProgressLine(event)])
+    })
+    // Reassures the user a long-running import (a big playlist, or a slow
+    // connection) is still working rather than stuck, without claiming to
+    // know anything more specific than "no progress event has arrived yet."
+    const stillWorkingTimer = window.setTimeout(() => {
+      setLog((current) => [...current, t('playlists.dialog.importLog.stillWorking')])
+    }, 8000)
+    void window.chronicle
+      .importPlaylist(trimmed)
+      .then((result) => {
+        window.clearTimeout(stillWorkingTimer)
+        unsubscribe()
+        setSubmitting(false)
+        if (!result.ok) {
+          setLog((current) => [...current, result.message])
+          return
+        }
+        const { playlist, imported, total } = result.value
+        setLog((current) => [...current, t('playlists.dialog.importLog.done', { imported, total })])
+        setTimeout(() => onImported(playlist), 900)
+      })
+      .catch((error: unknown) => {
+        // Guarantees this dialog never gets stuck mid-spinner even if the
+        // IPC call itself rejects for a reason the backend didn't already
+        // convert into a ResultDto failure.
+        window.clearTimeout(stillWorkingTimer)
+        unsubscribe()
+        setSubmitting(false)
+        setLog((current) => [...current, error instanceof Error ? error.message : String(error)])
+      })
+  }
+
+  return (
+    <div className="overlay-backdrop" onClick={submitting ? undefined : onCancel}>
+      <div
+        className="overlay create-playlist"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+          if (!submitting && event.key === 'Escape') onCancel()
+        }}
+      >
+        <h2>{t('playlists.dialog.importTitle')}</h2>
+        <input
+          autoFocus
+          className="filter url-input"
+          placeholder={t('playlists.dialog.urlPlaceholder')}
+          value={url}
+          disabled={submitting}
+          onChange={(event) => setUrl(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submit()
+            if (!submitting && event.key === 'Escape') onCancel()
+            event.stopPropagation()
+          }}
+        />
+        {log.length > 0 && (
+          <div className="import-log" ref={logRef}>
+            {log.map((line, index) => (
+              <p key={index}>{line}</p>
+            ))}
+          </div>
+        )}
+        <div className="create-playlist-actions">
+          <button onClick={onCancel} disabled={submitting}>
+            {t('playlists.dialog.cancel')}
+          </button>
+          <button className="primary" disabled={url.trim() === '' || submitting} onClick={submit}>
+            {submitting ? t('playlists.dialog.importing') : t('playlists.dialog.import')}
           </button>
         </div>
       </div>

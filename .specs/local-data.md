@@ -120,7 +120,11 @@ CREATE TABLE playlists (                 -- D-058: user-created, local-only, nev
   name              TEXT NOT NULL,
   description       TEXT,
   created_at        TEXT NOT NULL,
-  updated_at        TEXT NOT NULL
+  updated_at        TEXT NOT NULL,
+  source_playlist_id TEXT               -- v18 (D-059): the YouTube playlist id this was
+                                        -- imported from; NULL for an ordinary "Create
+                                        -- Playlist" one. Gates the Sync action; never a
+                                        -- live link — Sync is always user-triggered.
 );
 
 CREATE TABLE playlist_videos (           -- membership + user-set order (D-058)
@@ -185,6 +189,12 @@ Design notes:
   feed, or hydrated on demand via `getVideo`, D-029) before it can join a playlist.
   `ON DELETE CASCADE` means deleting a playlist drops its own membership rows for free;
   the videos themselves, and any other playlist's membership, are untouched.
+- **`playlists.source_playlist_id` (v18, D-059)** marks a playlist created via "Import
+  from YouTube" instead of "Create Playlist" — the source YouTube playlist id, set once
+  at creation and never changed after. It is not a live link: Chronicle never polls it in
+  the background. It only gates whether that playlist's own screen shows the Sync
+  action, which the user must trigger explicitly and which only ever adds videos, never
+  removes or reorders what's already there.
 
 ## Migrations (Final)
 

@@ -11,6 +11,10 @@ export interface Playlist {
   description: string | null
   createdAt: string
   updatedAt: string
+  // D-059: the source YouTube playlist id if this was created via "Import
+  // from YouTube," null for an ordinary "Create Playlist" one. Gates the
+  // Sync action — never set after creation.
+  sourcePlaylistId: string | null
 }
 
 // The composite thumbnail (ui.md) is built from at most this many of the

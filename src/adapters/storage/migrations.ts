@@ -234,6 +234,15 @@ CREATE TABLE playlist_videos (
 CREATE INDEX idx_playlist_videos_playlist ON playlist_videos (playlist_id, position ASC);
 `
 
+// v18 (D-059): marks which playlists came from importing a YouTube playlist
+// rather than "Create Playlist" — NULL for an ordinary local-only playlist,
+// the source YouTube playlist id otherwise. Gates the Sync action (pulls in
+// videos the source added since the import; never removes/reorders what's
+// already here).
+const SCHEMA_V18 = `
+ALTER TABLE playlists ADD COLUMN source_playlist_id TEXT;
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -251,7 +260,8 @@ const migrations: readonly string[] = [
   SCHEMA_V14,
   SCHEMA_V15,
   SCHEMA_V16,
-  SCHEMA_V17
+  SCHEMA_V17,
+  SCHEMA_V18
 ]
 
 export function migrate(db: DatabaseSync): void {

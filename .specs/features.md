@@ -133,6 +133,21 @@ it — removal is its own explicit action. The player's existing "up next" card 
 also covers a playlist context: finishing a video opened from a playlist's own screen
 suggests that playlist's own next video instead of Watch Later's.
 
+**Import from YouTube, plus Sync (D-059, Pending decision — implemented, not yet
+live-tested by the product owner):** a second toolbar action next to "Create Playlist,"
+"Import from YouTube" — paste a playlist URL, and Chronicle creates a new local playlist
+pre-named from the source's own title, populated with the same videos in the same order.
+A one-time snapshot at import time — it never polls the source in the background. An
+imported playlist's own detail screen additionally gains a **Sync** action (only shown
+for a playlist that came from an import, never for one made via "Create Playlist"): it
+checks, live, whenever that screen is opened, how many videos the source has that the
+local copy is missing, and a click pulls just those in. Sync is **add-only** — it never
+removes a video the source removed, never reorders, never touches name/description — so
+it never clobbers whatever the user has since done to their own copy. See `decisions.md`
+D-059 for the exact mechanism (reuses D-029's external-video hydration and the existing
+channel-backfill `playlistItems.list` call unmodified for both import and sync) and
+`youtube-api.md` for its quota cost.
+
 ## Future features (sketches — build nothing yet)
 
 Ordered roughly by expected value. Each must re-pass the `non-goals.md` checklist at

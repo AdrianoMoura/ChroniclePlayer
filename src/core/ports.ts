@@ -328,7 +328,15 @@ export interface PlaylistRepository {
   // refresh the DTO after a create/rename/membership change without
   // re-listing every playlist.
   getPlaylistSummary(playlistId: string): PlaylistSummary | null
-  createPlaylist(playlistId: string, name: string, description: string | null, now: string): Playlist
+  // sourcePlaylistId (D-059): set only when created via "Import from
+  // YouTube"; omit/null for an ordinary local playlist.
+  createPlaylist(
+    playlistId: string,
+    name: string,
+    description: string | null,
+    now: string,
+    sourcePlaylistId?: string | null
+  ): Playlist
   // Covers both the name and description edit affordances (ui.md) — the UI
   // always sends both fields, whichever one the user actually touched.
   updatePlaylist(playlistId: string, name: string, description: string | null, now: string): Playlist | null
@@ -343,6 +351,10 @@ export interface PlaylistRepository {
   // Every playlist id that currently contains this video — drives the Add to
   // Playlist dialog's checkbox state.
   listPlaylistsForVideo(videoId: string): string[]
+  // D-059: membership of one playlist as a Set, for the Sync diff (and the
+  // import path's own de-dupe) — same data as listPlaylistVideos but keyed
+  // for O(1) lookup instead of feed-entry shaped.
+  listImportedVideoIds(playlistId: string): Set<string>
   // Drag-and-drop reorder (mirrors StateRepository.reorderWatchLater):
   // videoIds is the full playlist in its new order.
   reorderPlaylist(playlistId: string, videoIds: readonly string[]): void

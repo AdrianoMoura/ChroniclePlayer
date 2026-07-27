@@ -8,7 +8,7 @@ export type YouTubeLink =
   | { kind: 'video'; videoId: string }
   | { kind: 'shorts'; videoId: string }
   | { kind: 'channel' }
-  | { kind: 'playlist' }
+  | { kind: 'playlist'; playlistId: string }
   | { kind: 'other' }
 
 const VIDEO_ID = /^[\w-]{11}$/
@@ -40,7 +40,10 @@ export function parseYouTubeUrl(raw: string): YouTubeLink {
     const id = segments[1] ?? ''
     return VIDEO_ID.test(id) ? { kind: 'shorts', videoId: id } : { kind: 'other' }
   }
-  if (head === 'playlist') return { kind: 'playlist' }
+  if (head === 'playlist') {
+    const playlistId = url.searchParams.get('list') ?? ''
+    return playlistId !== '' ? { kind: 'playlist', playlistId } : { kind: 'other' }
+  }
   if (head === 'channel' || head === 'c' || head === 'user' || head.startsWith('@')) {
     return { kind: 'channel' }
   }

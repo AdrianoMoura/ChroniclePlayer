@@ -10,6 +10,7 @@ interface PlaylistRow {
   description: string | null
   created_at: string
   updated_at: string
+  source_playlist_id: string | null
 }
 
 function toPlaylist(row: PlaylistRow): Playlist {
@@ -18,7 +19,8 @@ function toPlaylist(row: PlaylistRow): Playlist {
     name: row.name,
     description: row.description,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    sourcePlaylistId: row.source_playlist_id
   }
 }
 
@@ -48,6 +50,7 @@ export class SqlitePlaylistRepository implements PlaylistRepository {
            p.description AS description,
            p.created_at AS created_at,
            p.updated_at AS updated_at,
+           p.source_playlist_id AS source_playlist_id,
            COUNT(pv.video_id) AS video_count,
            COALESCE(SUM(v.duration_seconds), 0) AS total_duration_seconds
          FROM playlists p
@@ -101,7 +104,7 @@ export class SqlitePlaylistRepository implements PlaylistRepository {
   getPlaylist(playlistId: string): Playlist | null {
     const row = this.db
       .prepare(
-        `SELECT playlist_id, name, description, created_at, updated_at
+        `SELECT playlist_id, name, description, created_at, updated_at, source_playlist_id
          FROM playlists WHERE playlist_id = ?`
       )
       .get(playlistId) as PlaylistRow | undefined
@@ -112,15 +115,16 @@ export class SqlitePlaylistRepository implements PlaylistRepository {
     playlistId: string,
     name: string,
     description: string | null,
-    now: string
+    now: string,
+    sourcePlaylistId: string | null = null
   ): Playlist {
     this.db
       .prepare(
-        `INSERT INTO playlists (playlist_id, name, description, created_at, updated_at)
-         VALUES (:id, :name, :description, :now, :now)`
+        `INSERT INTO playlists (playlist_id, name, description, created_at, updated_at, source_playlist_id)
+         VALUES (:id, :name, :description, :now, :now, :sourcePlaylistId)`
       )
-      .run({ id: playlistId, name, description, now })
-    return { playlistId, name, description, createdAt: now, updatedAt: now }
+      .run({ id: playlistId, name, description, now, sourcePlaylistId })
+    return { playlistId, name, description, createdAt: now, updatedAt: now, sourcePlaylistId }
   }
 
   updatePlaylist(
@@ -187,6 +191,15 @@ export class SqlitePlaylistRepository implements PlaylistRepository {
       .prepare(`SELECT playlist_id FROM playlist_videos WHERE video_id = ?`)
       .all(videoId) as unknown as { playlist_id: string }[]
     return rows.map((row) => row.playlist_id)
+  }
+
+  // D-059: this playlist's own membership as a Set — the Sync diff (and the
+  // import path's own de-dupe) look up membership by id, not in feed order.
+  listImportedVideoIds(playlistId: string): Set<string> {
+    const rows = this.db
+      .prepare(`SELECT video_id FROM playlist_videos WHERE playlist_id = ?`)
+      .all(playlistId) as unknown as { video_id: string }[]
+    return new Set(rows.map((row) => row.video_id))
   }
 
   // Mirrors StateRepository.reorderWatchLater: videoIds is the full playlist

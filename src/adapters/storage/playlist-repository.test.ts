@@ -57,7 +57,8 @@ describe('SqlitePlaylistRepository', () => {
       name: 'Chill',
       description: 'Relaxing videos',
       createdAt: NOW,
-      updatedAt: NOW
+      updatedAt: NOW,
+      sourcePlaylistId: null
     })
     const list = playlists.listPlaylists()
     expect(list).toHaveLength(1)
@@ -84,7 +85,8 @@ describe('SqlitePlaylistRepository', () => {
       name: 'Chiller',
       description: 'Now with a description',
       createdAt: NOW,
-      updatedAt: NOW
+      updatedAt: NOW,
+      sourcePlaylistId: null
     })
     expect(playlists.updatePlaylist('missing', 'x', null, NOW)).toBeNull()
   })
@@ -157,5 +159,24 @@ describe('SqlitePlaylistRepository', () => {
     expect(playlists.getPlaylistSummary('p1')?.videoCount).toBe(1)
     expect(playlists.getPlaylistSummary('p2')?.videoCount).toBe(0)
     expect(playlists.getPlaylistSummary('missing')).toBeNull()
+  })
+
+  it('records the source playlist id when created via import (D-059)', () => {
+    const created = playlists.createPlaylist('p1', 'A course', null, NOW, 'PLxxx')
+    expect(created.sourcePlaylistId).toBe('PLxxx')
+    expect(playlists.getPlaylist('p1')?.sourcePlaylistId).toBe('PLxxx')
+  })
+
+  it('an ordinary Create Playlist call leaves sourcePlaylistId null', () => {
+    playlists.createPlaylist('p1', 'Chill', null, NOW)
+    expect(playlists.getPlaylist('p1')?.sourcePlaylistId).toBeNull()
+  })
+
+  it('listImportedVideoIds returns this playlist’s own membership as a Set', () => {
+    playlists.createPlaylist('p1', 'Chill', null, NOW)
+    playlists.addVideoToPlaylist('p1', 'v1', NOW)
+    playlists.addVideoToPlaylist('p1', 'v2', NOW)
+    expect(playlists.listImportedVideoIds('p1')).toEqual(new Set(['v1', 'v2']))
+    expect(playlists.listImportedVideoIds('missing')).toEqual(new Set())
   })
 })

@@ -526,6 +526,31 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.create': 'Criar',
   'playlists.dialog.cancel': 'Cancelar',
 
+  // Importar uma playlist do YouTube (D-059) — um snapshot único, nunca uma
+  // sincronização contínua (ver playlists.sync.* abaixo para isso).
+  'playlists.importButton': 'Importar do YouTube',
+  'playlists.dialog.importTitle': 'Importar uma playlist do YouTube',
+  'playlists.dialog.urlPlaceholder': 'Cole a URL de uma playlist do YouTube',
+  'playlists.dialog.import': 'Importar',
+  'playlists.dialog.importing': 'Importando…',
+  // Log com o progresso vindo do backend (playlist:importProgress) — a
+  // única forma de saber o que está acontecendo numa operação que pode ser
+  // lenta e com vários passos.
+  'playlists.dialog.importLog.starting': 'Iniciando…',
+  'playlists.dialog.importLog.meta': 'Buscando informações da playlist…',
+  'playlists.dialog.importLog.collecting': '{count} vídeos encontrados até agora…',
+  'playlists.dialog.importLog.hydrating': '{count} de {total} vídeos importados…',
+  'playlists.dialog.importLog.stillWorking': 'Ainda trabalhando — pode demorar um pouco para playlists grandes…',
+  'playlists.dialog.importLog.done': 'Concluído — {imported} de {total} vídeos importados.',
+
+  // Sincronizar uma playlist importada (D-059) — só adiciona, traz os
+  // vídeos que a origem ganhou desde a importação; nunca remove, reordena
+  // ou renomeia nada.
+  'playlists.sync.upToDate': 'Atualizada',
+  'playlists.sync.checkButton': 'Sincronizar',
+  'playlists.sync.button': 'Sincronizar ({count} novo(s))',
+  'playlists.sync.syncing': 'Sincronizando…',
+
   'playlistDetail.editNameTitle': 'Editar nome',
   'playlistDetail.editDescriptionTitle': 'Editar descrição',
   'playlistDetail.addDescriptionPlaceholder': 'Adicionar uma descrição…',

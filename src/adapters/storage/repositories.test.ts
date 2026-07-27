@@ -78,7 +78,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(17)
+    expect(Number(row.user_version)).toBe(18)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {

@@ -24,6 +24,10 @@ interface PlaylistDetailViewProps {
   onUndoRemoveVideo: (video: FeedVideoDto) => void
   onRename: (name: string, description: string | null) => void
   onDelete: () => void
+  // D-059: only ever called for an imported playlist (sourcePlaylistId set)
+  // — App.tsx refreshes currentPlaylist/playlists/playlistVideos from it,
+  // same shape as onRename's own callback does for a rename.
+  onSynced: (playlist: PlaylistDto) => void
   // So this screen's own keydown handler (below) can stay quiet while the
   // shortcuts overlay is open, the same way the main feed's own handler
   // does — App.tsx owns that state and this screen has no other way to
@@ -62,6 +66,7 @@ export function PlaylistDetailView({
   onUndoRemoveVideo,
   onRename,
   onDelete,
+  onSynced,
   helpOpen,
   playerFullView
 }: PlaylistDetailViewProps) {
@@ -155,7 +160,12 @@ export function PlaylistDetailView({
 
   return (
     <>
-      <PlaylistDetailHeader playlist={playlist} onRename={onRename} onDelete={onDelete} />
+      <PlaylistDetailHeader
+        playlist={playlist}
+        onRename={onRename}
+        onDelete={onDelete}
+        onSynced={onSynced}
+      />
       {videos.length === 0 ? (
         <div className="empty">
           <p>{t('playlistDetail.empty')}</p>
@@ -192,17 +202,25 @@ export function PlaylistDetailView({
 function PlaylistDetailHeader({
   playlist,
   onRename,
-  onDelete
+  onDelete,
+  onSynced
 }: {
   playlist: PlaylistDto
   onRename: (name: string, description: string | null) => void
   onDelete: () => void
+  onSynced: (playlist: PlaylistDto) => void
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editingDescription, setEditingDescription] = useState(false)
   const [nameDraft, setNameDraft] = useState(playlist.name)
   const [descriptionDraft, setDescriptionDraft] = useState(playlist.description ?? '')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // D-059: only meaningful for an imported playlist. null = not checked yet
+  // (or the check itself failed) — the Sync button still works in that case,
+  // it just can't show a count ahead of time.
+  const [newCount, setNewCount] = useState<number | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
 
   // A different playlist was opened (or this one changed under us) — drop
   // any in-progress edit rather than silently saving stale text over it.
@@ -221,6 +239,38 @@ function PlaylistDetailHeader({
     const timer = window.setTimeout(() => setConfirmingDelete(false), 6000)
     return () => window.clearTimeout(timer)
   }, [confirmingDelete])
+
+  // D-059: fetched fresh on every visit to an imported playlist's own
+  // screen — same "check live, don't persist a staleness policy" precedent
+  // as the channel screen's own banner/subscriber-count fetch.
+  useEffect(() => {
+    setNewCount(null)
+    setSyncError(null)
+    if (playlist.sourcePlaylistId === null) return
+    let cancelled = false
+    void window.chronicle.checkPlaylistUpdates(playlist.playlistId).then((result) => {
+      if (cancelled) return
+      if (result.ok) setNewCount(result.value.newCount)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [playlist.playlistId, playlist.sourcePlaylistId])
+
+  function syncNow(): void {
+    if (syncing) return
+    setSyncing(true)
+    setSyncError(null)
+    void window.chronicle.syncPlaylist(playlist.playlistId).then((result) => {
+      setSyncing(false)
+      if (!result.ok) {
+        setSyncError(result.message)
+        return
+      }
+      setNewCount(0)
+      onSynced(result.value.playlist)
+    })
+  }
 
   function saveName(): void {
     const trimmed = nameDraft.trim()
@@ -310,6 +360,20 @@ function PlaylistDetailHeader({
           </span>
         </div>
         <div className="channel-header-actions">
+          {playlist.sourcePlaylistId !== null && (
+            <span className="playlist-sync">
+              <button disabled={syncing || newCount === 0} onClick={syncNow}>
+                {syncing
+                  ? t('playlists.sync.syncing')
+                  : newCount === 0
+                    ? t('playlists.sync.upToDate')
+                    : newCount === null
+                      ? t('playlists.sync.checkButton')
+                      : t('playlists.sync.button', { count: newCount })}
+              </button>
+              {syncError !== null && <span className="playlist-sync-error">{syncError}</span>}
+            </span>
+          )}
           <button
             className={`unsubscribe-btn${confirmingDelete ? ' danger' : ''}`}
             onClick={() => {

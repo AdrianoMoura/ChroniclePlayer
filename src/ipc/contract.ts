@@ -89,6 +89,10 @@ export interface PlaylistDto {
   // Up to 6 thumbnail URLs (playlist order) — the renderer arranges these
   // into the composite grid inside the same thumb area a video card uses.
   thumbnailUrls: string[]
+  // D-059: the source YouTube playlist id if this came from "Import from
+  // YouTube," null for an ordinary "Create Playlist" one. Gates the Sync
+  // action on the playlist's own detail screen.
+  sourcePlaylistId: string | null
 }
 
 export interface FeedMetaDto {
@@ -313,6 +317,14 @@ export interface SyncReportDto {
 export type ChronicleEventDto =
   | { type: 'refresh:started'; trigger: 'launch' | 'manual' | 'timer' }
   | { type: 'refresh:progress'; phase: 'channels' | 'shorts'; checked: number; total: number }
+  // D-059: ImportPlaylistDialog's own running log — the import is a single
+  // long-running IPC call with no other way to show what it's doing
+  // meanwhile. 'collecting' fires once per playlistItems.list page (total
+  // unknown until paging finishes); 'hydrating' fires once per 50-video
+  // batch (total = every video id found while collecting).
+  | { type: 'playlist:importProgress'; phase: 'meta'; count: 0; total: null }
+  | { type: 'playlist:importProgress'; phase: 'collecting'; count: number; total: null }
+  | { type: 'playlist:importProgress'; phase: 'hydrating'; count: number; total: number }
   | { type: 'refresh:done'; report: SyncReportDto }
   | { type: 'refresh:failed'; errorKind: string; message: string }
   | { type: 'auth:required' }
@@ -409,6 +421,9 @@ export const IpcChannel = {
   getPlaylistsForVideo: 'playlist:getForVideo',
   reorderPlaylist: 'playlist:reorder',
   getNextInPlaylist: 'playlist:getNext',
+  importPlaylist: 'playlist:import',
+  checkPlaylistUpdates: 'playlist:checkUpdates',
+  syncPlaylist: 'playlist:sync',
   events: 'chronicle:event'
 } as const
 
@@ -532,6 +547,23 @@ export interface ChronicleApi {
   // playlist (mirrors getNextWatchLater, D-055) — null once there's nothing
   // left to suggest.
   getNextInPlaylist(playlistId: string, currentVideoId: string): Promise<FeedVideoDto | null>
+  // D-059: paste any YouTube playlist URL, creates a new local Playlist
+  // pre-named from the source's own title/description, populated with the
+  // same videos in the same order. A one-time snapshot — never an ongoing
+  // sync (imported is best-effort: a deleted/private video inside the
+  // source is silently skipped rather than aborting the whole import).
+  importPlaylist(
+    url: string
+  ): Promise<ResultDto<{ playlist: PlaylistDto; imported: number; total: number }>>
+  // D-059: how many videos the source playlist has that this local copy
+  // doesn't yet — only meaningful when sourcePlaylistId is set. Drives the
+  // Sync button's badge; run on that screen's own mount, same "fetch fresh
+  // on every visit" precedent as the channel screen's banner/subscriber
+  // count.
+  checkPlaylistUpdates(playlistId: string): Promise<ResultDto<{ newCount: number }>>
+  // D-059: add-only — appends whatever checkPlaylistUpdates would report,
+  // never removes/reorders/renames anything already here.
+  syncPlaylist(playlistId: string): Promise<ResultDto<{ playlist: PlaylistDto; added: number }>>
   // Frameless-shell titlebar (B-014). On macOS the native traffic lights
   // stay, so the custom buttons are hidden there via `platform`.
   windowControl(action: WindowControlDto): Promise<void>
