@@ -97,9 +97,29 @@ export function viewLabel(view: FeedViewDto): string {
 // every fresh app launch starts back on 'favorites' by design (the product
 // owner's own framing: it always *starts* on Favorites), unlike D-037's
 // layout/item-size which do persist.
-type ChannelSortMode = 'favorites' | 'recent' | 'name' | 'unread'
+export type ChannelSortMode = 'favorites' | 'recent' | 'name' | 'unread'
 
-function sortChannels(channels: ChannelDto[], mode: ChannelSortMode): ChannelDto[] {
+export const CHANNEL_SORT_MODES: readonly ChannelSortMode[] = [
+  'favorites',
+  'recent',
+  'unread',
+  'name'
+]
+
+export function channelSortLabel(mode: ChannelSortMode): string {
+  switch (mode) {
+    case 'favorites':
+      return t('sidebar.channelSort.favorites')
+    case 'recent':
+      return t('sidebar.channelSort.recent')
+    case 'unread':
+      return t('sidebar.channelSort.unread')
+    case 'name':
+      return t('sidebar.channelSort.name')
+  }
+}
+
+export function sortChannels(channels: ChannelDto[], mode: ChannelSortMode): ChannelDto[] {
   // 'favorites' is exactly the order the backend query already returns
   // (favorite DESC, latest video DESC, name ASC) — no client-side re-sort.
   if (mode === 'favorites') return channels
@@ -181,6 +201,12 @@ export function Sidebar({
   // YouTube search.
   const [channelQuery, setChannelQuery] = useState('')
   const [channelSort, setChannelSort] = useState<ChannelSortMode>('favorites')
+  // Custom dropdown, not a native <select> — the popup listbox of a native
+  // select is drawn by the OS (GTK on Linux) and ignores page CSS entirely,
+  // so it can't follow the app's dark/light theme. Same portal+anchor
+  // pattern as the channel/account "…" menus below.
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<DOMRect | null>(null)
   // Per-row "…" context menu: armed twice before it actually acts, same
   // pattern as Settings' delete-all confirmation.
   const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
@@ -198,6 +224,22 @@ export function Sidebar({
       : channels
     return sortChannels(filtered, channelSort)
   }, [channels, channelQuery, channelSort])
+
+  useEffect(() => {
+    if (!sortMenuOpen) return
+    function closeMenu(): void {
+      setSortMenuOpen(false)
+    }
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') closeMenu()
+    }
+    document.addEventListener('click', closeMenu)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('click', closeMenu)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [sortMenuOpen])
 
   useEffect(() => {
     if (menuChannelId === null) return
@@ -277,17 +319,36 @@ export function Sidebar({
       <div className="channel-list">
         <div className="channel-list-header-row">
           <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
-          <select
-            className="channel-sort-select"
-            value={channelSort}
+          <button
+            className="channel-sort-btn"
             title={t('sidebar.channelSortTitle')}
-            onChange={(event) => setChannelSort(event.target.value as ChannelSortMode)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setSortMenuAnchor(event.currentTarget.getBoundingClientRect())
+              setSortMenuOpen((open) => !open)
+            }}
           >
-            <option value="favorites">{t('sidebar.channelSort.favorites')}</option>
-            <option value="recent">{t('sidebar.channelSort.recent')}</option>
-            <option value="unread">{t('sidebar.channelSort.unread')}</option>
-            <option value="name">{t('sidebar.channelSort.name')}</option>
-          </select>
+            {channelSortLabel(channelSort)} ▾
+          </button>
+          {sortMenuOpen && sortMenuAnchor && (
+            <ContextMenu
+              anchorRect={sortMenuAnchor}
+              onMenuClick={(event) => event.stopPropagation()}
+            >
+              {CHANNEL_SORT_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  className={mode === channelSort ? 'active' : ''}
+                  onClick={() => {
+                    setChannelSort(mode)
+                    setSortMenuOpen(false)
+                  }}
+                >
+                  {channelSortLabel(mode)}
+                </button>
+              ))}
+            </ContextMenu>
+          )}
         </div>
         <div className="field-wrap">
           <input

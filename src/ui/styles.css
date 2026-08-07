@@ -333,17 +333,19 @@ input:focus-visible,
   color: var(--text-dim);
 }
 
-.channel-sort-select {
+.channel-sort-btn {
+  flex: 0 0 auto;
   font-size: 11px;
   background: transparent;
   color: var(--text-dim);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 1px 3px;
-  max-width: 40%;
+  padding: 1px 5px;
+  white-space: nowrap;
 }
 
-.channel-sort-select:hover {
+.channel-sort-btn:hover {
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -455,6 +457,11 @@ input:focus-visible,
 
 .channel-menu button.danger {
   color: #e0a3a3;
+}
+
+.channel-menu button.active {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* B-033: wraps a filter/search input to position an inline clear button. */
