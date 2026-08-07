@@ -481,35 +481,74 @@ since the base `button` reset never styles `:disabled` at all. Full narrative in
 `decisions.md` D-059 — no `tracker-history/` file, since this didn't come through the
 bug tracker. See `.specs/roadmap.md` §Release status for the exact shipped scope.
 
+**D-060 (sortable channel sidebar list) shipped in `0.10.0`, 2026-08-07** — a direct
+product-owner request, not sourced from `tracker-current.md`, same pattern as
+D-050–D-059. `listFollowedChannels` (`repositories.ts`) still hardcodes one backend
+order (favorite DESC, latest-video DESC, name ASC), but the sidebar now has a small
+control next to the "Channels" header (same "inline in the view, not Settings"
+precedent as D-037) offering four modes, resorted client-side in `Sidebar.tsx` off the
+same `ChannelDto[]` already fetched — a new `latestPublishedAt` field on `ChannelDto`
+is the only backend-facing change: **Favorites** (default, the backend's own order
+passed through), **Recent** (all channels by most recent video, favorite ignored),
+**Unread** (most unread videos first, off the existing `unreadCount`), **Name**
+(alphabetical). Deliberately session-only React state, not persisted to
+`settings.json` — the owner's own framing was that the sidebar always *starts* on
+Favorites regardless of what was picked last session, matching the "same action always
+produces the same result" principle over "remember my last choice." **Three issues
+surfaced only through the owner's own live testing:** a native `<select>`'s option
+popup ignored the app's dark theme entirely (OS-drawn on Linux/GTK), replaced with a
+custom button + the existing `ContextMenu` portal component; a "Recent just sorts by
+name" report that traced to a stale, un-restarted Electron main process rather than a
+real bug (`getChannels`'s new field needs a full relaunch, not just the renderer's
+hot-reload, to reach a running dev session); and two rounds on the custom popup's own
+positioning — an EN/PT-BR button-width difference (`"Favorites"` vs. `"Favoritos"`)
+tripping `ContextMenu`'s threshold-based flip logic in one language only, replaced with
+a single left-based formula clamped to the viewport, which then needed a second fix
+(`right: 'auto'`) once the popup started spanning the full window width. Confirmed
+working live in both languages. Same release: [[B-129]] (feed date-bucket headers
+overlapping/floating after navigating from "All" straight into a channel) closed after
+four same-day rounds — the first three, all inside `FeedList`/tanstack-virtual's own
+measurement/remount machinery, were each disproven live in turn; the owner's own
+DevTools HTML (pasted markup, not a screenshot) was what actually broke the case open,
+showing the real cause lived in `App.tsx`: `videos` stayed stale for one or more real,
+paintable frames during the async gap between a channel switch (synchronous) and its
+`getFeed()` response resolving (async), so a fresh `ChannelHeader` briefly paired with
+the outgoing screen's leftover row data. Fixed with a `videosFor` guard recording which
+`(view, channel, account)` triple the current `videos` array was actually fetched for,
+so `filtered` only trusts it once confirmed current. Full narrative in `decisions.md`
+D-060 and `tracker-history/v0.10.0.md`. Shipped as a **minor** version, per the owner's
+own explicit direction (D-060 is real new scope, not a bug-fix batch).
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
-`0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, and `0.8.1` have shipped and are archived in
-`tracker-history/` (`0.2.1` was a single one-off patch with no batch of its own — see
-`tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
-originally tracked toward a `0.2.3` patch but grew into real new scope along the way —
-D-048 removed a whole failure-handling subsystem (channels no longer get permanently
-marked "unavailable" off a single transient RSS 404), a
+`0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, `0.8.1`, and `0.10.0` have shipped and are
+archived in `tracker-history/` (`0.2.1` was a single one-off patch with no batch of its
+own — see `tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed)
+was originally tracked toward a `0.2.3` patch but grew into real new scope along the
+way — D-048 removed a whole failure-handling subsystem (channels no longer get
+permanently marked "unavailable" off a single transient RSS 404), a
 previously-documented-but-never-built per-channel RSS retry-with-backoff was actually
 implemented (and tuned live: 3→5 attempts, `RSS_CONCURRENCY` 8→12), and D-049 changed
 how sync failures are surfaced (no more banner for ordinary per-cycle noise, only for a
 systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3`
 entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054),
 `0.6.0`'s driving decision (D-055, above), `0.7.0`'s driving decision (D-056, above),
-and `0.8.0`'s driving decisions (D-057 and D-058, above), and `0.9.0`'s driving decision
-(D-059, above) all shipped real new scope with no bug-tracker batch of their own —
-`0.4.0`, `0.4.6`, `0.6.0`, `0.8.0`, and `0.9.0` have no `tracker-history/` file at all;
-`0.5.0` and `0.7.0` each have one, but only because a single unrelated bug (B-086,
-B-124 respectively) happened to close out during the same cycle, not because either
-batch drove its own version bump. `0.4.1` (the B-108 revert) shipped as a **patch**
-instead — a revert, not new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as
-**patches**, per the owner's own explicit direction, even though each lands a new
-Settings toggle rather than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`,
-`0.4.7`, `0.4.8`, and `0.8.1` (all above) are the normal case this file's "pure bug-fix
-batch ships as a patch" rule describes. `tracker-current.md` now targets **0.9.1**,
-carrying [[B-108]], [[B-022]], [[B-101]] forward untouched — none of the three made it
-into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, or 0.9.0 either (B-086, the fourth item carried
-since 0.3.0, closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version
-bumps aren't always minor — a pure bug-fix batch ships as a patch release, a minor bump
-is reserved for batches that land real new scope, but the owner's own explicit call on
-a given release always wins. See `.specs/roadmap.md` §Release status for the summary.
+`0.8.0`'s driving decisions (D-057 and D-058, above), `0.9.0`'s driving decision
+(D-059, above), and `0.10.0`'s driving decision (D-060, above) all shipped real new
+scope alongside at most one unrelated closed bug — `0.4.0`, `0.4.6`, `0.6.0`, `0.8.0`,
+and `0.9.0` have no `tracker-history/` file at all; `0.5.0`, `0.7.0`, and `0.10.0` each
+have one, but only because a single bug (B-086, B-124, and B-129 respectively) happened
+to close out during the same cycle, not because any of the three batches drove its own
+version bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert, not
+new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
+owner's own explicit direction, even though each lands a new Settings toggle rather
+than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, `0.4.8`, and `0.8.1`
+(all above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
+describes. `tracker-current.md` now targets **0.10.1**, carrying [[B-108]], [[B-022]],
+[[B-101]] forward untouched — none of the three made it into 0.5.0, 0.6.0, 0.7.0,
+0.8.0, 0.8.1, 0.9.0, or 0.10.0 either (B-086, the fourth item carried since 0.3.0,
+closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't
+always minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved
+for batches that land real new scope, but the owner's own explicit call on a given
+release always wins. See `.specs/roadmap.md` §Release status for the summary.

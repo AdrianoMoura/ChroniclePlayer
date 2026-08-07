@@ -371,9 +371,32 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `decisions.md` D-059; no `tracker-history/` file of its own. Shipped as a **minor**
   version, per the owner's own explicit direction (real new scope, not a bug-fix
   batch). B-108, B-022, B-101 carried forward, untouched, now targeting **0.9.1**.
-- **0.9.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
-  (renumbered past every release from 0.4.0 through 0.9.0 — see above, none touched this
-  batch). No batch of its own yet — new items reported after 0.9.0 shipped land here.
+- **0.10.0 — delivered, 2026-08-07.** Driven by D-060, a direct product-owner request not
+  sourced from `tracker-current.md` (same pattern as D-050–D-059): the sidebar channel
+  list gained a sort control next to the "Channels" header (Favorites — default, Recent,
+  Unread, Name), resorted client-side in `Sidebar.tsx` off the same `ChannelDto[]`
+  already fetched, with a new `latestPublishedAt` field on `ChannelDto` the only
+  backend-facing change. Deliberately session-only, not persisted to `settings.json` —
+  every fresh launch resets to Favorites. Needed three live-caught follow-ups before
+  landing: a native `<select>` swapped for a themed `ContextMenu`-based popup (the OS
+  dropdown ignored dark mode on Linux/GTK), a "Recent sorts by name" report that turned
+  out to be a stale un-restarted Electron main process rather than a real bug, and two
+  popup-positioning rounds (an EN/PT-BR button-width difference tripping a threshold-
+  based flip, then a `right`/`left` CSS conflict stretching the popup full-width).
+  Confirmed working live in both languages. Also closed the same session:
+  `tracker-history/v0.10.0.md`'s single entry, B-129 (feed date-bucket headers
+  overlapping/floating after navigating from "All" straight into a channel) — a four-
+  round bug, the first three rounds all inside `FeedList`/tanstack-virtual and all
+  disproven live, before the owner's own DevTools HTML pointed at the real cause: `videos`
+  in `App.tsx` stayed stale for one or more real frames during the async gap between a
+  channel switch and its `getFeed()` response resolving. Fixed with a `videosFor` guard
+  so `filtered` only trusts `videos` once it's confirmed fetched for the current
+  view/channel/account. Shipped as a **minor** version, per the owner's own explicit
+  direction (D-060 is real new scope, not a bug-fix batch). B-108, B-022, B-101 carried
+  forward, untouched, now targeting **0.10.1**.
+- **0.10.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+  (renumbered past every release from 0.4.0 through 0.10.0 — see above, none touched this
+  batch). No batch of its own yet — new items reported after 0.10.0 shipped land here.
 
 ## M0 — Walking skeleton
 
