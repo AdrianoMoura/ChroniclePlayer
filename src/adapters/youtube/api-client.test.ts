@@ -435,7 +435,8 @@ describe('YouTubeApiClient', () => {
                     authorProfileImageUrl: 'https://yt3.example/alice',
                     textDisplay: 'Great video!',
                     publishedAt: '2026-07-10T08:00:00Z',
-                    likeCount: 3
+                    likeCount: 3,
+                    viewerRating: 'like'
                   }
                 }
               },
@@ -465,6 +466,7 @@ describe('YouTubeApiClient', () => {
         textDisplay: 'Great video!',
         publishedAt: '2026-07-10T08:00:00Z',
         likeCount: 3,
+        viewerRating: 'like',
         replies: [
           {
             commentId: 'r1',
@@ -473,6 +475,7 @@ describe('YouTubeApiClient', () => {
             textDisplay: 'Agreed',
             publishedAt: '2026-07-10T09:00:00Z',
             likeCount: 1,
+            viewerRating: 'none',
             replies: []
           }
         ]
@@ -531,6 +534,7 @@ describe('YouTubeApiClient', () => {
       textDisplay: 'Thanks!',
       publishedAt: '2026-07-12T10:05:00Z',
       likeCount: 0,
+      viewerRating: 'none',
       replies: []
     })
     expect(quota.spent).toBe(50)

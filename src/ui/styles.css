@@ -1980,6 +1980,25 @@ button.primary.active {
   gap: 8px;
 }
 
+.comment-like.liked {
+  color: #e0a3a3;
+}
+
+.comment-open-btn {
+  margin-left: auto;
+  color: var(--text-dim);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.comment-open-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
 .comment-avatar {
   width: 24px;
   height: 24px;

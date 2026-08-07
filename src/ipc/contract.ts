@@ -277,6 +277,7 @@ export interface CommentDto {
   textDisplay: string
   publishedAt: string
   likeCount: number
+  viewerRating: 'like' | 'none'
   replies: CommentDto[]
 }
 

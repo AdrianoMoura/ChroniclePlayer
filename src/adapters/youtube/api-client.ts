@@ -48,6 +48,11 @@ export interface Comment {
   textDisplay: string
   publishedAt: string
   likeCount: number
+  // The Comments resource's own `viewerRating` field — riding free on the
+  // same snippet part already fetched, no extra quota. YouTube's public API
+  // only exposes 'like'/'none' here, never 'dislike' (D-032: no comment-like
+  // *action* exists, but the viewer's own existing like state is readable).
+  viewerRating: 'like' | 'none'
   replies: Comment[]
 }
 
@@ -445,6 +450,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       textDisplay: String(topSnippet['textDisplay'] ?? topSnippet['textOriginal'] ?? ''),
       publishedAt: String(topSnippet['publishedAt'] ?? ''),
       likeCount: typeof topSnippet['likeCount'] === 'number' ? topSnippet['likeCount'] : 0,
+      viewerRating: topSnippet['viewerRating'] === 'like' ? 'like' : 'none',
       replies: (repliesRaw ?? []).map((reply) => this.toReply(reply))
     }
   }
@@ -459,6 +465,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       textDisplay: String(snippet['textDisplay'] ?? snippet['textOriginal'] ?? ''),
       publishedAt: String(snippet['publishedAt'] ?? ''),
       likeCount: typeof snippet['likeCount'] === 'number' ? snippet['likeCount'] : 0,
+      viewerRating: snippet['viewerRating'] === 'like' ? 'like' : 'none',
       replies: []
     }
   }

@@ -13,7 +13,9 @@ function commentsErrorMessage(errorKind: string, message: string): string {
 
 // Reads the comment thread, posts a top-level comment, replies to a comment.
 // There is no public API to like a *comment* (only videos, via the player's
-// Like button) — likeCount here is read-only display.
+// Like button) — likeCount here is read-only display. The viewer's own
+// existing like state (if any) is still readable via the snippet's
+// `viewerRating` field, so it's shown as a red heart even without an action.
 
 export interface CommentsSectionHandle {
   // Lets the player's own keyboard shortcut (`c`) drive the same show/hide
@@ -35,10 +37,14 @@ interface CommentsSectionProps {
   // Threaded down to every CommentItem/ReplyItem so a linkified timestamp
   // in any comment or reply can seek the player.
   onSeekTo: (seconds: number) => void
+  // Threaded down to every CommentItem/ReplyItem's own open-in-browser
+  // button — same B-121 rule as the player's own open-in-browser action:
+  // opening the real YouTube tab shouldn't leave this copy also playing.
+  onPause: () => void
 }
 
 export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSectionProps>(
-  function CommentsSection({ videoId, runWithWriteScope, onSeekTo }, ref) {
+  function CommentsSection({ videoId, runWithWriteScope, onSeekTo, onPause }, ref) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -152,9 +158,11 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
             {comments?.map((comment) => (
               <CommentItem
                 key={comment.commentId}
+                videoId={videoId}
                 comment={comment}
                 runWithWriteScope={runWithWriteScope}
                 onSeekTo={onSeekTo}
+                onPause={onPause}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
                     (current ?? []).map((c) =>
@@ -176,14 +184,18 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
 )
 
 function CommentItem({
+  videoId,
   comment,
   runWithWriteScope,
   onSeekTo,
+  onPause,
   onReplyPosted
 }: {
+  videoId: string
   comment: CommentDto
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
+  onPause: () => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -212,7 +224,7 @@ function CommentItem({
 
   return (
     <div className="comment">
-      <CommentAuthorRow comment={comment} />
+      <CommentAuthorRow videoId={videoId} comment={comment} onPause={onPause} />
       <CommentText text={comment.textDisplay} onSeekTo={onSeekTo} />
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
@@ -239,10 +251,12 @@ function CommentItem({
           {comment.replies.map((reply) => (
             <ReplyItem
               key={reply.commentId}
+              videoId={videoId}
               reply={reply}
               topLevelId={comment.commentId}
               runWithWriteScope={runWithWriteScope}
               onSeekTo={onSeekTo}
+              onPause={onPause}
               onReplyPosted={onReplyPosted}
             />
           ))}
@@ -257,16 +271,20 @@ function CommentItem({
 // model). The `@name` prefix is a text convention, not a structural third
 // nesting level.
 function ReplyItem({
+  videoId,
   reply,
   topLevelId,
   runWithWriteScope,
   onSeekTo,
+  onPause,
   onReplyPosted
 }: {
+  videoId: string
   reply: CommentDto
   topLevelId: string
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
+  onPause: () => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -295,7 +313,7 @@ function ReplyItem({
 
   return (
     <div className="comment reply">
-      <CommentAuthorRow comment={reply} />
+      <CommentAuthorRow videoId={videoId} comment={reply} onPause={onPause} />
       <CommentText text={reply.textDisplay} onSeekTo={onSeekTo} />
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
@@ -365,7 +383,16 @@ function CommentText({
   )
 }
 
-function CommentAuthorRow({ comment }: { comment: CommentDto }) {
+function CommentAuthorRow({
+  videoId,
+  comment,
+  onPause
+}: {
+  videoId: string
+  comment: CommentDto
+  onPause: () => void
+}) {
+  const liked = comment.viewerRating === 'like'
   return (
     <div className="comment-author-row">
       {comment.authorProfileImageUrl !== null ? (
@@ -380,8 +407,21 @@ function CommentAuthorRow({ comment }: { comment: CommentDto }) {
       )}
       <span className="comment-author">{comment.authorDisplayName}</span>
       <span className="comment-meta">
-        {publishedLabel(comment.publishedAt)} · ♥ {comment.likeCount}
+        {publishedLabel(comment.publishedAt)} ·{' '}
+        <span className={`comment-like${liked ? ' liked' : ''}`}>♥ {comment.likeCount}</span>
       </span>
+      <button
+        className="comment-open-btn"
+        title={t('comments.openInBrowserTitle')}
+        onClick={() => {
+          onPause()
+          void window.chronicle.openExternalUrl(
+            `https://www.youtube.com/watch?v=${videoId}&lc=${comment.commentId}`
+          )
+        }}
+      >
+        ↗
+      </button>
     </div>
   )
 }

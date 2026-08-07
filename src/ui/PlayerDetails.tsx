@@ -312,6 +312,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 videoId={video.videoId}
                 runWithWriteScope={writeScopeGate.run}
                 onSeekTo={onSeekTo}
+                onPause={onPause}
               />
             )}
           </div>
