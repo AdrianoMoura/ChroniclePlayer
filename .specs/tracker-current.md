@@ -195,11 +195,19 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   **minor** version, driven by D-060 (the sortable channel sidebar list) rather than
   by this batch — full narrative in `decisions.md`, not a dedicated tracker-history
   note of its own. Shipped 2026-08-07.
+- [`tracker-history/v0.10.1.md`](tracker-history/v0.10.1.md) — a single entry, [[B-022]]
+  (Fixed — delete-all-data now relaunches cleanly, confirmed live after three fix
+  attempts spread across many prior releases). [[B-108]] and [[B-101]] didn't make it
+  in and carried their **Target** forward again. Shipped alongside D-062 (a comments
+  "open in browser" button plus a red-heart indicator for the viewer's own existing
+  like state) rather than driven by this batch — full narrative in `decisions.md`, not
+  a dedicated tracker-history note of its own. Shipped as a **patch** version, per the
+  owner's own explicit direction. Shipped 2026-08-07.
 
-**Current target: 0.10.1.** Carries [[B-108]], [[B-022]], [[B-101]] forward — none of
-the three made it into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, or 0.10.0 either (see
-above — 0.5.0/0.6.0/0.7.0/0.8.0/0.9.0/0.10.0 all shipped driven by a direct
-product-owner decision instead, and 0.8.1's own batch was a different set of items).
+**Current target: 0.10.2.** Carries [[B-108]] and [[B-101]] forward — neither made it
+into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, or 0.10.1 either (see above —
+0.5.0/0.6.0/0.7.0/0.8.0/0.9.0/0.10.0/0.10.1 all shipped driven by a direct product-owner
+decision instead, and 0.8.1's own batch was a different set of items).
 
 ## Entry template
 
@@ -227,8 +235,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.10.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, and 0.10.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.10.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, and 0.10.1 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -253,8 +261,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.10.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, and 0.10.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.10.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, and 0.10.1 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -348,90 +356,3 @@ Resolved entries add:
   [[no-live-app-verification]]). **Status reset to Open** — back to square one on a fix;
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
-
-## In progress
-
-### B-022 — Delete all data: app relaunches into a frozen/blank screen instead of a clean state
-- **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-07-12 · **Target:** 0.10.1 (carried over —
-  0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, and 0.10.0 all shipped without this)
-- **Area:** ui-shell / storage
-- **What happens:** Settings → delete all data wipes and restarts the app, but the
-  relaunched app sits on a stuck/blank screen instead of coming back as a fresh
-  install, forcing a manual app restart. **Confirmed still reproducing 2026-07-12** by
-  the product owner, live, after the first fix attempt (commit 877a30d) — reopened.
-- **Expected:** after the wipe the app comes back in its clean first-run state. Today
-  that means the connect-to-YouTube setup; but [[B-003]] makes authentication optional,
-  so the post-wipe landing should be whatever "fresh start without an account" becomes
-  once B-003 lands — design the fix so the landing screen is the normal first-run
-  entrypoint, not a hardcoded wizard jump.
-- **Code refs:** `src/platform/main.ts` (`deleteAllData` handler, `devRendererUrl()`,
-  `createWindow()`).
-- **Notes:** first attempt (commit 877a30d) swapped `app.exit(0)` for explicit window
-  `destroy()` + `app.quit()`, on the theory that `app.exit()` skips teardown and races
-  the compositor (niri/Wayland) for the next window's surface. That attempt was marked
-  Fixed without live validation — the owner's live re-test showed the blank/frozen
-  screen still happens, so the teardown-race theory is disproven or at least
-  incomplete. **Second attempt (commit 9be2d72):** `createWindow()` picked the renderer
-  source with `!app.isPackaged && process.env['ELECTRON_RENDERER_URL'] ?
-  loadURL(...) : loadFile(...)`. `app.relaunch()` has no `env` option (only
-  `args`/`execPath`) — whether `ELECTRON_RENDERER_URL` (set by electron-vite's dev
-  orchestrator) survives into the relaunched process depends on env-inheritance
-  behavior the code never controlled explicitly. In dev, a relaunch that lost the
-  var would fall through to `loadFile()` against a renderer bundle that only exists
-  in a packaged build — exactly a blank window. Fixed by making the URL travel
-  explicitly through `args` (a new `devRendererUrl()` helper checks
-  `process.argv` for a `--chronicle-renderer-url=` flag as a fallback to the env var,
-  and `deleteAllData` now passes `app.relaunch({ args: [...relaunchArgs,
-  '--chronicle-renderer-url=...'] })`), removing the dependency on env-inheritance
-  entirely regardless of whether that was the true root cause. **Confirmed still
-  reproducing 2026-07-12** by the product owner, live, after this second attempt too
-  (commit 9be2d72) — "deletei tudo, o app reabriu mas fica numa tela em branco." Two
-  attempts down, both aimed at the renderer-URL-not-reaching-the-relaunched-process
-  theory; that theory itself may be wrong, or only part of the picture.
-  **New working hypothesis, not yet verified — worth checking first on the next
-  attempt:** `npm run dev` runs via `electron-vite dev`, which supervises the Electron
-  process as its own child and owns the Vite dev server backing
-  `ELECTRON_RENDERER_URL`. `deleteAllData` calls `app.relaunch()` (spawns a *new*,
-  untracked grandchild Electron process) then `app.quit()`s the original — from
-  electron-vite's supervisor's point of view, its child just exited, which may cause it
-  to tear down the Vite dev server (thinking the user closed the app) before or shortly
-  after the relaunched instance tries to `loadURL()` against it — a dead dev server
-  would look exactly like a blank/frozen window, and would explain why fixing the
-  renderer-URL *value* twice hasn't helped: the URL was probably always correct, the
-  server behind it wasn't necessarily still alive. This would be dev-mode-only — a
-  packaged build's `loadFile()` has no such dependency.
-  **Third attempt (2026-07-15), implementing exactly the recommendation above rather
-  than waiting to confirm the hypothesis first (a live check either way needs the
-  owner):** `deleteAllData` no longer calls `app.relaunch()`/`app.quit()` at all.
-  `src/platform/main.ts`'s entire composition root (was one large one-shot
-  `app.whenReady().then(async () => {...})` closure) is now a callable `async function
-  boot()`; `deleteAllData` tears down the current generation (clear both timers,
-  `ipcMain.removeHandler` for every `IpcChannel`, `protocol.unhandle('thumb')`, close and
-  null the DB handle) and calls `boot()` again in the same process — never exits, so
-  there's no child-process-exit event for electron-vite's supervisor to react to,
-  regardless of whether that theory is exactly right. Ordering detail that mattered:
-  the stale window(s) are destroyed only *after* `boot()`'s fresh one exists, not
-  before — destroying every window first would transiently drop
-  `BrowserWindow.getAllWindows()` to zero, which fires the existing
-  `window-all-closed` → `app.quit()` handler on Linux/Windows and would reproduce the
-  same "process exits mid-reset" failure a different way. `timer`/`updateTimer` moved
-  from `boot()`-local to module-level `let`s so the module-level `will-quit` cleanup
-  (and `deleteAllData` itself) can reach whichever generation is currently live;
-  `app.on('activate', ...)` also moved to module scope (registered once) since it was
-  previously inside the closure and would otherwise gain a duplicate listener per
-  reboot. `createWindow()` now returns the `BrowserWindow` it creates rather than
-  relying on `BrowserWindow.getAllWindows()[0]`, which stopped being reliable once two
-  windows can transiently coexist during a reboot. The dev-renderer-URL-through-argv
-  mechanism from the second attempt is now dead weight (nothing relaunches anymore) and
-  was simplified back to reading `process.env['ELECTRON_RENDERER_URL']` directly, which
-  stays valid for the process's whole lifetime including across reboots. No unit-test
-  coverage exists or is practical here (`main.ts`'s composition root has never been
-  tested, consistent with how every prior attempt on this bug was verified) — checked
-  via `npm run typecheck && npm run lint && npm test` (199/199) plus `npm run build`
-  (electron-vite build succeeds) as an extra sanity check beyond what earlier attempts
-  did, but **not run live**, per [[no-live-app-verification]]. Two attempts before this
-  one were each marked Fixed without a live check and both were disproven on the
-  owner's next live test — keeping this in "In progress" (not Resolved) until the owner
-  confirms live is this bug's own established rule, and matters more here than usual
-  given that history.

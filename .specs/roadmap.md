@@ -394,9 +394,12 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   view/channel/account. Shipped as a **minor** version, per the owner's own explicit
   direction (D-060 is real new scope, not a bug-fix batch). B-108, B-022, B-101 carried
   forward, untouched, now targeting **0.10.1**.
-- **0.10.1 — in progress.** Carries B-108, B-022, B-101 forward, unchanged, from 0.3.0
+- **0.10.1 — in progress.** Carries B-108, B-101 forward, unchanged, from 0.3.0
   (renumbered past every release from 0.4.0 through 0.10.0 — see above, none touched this
-  batch). No batch of its own yet — new items reported after 0.10.0 shipped land here.
+  batch). B-022 (delete-all-data relaunch) is Fixed, confirmed live by the owner
+  2026-08-07 as part of their own regular testing routine (delete all, then reconnect) —
+  the third fix attempt (the in-process `boot()` reboot in `src/platform/main.ts`) is
+  the one that held. New items reported after 0.10.0 shipped also land here.
 
 ## M0 — Walking skeleton
 
