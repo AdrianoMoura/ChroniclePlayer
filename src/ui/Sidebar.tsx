@@ -29,10 +29,21 @@ function ContextMenu({
   children: ReactNode
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
+  // `left`, not `right`: a right-anchored box only needs its own width to
+  // resolve to a screen position, so an initial guess (before the menu has
+  // rendered and its real width is known) can be off — clamping a `left`
+  // value keeps every render on-screen, first paint included, instead of
+  // briefly trusting an unmeasured width. `right: 'auto'` is required here
+  // too, not just cosmetic: `.channel-menu`'s own CSS sets `right: 4px`, and
+  // an inline style that never mentions `right` leaves that class rule in
+  // effect — with both `left` and `right` non-auto and no explicit `width`,
+  // the box stretches to fill the gap between them instead of shrinking to
+  // its content, which is what made the popup span the full window width.
   const [style, setStyle] = useState<CSSProperties>({
     position: 'fixed',
     top: anchorRect.bottom + 4,
-    right: Math.max(8, window.innerWidth - anchorRect.right)
+    left: Math.max(8, anchorRect.right - 170),
+    right: 'auto'
   })
 
   useLayoutEffect(() => {
@@ -43,11 +54,13 @@ function ContextMenu({
       anchorRect.bottom + 4 + rect.height > window.innerHeight - 8
         ? Math.max(8, anchorRect.top - rect.height - 4)
         : anchorRect.bottom + 4
-    const right =
-      anchorRect.right - rect.width < 8
-        ? Math.max(8, window.innerWidth - anchorRect.left - rect.width)
-        : window.innerWidth - anchorRect.right
-    setStyle({ position: 'fixed', top, right })
+    // Right-align the menu to the anchor's own right edge, then clamp fully
+    // on-screen — a single formula instead of a threshold-based branch, so
+    // there's no boundary condition where a small width shift (e.g. a
+    // longer/shorter localized label) flips the menu to the wrong edge.
+    const maxLeft = window.innerWidth - rect.width - 8
+    const left = Math.max(8, Math.min(anchorRect.right - rect.width, maxLeft))
+    setStyle({ position: 'fixed', top, left, right: 'auto' })
   }, [anchorRect.top, anchorRect.right, anchorRect.bottom, anchorRect.left])
 
   return createPortal(
