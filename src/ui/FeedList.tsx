@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -222,10 +223,22 @@ export function FeedList({
     overscan: 12
   })
 
-  // Item size/layout/column switches change row sizes; re-measure.
-  useEffect(() => {
+  // Item size/layout/column switches change row sizes; re-measure. Also
+  // re-measure whenever the row content itself changes identity (switching
+  // feed view/channel/playlist): tanstack-virtual memoizes its measurements
+  // on `count` plus a few other primitives, not on `estimateSize`'s
+  // closure — if two different datasets happen to produce the same row
+  // count, it silently reuses the previous dataset's cached sizes/offsets
+  // (header vs. video vs. card-row heights), which shows up as bucket
+  // headers rendered at stale positions, overlapping the new content. Must
+  // be a layout effect, not a plain effect: a plain effect fires after the
+  // browser has already painted the stale sizes/offsets computed during
+  // this render, so the correction would show up one visible frame late
+  // (exactly the reported flash of overlapping headers) instead of never
+  // painting at all.
+  useLayoutEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, cardRowHeight, layout, columns, virtualizer])
+  }, [displayRows, rowHeight, cardRowHeight, layout, columns, virtualizer])
 
   const items = virtualizer.getVirtualItems()
 

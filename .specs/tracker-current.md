@@ -430,5 +430,214 @@ Resolved entries add:
 
 ## Resolved
 
-(none yet this cycle)
+### B-129 — Feed date-bucket headers (Today/Yesterday/This Week/Earlier) overlap or float at stale positions after navigating between screens
+- **Type:** bug · **Severity:** major
+- **Status:** Fixed · **Reported:** 2026-08-07 · **Target:** 0.9.1
+- **Area:** feed / ui-shell
+- **What happens:** while navigating between screens (feed views, a playlist's own
+  video list, channel filters, etc.), the virtualized list's section headers
+  eventually render overlapping each other or floating at positions that don't match
+  their content — as if headers from one screen's list were still showing on top of
+  another screen's rows. Intermittent; the owner couldn't pin down an exact trigger
+  before reporting.
+- **Expected:** headers always render at the correct height/offset for the
+  currently-displayed row content, regardless of what was shown before.
+- **Code refs:** `src/ui/FeedList.tsx` (`useVirtualizer`'s `measure()` effect).
+- **Root cause:** `FeedList` is a single, always-mounted component instance reused
+  across every screen that shows a video list — main feed views and a channel filter
+  share one `<FeedList>` call site in `App.tsx` (channel view is `screen === 'feed'`
+  with `channelFilter` set, not a separate screen), and a playlist's own video list is
+  a second, separately-mounted `<FeedList>` instance (`PlaylistDetailView.tsx`); no
+  call site passes a remount `key`, by design (D-058's "single stable element"
+  layout) for the feed/channel case. `@tanstack/react-virtual`'s `getMeasurements()`
+  is memoized on `[count, paddingStart, scrollMargin, getItemKey, enabled, lanes,
+  laneAssignmentMode]` plus an internal cache-version counter — **not** on
+  `estimateSize`'s closure. `FeedList` never calls `measureElement` (fixed-height rows
+  via inline `style`), so its `estimateSize` closure (which reads `displayRows[i].kind`
+  — header vs. video vs. card-row) is the only thing that reflects which dataset is
+  currently showing. The component's own `virtualizer.measure()` effect (which clears
+  the cache and forces a fresh recompute) only depended on `[rowHeight, cardRowHeight,
+  layout, columns, virtualizer]` — none of which change when switching between two
+  different datasets (e.g. "All" and a channel filter) that happen to produce the same
+  row count with the same item size/layout/columns settings. In that case none of
+  tanstack-virtual's own memo inputs change either, so `getMeasurements()` silently
+  returns the *previous* dataset's cached sizes/offsets verbatim — a row that used to
+  be a 38px header at some index can keep that stale 38px/offset even though a video
+  or card-row (76–420px) is now rendered there, and since `.feed-item` has no
+  `overflow: hidden` the mismatched box visually bleeds into neighboring rows.
+  Confirmed by reading `node_modules/@tanstack/virtual-core`'s
+  `getMeasurementOptions`/`getMeasurements` memoization directly, not guessed.
+- **First-round fix (2026-08-07):** added `displayRows` to the `measure()` effect's
+  dependency array, so any change to the actual row content (not just item
+  size/layout/column count) forces `virtualizer.measure()` to clear the cache and
+  bump tanstack-virtual's internal cache-version counter, bypassing its memo and
+  forcing a fresh recompute from the current `estimateSize` regardless of whether the
+  row count happens to coincide with the previous dataset's. Checked via `npm run
+  typecheck && npm run lint && npm test`; not run live.
+- **Owner feedback on round 1 (2026-08-07):** live-tested — still reproduces going
+  from the "All" feed view to a channel's own video list. Confirms the dependency-array
+  fix alone didn't cover the whole mechanism.
+- **Second-round fix (2026-08-07), same session:** the round-1 fix does correctly force
+  `virtualizer.measure()` to run on a dataset switch, but it ran inside a plain
+  `useEffect` — which React schedules *after* the browser has already painted. The
+  render that computes `items = virtualizer.getVirtualItems()` (used to build the
+  actual `.feed-item` boxes) runs first, still reading whatever stale per-index sizes
+  were left in `itemSizeCache` from the *previous* dataset at that point — so the
+  browser commits and paints one real frame of mismatched header/row heights and
+  offsets before the effect fires and corrects it on the next frame. `.feed-item`
+  (`styles.css`) has no `overflow`/`clip`/`contain` to mask that stale frame, so it's
+  fully visible rather than hidden — exactly the reported overlap. Switched the effect
+  from `useEffect` to `useLayoutEffect` (`FeedList.tsx`), which React flushes
+  synchronously after render but *before* the browser paints, so `measure()`'s cache
+  clear and the corrective re-render both happen pre-paint instead of one visible
+  frame late. Checked via `npm run typecheck && npm run lint && npm test`; **not yet
+  run live** — needs the owner's own navigation test (switching from "All" to a
+  channel, and between other view/channel/playlist combinations) to confirm the
+  overlap no longer reproduces at all, given round 1 already looked plausible on paper
+  and still failed live.
+- **Owner feedback on round 2 (2026-08-07):** live-tested — still reproduces, same
+  screenshot shape: opening a channel from "All" shows two bucket-header labels
+  ("TODAY" and "YESTERDAY") visually superimposed right at the top of the list,
+  directly under the channel banner, plus a small stray box artifact on the far left
+  edge. This is a second disproven fix in a row on this bug — worth being explicit
+  about what that means: reasoning from `@tanstack/virtual-core`'s source alone
+  predicted a *transient one-frame* flash, correctable by moving the recompute earlier
+  in the render cycle. What the owner is seeing reads as more persistent/settled than
+  a single-frame flash, which means either the round-1/round-2 mechanism wasn't the
+  (whole) actual cause, or there's a second, independent contributor. Per
+  [[feedback-verify-dom-interaction-bugs-dont-guess]] — a real DOM/paint bug can't be
+  confirmed from source reading alone, and two confident-sounding misses in a row is
+  itself the evidence for that — the third attempt below is deliberately a structural
+  change robust to *either* explanation, rather than a third guess at the exact
+  mechanism.
+- **Third-round fix (2026-08-07), same session:** rather than continue trying to
+  out-guess tanstack-virtual's internal memoization/cache semantics, gave `FeedList`'s
+  call site in `App.tsx` a `key={`${view}|${channelFilter ?? ''}|${accountFilter ?? ''}`}`
+  (previously no `key` at all — same mounted instance reused across every
+  view/channel/account combination, confirmed in the original investigation). Any
+  change to view/channel/account now fully unmounts the old `FeedList` — destroying
+  its virtualizer instance, its scroll container, and every DOM node under it — before
+  mounting a completely fresh one for the new dataset. This is a strictly stronger
+  guarantee than rounds 1–2: it can't leave behind stale tanstack-virtual measurement
+  state (round 1/2's theory) *and* it can't leave behind stale painted DOM/pixels from
+  the old dataset either, since the old elements are actually removed from the tree
+  rather than repositioned — covering the alternative possibility that this is (also,
+  or instead) a paint/compositor artifact rather than a pure React state bug, which
+  this codebase has hit before in Wayland-specific ways (D-050's tray-host staleness).
+  Deliberately scoped to the main feed/channel `<FeedList>` only, not
+  `PlaylistDetailView`'s separate instance — that one already fully unmounts when
+  entering/leaving a playlist via the Playlists list screen (per the original
+  investigation), so there's no confirmed repro there yet; can extend the same `key`
+  pattern if the owner ever hits it playlist-to-playlist. Checked via `npm run
+  typecheck && npm run lint && npm test` (275/275 — a pre-existing, unrelated new test
+  file also appeared in this run). **Not yet run live.** If this *still* doesn't fix
+  it, that's a strong signal the bug isn't in `FeedList`/tanstack-virtual at all and
+  needs a different investigation angle (e.g. `ChannelHeader`'s own mount/layout
+  timing, or a genuine GPU/compositor repaint issue specific to the owner's niri/
+  Wayland setup) rather than a fourth attempt in this same area.
+- **Owner feedback on round 3 (2026-08-07):** live-tested — still reproduces, same
+  shape. This is now three disproven fixes in a row, each targeting `FeedList` itself
+  (dependency-array recompute, `useLayoutEffect` timing, and finally a full forced
+  remount via `key`). Round 3 in particular is strong evidence `FeedList`/tanstack-
+  virtual was never the actual cause: a full unmount+remount destroys every DOM node
+  and every piece of internal state the old instance held, so if the bug were
+  anything happening *inside* `FeedList`, round 3 would have closed it off entirely
+  regardless of the exact mechanism.
+- **New scoping clue from the owner, same message:** the glitch **only** happens
+  going from the "All" feed view straight to a channel — navigating from one channel
+  directly to another does **not** show it. This matters a lot given round 3: my
+  `key` change makes `FeedList` fully remount on *every* view/channel/account switch,
+  All→channel and channel→channel alike — if a fresh `FeedList` mount were sufficient
+  to reproduce or fix this, both transitions would behave identically. They don't. So
+  whatever's wrong is tied to something that differs structurally between the two
+  transitions, not to `FeedList` remounting at all. The concrete difference:
+  `ChannelHeader` (`App.tsx`, gated on `channelFilter !== null`) goes from **absent
+  to present** (a fresh mount, new DOM subtree inserted above `.feed-region`) only on
+  All→channel; channel→channel it was already mounted and only re-renders with new
+  props (same DOM node, `channel.channelId` change re-triggers its own banner-fetch
+  effect but doesn't remount the element itself). The priority/favorites section
+  (`App.tsx`, `priorityVideos`, D-039/B-042) mirrors this: shown only on
+  `view` in `{'all','unread'}` with no channel filter, so it also specifically
+  unmounts only on All→channel, not channel→channel. Checked `ChannelHeader.tsx` and
+  its CSS (`styles.css` `.channel-header*`): the banner is a plain CSS
+  `background-image` on a div with content-driven (not image-driven) height — avatar
+  + text + buttons render immediately, so there's no late image-driven height jump to
+  explain a layout race; that theory is ruled out. No CSS animation/transition exists
+  on `.channel-header` either.
+- **Status: paused pending live diagnostic data, not a fourth blind attempt.** Per
+  [[feedback-verify-dom-interaction-bugs-dont-guess]] — three misses in a row, each
+  reasoned confidently from source/CSS alone and each disproven live, is itself proof
+  that static reading isn't enough to pin this down further. Asked the owner to
+  inspect the actual overlapping elements live (DevTools) rather than guess a fourth
+  mechanism blind — see conversation for the exact ask. Whatever comes back
+  (element classNames/computed styles of the two overlapping texts, and whether a
+  cheap resize/scroll test clears the glitch without any data change) should point at
+  either a real leftover DOM node somewhere outside `FeedList` (React-fixable) or a
+  genuine paint/compositor artifact (would need a different kind of fix entirely,
+  e.g. forcing a paint-layer boundary) — no further code changes until that's in.
+- **The owner's DevTools HTML broke the case open.** Pasted the live `.feed-inner`
+  markup instead of a screenshot: two real, separate `.feed-item` elements, `<h2
+  class="group-header">Today</h2>` and `<h2 class="group-header">Yesterday</h2>`, each
+  independently styled `height: 38px; transform: translateY(0px)` — genuinely the same
+  computed position, not a visual illusion. The tell was the *next* row: the following
+  `card-row` sits at `translateY(38px)` — consistent with only "Today" contributing to
+  the running offset, as if "Yesterday" occupied zero space in whatever computation
+  produced these positions, even though its own box is a real 38px-tall element. The
+  owner also confirmed, unprompted, that in the cases they hit, the channel has **no**
+  video published today at all (only yesterday) — so "Today" shouldn't exist as a
+  header in that channel's own data under any circumstance.
+- **Root cause, finally confirmed in `App.tsx`, not `FeedList`:** both the client-side
+  row builder (`rows`'s `useMemo`) and the backend (`FeedService.getSlice` in
+  `core/feed-service.ts`) are structurally incapable of emitting a bucket header
+  without a real video in that bucket — confirmed by reading both top to bottom. So a
+  "Today" header with zero videos under it can only mean the rows shown briefly
+  belonged to a *different* dataset that genuinely does have one. `channelFilter`
+  (React state) updates synchronously the instant a channel is opened — `ChannelHeader`
+  and (per round 3's `key`) a fresh `FeedList` render immediately. But `videos` (the
+  actual row data) only updates once `loadView`'s `getFeed()` IPC call resolves,
+  inside a `useEffect` that runs *after* that first commit, and only once the async
+  round-trip itself finishes. In between, `filtered` (`= videos` until this fix) was
+  still whatever the *previous* screen's data was — "All" almost always has a "Today"
+  bucket (some subscription usually posts same-day across dozens of channels), so
+  landing on a channel with none produced exactly this: the new `ChannelHeader` paired
+  with the old "All" data's leftover "Today" header for one or more frames, positioned
+  using the outgoing dataset's own layout math (hence "Today" alone driving the
+  offset, with "Yesterday" — the channel's real first bucket, rendered the instant the
+  real response arrived, at the same `translateY(0)` starting point a fresh mount
+  always uses — landing exactly on top of it). Channel→channel doesn't show it because
+  most other channels *also* lack a same-day upload, so the same transient frame looks
+  no different from the correct one — not because the race isn't happening, but
+  because it's not visually distinguishable there. This also explains why three
+  rounds of `FeedList`-internal fixes never touched it: the bug was never inside
+  `FeedList`'s virtualizer at all, it was `App.tsx` feeding it genuinely stale `rows`
+  input for one or more real, paintable frames.
+- **Fourth-round fix (2026-08-07), same session:** added `videosFor` (`App.tsx`), a
+  small piece of state recording exactly which `(view, channel, account)` triple the
+  current `videos` array was fetched for, set alongside `setVideos(slice.videos)`
+  inside `loadView`'s `.then()`. `filtered` (previously `= videos` directly) is now a
+  `useMemo` that only trusts `videos` when `videosFor` matches the *current*
+  `view`/`channelFilter`/`accountFilter`; every render in between (including the very
+  first one, before any effect has even run) sees `[]` instead of the outgoing
+  screen's leftover rows. `loadMore`'s own append path (pagination within the same
+  session) deliberately never touches `videosFor`, so scrolling for more of the same
+  list is unaffected. The existing empty-channel backfill effect
+  (`if (filtered.length === 0 && channelFilter !== null) loadMore()`) already checked
+  `loadingRef.current` first inside `loadMore()`, which is `true` for this entire gap
+  (set synchronously by `loadView`), so it can't misfire into a spurious backfill
+  during the transition — verified by reading `loadMore`'s own guard, not assumed.
+  Needed a `useMemo` wrap after an eslint `react-hooks/exhaustive-deps` catch (a bare
+  conditional would've hurt `filtered`'s referential stability, which matters given
+  `FeedList`'s own re-measure effect from round 1 keys off exactly that). Checked via
+  `npm run typecheck && npm run lint && npm test` (275/275). Rounds 1–3's changes
+  (recompute on content change, `useLayoutEffect` timing, the per-dataset `key`
+  remount) are left in place — none of them were wrong, they just weren't reachable
+  while `App.tsx` kept handing `FeedList` stale input in the first place; they still
+  provide real, independent robustness for other staleness paths within `FeedList`
+  itself.
+- **Owner feedback on round 4 (2026-08-07):** live-tested — confirmed fixed. Closes a
+  bug that took four rounds and, per the owner's own account, was never reachable from
+  reading `FeedList`/tanstack-virtual alone — the DevTools HTML the owner pasted after
+  round 3 was what actually made the real mechanism (`App.tsx` handing `FeedList`
+  stale cross-dataset rows during an async gap) visible.
+- **Resolved:** 2026-08-07 · **Commit:** (pending) · **Outcome:** Fixed
 

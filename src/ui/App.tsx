@@ -151,6 +151,25 @@ export function App() {
   const [accounts, setAccounts] = useState<AccountDto[]>([])
   const [addAccountOpen, setAddAccountOpen] = useState(false)
   const [videos, setVideos] = useState<FeedVideoDto[]>([])
+  // Which (view, channel, account) triple `videos` actually belongs to.
+  // `loadView`'s own state updates (viewRef/channelRef/accountRef, the
+  // requestGenerationRef bump) happen synchronously, but `videos` itself
+  // only updates once the async getFeed() call resolves — a real, provable
+  // gap where `view`/`channelFilter`/`accountFilter` (React state, already
+  // reflecting the switch) can be one or more renders ahead of `videos`
+  // (still the previous screen's data). Rendering `videos` directly during
+  // that gap paired the new screen's own header/chrome with the old
+  // screen's rows — e.g. a channel with no video published today briefly
+  // showing "Today" (from the previous, richer-bucketed view) glued to its
+  // own real "Yesterday" bucket. `filtered` below only trusts `videos` once
+  // this tag matches the current triple; every other render sees `[]`
+  // instead of stale content (loadingRef already guards against a spurious
+  // loadMore() during that gap — see the empty-channel backfill effect).
+  const [videosFor, setVideosFor] = useState<{
+    view: FeedViewDto
+    channel: string | null
+    account: string | null
+  } | null>(null)
   const [nextCursor, setNextCursor] = useState<FeedCursorDto | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [meta, setMeta] = useState<FeedMetaDto>({
@@ -434,6 +453,7 @@ export function App() {
         if (requestGenerationRef.current !== generation) return
         loadingRef.current = false
         setVideos(slice.videos)
+        setVideosFor({ view: nextView, channel: nextChannel, account: nextAccount })
         setNextCursor(slice.nextCursor)
         setCursorIdx(0)
       })
@@ -1480,8 +1500,19 @@ export function App() {
 
   // The `/` filter is a YouTube-search trigger only — it never re-filters
   // the already-loaded feed, so browsing local subscriptions and searching
-  // YouTube can't be confused for two modes of the same field.
-  const filtered = videos
+  // YouTube can't be confused for two modes of the same field. Also guards
+  // against rendering `videos` while it still belongs to a since-abandoned
+  // (view, channel, account) triple — see `videosFor`'s own comment above.
+  const filtered = useMemo(
+    () =>
+      videosFor !== null &&
+      videosFor.view === view &&
+      videosFor.channel === channelFilter &&
+      videosFor.account === accountFilter
+        ? videos
+        : [],
+    [videos, videosFor, view, channelFilter, accountFilter]
+  )
 
   // A channel whose recent uploads are all Shorts comes back from getFeed
   // with zero rows once "Show Shorts" is off — exactly the condition
@@ -2455,6 +2486,7 @@ export function App() {
                       </div>
                     ) : (
                       <FeedList
+                        key={`${view}|${channelFilter ?? ''}|${accountFilter ?? ''}`}
                         rows={rows}
                         cursorVideoIndex={effectiveCursor}
                         undoable={undoable}
