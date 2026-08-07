@@ -833,7 +833,8 @@ async function boot(): Promise<void> {
         thumbnailUrl: followed.channel.thumbnailUrl,
         unreadCount: followed.unreadCount,
         favorite: followed.favorite,
-        notify: followed.notify
+        notify: followed.notify,
+        latestPublishedAt: followed.latestPublishedAt
       }))
   )
   ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) => {

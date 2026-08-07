@@ -2180,7 +2180,8 @@ export function App() {
                         thumbnailUrl: preview.thumbnailUrl,
                         unreadCount: 0,
                         favorite: false,
-                        notify: false
+                        notify: false,
+                        latestPublishedAt: null
                       }
                     : undefined)
                 return headerChannel !== undefined ? (

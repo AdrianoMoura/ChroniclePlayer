@@ -119,6 +119,9 @@ export interface ChannelDto {
   favorite: boolean
   // D-050: membership in the "Custom" new-video notification scope.
   notify: boolean
+  // D-060: the channel's own most recent video, for the sidebar's "Recent"
+  // sort mode. Null when nothing has synced yet.
+  latestPublishedAt: string | null
 }
 
 // Channel-screen-only extras (B-056) — fetched live via getChannelDetail,

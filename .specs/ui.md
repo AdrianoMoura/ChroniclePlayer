@@ -32,7 +32,9 @@ Three-region desktop layout:
   user-created local playlists; its own screen, not a `FeedView`, so it sits between
   the five views without being one of them), Favorites, Ignored), then the channel
   list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
-  Unsubscribe — B-010/B-042), then an **Accounts** section (B-003, implemented
+  Unsubscribe — B-010/B-042), with an inline sort control (D-060, Pending: Favorites
+  default/Recent/Unread/Name, session-only, always restarts on Favorites), then an
+  **Accounts** section (B-003, implemented
   2026-07-12: connected accounts, each with a `…` menu for Sync now/Remove, click =
   filter the combined feed to that account, "+ Add account" opens a short reminder+
   Connect flow — no Google-console walkthrough, since additional accounts reuse the

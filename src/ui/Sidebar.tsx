@@ -93,6 +93,36 @@ export function viewLabel(view: FeedViewDto): string {
   }
 }
 
+// D-060: sidebar-only display preference, not persisted to settings.json —
+// every fresh app launch starts back on 'favorites' by design (the product
+// owner's own framing: it always *starts* on Favorites), unlike D-037's
+// layout/item-size which do persist.
+type ChannelSortMode = 'favorites' | 'recent' | 'name' | 'unread'
+
+function sortChannels(channels: ChannelDto[], mode: ChannelSortMode): ChannelDto[] {
+  // 'favorites' is exactly the order the backend query already returns
+  // (favorite DESC, latest video DESC, name ASC) — no client-side re-sort.
+  if (mode === 'favorites') return channels
+  const sorted = [...channels]
+  switch (mode) {
+    case 'recent':
+      sorted.sort((a, b) => {
+        if (a.latestPublishedAt === b.latestPublishedAt) return a.title.localeCompare(b.title)
+        if (a.latestPublishedAt === null) return 1
+        if (b.latestPublishedAt === null) return -1
+        return a.latestPublishedAt < b.latestPublishedAt ? 1 : -1
+      })
+      break
+    case 'name':
+      sorted.sort((a, b) => a.title.localeCompare(b.title))
+      break
+    case 'unread':
+      sorted.sort((a, b) => b.unreadCount - a.unreadCount || a.title.localeCompare(b.title))
+      break
+  }
+  return sorted
+}
+
 interface SidebarProps {
   view: FeedViewDto
   unreadCount: number
@@ -150,6 +180,7 @@ export function Sidebar({
   // Local channel-name filter over the user's own subscriptions, never
   // YouTube search.
   const [channelQuery, setChannelQuery] = useState('')
+  const [channelSort, setChannelSort] = useState<ChannelSortMode>('favorites')
   // Per-row "…" context menu: armed twice before it actually acts, same
   // pattern as Settings' delete-all confirmation.
   const [menuChannelId, setMenuChannelId] = useState<string | null>(null)
@@ -162,9 +193,11 @@ export function Sidebar({
 
   const visibleChannels = useMemo(() => {
     const query = channelQuery.trim().toLowerCase()
-    if (!query) return channels
-    return channels.filter((channel) => channel.title.toLowerCase().includes(query))
-  }, [channels, channelQuery])
+    const filtered = query
+      ? channels.filter((channel) => channel.title.toLowerCase().includes(query))
+      : channels
+    return sortChannels(filtered, channelSort)
+  }, [channels, channelQuery, channelSort])
 
   useEffect(() => {
     if (menuChannelId === null) return
@@ -242,7 +275,20 @@ export function Sidebar({
       </nav>
 
       <div className="channel-list">
-        <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
+        <div className="channel-list-header-row">
+          <h3 className="channel-list-header">{t('sidebar.channelsHeader')}</h3>
+          <select
+            className="channel-sort-select"
+            value={channelSort}
+            title={t('sidebar.channelSortTitle')}
+            onChange={(event) => setChannelSort(event.target.value as ChannelSortMode)}
+          >
+            <option value="favorites">{t('sidebar.channelSort.favorites')}</option>
+            <option value="recent">{t('sidebar.channelSort.recent')}</option>
+            <option value="unread">{t('sidebar.channelSort.unread')}</option>
+            <option value="name">{t('sidebar.channelSort.name')}</option>
+          </select>
+        </div>
         <div className="field-wrap">
           <input
             ref={channelQueryRef}
