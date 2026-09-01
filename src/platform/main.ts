@@ -1568,7 +1568,8 @@ async function boot(): Promise<void> {
     async (
       _event,
       videoId: unknown,
-      pageToken: unknown
+      pageToken: unknown,
+      order: unknown
     ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>> => {
       const id = parseVideoId(videoId)
       try {
@@ -1586,7 +1587,8 @@ async function boot(): Promise<void> {
         }
         const result = await apiClient.listComments(
           id,
-          typeof pageToken === 'string' ? pageToken : undefined
+          typeof pageToken === 'string' ? pageToken : undefined,
+          order === 'time' ? 'time' : 'relevance'
         )
         return {
           ok: true,

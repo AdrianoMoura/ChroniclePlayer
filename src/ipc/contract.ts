@@ -269,6 +269,9 @@ export interface SearchChannelResultDto {
 
 export type SearchResultDto = SearchVideoResultDto | SearchChannelResultDto
 
+// Mirrors the `order` param YouTube's own commentThreads.list accepts.
+export type CommentSortOrder = 'relevance' | 'time'
+
 // B-006: one level of nesting only, matching YouTube's own comment model.
 export interface CommentDto {
   commentId: string
@@ -631,9 +634,12 @@ export interface ChronicleApi {
     pageToken?: string | null
   ): Promise<ResultDto<{ videos: SearchVideoResultDto[]; nextPageToken: string | null }>>
   // B-006: commentThreads.list (1 unit/page) — public, readonly scope suffices.
+  // `order` mirrors YouTube's own "Top comments" (relevance, default) vs
+  // "Newest first" (time) toggle; same call, same quota either way.
   getComments(
     videoId: string,
-    pageToken?: string | null
+    pageToken?: string | null,
+    order?: CommentSortOrder
   ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>>
   // commentThreads.insert (50 units, write scope, D-032).
   postComment(videoId: string, text: string): Promise<ResultDto<CommentDto>>

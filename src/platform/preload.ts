@@ -3,6 +3,7 @@ import {
   IpcChannel,
   type ChronicleApi,
   type ChronicleEventDto,
+  type CommentSortOrder,
   type FeedCursorDto,
   type FeedViewDto,
   type ReadStatusDto,
@@ -83,8 +84,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.getChannelDetail, channelId),
   getChannelVideos: (channelId: string, pageToken?: string | null) =>
     ipcRenderer.invoke(IpcChannel.getChannelVideos, channelId, pageToken ?? null),
-  getComments: (videoId: string, pageToken?: string | null) =>
-    ipcRenderer.invoke(IpcChannel.getComments, videoId, pageToken ?? null),
+  getComments: (videoId: string, pageToken?: string | null, order?: CommentSortOrder) =>
+    ipcRenderer.invoke(IpcChannel.getComments, videoId, pageToken ?? null, order ?? null),
   postComment: (videoId: string, text: string) =>
     ipcRenderer.invoke(IpcChannel.postComment, videoId, text),
   replyToComment: (parentId: string, text: string) =>

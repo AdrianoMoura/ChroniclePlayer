@@ -515,6 +515,8 @@ export const dict = {
   'comments.posting': 'Posting…',
   'comments.replyButton': 'Reply',
   'comments.openInBrowserTitle': 'Open comment in browser',
+  'comments.sortTop': 'Top comments',
+  'comments.sortNewest': 'Newest first',
 
   // Add another account (B-003) — no Google-console walkthrough, unlike
   // the first-run wizard: the OAuth client is already set up and shared.

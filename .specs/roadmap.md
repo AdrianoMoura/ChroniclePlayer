@@ -394,12 +394,23 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   view/channel/account. Shipped as a **minor** version, per the owner's own explicit
   direction (D-060 is real new scope, not a bug-fix batch). B-108, B-022, B-101 carried
   forward, untouched, now targeting **0.10.1**.
-- **0.10.1 — in progress.** Carries B-108, B-101 forward, unchanged, from 0.3.0
-  (renumbered past every release from 0.4.0 through 0.10.0 — see above, none touched this
-  batch). B-022 (delete-all-data relaunch) is Fixed, confirmed live by the owner
-  2026-08-07 as part of their own regular testing routine (delete all, then reconnect) —
-  the third fix attempt (the in-process `boot()` reboot in `src/platform/main.ts`) is
-  the one that held. New items reported after 0.10.0 shipped also land here.
+- **0.10.1 — delivered, 2026-08-07.** Carried B-108, B-101 forward, unchanged, from
+  0.3.0 (renumbered past every release from 0.4.0 through 0.10.0 — see above, none
+  touched this batch). B-022 (delete-all-data relaunch) Fixed, confirmed live by the
+  owner 2026-08-07 as part of their own regular testing routine (delete all, then
+  reconnect) — the third fix attempt (the in-process `boot()` reboot in
+  `src/platform/main.ts`) is the one that held. Shipped alongside D-062 (comments
+  open-in-browser button + viewer's own like indicator, implemented but not yet
+  live-tested by the owner at ship time) rather than driven by this batch. Shipped as
+  a **patch** version, per the owner's own explicit direction. See
+  `tracker-history/v0.10.1.md`.
+- **0.10.2 — delivered, 2026-09-01.** Carried B-108, B-101 forward, unchanged, from
+  0.3.0 (see above — none of the releases since touched this batch). Driven entirely
+  by D-063 (a comments sort-order toggle, "Top comments"/"Newest first," mapped onto
+  `commentThreads.list`'s own `order` param), a direct product-owner request rather
+  than an item from `tracker-current.md` — same pattern as D-050–D-062. Implemented
+  but not yet live-tested by the owner at ship time. Shipped as a **patch** version,
+  per the owner's own explicit direction.
 
 ## M0 — Walking skeleton
 

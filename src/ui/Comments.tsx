@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import type { CommentDto } from '../ipc/contract'
+import type { CommentDto, CommentSortOrder } from '../ipc/contract'
 import { publishedLabel } from './format'
 import { t } from './i18n'
 import type { useWriteScopeGate } from './useWriteScopeGate'
@@ -53,11 +53,14 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     const [error, setError] = useState<string | null>(null)
     const [newComment, setNewComment] = useState('')
     const [posting, setPosting] = useState(false)
+    // Mirrors YouTube's own "Top comments"/"Newest first" toggle — same
+    // quota cost either way (D-063), so it's a plain sort, not a gate.
+    const [sortOrder, setSortOrder] = useState<CommentSortOrder>('relevance')
 
-    function load(): void {
+    function load(order: CommentSortOrder): void {
       setLoading(true)
       setError(null)
-      void runWithWriteScope(() => window.chronicle.getComments(videoId))
+      void runWithWriteScope(() => window.chronicle.getComments(videoId, null, order))
         .then((result) => {
           setLoading(false)
           if (!result.ok) {
@@ -73,24 +76,32 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     const loadMore = useCallback(() => {
       if (nextPageToken === null || loadingMore) return
       setLoadingMore(true)
-      void runWithWriteScope(() => window.chronicle.getComments(videoId, nextPageToken)).then(
-        (result) => {
-          setLoadingMore(false)
-          if (!result.ok) {
-            if (result.errorKind !== 'cancelled')
-              setError(commentsErrorMessage(result.errorKind, result.message))
-            return
-          }
-          setComments((current) => [...(current ?? []), ...result.value.comments])
-          setNextPageToken(result.value.nextPageToken)
+      void runWithWriteScope(() =>
+        window.chronicle.getComments(videoId, nextPageToken, sortOrder)
+      ).then((result) => {
+        setLoadingMore(false)
+        if (!result.ok) {
+          if (result.errorKind !== 'cancelled')
+            setError(commentsErrorMessage(result.errorKind, result.message))
+          return
         }
-      )
-    }, [videoId, nextPageToken, loadingMore, runWithWriteScope])
+        setComments((current) => [...(current ?? []), ...result.value.comments])
+        setNextPageToken(result.value.nextPageToken)
+      })
+    }, [videoId, nextPageToken, loadingMore, sortOrder, runWithWriteScope])
 
     function toggle(): void {
       const next = !open
       setOpen(next)
-      if (next && comments === null) load()
+      if (next && comments === null) load(sortOrder)
+    }
+
+    function changeSortOrder(order: CommentSortOrder): void {
+      if (order === sortOrder) return
+      setSortOrder(order)
+      setComments(null)
+      setNextPageToken(null)
+      load(order)
     }
 
     useImperativeHandle(ref, () => ({ toggle }))
@@ -148,6 +159,22 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
                 onClick={postTopLevel}
               >
                 {posting ? t('comments.posting') : t('comments.postButton')}
+              </button>
+            </div>
+            <div className="comments-sort">
+              <button
+                className={sortOrder === 'relevance' ? 'active' : undefined}
+                disabled={loading}
+                onClick={() => changeSortOrder('relevance')}
+              >
+                {t('comments.sortTop')}
+              </button>
+              <button
+                className={sortOrder === 'time' ? 'active' : undefined}
+                disabled={loading}
+                onClick={() => changeSortOrder('time')}
+              >
+                {t('comments.sortNewest')}
               </button>
             </div>
             {error !== null && <p className="comments-error">{error}</p>}

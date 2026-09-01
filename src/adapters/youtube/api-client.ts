@@ -352,11 +352,13 @@ export class YouTubeApiClient implements SubscriptionSource {
     return result
   }
 
-  // commentThreads.list — 1 unit/page. Public data; the readonly scope
-  // suffices, no write scope needed just to read (B-006).
+  // commentThreads.list — 1 unit/page regardless of `order` (same call, same
+  // cost; sort is a query param, not a different endpoint). Public data; the
+  // readonly scope suffices, no write scope needed just to read (B-006).
   async listComments(
     videoId: string,
-    pageToken?: string
+    pageToken?: string,
+    order: 'relevance' | 'time' = 'relevance'
   ): Promise<{ comments: Comment[]; nextPageToken: string | null }> {
     const page = await this.get(
       'commentThreads',
@@ -364,7 +366,7 @@ export class YouTubeApiClient implements SubscriptionSource {
         part: 'snippet,replies',
         videoId,
         maxResults: '20',
-        order: 'relevance',
+        order,
         textFormat: 'plainText',
         ...(pageToken ? { pageToken } : {})
       },

@@ -1926,6 +1926,31 @@ button.primary.active {
   margin-top: 10px;
 }
 
+.comments-sort {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.comments-sort button {
+  font-size: 11px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
+.comments-sort button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.comments-sort button.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 .comment-composer {
   display: flex;
   flex-direction: column;
