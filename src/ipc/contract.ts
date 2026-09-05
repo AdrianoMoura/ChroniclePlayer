@@ -277,6 +277,9 @@ export interface CommentDto {
   commentId: string
   authorDisplayName: string
   authorProfileImageUrl: string | null
+  // D-064: lets the UI show an Edit action only on the viewer's own
+  // comments, by comparing against `getConnectedChannel`'s `channelId`.
+  authorChannelId: string | null
   textDisplay: string
   publishedAt: string
   likeCount: number
@@ -407,6 +410,7 @@ export const IpcChannel = {
   getComments: 'video:getComments',
   postComment: 'video:postComment',
   replyToComment: 'video:replyToComment',
+  updateComment: 'video:updateComment',
   rateVideo: 'video:rate',
   getVideoRating: 'video:getRating',
   listAccounts: 'accounts:list',
@@ -494,7 +498,9 @@ export interface ChronicleApi {
   requestWriteScopeForChannel(channelId: string): Promise<ResultDto<void>>
   // Wizard Step 7 validation: proves the token works and the API is enabled
   // (1 quota unit); failures map back to the responsible step (D-014).
-  getConnectedChannel(): Promise<ResultDto<{ title: string }>>
+  // D-064: `channelId` rides free on the same `channels.list mine=true`
+  // call — used to decide which comments are the viewer's own.
+  getConnectedChannel(): Promise<ResultDto<{ title: string; channelId: string }>>
   getWizardState(): Promise<WizardStateDto>
   setWizardState(state: WizardStateDto): Promise<void>
   getSettings(): Promise<{ settings: SettingsDto; warning: string | null }>
@@ -651,6 +657,10 @@ export interface ChronicleApi {
   postComment(videoId: string, text: string): Promise<ResultDto<CommentDto>>
   // comments.insert (50 units, write scope) — replies to a top-level comment.
   replyToComment(parentId: string, text: string): Promise<ResultDto<CommentDto>>
+  // comments.update (50 units, write scope, D-064). YouTube 403s unless the
+  // authenticated user authored the comment — works for both a top-level
+  // comment id and a reply id, both `comments` resources.
+  updateComment(commentId: string, text: string): Promise<ResultDto<CommentDto>>
   // videos.rate (50 units, write scope). No public API exists to like a
   // *comment* — only videos; see B-006's notes.
   rateVideo(videoId: string, rating: 'like' | 'none'): Promise<ResultDto<void>>

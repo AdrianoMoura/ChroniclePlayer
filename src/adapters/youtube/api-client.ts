@@ -45,6 +45,12 @@ export interface Comment {
   commentId: string
   authorDisplayName: string
   authorProfileImageUrl: string | null
+  // The snippet's own `authorChannelId.value` — riding free on the same part
+  // already fetched, no extra quota (same pattern as `viewerRating` below).
+  // Lets the UI show an Edit action only on the viewer's own comments,
+  // matching YouTube's actual authorization rule (comments.update 403s on
+  // anyone else's comment regardless).
+  authorChannelId: string | null
   textDisplay: string
   publishedAt: string
   likeCount: number
@@ -54,6 +60,11 @@ export interface Comment {
   // *action* exists, but the viewer's own existing like state is readable).
   viewerRating: 'like' | 'none'
   replies: Comment[]
+}
+
+function authorChannelId(snippet: Record<string, unknown>): string | null {
+  const raw = snippet['authorChannelId'] as Record<string, unknown> | undefined
+  return typeof raw?.['value'] === 'string' ? raw['value'] : null
 }
 
 export class YouTubeApiClient implements SubscriptionSource {
@@ -93,12 +104,17 @@ export class YouTubeApiClient implements SubscriptionSource {
     return channels
   }
 
-  // channels.list mine=true — 1 unit. Used once at wizard Step 7 to show
-  // the connected identity and prove the API is enabled (onboarding.md).
-  async getOwnChannel(): Promise<{ title: string } | null> {
+  // channels.list mine=true — 1 unit. Used at wizard Step 7 to show the
+  // connected identity and prove the API is enabled (onboarding.md), and to
+  // resolve the viewer's own channel id for the comments panel's Edit
+  // affordance (D-064) — `id` rides free on the same response, previously
+  // discarded.
+  async getOwnChannel(): Promise<{ title: string; channelId: string } | null> {
     const page = await this.get('channels', { part: 'snippet', mine: 'true' }, 1)
-    const snippet = page.items[0]?.['snippet'] as Record<string, unknown> | undefined
-    return snippet ? { title: String(snippet['title']) } : null
+    const item = page.items[0]
+    const snippet = item?.['snippet'] as Record<string, unknown> | undefined
+    if (snippet === undefined || item === undefined) return null
+    return { title: String(snippet['title']), channelId: String(item['id']) }
   }
 
   // channels.list batched — 1 unit per call (≤ 50 ids).
@@ -409,6 +425,24 @@ export class YouTubeApiClient implements SubscriptionSource {
     return this.toReply(payload)
   }
 
+  // comments.update — 50 units, write scope required (same cost as every
+  // other write here). Works on both a top-level comment id and a reply id
+  // — both are `comments` resources. YouTube itself 403s if the id isn't
+  // one the authenticated user authored (D-064) — Chronicle never needs to
+  // re-derive that rule, only decide when to *show* the affordance.
+  async updateComment(commentId: string, text: string): Promise<Comment> {
+    this.quota.add(50)
+    const token = await this.auth.getAccessToken()
+    const response = await request(this.fetchFn, `${API_BASE}/comments?part=snippet`, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ id: commentId, snippet: { textOriginal: text } })
+    })
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
+    if (!response.ok) throw this.mapError(response.status, payload)
+    return this.toReply(payload)
+  }
+
   // videos.rate — 50 units, write scope required (B-006/D-032). YouTube's
   // public API has no equivalent endpoint to like a *comment* — only videos.
   async rateVideo(videoId: string, rating: 'like' | 'none'): Promise<void> {
@@ -449,6 +483,7 @@ export class YouTubeApiClient implements SubscriptionSource {
         typeof topSnippet['authorProfileImageUrl'] === 'string'
           ? topSnippet['authorProfileImageUrl']
           : null,
+      authorChannelId: authorChannelId(topSnippet),
       textDisplay: String(topSnippet['textDisplay'] ?? topSnippet['textOriginal'] ?? ''),
       publishedAt: String(topSnippet['publishedAt'] ?? ''),
       likeCount: typeof topSnippet['likeCount'] === 'number' ? topSnippet['likeCount'] : 0,
@@ -464,6 +499,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       authorDisplayName: String(snippet['authorDisplayName'] ?? ''),
       authorProfileImageUrl:
         typeof snippet['authorProfileImageUrl'] === 'string' ? snippet['authorProfileImageUrl'] : null,
+      authorChannelId: authorChannelId(snippet),
       textDisplay: String(snippet['textDisplay'] ?? snippet['textOriginal'] ?? ''),
       publishedAt: String(snippet['publishedAt'] ?? ''),
       likeCount: typeof snippet['likeCount'] === 'number' ? snippet['likeCount'] : 0,

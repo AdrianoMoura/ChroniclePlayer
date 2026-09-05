@@ -411,6 +411,11 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   than an item from `tracker-current.md` — same pattern as D-050–D-062. Implemented
   but not yet live-tested by the owner at ship time. Shipped as a **patch** version,
   per the owner's own explicit direction.
+- **0.10.3 — in progress.** Carrying B-108, B-101 forward from 0.10.2, unchanged.
+  Candidate driver: D-064 (an Edit action on the viewer's own comments/replies, via
+  `comments.update`), a direct product-owner request rather than an item from
+  `tracker-current.md` — same pattern as D-050–D-063. Implemented, pending the owner's
+  live confirmation.
 
 ## M0 — Walking skeleton
 

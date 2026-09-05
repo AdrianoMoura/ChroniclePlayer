@@ -518,6 +518,9 @@ export const dict = {
   'comments.openInBrowserTitle': 'Open comment in browser',
   'comments.sortTop': 'Top comments',
   'comments.sortNewest': 'Newest first',
+  'comments.editButton': 'Edit',
+  'comments.saveButton': 'Save',
+  'comments.cancelButton': 'Cancel',
 
   // Add another account (B-003) — no Google-console walkthrough, unlike
   // the first-run wizard: the OAuth client is already set up and shared.
