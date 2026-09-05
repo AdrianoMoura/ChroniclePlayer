@@ -653,4 +653,42 @@ describe('SqliteCatalogRepository', () => {
       | undefined
     expect(playlist?.name).toBe('My List')
   })
+
+  describe('countPrunableVideos / pruneOldVideos (D-020 exercised)', () => {
+    const CUTOFF = '2026-01-01T00:00:00Z'
+
+    it('counts only old videos with no state row and no playlist membership', () => {
+      addVideo('old-stateless', '2025-06-01T00:00:00Z') // eligible
+      addVideo('old-read', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-read', 'read') // has a state row — excluded
+      addVideo('old-in-playlist', '2025-06-01T00:00:00Z')
+      db.prepare(
+        `INSERT INTO playlists (playlist_id, name, created_at, updated_at)
+         VALUES ('p1', 'My List', :now, :now)`
+      ).run({ now: fixedClock.now().toISOString() })
+      db.prepare(
+        `INSERT INTO playlist_videos (playlist_id, video_id, position, added_at)
+         VALUES ('p1', 'old-in-playlist', 1, :now)`
+      ).run({ now: fixedClock.now().toISOString() }) // in a playlist — excluded
+      addVideo('recent-stateless', '2026-07-01T00:00:00Z') // too recent — excluded
+
+      expect(catalog.countPrunableVideos(CUTOFF)).toBe(1)
+    })
+
+    it('pruneOldVideos removes exactly the eligible videos and returns the count', () => {
+      addVideo('old-stateless', '2025-06-01T00:00:00Z')
+      addVideo('old-favorite', '2025-06-01T00:00:00Z')
+      states.toggleFavorite('old-favorite')
+      addVideo('recent-stateless', '2026-07-01T00:00:00Z')
+
+      const removed = catalog.pruneOldVideos(CUTOFF)
+
+      expect(removed).toBe(1)
+      expect(catalog.countVideos()).toBe(2)
+      expect(feed.listPage('all', null, 10).entries.map((e) => e.video.videoId).sort()).toEqual([
+        'old-favorite',
+        'recent-stateless'
+      ])
+    })
+  })
 })

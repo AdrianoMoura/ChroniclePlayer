@@ -181,6 +181,21 @@ export const dict: Partial<Dict> = {
   'settings.data.deleteButton': 'Apagar todos os dados locais',
   'settings.data.exportedBanner': 'Exportados {videos} vídeos e {states} estados para {path}',
   'settings.data.exportFailedBanner': 'Falha na exportação: {message}',
+  'settings.data.storageLine': '{db} de banco de dados · {cache} de cache de miniaturas · {videos} vídeos',
+  'settings.data.cleanupLabel': 'Remover vídeos antigos sem nenhuma interação',
+  'settings.data.cleanupNote':
+    'Só entram vídeos que você nunca leu, favoritou, colocou na fila ou adicionou a uma playlist — nunca algo que você tocou.',
+  'settings.data.cleanupOlderThan': 'Mais antigos que',
+  'settings.data.cleanup6Months': '6 meses',
+  'settings.data.cleanup12Months': '12 meses',
+  'settings.data.cleanup24Months': '24 meses',
+  'settings.data.cleanup36Months': '36 meses',
+  'settings.data.cleanupPreviewNone': 'Nada para remover',
+  'settings.data.cleanupPreviewCount': '{count} vídeos encontrados',
+  'settings.data.cleanupButton': 'Limpar',
+  'settings.data.cleanupConfirmButton': 'Clique de novo para apagar {count} vídeos definitivamente',
+  'settings.data.cleanupBanner': 'Removidos {count} vídeos e espaço liberado',
+  'settings.data.cleanupFailedBanner': 'Falha na limpeza: {message}',
 
   // Wizard — shared chrome
   'wizard.exitButton': '✕ Fechar',

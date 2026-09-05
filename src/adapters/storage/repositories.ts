@@ -619,4 +619,24 @@ export class SqliteCatalogRepository implements CatalogRepository {
       throw cause
     }
   }
+
+  private static readonly PRUNABLE_WHERE = `
+    published_at < :cutoff
+    AND NOT EXISTS (SELECT 1 FROM video_state s WHERE s.video_id = videos.video_id)
+    AND NOT EXISTS (SELECT 1 FROM playlist_videos p WHERE p.video_id = videos.video_id)
+  `
+
+  countPrunableVideos(cutoffIso: string): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS n FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
+      .get({ cutoff: cutoffIso }) as { n: number | bigint }
+    return Number(row.n)
+  }
+
+  pruneOldVideos(cutoffIso: string): number {
+    const result = this.db
+      .prepare(`DELETE FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
+      .run({ cutoff: cutoffIso })
+    return Number(result.changes)
+  }
 }

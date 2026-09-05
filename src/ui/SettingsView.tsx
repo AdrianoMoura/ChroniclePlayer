@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto } from '../ipc/contract'
+import { useEffect, useRef, useState } from 'react'
+import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto, type StorageInfoDto } from '../ipc/contract'
+import { formatBytes } from './format'
 import { AVAILABLE_LOCALES, t } from './i18n'
 
 // Settings surface. One column, quiet sections — every control maps to a
@@ -44,6 +45,46 @@ export function SettingsView({
   // this only gates the separate question of whether to *also* bulk-clear
   // notify from currently-favorited channels.
   const [confirmingAutoNotifyDisable, setConfirmingAutoNotifyDisable] = useState(false)
+
+  // D-020 exercised: storage indicator + on-demand cleanup.
+  const [storageInfo, setStorageInfo] = useState<StorageInfoDto | null>(null)
+  const [cleanupMonths, setCleanupMonths] = useState(24)
+  const [cleanupPreview, setCleanupPreview] = useState<number | null>(null)
+  const [confirmingCleanup, setConfirmingCleanup] = useState(false)
+  const cleanupConfirmTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    void window.chronicle.getStorageInfo().then(setStorageInfo)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    setCleanupPreview(null)
+    void window.chronicle.previewPruneOldVideos(cleanupMonths).then((count) => {
+      if (!cancelled) setCleanupPreview(count)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [cleanupMonths])
+
+  async function cleanUp(): Promise<void> {
+    if (!confirmingCleanup) {
+      setConfirmingCleanup(true)
+      cleanupConfirmTimer.current = window.setTimeout(() => setConfirmingCleanup(false), 6000)
+      return
+    }
+    if (cleanupConfirmTimer.current !== null) window.clearTimeout(cleanupConfirmTimer.current)
+    setConfirmingCleanup(false)
+    try {
+      const removed = await window.chronicle.pruneOldVideos(cleanupMonths)
+      onBanner(t('settings.data.cleanupBanner', { count: removed }))
+      setCleanupPreview(0)
+      void window.chronicle.getStorageInfo().then(setStorageInfo)
+    } catch (error) {
+      onBanner(t('settings.data.cleanupFailedBanner', { message: String((error as Error).message) }))
+    }
+  }
 
   const set = <K extends keyof SettingsDto>(key: K, value: SettingsDto[K]): void =>
     onSettingsChange({ ...settings, [key]: value })
@@ -358,6 +399,15 @@ export function SettingsView({
       <section>
         <h2>{t('settings.data.heading')}</h2>
         <p className="settings-line dim">{t('settings.data.note')}</p>
+        {storageInfo && (
+          <p className="settings-line dim">
+            {t('settings.data.storageLine', {
+              db: formatBytes(storageInfo.dbBytes),
+              cache: formatBytes(storageInfo.cacheBytes),
+              videos: storageInfo.videoCount
+            })}
+          </p>
+        )}
         <div className="settings-actions">
           <button className="primary" onClick={() => void exportData()}>
             {t('settings.data.exportButton')}
@@ -366,6 +416,41 @@ export function SettingsView({
             {confirmingDelete
               ? t('settings.data.deleteConfirmButton')
               : t('settings.data.deleteButton')}
+          </button>
+        </div>
+
+        <label className="settings-row">
+          <span>{t('settings.data.cleanupLabel')}</span>
+          <select
+            value={cleanupMonths}
+            onChange={(event) => {
+              setCleanupMonths(Number(event.target.value))
+              setConfirmingCleanup(false)
+            }}
+          >
+            <option value={6}>{t('settings.data.cleanup6Months')}</option>
+            <option value={12}>{t('settings.data.cleanup12Months')}</option>
+            <option value={24}>{t('settings.data.cleanup24Months')}</option>
+            <option value={36}>{t('settings.data.cleanup36Months')}</option>
+          </select>
+        </label>
+        <p className="settings-line dim">{t('settings.data.cleanupNote')}</p>
+        <p className="settings-line dim">
+          {cleanupPreview === null
+            ? '…'
+            : cleanupPreview === 0
+              ? t('settings.data.cleanupPreviewNone')
+              : t('settings.data.cleanupPreviewCount', { count: cleanupPreview })}
+        </p>
+        <div className="settings-actions">
+          <button
+            className={`primary${confirmingCleanup ? ' danger' : ''}`}
+            disabled={!cleanupPreview}
+            onClick={() => void cleanUp()}
+          >
+            {confirmingCleanup
+              ? t('settings.data.cleanupConfirmButton', { count: cleanupPreview ?? 0 })
+              : t('settings.data.cleanupButton')}
           </button>
         </div>
       </section>

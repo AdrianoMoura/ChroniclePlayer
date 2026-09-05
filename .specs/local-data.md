@@ -219,11 +219,18 @@ Design notes:
   transaction; no new availability/status column was added to `videos` (unlike
   `channels.available`) — this
   stays a live, user-triggered check at open time, not a persisted flag.
-- Settings offer optional pruning: "remove videos older than N months **that have no
-  state row** (never read/favorited/queued/noted)". Favorites/notes are never pruned
-  automatically. **D-020 (Final): off by default.** Exercised at M5 — the "off" option
-  needs no code to satisfy (nothing prunes today); the on-at-24-months setting can still
-  ship post-MVP if ever requested.
+- **D-020/D-065 (Final): pruning exists, but only as a manual, on-demand Settings
+  action — never a background sweep.** Settings → Data shows the current on-disk
+  footprint (database + thumbnail cache + video count, `getStorageInfo`) and a cleanup
+  control: the user picks an age threshold (6/12/24/36 months), sees a live preview
+  count of how many videos currently qualify, and confirms explicitly before anything is
+  deleted. A video qualifies only if published before the threshold **and** has no
+  `video_state` row (never read/favorited/queued) **and** isn't a member of any
+  playlist — the same criteria B-130's `deleteVideo` already applies one at a time,
+  here applied in bulk (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`).
+  Favorites/read/queued videos and anything in a playlist are never pruned, regardless
+  of age. A `VACUUM` runs immediately after an actual deletion so the freed space is
+  reclaimed on disk right away, not just logically.
 
 ## Export / import (Final in shape; format detail at implementation)
 

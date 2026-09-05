@@ -78,6 +78,15 @@ export function formatSubscriberCount(count: number): string {
   })
 }
 
+// Settings' storage indicator (D-020 exercised, local-data.md §Retention).
+// Unit abbreviations (MB/GB) are the same string in every shipped locale, so
+// this skips t() rather than adding translation keys for them.
+export function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`
+  return `${(mb / 1024).toFixed(1)} GB`
+}
+
 // Playlist card meta (ui.md): hours:minutes, no seconds — coarser than a
 // single video's own mm:ss/h:mm:ss duration since this is a running total.
 export function formatPlaylistDuration(totalSeconds: number): string {

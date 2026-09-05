@@ -74,6 +74,11 @@ export class ThumbnailCache {
       }
     }
   }
+
+  // Total on-disk size, for the Settings storage indicator.
+  sizeBytes(): number {
+    return readdirSync(this.dir).reduce((sum, name) => sum + statSync(join(this.dir, name)).size, 0)
+  }
 }
 
 export function chronicleCacheDir(): string {

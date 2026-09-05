@@ -183,6 +183,21 @@ export const dict = {
   'settings.data.deleteButton': 'Delete all local data',
   'settings.data.exportedBanner': 'Exported {videos} videos and {states} states to {path}',
   'settings.data.exportFailedBanner': 'Export failed: {message}',
+  'settings.data.storageLine': '{db} database · {cache} thumbnail cache · {videos} videos',
+  'settings.data.cleanupLabel': 'Remove old videos with no activity',
+  'settings.data.cleanupNote':
+    "Only videos you've never read, favorited, queued in Watch Later, or added to a playlist are eligible — never anything you've touched.",
+  'settings.data.cleanupOlderThan': 'Older than',
+  'settings.data.cleanup6Months': '6 months',
+  'settings.data.cleanup12Months': '12 months',
+  'settings.data.cleanup24Months': '24 months',
+  'settings.data.cleanup36Months': '36 months',
+  'settings.data.cleanupPreviewNone': 'Nothing to remove',
+  'settings.data.cleanupPreviewCount': '{count} videos match',
+  'settings.data.cleanupButton': 'Clean up',
+  'settings.data.cleanupConfirmButton': 'Click again to permanently delete {count} videos',
+  'settings.data.cleanupBanner': 'Removed {count} videos and freed up space',
+  'settings.data.cleanupFailedBanner': 'Cleanup failed: {message}',
 
   // Wizard — shared chrome
   'wizard.exitButton': '✕ Close',
