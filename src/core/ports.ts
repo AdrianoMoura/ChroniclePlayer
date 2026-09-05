@@ -116,6 +116,15 @@ export interface CatalogRepository {
   // membership) so it stops resurfacing anywhere in the local library.
   // User-triggered only, never automatic (a transient error is not proof).
   deleteVideo(videoId: string): void
+  // D-020 exercised: how many videos published before cutoffIso qualify for
+  // pruning — no video_state row (never read/favorited/queued) and not a
+  // member of any playlist. Drives the Settings preview before the user
+  // confirms pruneOldVideos.
+  countPrunableVideos(cutoffIso: string): number
+  // Deletes every video matching countPrunableVideos's same criteria.
+  // User-triggered only, from Settings — never a background sweep
+  // (local-data.md §Retention).
+  pruneOldVideos(cutoffIso: string): number
 }
 
 // ── M2 sync ports ────────────────────────────────────────────────

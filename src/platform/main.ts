@@ -1,6 +1,6 @@
 import { app, BrowserWindow, Notification, Tray, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { openDatabase } from '../adapters/storage/database'
@@ -26,6 +26,7 @@ import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { nextInPlaylist, type PlaylistSummary } from '../core/playlist'
 import { QuotaCounter, type Clock } from '../core/ports'
+import { pruneCutoffIso } from '../core/retention'
 import { isNewerVersion } from '../core/version'
 import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
@@ -45,6 +46,7 @@ import type {
   ResultDto,
   SearchResultDto,
   SearchVideoResultDto,
+  StorageInfoDto,
   SyncReportDto,
   VideoRatingDto,
   VideoStateDto,
@@ -2031,6 +2033,38 @@ async function boot(): Promise<void> {
     const staleWindows = BrowserWindow.getAllWindows()
     await boot()
     for (const window of staleWindows) window.destroy()
+  })
+
+  // D-020 exercised: Settings' storage indicator. dbBytes sums chronicle.db
+  // plus its WAL/SHM sidecar files (present whenever the app has WAL pages
+  // not yet checkpointed) rather than just the main file, so the number
+  // matches what's actually on disk.
+  ipcMain.handle(IpcChannel.getStorageInfo, (): StorageInfoDto => {
+    let dbBytes = 0
+    for (const suffix of ['', '-wal', '-shm']) {
+      try {
+        dbBytes += statSync(join(dataDir, `chronicle.db${suffix}`)).size
+      } catch {
+        // sidecar file absent between checkpoints — fine, it contributes 0
+      }
+    }
+    return { dbBytes, cacheBytes: thumbnails.sizeBytes(), videoCount: catalogRepository.countVideos() }
+  })
+
+  ipcMain.handle(IpcChannel.previewPruneOldVideos, (_event, months: unknown): number => {
+    const cutoff = pruneCutoffIso(clock.now(), typeof months === 'number' ? months : 24)
+    return catalogRepository.countPrunableVideos(cutoff)
+  })
+
+  // User-triggered only, from Settings — never a background sweep
+  // (local-data.md §Retention). VACUUM reclaims the freed pages; node:sqlite
+  // has no autovacuum configured (database.ts), so without it the file
+  // wouldn't actually shrink.
+  ipcMain.handle(IpcChannel.pruneOldVideos, (_event, months: unknown): number => {
+    const cutoff = pruneCutoffIso(clock.now(), typeof months === 'number' ? months : 24)
+    const removed = catalogRepository.pruneOldVideos(cutoff)
+    if (removed > 0 && db !== undefined) db.exec('VACUUM')
+    return removed
   })
 
   // Skip the initial window only for the real launch (not a deleteAllData
