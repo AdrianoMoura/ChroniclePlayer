@@ -95,6 +95,8 @@ Confirmed by the product owner (2026-07-10, decision session):
 
 | D-065 | **A storage indicator in Settings.** A direct product-owner request, not sourced from `tracker-current.md`, same pattern as D-050–D-064. Settings → Data shows the current on-disk footprint (`chronicle.db` + its WAL/SHM sidecars, the thumbnail disk cache, and the total video count) via a new `getStorageInfo` IPC call — `dbBytes`/`cacheBytes`/`videoCount`, no schema change. | `local-data.md` |
 
+| D-066 | **Shorten Settings' explanatory text, move the fuller version into a hover info icon; drop em dashes from Settings copy.** A direct product-owner request ("os textos que explicam as configs em settings são mto grandes... podemos reduzir e colocar a versão mais explicativa num ícone de info"), not sourced from `tracker-current.md`, same pattern as D-050–D-065. Every long paragraph under a Settings control (connection scope, player session, sync notes, playback notes, startup/background notes, notification hints, data notes — about a dozen keys across `en.ts`/`pt-BR.ts`) is now a short one-line summary plus a hover ⓘ icon carrying the full explanation, reusing the exact native-title-tooltip pattern the topbar's `.status-info` (i) icon already established (B-105) — a new shared `InfoNote` component and `.settings-info` CSS class in `SettingsView.tsx`/`styles.css`, no new mechanism. Every remaining em dash in Settings-screen copy was also rewritten with periods/semicolons, per the owner's own stated dislike of the punctuation — scoped to Settings copy only, not the wizard or code comments/specs, which keep their own established em-dash-heavy writing style. | `ui.md` |
+
 ## Pending decisions
 
 | ID | Decision | Spec |
@@ -119,7 +121,7 @@ Confirmed by the product owner (2026-07-10, decision session):
 
 ## How to add an entry
 
-Next free ID: **D-066**. One decision per ID. State the options, the recommendation and
+Next free ID: **D-067**. One decision per ID. State the options, the recommendation and
 its rationale (or the final choice and why), the milestone it blocks, and the owning spec.
 Never edit a Final entry's meaning — supersede it with a new entry and mark the old one
 **Superseded by D-NNN**.
