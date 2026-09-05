@@ -366,9 +366,11 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+## Resolved
+
 ### B-130 — A removed/private YouTube video stays in the local library and misreports as embed-blocked
 - **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-09-04 · **Target:** 0.10.3
+- **Status:** Fixed · **Reported:** 2026-09-04 · **Target:** 0.10.3
 - **Area:** player, storage
 - **What happens:** a video that Chronicle already synced (row in `videos`) gets deleted
   or made private on YouTube's side afterward. Chronicle never re-checks a video it
@@ -472,3 +474,9 @@ Resolved entries add:
   layer didn't change, only which `onError` codes route to the one surface).
 - **Owner feedback, round 2 (2026-09-04):** confirmed working live against the real
   Mitinho Player video.
+- **Resolved:** 2026-09-04 · **Commit:** 8007bed · **Outcome:** Fixed
+- **Resolution:** see the Implementation/round-2 notes above — merged into one
+  `'unavailable'` overlay (owner-restricted and gone-video causes aren't reliably
+  distinguishable by IFrame error code) with an explicit, non-automatic "remove from
+  library" action; `playback.md` §Unplayable videos and `local-data.md`'s Retention
+  section updated in the same commit.
