@@ -2336,6 +2336,18 @@ button.primary.active {
   text-decoration: none;
 }
 
+/* Same native-title-tooltip pattern as .status-info: the fuller explanation
+   of a setting lives here instead of in the visible line. */
+.settings-info {
+  margin-left: 4px;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.settings-info:hover {
+  opacity: 1;
+}
+
 .settings-actions {
   display: flex;
   align-items: center;
