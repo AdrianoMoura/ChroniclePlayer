@@ -64,9 +64,9 @@ const api: ChronicleApi = {
   minimizeSupported,
   deleteAllData: () => ipcRenderer.invoke(IpcChannel.deleteAllData),
   getStorageInfo: () => ipcRenderer.invoke(IpcChannel.getStorageInfo),
-  previewPruneOldVideos: (months: number) =>
+  previewPruneOldVideos: (months: number | null) =>
     ipcRenderer.invoke(IpcChannel.previewPruneOldVideos, months),
-  pruneOldVideos: (months: number) => ipcRenderer.invoke(IpcChannel.pruneOldVideos, months),
+  pruneOldVideos: (months: number | null) => ipcRenderer.invoke(IpcChannel.pruneOldVideos, months),
   unsubscribeChannel: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.unsubscribeChannel, channelId),
   toggleChannelFavorite: (channelId: string) =>

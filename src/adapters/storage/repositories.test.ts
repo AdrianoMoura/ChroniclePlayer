@@ -657,14 +657,19 @@ describe('SqliteCatalogRepository', () => {
   describe('countPrunableVideos / pruneOldVideos (D-020 exercised)', () => {
     const CUTOFF = '2026-01-01T00:00:00Z'
 
-    it('counts old videos with no favorite/watch-later/playback state and no playlist membership', () => {
+    it('counts old videos not favorited/queued/ignored/in a playlist', () => {
       addVideo('old-stateless', '2025-06-01T00:00:00Z') // eligible
       addVideo('old-favorite', '2025-06-01T00:00:00Z')
       states.toggleFavorite('old-favorite') // favorited — excluded
       addVideo('old-watch-later', '2025-06-01T00:00:00Z')
       states.toggleWatchLater('old-watch-later') // queued — excluded
+      addVideo('old-ignored', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-ignored', 'ignored') // a deliberate user action — excluded
       addVideo('old-in-progress', '2025-06-01T00:00:00Z')
-      states.setResumePosition('old-in-progress', 120) // partially watched — excluded
+      states.setResumePosition('old-in-progress', 120) // eligible: resume position is just a
+      // convenience for picking a video back up, not a signal to keep it
+      addVideo('old-read', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-read', 'read') // eligible: plain read/unread never excludes
       addVideo('old-in-playlist', '2025-06-01T00:00:00Z')
       db.prepare(
         `INSERT INTO playlists (playlist_id, name, created_at, updated_at)
@@ -676,10 +681,10 @@ describe('SqliteCatalogRepository', () => {
       ).run({ now: fixedClock.now().toISOString() }) // in a playlist — excluded
       addVideo('recent-stateless', '2026-07-01T00:00:00Z') // too recent — excluded
 
-      expect(catalog.countPrunableVideos(CUTOFF)).toBe(1)
+      expect(catalog.countPrunableVideos(CUTOFF)).toBe(3) // stateless, in-progress, read
     })
 
-    it('a video only auto-marked read by sync backfill is still eligible (read_status ignored)', () => {
+    it('a video only auto-marked read by sync backfill is eligible (read_status ignored)', () => {
       // sync-service.ts's markVideosReadIfUnset bulk-marks every backfilled/
       // first-sync video 'read' since it predates the user following/using
       // Chronicle, not because the user did anything with it — reproduces the
@@ -687,10 +692,18 @@ describe('SqliteCatalogRepository', () => {
       // channels left nothing eligible to prune.
       addVideo('old-auto-read', '2025-06-01T00:00:00Z')
       states.setReadStatus('old-auto-read', 'read')
-      addVideo('old-ignored', '2025-06-01T00:00:00Z')
-      states.setReadStatus('old-ignored', 'ignored')
 
-      expect(catalog.countPrunableVideos(CUTOFF)).toBe(2)
+      expect(catalog.countPrunableVideos(CUTOFF)).toBe(1)
+    })
+
+    it('cutoff null (the "All" option) ignores publish date entirely', () => {
+      addVideo('ancient-stateless', '2015-01-01T00:00:00Z')
+      addVideo('newer-stateless', '2026-03-01T00:00:00Z') // after CUTOFF, before fixedClock's "now"
+      addVideo('newer-favorite', '2026-03-01T00:00:00Z')
+      states.toggleFavorite('newer-favorite') // favorited — excluded regardless of cutoff
+
+      expect(catalog.countPrunableVideos(CUTOFF)).toBe(1) // only the ancient one
+      expect(catalog.countPrunableVideos(null)).toBe(2) // both stateless ones, any age
     })
 
     it('pruneOldVideos removes exactly the eligible videos and returns the count', () => {

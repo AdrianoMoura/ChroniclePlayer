@@ -613,13 +613,15 @@ export interface ChronicleApi {
   // D-020 exercised: current on-disk footprint for Settings' storage
   // indicator.
   getStorageInfo(): Promise<StorageInfoDto>
-  // How many videos published more than `months` ago have no state row and
-  // aren't in any playlist — shown before the user confirms pruneOldVideos.
-  previewPruneOldVideos(months: number): Promise<number>
+  // How many videos qualify for cleanup — not favorited/queued/ignored/in a
+  // playlist, and (unless months is null, meaning no age limit — a full pass
+  // over the whole library) published more than `months` ago. Shown before
+  // the user confirms pruneOldVideos.
+  previewPruneOldVideos(months: number | null): Promise<number>
   // Deletes those videos and reclaims the freed disk space (VACUUM).
   // User-triggered only, from Settings — never a background sweep
   // (local-data.md §Retention, D-020). Returns the number actually removed.
-  pruneOldVideos(months: number): Promise<number>
+  pruneOldVideos(months: number | null): Promise<number>
   // Real subscriptions.delete (B-010, 50 units) plus the local soft-delete.
   // Requests the youtube.force-ssl write scope incrementally on first use
   // (D-032) — may briefly open the system browser for consent.

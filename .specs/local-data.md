@@ -222,23 +222,30 @@ Design notes:
 - **D-020/D-065 (Final): pruning exists, but only as a manual, on-demand Settings
   action — never a background sweep.** Settings → Data shows the current on-disk
   footprint (database + thumbnail cache + video count, `getStorageInfo`) and a cleanup
-  control: the user picks an age threshold (6/12/24/36 months), sees a live preview
-  count of how many videos currently qualify, and confirms explicitly before anything is
-  deleted. A video qualifies only if published before the threshold **and** isn't
-  favorited, queued in Watch Later, or partially watched (a resume position recorded)
-  **and** isn't a member of any playlist — applied in bulk
-  (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`). Favorited/queued/
-  in-progress videos and anything in a playlist are never pruned, regardless of age. A
-  `VACUUM` runs immediately after an actual deletion so the freed space is reclaimed on
-  disk right away, not just logically. **Revised the same day, the owner's own live
-  catch:** the first pass also excluded any video with a `video_state` row at all,
-  which in practice meant almost nothing was ever eligible — `SyncService`'s
-  `markVideosReadIfUnset` (`sync-service.ts`) bulk-marks every video pulled in by a
-  first sync or by scrolling to trigger a channel's archive backfill (D-027) as
-  `read`, since it predates the user following/using Chronicle, not because the user
-  did anything with it. `read_status` (read/unread/ignored) is therefore excluded from
-  the eligibility check entirely; only favorite, watch-later, and an actual playback
-  position reflect something the user themselves did.
+  control: the user picks an age threshold (**All**, or 6/12/24/36 months — "All" means
+  no age limit at all, a full pass over the whole library, since "Delete all local
+  data" wipes settings/credentials too and isn't a substitute for a plain library-wide
+  cleanup), sees a live preview count of how many videos currently qualify, and
+  confirms explicitly before anything is deleted. A video qualifies only if (with "All",
+  unconditionally; otherwise published before the threshold) it isn't favorited, isn't
+  queued in Watch Later, isn't marked ignored, and isn't a member of any playlist —
+  applied in bulk (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`, `cutoffIso:
+  string | null`, `null` = "All"). A `VACUUM` runs immediately after an actual deletion
+  so the freed space is reclaimed on disk right away, not just logically. **Revised the
+  same day, twice, both the owner's own live catches:** (1) the first pass excluded any
+  video with a `video_state` row at all, which in practice meant almost nothing was
+  ever eligible — `SyncService.markVideosReadIfUnset` (`sync-service.ts`) bulk-marks
+  every video pulled in by a first sync or by scrolling to trigger a channel's archive
+  backfill (D-027) as `read`, since it predates the user following/using Chronicle, not
+  because the user did anything with it; (2) that first fix over-corrected by dropping
+  `read_status` from the check entirely, but `ignored` (unlike plain `read`/`unread`) is
+  never set automatically — `core/state.ts`'s `ignore()` is only ever called from an
+  explicit user action ("I've decided not to watch this") — so it needed to stay
+  excluded, and a resume position (`resume_position_seconds`) was dropped from the
+  check the other direction: it's a convenience for picking a recently-watched video
+  back up, not a signal that the video itself should be kept. Final eligibility: not
+  favorited, not queued, not ignored, not in a playlist — plain read/unread status and
+  any resume position are both irrelevant.
 
 ## Export / import (Final in shape; format detail at implementation)
 

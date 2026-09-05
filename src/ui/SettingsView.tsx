@@ -65,7 +65,8 @@ export function SettingsView({
 
   // D-020 exercised: storage indicator + on-demand cleanup.
   const [storageInfo, setStorageInfo] = useState<StorageInfoDto | null>(null)
-  const [cleanupMonths, setCleanupMonths] = useState(24)
+  // null = no age limit, a full pass over the whole library ("All").
+  const [cleanupMonths, setCleanupMonths] = useState<number | null>(24)
   const [cleanupPreview, setCleanupPreview] = useState<number | null>(null)
   const [confirmingCleanup, setConfirmingCleanup] = useState(false)
   const cleanupConfirmTimer = useRef<number | null>(null)
@@ -472,12 +473,13 @@ export function SettingsView({
         <label className="settings-row">
           <span>{t('settings.data.cleanupLabel')}</span>
           <select
-            value={cleanupMonths}
+            value={cleanupMonths ?? 'all'}
             onChange={(event) => {
-              setCleanupMonths(Number(event.target.value))
+              setCleanupMonths(event.target.value === 'all' ? null : Number(event.target.value))
               setConfirmingCleanup(false)
             }}
           >
+            <option value="all">{t('settings.data.cleanupAll')}</option>
             <option value={6}>{t('settings.data.cleanup6Months')}</option>
             <option value={12}>{t('settings.data.cleanup12Months')}</option>
             <option value={24}>{t('settings.data.cleanup24Months')}</option>

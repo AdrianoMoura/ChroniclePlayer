@@ -620,30 +620,34 @@ export class SqliteCatalogRepository implements CatalogRepository {
     }
   }
 
-  // read_status is deliberately not part of this: SyncService.markVideosReadIfUnset
+  // read/unread is deliberately not part of this: SyncService.markVideosReadIfUnset
   // bulk-marks every backfilled/first-sync video 'read' since it predates the
   // user following/using Chronicle (sync-service.ts), not because the user did
-  // anything — so almost every video ends up with a 'read' state row regardless
-  // of real interest. Favorite/watch-later/an actual playback position are the
-  // only signals that reflect something the user themselves did.
+  // anything — so almost every video would end up excluded regardless of real
+  // interest. 'ignored' stays excluded though: there's no automatic path that
+  // sets it (core/state.ts's ignore()), so it's always a deliberate "I've
+  // decided not to watch this" the user made. resume_position_seconds isn't a
+  // signal either — it's a convenience for picking back up a recently-watched
+  // video, not a statement that the video itself should be kept. cutoffIso
+  // null means no age limit at all (a full pass over the whole library).
   private static readonly PRUNABLE_WHERE = `
-    published_at < :cutoff
+    (:cutoff IS NULL OR published_at < :cutoff)
     AND NOT EXISTS (SELECT 1 FROM playlist_videos p WHERE p.video_id = videos.video_id)
     AND NOT EXISTS (
       SELECT 1 FROM video_state s
       WHERE s.video_id = videos.video_id
-        AND (s.favorite = 1 OR s.watch_later = 1 OR s.resume_position_seconds IS NOT NULL)
+        AND (s.favorite = 1 OR s.watch_later = 1 OR s.read_status = 'ignored')
     )
   `
 
-  countPrunableVideos(cutoffIso: string): number {
+  countPrunableVideos(cutoffIso: string | null): number {
     const row = this.db
       .prepare(`SELECT COUNT(*) AS n FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
       .get({ cutoff: cutoffIso }) as { n: number | bigint }
     return Number(row.n)
   }
 
-  pruneOldVideos(cutoffIso: string): number {
+  pruneOldVideos(cutoffIso: string | null): number {
     const result = this.db
       .prepare(`DELETE FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
       .run({ cutoff: cutoffIso })

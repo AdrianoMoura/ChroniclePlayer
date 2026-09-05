@@ -2051,9 +2051,13 @@ async function boot(): Promise<void> {
     return { dbBytes, cacheBytes: thumbnails.sizeBytes(), videoCount: catalogRepository.countVideos() }
   })
 
+  // months === null means no age limit (a full pass over the whole library).
+  function pruneCutoffFor(months: unknown): string | null {
+    return typeof months === 'number' ? pruneCutoffIso(clock.now(), months) : null
+  }
+
   ipcMain.handle(IpcChannel.previewPruneOldVideos, (_event, months: unknown): number => {
-    const cutoff = pruneCutoffIso(clock.now(), typeof months === 'number' ? months : 24)
-    return catalogRepository.countPrunableVideos(cutoff)
+    return catalogRepository.countPrunableVideos(pruneCutoffFor(months))
   })
 
   // User-triggered only, from Settings — never a background sweep
@@ -2061,8 +2065,7 @@ async function boot(): Promise<void> {
   // has no autovacuum configured (database.ts), so without it the file
   // wouldn't actually shrink.
   ipcMain.handle(IpcChannel.pruneOldVideos, (_event, months: unknown): number => {
-    const cutoff = pruneCutoffIso(clock.now(), typeof months === 'number' ? months : 24)
-    const removed = catalogRepository.pruneOldVideos(cutoff)
+    const removed = catalogRepository.pruneOldVideos(pruneCutoffFor(months))
     if (removed > 0 && db !== undefined) db.exec('VACUUM')
     return removed
   })
