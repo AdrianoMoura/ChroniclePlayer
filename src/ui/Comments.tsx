@@ -296,14 +296,16 @@ function CommentItem({
       ) : (
         <CommentText text={comment.textDisplay} onSeekTo={onSeekTo} />
       )}
-      <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
-        {t('comments.replyButton')}
-      </button>
-      {isOwn && !editing && (
-        <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
-          {t('comments.editButton')}
+      <div className="comment-actions">
+        <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
+          {t('comments.replyButton')}
         </button>
-      )}
+        {isOwn && !editing && (
+          <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
+            {t('comments.editButton')}
+          </button>
+        )}
+      </div>
       {replying && (
         <div className="comment-composer reply">
           <textarea
@@ -411,14 +413,16 @@ function ReplyItem({
       ) : (
         <CommentText text={reply.textDisplay} onSeekTo={onSeekTo} />
       )}
-      <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
-        {t('comments.replyButton')}
-      </button>
-      {isOwn && !editing && (
-        <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
-          {t('comments.editButton')}
+      <div className="comment-actions">
+        <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
+          {t('comments.replyButton')}
         </button>
-      )}
+        {isOwn && !editing && (
+          <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
+            {t('comments.editButton')}
+          </button>
+        )}
+      </div>
       {replying && (
         <div className="comment-composer reply">
           <textarea
