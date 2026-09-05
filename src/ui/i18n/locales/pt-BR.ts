@@ -511,6 +511,9 @@ export const dict: Partial<Dict> = {
   'comments.openInBrowserTitle': 'Abrir comentário no navegador',
   'comments.sortTop': 'Principais comentários',
   'comments.sortNewest': 'Mais recentes',
+  'comments.editButton': 'Editar',
+  'comments.saveButton': 'Salvar',
+  'comments.cancelButton': 'Cancelar',
 
   // Add another account (B-003)
   'addAccount.title': 'Adicionar outra conta do Google',

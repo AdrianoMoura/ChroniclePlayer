@@ -433,6 +433,7 @@ describe('YouTubeApiClient', () => {
                   snippet: {
                     authorDisplayName: 'Alice',
                     authorProfileImageUrl: 'https://yt3.example/alice',
+                    authorChannelId: { value: 'UCalice' },
                     textDisplay: 'Great video!',
                     publishedAt: '2026-07-10T08:00:00Z',
                     likeCount: 3,
@@ -463,6 +464,7 @@ describe('YouTubeApiClient', () => {
         commentId: 'c1',
         authorDisplayName: 'Alice',
         authorProfileImageUrl: 'https://yt3.example/alice',
+        authorChannelId: 'UCalice',
         textDisplay: 'Great video!',
         publishedAt: '2026-07-10T08:00:00Z',
         likeCount: 3,
@@ -472,6 +474,7 @@ describe('YouTubeApiClient', () => {
             commentId: 'r1',
             authorDisplayName: 'Bob',
             authorProfileImageUrl: null,
+            authorChannelId: null,
             textDisplay: 'Agreed',
             publishedAt: '2026-07-10T09:00:00Z',
             likeCount: 1,
@@ -531,6 +534,7 @@ describe('YouTubeApiClient', () => {
       commentId: 'rNEW',
       authorDisplayName: 'Me',
       authorProfileImageUrl: null,
+      authorChannelId: null,
       textDisplay: 'Thanks!',
       publishedAt: '2026-07-12T10:05:00Z',
       likeCount: 0,
@@ -538,6 +542,44 @@ describe('YouTubeApiClient', () => {
       replies: []
     })
     expect(quota.spent).toBe(50)
+  })
+
+  it('updateComment PUTs comments?part=snippet with the id and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let body: Record<string, unknown> = {}
+    let method: string | undefined
+    const fetchFn: FetchFn = (_url, init) => {
+      method = init?.method
+      body = JSON.parse(String(init?.body))
+      return Promise.resolve(
+        jsonResponse(200, {
+          id: 'c1',
+          snippet: {
+            authorDisplayName: 'Me',
+            textDisplay: 'Edited!',
+            publishedAt: '2026-07-12T10:05:00Z',
+            likeCount: 3
+          }
+        })
+      )
+    }
+    const comment = await new YouTubeApiClient(auth, fetchFn, quota).updateComment('c1', 'Edited!')
+    expect(method).toBe('PUT')
+    expect(body).toEqual({ id: 'c1', snippet: { textOriginal: 'Edited!' } })
+    expect(comment.commentId).toBe('c1')
+    expect(comment.textDisplay).toBe('Edited!')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('getOwnChannel returns the title and channel id, counts 1 unit', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(
+        jsonResponse(200, { items: [{ id: 'UCme', snippet: { title: 'My Channel' } }] })
+      )
+    const channel = await new YouTubeApiClient(auth, fetchFn, quota).getOwnChannel()
+    expect(channel).toEqual({ title: 'My Channel', channelId: 'UCme' })
+    expect(quota.spent).toBe(1)
   })
 
   it('rateVideo POSTs videos/rate with id and rating, counts 50 units', async () => {

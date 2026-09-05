@@ -56,6 +56,10 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     // Mirrors YouTube's own "Top comments"/"Newest first" toggle — same
     // quota cost either way (D-063), so it's a plain sort, not a gate.
     const [sortOrder, setSortOrder] = useState<CommentSortOrder>('relevance')
+    // D-064: resolved once per panel open (1 unit, same call the wizard
+    // already makes) to decide which comments show an Edit action — never
+    // re-fetched on reopen, same lifetime as `comments` itself below.
+    const [ownChannelId, setOwnChannelId] = useState<string | null>(null)
 
     function load(order: CommentSortOrder): void {
       setLoading(true)
@@ -93,7 +97,25 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     function toggle(): void {
       const next = !open
       setOpen(next)
-      if (next && comments === null) load(sortOrder)
+      if (next && comments === null) {
+        load(sortOrder)
+        void window.chronicle.getConnectedChannel().then((result) => {
+          if (result.ok) setOwnChannelId(result.value.channelId)
+        })
+      }
+    }
+
+    // Applied to both a top-level comment and any of its replies — a reply's
+    // id is only ever unique among its own siblings, but scanning both
+    // levels is cheap and keeps this one function instead of two.
+    function updateCommentText(commentId: string, text: string): void {
+      setComments((current) =>
+        (current ?? []).map((c) =>
+          c.commentId === commentId
+            ? { ...c, textDisplay: text }
+            : { ...c, replies: c.replies.map((r) => (r.commentId === commentId ? { ...r, textDisplay: text } : r)) }
+        )
+      )
     }
 
     function changeSortOrder(order: CommentSortOrder): void {
@@ -187,9 +209,11 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
                 key={comment.commentId}
                 videoId={videoId}
                 comment={comment}
+                ownChannelId={ownChannelId}
                 runWithWriteScope={runWithWriteScope}
                 onSeekTo={onSeekTo}
                 onPause={onPause}
+                onEdited={updateCommentText}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
                     (current ?? []).map((c) =>
@@ -213,22 +237,28 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
 function CommentItem({
   videoId,
   comment,
+  ownChannelId,
   runWithWriteScope,
   onSeekTo,
   onPause,
+  onEdited,
   onReplyPosted
 }: {
   videoId: string
   comment: CommentDto
+  ownChannelId: string | null
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
   onPause: () => void
+  onEdited: (commentId: string, text: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const isOwn = ownChannelId !== null && comment.authorChannelId === ownChannelId
 
   function postReply(): void {
     const text = replyText.trim()
@@ -252,10 +282,28 @@ function CommentItem({
   return (
     <div className="comment">
       <CommentAuthorRow videoId={videoId} comment={comment} onPause={onPause} />
-      <CommentText text={comment.textDisplay} onSeekTo={onSeekTo} />
+      {editing ? (
+        <CommentEditForm
+          commentId={comment.commentId}
+          initialText={comment.textDisplay}
+          runWithWriteScope={runWithWriteScope}
+          onCancel={() => setEditing(false)}
+          onSaved={(text) => {
+            onEdited(comment.commentId, text)
+            setEditing(false)
+          }}
+        />
+      ) : (
+        <CommentText text={comment.textDisplay} onSeekTo={onSeekTo} />
+      )}
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
       </button>
+      {isOwn && !editing && (
+        <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
+          {t('comments.editButton')}
+        </button>
+      )}
       {replying && (
         <div className="comment-composer reply">
           <textarea
@@ -281,9 +329,11 @@ function CommentItem({
               videoId={videoId}
               reply={reply}
               topLevelId={comment.commentId}
+              ownChannelId={ownChannelId}
               runWithWriteScope={runWithWriteScope}
               onSeekTo={onSeekTo}
               onPause={onPause}
+              onEdited={onEdited}
               onReplyPosted={onReplyPosted}
             />
           ))}
@@ -301,23 +351,29 @@ function ReplyItem({
   videoId,
   reply,
   topLevelId,
+  ownChannelId,
   runWithWriteScope,
   onSeekTo,
   onPause,
+  onEdited,
   onReplyPosted
 }: {
   videoId: string
   reply: CommentDto
   topLevelId: string
+  ownChannelId: string | null
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
   onPause: () => void
+  onEdited: (commentId: string, text: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
   const [replyText, setReplyText] = useState(() => `@${reply.authorDisplayName} `)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const isOwn = ownChannelId !== null && reply.authorChannelId === ownChannelId
 
   function postReply(): void {
     const text = replyText.trim()
@@ -341,10 +397,28 @@ function ReplyItem({
   return (
     <div className="comment reply">
       <CommentAuthorRow videoId={videoId} comment={reply} onPause={onPause} />
-      <CommentText text={reply.textDisplay} onSeekTo={onSeekTo} />
+      {editing ? (
+        <CommentEditForm
+          commentId={reply.commentId}
+          initialText={reply.textDisplay}
+          runWithWriteScope={runWithWriteScope}
+          onCancel={() => setEditing(false)}
+          onSaved={(text) => {
+            onEdited(reply.commentId, text)
+            setEditing(false)
+          }}
+        />
+      ) : (
+        <CommentText text={reply.textDisplay} onSeekTo={onSeekTo} />
+      )}
       <button className="comment-reply-toggle" onClick={() => setReplying((r) => !r)}>
         {t('comments.replyButton')}
       </button>
+      {isOwn && !editing && (
+        <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
+          {t('comments.editButton')}
+        </button>
+      )}
       {replying && (
         <div className="comment-composer reply">
           <textarea
@@ -407,6 +481,57 @@ function CommentText({
         )
       })}
     </p>
+  )
+}
+
+// Shared by CommentItem and ReplyItem — a top-level comment and a reply are
+// both `comments` resources as far as `comments.update` is concerned (D-064),
+// so editing either one is the exact same form and save call.
+function CommentEditForm({
+  commentId,
+  initialText,
+  runWithWriteScope,
+  onCancel,
+  onSaved
+}: {
+  commentId: string
+  initialText: string
+  runWithWriteScope: RunWithWriteScope
+  onCancel: () => void
+  onSaved: (text: string) => void
+}) {
+  const [text, setText] = useState(initialText)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function save(): void {
+    const body = text.trim()
+    if (body === '') return
+    setSaving(true)
+    void runWithWriteScope(() => window.chronicle.updateComment(commentId, body)).then((result) => {
+      setSaving(false)
+      if (!result.ok) {
+        if (result.errorKind !== 'cancelled')
+          setError(commentsErrorMessage(result.errorKind, result.message))
+        return
+      }
+      onSaved(result.value.textDisplay)
+    })
+  }
+
+  return (
+    <div className="comment-composer edit">
+      <textarea value={text} onChange={(event) => setText(event.target.value)} autoFocus />
+      <div className="comment-edit-actions">
+        <button className="primary" disabled={saving || text.trim() === ''} onClick={save}>
+          {saving ? t('comments.posting') : t('comments.saveButton')}
+        </button>
+        <button onClick={onCancel} disabled={saving}>
+          {t('comments.cancelButton')}
+        </button>
+      </div>
+      {error !== null && <p className="comments-error">{error}</p>}
+    </div>
   )
 }
 

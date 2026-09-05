@@ -90,6 +90,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.postComment, videoId, text),
   replyToComment: (parentId: string, text: string) =>
     ipcRenderer.invoke(IpcChannel.replyToComment, parentId, text),
+  updateComment: (commentId: string, text: string) =>
+    ipcRenderer.invoke(IpcChannel.updateComment, commentId, text),
   rateVideo: (videoId: string, rating: 'like' | 'none') =>
     ipcRenderer.invoke(IpcChannel.rateVideo, videoId, rating),
   getVideoRating: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideoRating, videoId),

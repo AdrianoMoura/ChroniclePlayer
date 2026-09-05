@@ -1471,7 +1471,7 @@ async function boot(): Promise<void> {
   )
   ipcMain.handle(
     IpcChannel.getConnectedChannel,
-    async (): Promise<ResultDto<{ title: string }>> => {
+    async (): Promise<ResultDto<{ title: string; channelId: string }>> => {
       try {
         const channel = await apiClient.getOwnChannel()
         if (channel === null) {
@@ -1641,6 +1641,33 @@ async function boot(): Promise<void> {
           }
         }
         const comment = await apiClient.replyToComment(id, body)
+        return { ok: true, value: toCommentDto(comment) }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          authProvider.invalidate()
+          broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
+    IpcChannel.updateComment,
+    async (_event, commentId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
+      try {
+        const id = typeof commentId === 'string' ? commentId : ''
+        if (id === '') throw new Error('invalid comment id')
+        const body = parseCommentText(text)
+        if (!authFlow.hasWriteScope()) {
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'editing a comment needs an extra permission'
+          }
+        }
+        const comment = await apiClient.updateComment(id, body)
         return { ok: true, value: toCommentDto(comment) }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
