@@ -2064,6 +2064,11 @@ button.primary.active {
   text-decoration: underline;
 }
 
+.comment-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .comment-reply-toggle {
   color: var(--text-dim);
   font-size: 12px;
