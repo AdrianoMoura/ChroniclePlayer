@@ -133,8 +133,8 @@ it — removal is its own explicit action. The player's existing "up next" card 
 also covers a playlist context: finishing a video opened from a playlist's own screen
 suggests that playlist's own next video instead of Watch Later's.
 
-**Import from YouTube, plus Sync (D-059, Pending decision — implemented, not yet
-live-tested by the product owner):** a second toolbar action next to "Create Playlist,"
+**Import from YouTube, plus Sync (D-059, confirmed working live by the product
+owner):** a second toolbar action next to "Create Playlist,"
 "Import from YouTube" — paste a playlist URL, and Chronicle creates a new local playlist
 pre-named from the source's own title, populated with the same videos in the same order.
 A one-time snapshot at import time — it never polls the source in the background. An

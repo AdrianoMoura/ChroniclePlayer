@@ -408,9 +408,9 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   0.3.0 (see above — none of the releases since touched this batch). Driven entirely
   by D-063 (a comments sort-order toggle, "Top comments"/"Newest first," mapped onto
   `commentThreads.list`'s own `order` param), a direct product-owner request rather
-  than an item from `tracker-current.md` — same pattern as D-050–D-062. Implemented
-  but not yet live-tested by the owner at ship time. Shipped as a **patch** version,
-  per the owner's own explicit direction.
+  than an item from `tracker-current.md` — same pattern as D-050–D-062. Confirmed
+  working live by the owner. Shipped as a **patch** version, per the owner's own
+  explicit direction.
 - **0.10.3 — in progress.** Carrying B-108, B-101 forward from 0.10.2, unchanged.
   Driven by D-064 (an Edit action on the viewer's own comments/replies, via
   `comments.update`), a direct product-owner request rather than an item from
