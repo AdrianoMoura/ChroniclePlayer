@@ -202,9 +202,9 @@ export const dict = {
   'settings.data.exportFailedBanner': 'Export failed: {message}',
   'settings.data.storageLine': '{db} database · {cache} thumbnail cache · {videos} videos',
   'settings.data.cleanupLabel': 'Remove old videos with no activity',
-  'settings.data.cleanupNote': "Only videos you've never touched are eligible.",
+  'settings.data.cleanupNote': 'Only videos with no saved activity are eligible.',
   'settings.data.cleanupNoteDetail':
-    'Never read, favorited, queued in Watch Later, or added to a playlist.',
+    'Never favorited, queued in Watch Later, partially watched, or added to a playlist, regardless of read status.',
   'settings.data.cleanupOlderThan': 'Older than',
   'settings.data.cleanup6Months': '6 months',
   'settings.data.cleanup12Months': '12 months',

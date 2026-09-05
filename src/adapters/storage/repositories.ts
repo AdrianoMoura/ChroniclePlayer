@@ -620,10 +620,20 @@ export class SqliteCatalogRepository implements CatalogRepository {
     }
   }
 
+  // read_status is deliberately not part of this: SyncService.markVideosReadIfUnset
+  // bulk-marks every backfilled/first-sync video 'read' since it predates the
+  // user following/using Chronicle (sync-service.ts), not because the user did
+  // anything — so almost every video ends up with a 'read' state row regardless
+  // of real interest. Favorite/watch-later/an actual playback position are the
+  // only signals that reflect something the user themselves did.
   private static readonly PRUNABLE_WHERE = `
     published_at < :cutoff
-    AND NOT EXISTS (SELECT 1 FROM video_state s WHERE s.video_id = videos.video_id)
     AND NOT EXISTS (SELECT 1 FROM playlist_videos p WHERE p.video_id = videos.video_id)
+    AND NOT EXISTS (
+      SELECT 1 FROM video_state s
+      WHERE s.video_id = videos.video_id
+        AND (s.favorite = 1 OR s.watch_later = 1 OR s.resume_position_seconds IS NOT NULL)
+    )
   `
 
   countPrunableVideos(cutoffIso: string): number {

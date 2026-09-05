@@ -224,13 +224,21 @@ Design notes:
   footprint (database + thumbnail cache + video count, `getStorageInfo`) and a cleanup
   control: the user picks an age threshold (6/12/24/36 months), sees a live preview
   count of how many videos currently qualify, and confirms explicitly before anything is
-  deleted. A video qualifies only if published before the threshold **and** has no
-  `video_state` row (never read/favorited/queued) **and** isn't a member of any
-  playlist — the same criteria B-130's `deleteVideo` already applies one at a time,
-  here applied in bulk (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`).
-  Favorites/read/queued videos and anything in a playlist are never pruned, regardless
-  of age. A `VACUUM` runs immediately after an actual deletion so the freed space is
-  reclaimed on disk right away, not just logically.
+  deleted. A video qualifies only if published before the threshold **and** isn't
+  favorited, queued in Watch Later, or partially watched (a resume position recorded)
+  **and** isn't a member of any playlist — applied in bulk
+  (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`). Favorited/queued/
+  in-progress videos and anything in a playlist are never pruned, regardless of age. A
+  `VACUUM` runs immediately after an actual deletion so the freed space is reclaimed on
+  disk right away, not just logically. **Revised the same day, the owner's own live
+  catch:** the first pass also excluded any video with a `video_state` row at all,
+  which in practice meant almost nothing was ever eligible — `SyncService`'s
+  `markVideosReadIfUnset` (`sync-service.ts`) bulk-marks every video pulled in by a
+  first sync or by scrolling to trigger a channel's archive backfill (D-027) as
+  `read`, since it predates the user following/using Chronicle, not because the user
+  did anything with it. `read_status` (read/unread/ignored) is therefore excluded from
+  the eligibility check entirely; only favorite, watch-later, and an actual playback
+  position reflect something the user themselves did.
 
 ## Export / import (Final in shape; format detail at implementation)
 

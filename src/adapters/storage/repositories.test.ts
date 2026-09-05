@@ -657,10 +657,14 @@ describe('SqliteCatalogRepository', () => {
   describe('countPrunableVideos / pruneOldVideos (D-020 exercised)', () => {
     const CUTOFF = '2026-01-01T00:00:00Z'
 
-    it('counts only old videos with no state row and no playlist membership', () => {
+    it('counts old videos with no favorite/watch-later/playback state and no playlist membership', () => {
       addVideo('old-stateless', '2025-06-01T00:00:00Z') // eligible
-      addVideo('old-read', '2025-06-01T00:00:00Z')
-      states.setReadStatus('old-read', 'read') // has a state row — excluded
+      addVideo('old-favorite', '2025-06-01T00:00:00Z')
+      states.toggleFavorite('old-favorite') // favorited — excluded
+      addVideo('old-watch-later', '2025-06-01T00:00:00Z')
+      states.toggleWatchLater('old-watch-later') // queued — excluded
+      addVideo('old-in-progress', '2025-06-01T00:00:00Z')
+      states.setResumePosition('old-in-progress', 120) // partially watched — excluded
       addVideo('old-in-playlist', '2025-06-01T00:00:00Z')
       db.prepare(
         `INSERT INTO playlists (playlist_id, name, created_at, updated_at)
@@ -673,6 +677,20 @@ describe('SqliteCatalogRepository', () => {
       addVideo('recent-stateless', '2026-07-01T00:00:00Z') // too recent — excluded
 
       expect(catalog.countPrunableVideos(CUTOFF)).toBe(1)
+    })
+
+    it('a video only auto-marked read by sync backfill is still eligible (read_status ignored)', () => {
+      // sync-service.ts's markVideosReadIfUnset bulk-marks every backfilled/
+      // first-sync video 'read' since it predates the user following/using
+      // Chronicle, not because the user did anything with it — reproduces the
+      // scenario reported live: scrolling to trigger archive backfill on old
+      // channels left nothing eligible to prune.
+      addVideo('old-auto-read', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-auto-read', 'read')
+      addVideo('old-ignored', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-ignored', 'ignored')
+
+      expect(catalog.countPrunableVideos(CUTOFF)).toBe(2)
     })
 
     it('pruneOldVideos removes exactly the eligible videos and returns the count', () => {

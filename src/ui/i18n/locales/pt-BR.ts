@@ -203,9 +203,9 @@ export const dict: Partial<Dict> = {
   'settings.data.exportFailedBanner': 'Falha na exportação: {message}',
   'settings.data.storageLine': '{db} de banco de dados · {cache} de cache de miniaturas · {videos} vídeos',
   'settings.data.cleanupLabel': 'Remover vídeos antigos sem nenhuma interação',
-  'settings.data.cleanupNote': 'Só entram vídeos que você nunca tocou.',
+  'settings.data.cleanupNote': 'Só entram vídeos sem nenhuma atividade salva.',
   'settings.data.cleanupNoteDetail':
-    'Nunca lidos, favoritados, colocados na fila ou adicionados a uma playlist.',
+    'Nunca favoritados, colocados na fila, parcialmente assistidos ou adicionados a uma playlist, independente do status de lido.',
   'settings.data.cleanupOlderThan': 'Mais antigos que',
   'settings.data.cleanup6Months': '6 meses',
   'settings.data.cleanup12Months': '12 meses',
