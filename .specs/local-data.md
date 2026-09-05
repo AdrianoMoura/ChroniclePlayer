@@ -230,8 +230,13 @@ Design notes:
   unconditionally; otherwise published before the threshold) it isn't favorited, isn't
   queued in Watch Later, isn't marked ignored, and isn't a member of any playlist —
   applied in bulk (`CatalogRepository.countPrunableVideos`/`pruneOldVideos`, `cutoffIso:
-  string | null`, `null` = "All"). A `VACUUM` runs immediately after an actual deletion
-  so the freed space is reclaimed on disk right away, not just logically. **Revised the
+  string | null`, `null` = "All"). A qualifying video can still have a harmless
+  `video_state` row (plain read/unread, or a resume position — neither excludes it), so
+  `pruneOldVideos` deletes that row first, in the same transaction, before deleting the
+  video itself — `video_state.video_id` has no `ON DELETE CASCADE` onto `videos` (same
+  B-130 note as `deleteVideo`), so skipping this step throws a foreign key error instead
+  of deleting anything. A `VACUUM` runs immediately after an actual deletion so the
+  freed space is reclaimed on disk right away, not just logically. **Revised the
   same day, twice, both the owner's own live catches:** (1) the first pass excluded any
   video with a `video_state` row at all, which in practice meant almost nothing was
   ever eligible — `SyncService.markVideosReadIfUnset` (`sync-service.ts`) bulk-marks

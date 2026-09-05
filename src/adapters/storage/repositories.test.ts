@@ -19,6 +19,7 @@ let catalog: SqliteCatalogRepository
 
 beforeEach(() => {
   db = new DatabaseSync(':memory:')
+  db.exec('PRAGMA foreign_keys = ON') // matches database.ts's openDatabase, so FK bugs surface here too
   migrate(db)
   feed = new SqliteFeedRepository(db)
   states = new SqliteStateRepository(db, fixedClock)
@@ -720,6 +721,22 @@ describe('SqliteCatalogRepository', () => {
         'old-favorite',
         'recent-stateless'
       ])
+    })
+
+    it('also removes a leftover video_state row (read, or with a resume position) so the FK does not block the delete', () => {
+      addVideo('old-read', '2025-06-01T00:00:00Z')
+      states.setReadStatus('old-read', 'read')
+      addVideo('old-in-progress', '2025-06-01T00:00:00Z')
+      states.setResumePosition('old-in-progress', 120)
+
+      const removed = catalog.pruneOldVideos(CUTOFF)
+
+      expect(removed).toBe(2)
+      expect(catalog.countVideos()).toBe(0)
+      const leftoverStates = db.prepare(`SELECT COUNT(*) AS n FROM video_state`).get() as {
+        n: number | bigint
+      }
+      expect(Number(leftoverStates.n)).toBe(0)
     })
   })
 })

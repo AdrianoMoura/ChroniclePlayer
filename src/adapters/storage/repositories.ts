@@ -647,10 +647,31 @@ export class SqliteCatalogRepository implements CatalogRepository {
     return Number(row.n)
   }
 
+  // A qualifying video can still have a harmless video_state row (plain
+  // read/unread, or a resume position — neither excludes it, see
+  // PRUNABLE_WHERE above), and that row has no ON DELETE CASCADE onto videos
+  // (same B-130 note as deleteVideo), so it has to go first or the FK
+  // constraint on video_state.video_id rejects the videos delete.
+  // playlist_videos needs no such step: PRUNABLE_WHERE already guarantees no
+  // membership row exists for anything being deleted here.
   pruneOldVideos(cutoffIso: string | null): number {
-    const result = this.db
-      .prepare(`DELETE FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
-      .run({ cutoff: cutoffIso })
-    return Number(result.changes)
+    this.db.exec('BEGIN')
+    try {
+      this.db
+        .prepare(
+          `DELETE FROM video_state WHERE video_id IN (
+             SELECT video_id FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}
+           )`
+        )
+        .run({ cutoff: cutoffIso })
+      const result = this.db
+        .prepare(`DELETE FROM videos WHERE ${SqliteCatalogRepository.PRUNABLE_WHERE}`)
+        .run({ cutoff: cutoffIso })
+      this.db.exec('COMMIT')
+      return Number(result.changes)
+    } catch (cause) {
+      this.db.exec('ROLLBACK')
+      throw cause
+    }
   }
 }
