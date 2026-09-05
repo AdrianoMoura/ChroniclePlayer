@@ -102,15 +102,17 @@ export const dict = {
   'settings.connection.scopeName.readonly': 'YouTube read-only',
   'settings.connection.scopeName.readonlyPlusWrite': 'YouTube read-only + subscribe/comment/like',
   'settings.connection.scopeGrantedSuffix.readonly':
-    '— used to list your subscriptions and fetch video metadata. Subscribing, commenting, and liking are also available from inside the app; the first time you use one, Chronicle will ask for this additional permission.',
+    'Used to list your subscriptions and fetch video metadata. Subscribing, commenting, and liking are also available from inside the app; the first time you use one, Chronicle will ask for this additional permission.',
   'settings.connection.scopeGrantedSuffix.readonlyPlusWrite':
-    "— used to list your subscriptions, fetch video metadata, and act on your behalf only for actions you take yourself (subscribe/unsubscribe, comment, like). Chronicle's own read/watch/favorite states stay local either way, never written to YouTube.",
+    "Used to list your subscriptions, fetch video metadata, and act on your behalf only for actions you take yourself (subscribe/unsubscribe, comment, like). Chronicle's own read/watch/favorite states stay local either way; they're never written to YouTube.",
   'settings.connection.revokeLink': 'Revoke anytime ↗',
   'settings.connection.keychainOk': 'Your key and token are stored in your system keychain.',
   'settings.connection.keychainFallback':
-    'No OS keychain detected: your token is stored with reversible local encryption — anyone with access to your user account can read it.',
+    'No OS keychain detected. Your token is stored with reversible local encryption; anyone with access to your user account can read it.',
   'settings.connection.playerSessionNote':
-    "The embedded player — and a video's live chat, also a YouTube embed — use their own separate browser session, distinct from the Google connection above. Sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall, or to be able to type in a live chat; it's a one-time step. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
+    'The embedded player and live chat use their own separate browser session.',
+  'settings.connection.playerSessionNoteDetail':
+    "Sign in there if playback ever shows YouTube's \"Sign in to confirm you're not a bot\" wall, or to type in a live chat; it's a one-time step. This is also where YouTube Premium's ad-free playback would apply, if you're signed into Premium.",
   'settings.connection.signInToYouTubeButton': 'Sign in to YouTube',
   // Names the account explicitly — this action only ever touches the
   // primary account, which is otherwise ambiguous now that multiple
@@ -125,19 +127,24 @@ export const dict = {
   'settings.sync.every30': 'Every 30 minutes',
   'settings.sync.everyHour': 'Every hour',
   'settings.sync.manualOnly': 'Manual only',
-  'settings.sync.note':
-    'Every refresh also re-checks your subscription list, so a new subscription shows up on the very next sync — nothing to do here.',
+  'settings.sync.note': 'Also re-checks your subscriptions on every refresh.',
+  'settings.sync.noteDetail':
+    "A new subscription shows up automatically on the next sync; there's nothing you need to do here.",
   'settings.sync.checkForUpdates': 'Check for updates',
   'settings.sync.checkForUpdatesNote':
-    'Chronicle {version} — checks GitHub for a newer release, at most once a day. Never downloads or installs anything on its own; you decide from the release page.',
+    'Chronicle {version}. Checks GitHub for a newer release, at most once a day.',
+  'settings.sync.checkForUpdatesNoteDetail':
+    'Never downloads or installs anything automatically; you decide from the release page.',
   'settings.playback.heading': 'Playback',
   'settings.playback.defaultSpeed': 'Default speed',
   'settings.playback.speedNormal': 'Normal',
-  'settings.playback.note':
-    "The player opens already set to this speed. You can still change it per video from the embed's own controls — that never changes this default.",
+  'settings.playback.note': 'The player opens already set to this speed.',
+  'settings.playback.noteDetail':
+    "You can still change it per video from the embed's own controls; that never changes this default.",
   'settings.playback.watchLaterAutoRemove': 'Remove from Watch Later when opened',
-  'settings.playback.watchLaterAutoRemoveNote':
-    "Opening a video that's in your Watch Later queue takes it off the queue right away, the same as untoggling it yourself — off by default, so the queue only shrinks when you say so.",
+  'settings.playback.watchLaterAutoRemoveNote': 'Removes the video from the queue the moment you open it.',
+  'settings.playback.watchLaterAutoRemoveNoteDetail':
+    'Same as untoggling it yourself. Off by default, so the queue only shrinks when you say so.',
   'settings.appearance.heading': 'Appearance',
   'settings.appearance.theme': 'Theme',
   'settings.appearance.themeSystem': 'Follow system',
@@ -148,18 +155,23 @@ export const dict = {
   'settings.startup.heading': 'Startup & Background',
   'settings.startup.autoStart': 'Start Chronicle automatically when you log in',
   'settings.startup.backgroundMode': 'Keep running in the background when the window is closed',
-  'settings.startup.backgroundModeNote':
-    'A tray icon lets you reopen Chronicle or quit it for good; closing the window just hides it. This also lets sync (and notifications, if enabled below) keep going without the window open.',
+  'settings.startup.backgroundModeNote': 'A tray icon lets you reopen Chronicle or quit it for good.',
+  'settings.startup.backgroundModeNoteDetail':
+    'Closing the window just hides it instead of quitting, so sync (and notifications, if enabled below) keep going in the background.',
   'settings.startup.popOutOnClose': 'Pop out the video when closing the window',
   'settings.startup.popOutOnCloseNote':
-    'If a video is playing, closing the window pops it into the always-on-top floating player (same as pressing p) instead of leaving it playing silently behind the tray icon — closing that floating player then actually stops it. Turn this off and closing the window pauses the video instead.',
+    'Closing the window pops a playing video into the floating player instead.',
+  'settings.startup.popOutOnCloseNoteDetail':
+    'Same as pressing p. Closing that floating player is what actually stops it. Turn this off and closing the window pauses the video instead of popping it out.',
   'settings.startup.startMinimized': 'Start minimized to tray (don’t open the window)',
-  'settings.startup.startMinimizedNote':
-    'Opening Chronicle yourself always shows the window — this only applies to the automatic launch at login.',
+  'settings.startup.startMinimizedNote': 'Only applies to the automatic launch at login.',
+  'settings.startup.startMinimizedNoteDetail':
+    'Opening Chronicle yourself always shows the window regardless of this setting.',
   'settings.notifications.heading': 'Notifications',
   'settings.notifications.enabled': 'Notify me about new videos',
-  'settings.notifications.backgroundModeHint':
-    'Notifications only fire while Chronicle is running. Turn on "Run in background" above to keep them going after you close the window.',
+  'settings.notifications.backgroundModeHint': 'Notifications only fire while Chronicle is running.',
+  'settings.notifications.backgroundModeHintDetail':
+    'Turn on "Run in background" above to keep them going after you close the window.',
   'settings.notifications.scope': 'Notify me about',
   'settings.notifications.scopeAll': 'All channels',
   'settings.notifications.scopeSelected': 'Selected channels',
@@ -167,17 +179,22 @@ export const dict = {
     'Toggle notifications per channel from the icon next to it in the sidebar, or from its channel page.',
   'settings.notifications.notifyShorts': 'Notify me about new Shorts',
   'settings.notifications.notifyShortsNote':
-    'Off means Shorts still show up in your feed, but never trigger a notification — handy for channels that post them often. Shorts hidden from the feed above never notify either way.',
+    'Off means Shorts still show up in your feed without notifying.',
+  'settings.notifications.notifyShortsNoteDetail':
+    'Handy for channels that post them often. Shorts hidden from the feed above never notify either way.',
   'settings.notifications.autoFavorite': 'Automatically notify for channels I favorite',
   'settings.notifications.autoFavoriteNote':
-    "Favoriting a channel turns notifications on for it; unfavoriting turns them back off — unless you change that channel's notification state yourself afterward, which is always respected.",
+    'Favoriting a channel turns notifications on for it; unfavoriting turns them back off.',
+  'settings.notifications.autoFavoriteNoteDetail':
+    "Unless you change that channel's notification state yourself afterward, which is always respected.",
   'settings.notifications.autoFavoriteDisableConfirm':
     'Also turn off notifications for your currently-favorited channels?',
   'settings.notifications.autoFavoriteDisableKeep': 'Leave as-is',
   'settings.notifications.autoFavoriteDisableClear': 'Turn off for favorites',
   'settings.data.heading': 'Data',
-  'settings.data.note':
-    'Everything Chronicle knows lives on this computer. The export is a single documented JSON file (see FORMAT.md in the repository) — you can leave with everything, anytime. The SQLite file itself is also a legitimate backup.',
+  'settings.data.note': 'Everything Chronicle knows lives on this computer.',
+  'settings.data.noteDetail':
+    'The export is a single documented JSON file (FORMAT.md in the repository); you can leave with everything, anytime. The SQLite file itself is also a legitimate backup.',
   'settings.data.exportButton': 'Export data…',
   'settings.data.deleteConfirmButton': 'Click again to wipe the database and your key',
   'settings.data.deleteButton': 'Delete all local data',
@@ -185,8 +202,9 @@ export const dict = {
   'settings.data.exportFailedBanner': 'Export failed: {message}',
   'settings.data.storageLine': '{db} database · {cache} thumbnail cache · {videos} videos',
   'settings.data.cleanupLabel': 'Remove old videos with no activity',
-  'settings.data.cleanupNote':
-    "Only videos you've never read, favorited, queued in Watch Later, or added to a playlist are eligible — never anything you've touched.",
+  'settings.data.cleanupNote': "Only videos you've never touched are eligible.",
+  'settings.data.cleanupNoteDetail':
+    'Never read, favorited, queued in Watch Later, or added to a playlist.',
   'settings.data.cleanupOlderThan': 'Older than',
   'settings.data.cleanup6Months': '6 months',
   'settings.data.cleanup12Months': '12 months',

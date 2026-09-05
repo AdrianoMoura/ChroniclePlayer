@@ -9,6 +9,23 @@ import { AVAILABLE_LOCALES, t } from './i18n'
 // (local-data.md). Layout and item size (D-022, D-037) live inline in the
 // feed topbar instead — see App.tsx.
 
+// A one-line summary under a control, with the fuller explanation moved into
+// a hover ⓘ (same native-title-tooltip pattern as the topbar's .status-info,
+// B-105) instead of a second paragraph.
+function InfoNote({ text, detail }: { text: string; detail?: string }) {
+  return (
+    <p className="settings-line dim">
+      {text}
+      {detail !== undefined && (
+        <span className="settings-info" title={detail}>
+          {' '}
+          ⓘ
+        </span>
+      )}
+    </p>
+  )
+}
+
 interface SettingsViewProps {
   auth: AuthStatusDto | null
   primaryAccountLabel: string
@@ -166,12 +183,18 @@ export function SettingsView({
                 ? 'settings.connection.scopeName.readonlyPlusWrite'
                 : 'settings.connection.scopeName.readonly'
             )}
-          </strong>{' '}
-          {t(
-            auth?.writeScopeGranted
-              ? 'settings.connection.scopeGrantedSuffix.readonlyPlusWrite'
-              : 'settings.connection.scopeGrantedSuffix.readonly'
-          )}{' '}
+          </strong>
+          <span
+            className="settings-info"
+            title={t(
+              auth?.writeScopeGranted
+                ? 'settings.connection.scopeGrantedSuffix.readonlyPlusWrite'
+                : 'settings.connection.scopeGrantedSuffix.readonly'
+            )}
+          >
+            {' '}
+            ⓘ
+          </span>{' '}
           <a
             href="https://myaccount.google.com/permissions"
             onClick={(event) => {
@@ -201,7 +224,10 @@ export function SettingsView({
             {t('settings.connection.signOutButton')}
           </button>
         </div>
-        <p className="settings-line dim">{t('settings.connection.playerSessionNote')}</p>
+        <InfoNote
+          text={t('settings.connection.playerSessionNote')}
+          detail={t('settings.connection.playerSessionNoteDetail')}
+        />
         <div className="settings-actions">
           <button className="primary" onClick={() => void window.chronicle.openYouTubeSignIn()}>
             {t('settings.connection.signInToYouTubeButton')}
@@ -223,7 +249,7 @@ export function SettingsView({
             <option value={0}>{t('settings.sync.manualOnly')}</option>
           </select>
         </label>
-        <p className="settings-line dim">{t('settings.sync.note')}</p>
+        <InfoNote text={t('settings.sync.note')} detail={t('settings.sync.noteDetail')} />
         <label className="settings-row">
           <span>{t('settings.sync.checkForUpdates')}</span>
           <input
@@ -232,7 +258,10 @@ export function SettingsView({
             onChange={(event) => set('checkForUpdates', event.target.checked)}
           />
         </label>
-        <p className="settings-line dim">{t('settings.sync.checkForUpdatesNote', { version: appVersion })}</p>
+        <InfoNote
+          text={t('settings.sync.checkForUpdatesNote', { version: appVersion })}
+          detail={t('settings.sync.checkForUpdatesNoteDetail')}
+        />
       </section>
 
       <section>
@@ -250,7 +279,7 @@ export function SettingsView({
             ))}
           </select>
         </label>
-        <p className="settings-line dim">{t('settings.playback.note')}</p>
+        <InfoNote text={t('settings.playback.note')} detail={t('settings.playback.noteDetail')} />
         <label className="settings-row">
           <span>{t('settings.playback.watchLaterAutoRemove')}</span>
           <input
@@ -259,7 +288,10 @@ export function SettingsView({
             onChange={(event) => set('watchLaterAutoRemove', event.target.checked)}
           />
         </label>
-        <p className="settings-line dim">{t('settings.playback.watchLaterAutoRemoveNote')}</p>
+        <InfoNote
+          text={t('settings.playback.watchLaterAutoRemoveNote')}
+          detail={t('settings.playback.watchLaterAutoRemoveNoteDetail')}
+        />
       </section>
 
       <section>
@@ -311,7 +343,10 @@ export function SettingsView({
             onChange={(event) => set('backgroundMode', event.target.checked)}
           />
         </label>
-        <p className="settings-line dim">{t('settings.startup.backgroundModeNote')}</p>
+        <InfoNote
+          text={t('settings.startup.backgroundModeNote')}
+          detail={t('settings.startup.backgroundModeNoteDetail')}
+        />
         {settings.backgroundMode && (
           <>
             <label className="settings-row">
@@ -322,7 +357,10 @@ export function SettingsView({
                 onChange={(event) => set('popOutOnClose', event.target.checked)}
               />
             </label>
-            <p className="settings-line dim">{t('settings.startup.popOutOnCloseNote')}</p>
+            <InfoNote
+              text={t('settings.startup.popOutOnCloseNote')}
+              detail={t('settings.startup.popOutOnCloseNoteDetail')}
+            />
           </>
         )}
         {settings.autoStart && settings.backgroundMode && (
@@ -335,7 +373,10 @@ export function SettingsView({
                 onChange={(event) => set('startMinimized', event.target.checked)}
               />
             </label>
-            <p className="settings-line dim">{t('settings.startup.startMinimizedNote')}</p>
+            <InfoNote
+              text={t('settings.startup.startMinimizedNote')}
+              detail={t('settings.startup.startMinimizedNoteDetail')}
+            />
           </>
         )}
       </section>
@@ -351,7 +392,10 @@ export function SettingsView({
           />
         </label>
         {!settings.backgroundMode && (
-          <p className="settings-line dim">{t('settings.notifications.backgroundModeHint')}</p>
+          <InfoNote
+            text={t('settings.notifications.backgroundModeHint')}
+            detail={t('settings.notifications.backgroundModeHintDetail')}
+          />
         )}
         {settings.notifyNewVideos && (
           <>
@@ -380,7 +424,10 @@ export function SettingsView({
                     onChange={(event) => set('notifyShorts', event.target.checked)}
                   />
                 </label>
-                <p className="settings-line dim">{t('settings.notifications.notifyShortsNote')}</p>
+                <InfoNote
+                  text={t('settings.notifications.notifyShortsNote')}
+                  detail={t('settings.notifications.notifyShortsNoteDetail')}
+                />
               </>
             )}
           </>
@@ -393,12 +440,15 @@ export function SettingsView({
             onChange={(event) => setAutoNotifyFavorites(event.target.checked)}
           />
         </label>
-        <p className="settings-line dim">{t('settings.notifications.autoFavoriteNote')}</p>
+        <InfoNote
+          text={t('settings.notifications.autoFavoriteNote')}
+          detail={t('settings.notifications.autoFavoriteNoteDetail')}
+        />
       </section>
 
       <section>
         <h2>{t('settings.data.heading')}</h2>
-        <p className="settings-line dim">{t('settings.data.note')}</p>
+        <InfoNote text={t('settings.data.note')} detail={t('settings.data.noteDetail')} />
         {storageInfo && (
           <p className="settings-line dim">
             {t('settings.data.storageLine', {
@@ -434,7 +484,7 @@ export function SettingsView({
             <option value={36}>{t('settings.data.cleanup36Months')}</option>
           </select>
         </label>
-        <p className="settings-line dim">{t('settings.data.cleanupNote')}</p>
+        <InfoNote text={t('settings.data.cleanupNote')} detail={t('settings.data.cleanupNoteDetail')} />
         <p className="settings-line dim">
           {cleanupPreview === null
             ? '…'

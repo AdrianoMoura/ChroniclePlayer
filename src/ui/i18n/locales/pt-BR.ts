@@ -102,15 +102,17 @@ export const dict: Partial<Dict> = {
   'settings.connection.scopeName.readonlyPlusWrite':
     'YouTube somente leitura + inscrever-se/comentar/curtir',
   'settings.connection.scopeGrantedSuffix.readonly':
-    '— usada para listar suas inscrições e buscar metadados dos vídeos. Inscrever-se, comentar e curtir também estão disponíveis dentro do app; na primeira vez que você usar uma dessas ações, o Chronicle vai pedir essa permissão adicional.',
+    'Usada para listar suas inscrições e buscar metadados dos vídeos. Inscrever-se, comentar e curtir também estão disponíveis dentro do app; na primeira vez que você usar uma dessas ações, o Chronicle vai pedir essa permissão adicional.',
   'settings.connection.scopeGrantedSuffix.readonlyPlusWrite':
-    '— usada para listar suas inscrições, buscar metadados dos vídeos e agir em seu nome apenas para ações que você mesmo realiza (inscrever-se/cancelar inscrição, comentar, curtir). Os estados próprios do Chronicle (lido/assistir depois/favorito) continuam locais de qualquer forma, nunca são escritos no YouTube.',
+    'Usada para listar suas inscrições, buscar metadados dos vídeos e agir em seu nome apenas para ações que você mesmo realiza (inscrever-se/cancelar inscrição, comentar, curtir). Os estados próprios do Chronicle (lido/assistir depois/favorito) continuam locais de qualquer forma; nunca são escritos no YouTube.',
   'settings.connection.revokeLink': 'Revogar quando quiser ↗',
   'settings.connection.keychainOk': 'Sua chave e seu token estão guardados no chaveiro do sistema.',
   'settings.connection.keychainFallback':
-    'Nenhum chaveiro do sistema detectado: seu token é guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário pode lê-lo.',
+    'Nenhum chaveiro do sistema detectado. Seu token é guardado com criptografia local reversível; qualquer pessoa com acesso à sua conta de usuário pode lê-lo.',
   'settings.connection.playerSessionNote':
-    'O player incorporado — e o chat ao vivo de um vídeo, também um embed do YouTube — usam sua própria sessão de navegador, separada da conexão com o Google acima. Entre por lá se a reprodução mostrar a tela do YouTube "Confirme que você não é um robô", ou para conseguir comentar no chat ao vivo; é só uma vez. É também ali que a reprodução sem anúncios do YouTube Premium se aplicaria, caso você esteja conectado ao Premium.',
+    'O player incorporado e o chat ao vivo usam sua própria sessão de navegador.',
+  'settings.connection.playerSessionNoteDetail':
+    'Entre por lá se a reprodução mostrar a tela do YouTube "Confirme que você não é um robô", ou para conseguir comentar no chat ao vivo; é só uma vez. É também ali que a reprodução sem anúncios do YouTube Premium se aplicaria, caso você esteja conectado ao Premium.',
   'settings.connection.signInToYouTubeButton': 'Entrar no YouTube',
   'settings.connection.reconnectButton': 'Reconectar "{account}"',
   'settings.connection.replaceKeyButton': 'Substituir chave de API',
@@ -122,19 +124,24 @@ export const dict: Partial<Dict> = {
   'settings.sync.every30': 'A cada 30 minutos',
   'settings.sync.everyHour': 'A cada hora',
   'settings.sync.manualOnly': 'Somente manual',
-  'settings.sync.note':
-    'Toda atualização também reconfere sua lista de inscrições, então uma nova inscrição aparece já na próxima sincronização — nada a fazer aqui.',
+  'settings.sync.note': 'Também reconfere suas inscrições a cada atualização.',
+  'settings.sync.noteDetail':
+    'Uma nova inscrição aparece automaticamente na próxima sincronização; não há nada que você precise fazer aqui.',
   'settings.sync.checkForUpdates': 'Verificar atualizações',
   'settings.sync.checkForUpdatesNote':
-    'Chronicle {version} — verifica no GitHub se há uma versão mais nova, no máximo uma vez por dia. Nunca baixa nem instala nada sozinho; você decide a partir da página de lançamento.',
+    'Chronicle {version}. Verifica no GitHub se há uma versão mais nova, no máximo uma vez por dia.',
+  'settings.sync.checkForUpdatesNoteDetail':
+    'Nunca baixa nem instala nada sozinho; você decide a partir da página de lançamento.',
   'settings.playback.heading': 'Reprodução',
   'settings.playback.defaultSpeed': 'Velocidade padrão',
   'settings.playback.speedNormal': 'Normal',
-  'settings.playback.note':
-    'O player já abre nessa velocidade. Você ainda pode mudá-la por vídeo pelos próprios controles do player — isso nunca altera este padrão.',
+  'settings.playback.note': 'O player já abre nessa velocidade.',
+  'settings.playback.noteDetail':
+    'Você ainda pode mudá-la por vídeo pelos próprios controles do player; isso nunca altera este padrão.',
   'settings.playback.watchLaterAutoRemove': 'Remover do Assistir Mais Tarde ao abrir',
-  'settings.playback.watchLaterAutoRemoveNote':
-    'Abrir um vídeo que está na sua fila de Assistir Mais Tarde já o remove da fila na hora, igual a desmarcar manualmente — desligado por padrão, então a fila só diminui quando você decidir.',
+  'settings.playback.watchLaterAutoRemoveNote': 'Remove o vídeo da fila assim que você o abre.',
+  'settings.playback.watchLaterAutoRemoveNoteDetail':
+    'O mesmo que desmarcar manualmente. Desligado por padrão, então a fila só diminui quando você decidir.',
   'settings.appearance.heading': 'Aparência',
   'settings.appearance.theme': 'Tema',
   'settings.appearance.themeSystem': 'Seguir o sistema',
@@ -147,17 +154,25 @@ export const dict: Partial<Dict> = {
   'settings.startup.backgroundMode':
     'Continuar rodando em segundo plano quando a janela for fechada',
   'settings.startup.backgroundModeNote':
-    'Um ícone na bandeja permite reabrir o Chronicle ou encerrá-lo de vez; fechar a janela apenas a oculta. Isso também permite que a sincronização (e as notificações, se ativadas abaixo) continuem sem a janela aberta.',
+    'Um ícone na bandeja permite reabrir o Chronicle ou encerrá-lo de vez.',
+  'settings.startup.backgroundModeNoteDetail':
+    'Fechar a janela apenas a oculta em vez de encerrar, então a sincronização (e as notificações, se ativadas abaixo) continuam em segundo plano.',
   'settings.startup.popOutOnClose': 'Destacar o vídeo ao fechar a janela',
   'settings.startup.popOutOnCloseNote':
-    'Se um vídeo estiver tocando, fechar a janela o destaca para a janela flutuante sempre visível (o mesmo que pressionar p) em vez de deixá-lo tocando silenciosamente atrás do ícone da bandeja — fechar essa janela flutuante é o que realmente para o vídeo. Desative isso e fechar a janela pausa o vídeo em vez de destacá-lo.',
+    'Fechar a janela destaca um vídeo em reprodução para a janela flutuante.',
+  'settings.startup.popOutOnCloseNoteDetail':
+    'O mesmo que pressionar p. Fechar essa janela flutuante é o que realmente para o vídeo. Desative isso e fechar a janela pausa o vídeo em vez de destacá-lo.',
   'settings.startup.startMinimized': 'Iniciar minimizado na bandeja (não abrir a janela)',
   'settings.startup.startMinimizedNote':
-    'Abrir o Chronicle você mesmo sempre mostra a janela — isso só se aplica à inicialização automática ao entrar no sistema.',
+    'Só se aplica à inicialização automática ao entrar no sistema.',
+  'settings.startup.startMinimizedNoteDetail':
+    'Abrir o Chronicle você mesmo sempre mostra a janela, independente dessa configuração.',
   'settings.notifications.heading': 'Notificações',
   'settings.notifications.enabled': 'Me notificar sobre novos vídeos',
   'settings.notifications.backgroundModeHint':
-    'As notificações só disparam enquanto o Chronicle está em execução. Ative "Continuar em segundo plano" acima para que continuem depois de fechar a janela.',
+    'As notificações só disparam enquanto o Chronicle está em execução.',
+  'settings.notifications.backgroundModeHintDetail':
+    'Ative "Continuar em segundo plano" acima para que continuem depois de fechar a janela.',
   'settings.notifications.scope': 'Me notificar sobre',
   'settings.notifications.scopeAll': 'Todos os canais',
   'settings.notifications.scopeSelected': 'Canais selecionados',
@@ -165,17 +180,22 @@ export const dict: Partial<Dict> = {
     'Ative ou desative notificações por canal pelo ícone ao lado dele na barra lateral, ou pela página do canal.',
   'settings.notifications.notifyShorts': 'Me notificar sobre novos Shorts',
   'settings.notifications.notifyShortsNote':
-    'Desativado significa que os Shorts continuam aparecendo no seu feed, mas nunca disparam uma notificação — útil para canais que publicam muitos. Shorts ocultos do feed acima nunca notificam de qualquer forma.',
+    'Desativado significa que os Shorts continuam aparecendo no feed sem notificar.',
+  'settings.notifications.notifyShortsNoteDetail':
+    'Útil para canais que publicam muitos. Shorts ocultos do feed acima nunca notificam de qualquer forma.',
   'settings.notifications.autoFavorite': 'Notificar automaticamente para canais que eu favoritar',
   'settings.notifications.autoFavoriteNote':
-    'Favoritar um canal ativa as notificações dele; desfavoritar as desativa de novo — a menos que você mude o estado de notificação desse canal manualmente depois, o que é sempre respeitado.',
+    'Favoritar um canal ativa as notificações dele; desfavoritar as desativa de novo.',
+  'settings.notifications.autoFavoriteNoteDetail':
+    'A menos que você mude o estado de notificação desse canal manualmente depois, o que é sempre respeitado.',
   'settings.notifications.autoFavoriteDisableConfirm':
     'Também desativar as notificações dos canais que já estão favoritados?',
   'settings.notifications.autoFavoriteDisableKeep': 'Manter como está',
   'settings.notifications.autoFavoriteDisableClear': 'Desativar para os favoritos',
   'settings.data.heading': 'Dados',
-  'settings.data.note':
-    'Tudo o que o Chronicle sabe vive neste computador. A exportação é um único arquivo JSON documentado (veja o FORMAT.md no repositório) — você pode sair com tudo, a qualquer momento. O próprio arquivo SQLite também é um backup legítimo.',
+  'settings.data.note': 'Tudo o que o Chronicle sabe vive neste computador.',
+  'settings.data.noteDetail':
+    'A exportação é um único arquivo JSON documentado (FORMAT.md no repositório); você pode sair com tudo, a qualquer momento. O próprio arquivo SQLite também é um backup legítimo.',
   'settings.data.exportButton': 'Exportar dados…',
   'settings.data.deleteConfirmButton': 'Clique de novo para apagar o banco de dados e sua chave',
   'settings.data.deleteButton': 'Apagar todos os dados locais',
@@ -183,8 +203,9 @@ export const dict: Partial<Dict> = {
   'settings.data.exportFailedBanner': 'Falha na exportação: {message}',
   'settings.data.storageLine': '{db} de banco de dados · {cache} de cache de miniaturas · {videos} vídeos',
   'settings.data.cleanupLabel': 'Remover vídeos antigos sem nenhuma interação',
-  'settings.data.cleanupNote':
-    'Só entram vídeos que você nunca leu, favoritou, colocou na fila ou adicionou a uma playlist — nunca algo que você tocou.',
+  'settings.data.cleanupNote': 'Só entram vídeos que você nunca tocou.',
+  'settings.data.cleanupNoteDetail':
+    'Nunca lidos, favoritados, colocados na fila ou adicionados a uma playlist.',
   'settings.data.cleanupOlderThan': 'Mais antigos que',
   'settings.data.cleanup6Months': '6 meses',
   'settings.data.cleanup12Months': '12 meses',
