@@ -43,6 +43,7 @@ const api: ChronicleApi = {
   openInBrowser: (videoId: string) => ipcRenderer.invoke(IpcChannel.openInBrowser, videoId),
   openExternalUrl: (url: string) => ipcRenderer.invoke(IpcChannel.openExternalUrl, url),
   getVideo: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideo, videoId),
+  removeVideo: (videoId: string) => ipcRenderer.invoke(IpcChannel.removeVideo, videoId),
   getAuthStatus: () => ipcRenderer.invoke(IpcChannel.getAuthStatus),
   importClientSecret: (json: string) => ipcRenderer.invoke(IpcChannel.importClientSecret, json),
   connectGoogle: () => ipcRenderer.invoke(IpcChannel.connectGoogle),

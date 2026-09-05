@@ -603,4 +603,20 @@ export class SqliteCatalogRepository implements CatalogRepository {
     }
     return Number(row.n)
   }
+
+  // B-130: no ON DELETE CASCADE from video_state/playlist_videos onto videos
+  // (local-data.md), so each reference is dropped explicitly, in one
+  // transaction, before the video row itself.
+  deleteVideo(videoId: string): void {
+    this.db.exec('BEGIN')
+    try {
+      this.db.prepare(`DELETE FROM playlist_videos WHERE video_id = ?`).run(videoId)
+      this.db.prepare(`DELETE FROM video_state WHERE video_id = ?`).run(videoId)
+      this.db.prepare(`DELETE FROM videos WHERE video_id = ?`).run(videoId)
+      this.db.exec('COMMIT')
+    } catch (cause) {
+      this.db.exec('ROLLBACK')
+      throw cause
+    }
+  }
 }

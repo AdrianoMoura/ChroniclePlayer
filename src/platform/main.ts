@@ -1345,6 +1345,12 @@ async function boot(): Promise<void> {
     }
   )
 
+  // B-130: the player's "video unavailable" overlay's explicit remove
+  // action — never triggered automatically.
+  ipcMain.handle(IpcChannel.removeVideo, (_event, videoId: unknown) => {
+    catalogRepository.deleteVideo(parseVideoId(videoId))
+  })
+
   ipcMain.handle(IpcChannel.getAuthStatus, () => authStatus())
   ipcMain.handle(IpcChannel.importClientSecret, (_event, json: unknown): ResultDto<AuthStatusDto> => {
     try {

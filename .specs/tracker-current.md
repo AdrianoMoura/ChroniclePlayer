@@ -365,3 +365,110 @@ Resolved entries add:
   [[no-live-app-verification]]). **Status reset to Open** — back to square one on a fix;
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
+
+### B-130 — A removed/private YouTube video stays in the local library and misreports as embed-blocked
+- **Type:** bug · **Severity:** minor
+- **Status:** In progress · **Reported:** 2026-09-04 · **Target:** 0.10.3
+- **Area:** player, storage
+- **What happens:** a video that Chronicle already synced (row in `videos`) gets deleted
+  or made private on YouTube's side afterward. Chronicle never re-checks a video it
+  already has, so the stale row (and any `video_state`/playlist/watch-later references
+  to it) stays in the local library forever, showing up in the feed exactly like any
+  other video. Opening it renders the same "embed-blocked" overlay ("open in browser" /
+  "back") the app already shows for a channel-owner-disabled embed (`playback.md`'s
+  D-006 "clean embed" mandate) — misleading, since the video isn't blocked, it's gone.
+  Owner's repro: the most recent video from the "Mitinho Player" channel in their own
+  local DB is in this state right now — confirmed by querying `chronicle.db` directly
+  (`video_id 3Gk_iGM7x-s`) and then checking that id against YouTube's own public watch
+  page: `playabilityStatus` reports `"status":"LOGIN_REQUIRED"`,
+  `"reason":"Vídeo privado"` — the video is genuinely **private**, not merely
+  embed-restricted by its owner. `playableInEmbed` isn't even present in that response
+  (unlike a real embed-restriction case, which sets it to `false`), reinforcing that
+  this is a different failure family from the `101`/`150` one the code already handles.
+- **Expected:** a genuinely-removed/private video should read as unavailable, distinct
+  from "the owner disabled embedding here" — and the user should have a way to clear it
+  out of their local library (feed, playlists, Watch Later, favorites) once it's
+  confirmed gone, so it stops resurfacing.
+- **Code refs:** `src/ui/PlayerSurface.tsx` — the `onError` postMessage handler only
+  branches on IFrame error codes `101`/`150` (embed disabled) into a `'embed-blocked'`
+  surface; error `100` (video not found/removed/private, per the IFrame API's own
+  documented error codes) has no branch at all today. Confirmed live against the real
+  Mitinho Player video above that its actual YouTube-side status is "private," which is
+  exactly the case error `100` documents — the code path most likely to be firing for
+  it (still not observed directly inside the running app/embed, since the Chrome
+  extension needed for that wasn't connected this session, but no longer a guess from
+  reading the handler alone: the video's real status is independently confirmed via
+  YouTube's own public watch-page data). No repository method exists
+  today to delete a single video row — `videos` (`local-data.md`) has no
+  availability/status column at all (unlike `channels.available`, added for [[D-048]]'s
+  channel case), and the closest existing deletes are
+  `playlist-repository.ts`'s `removeVideoFromPlaylist` (unlinks from one playlist only,
+  never touches `videos`) and `deleteAllData` (wipes the whole local DB).
+- **Notes:** recommended shape, not yet implemented or confirmed with the owner:
+  (1) branch error `100` (and maybe `2`, invalid id) into its own new surface state,
+  separate from `'embed-blocked'`, with copy that says the video is gone rather than
+  implying the channel restricted it; (2) offer an explicit "remove from library"
+  button on that screen rather than auto-deleting — a transient network hiccup or a
+  temporarily-processing/private video could false-positive, and silently deleting the
+  user's own local data on a guess cuts against agency ([[chronicle-philosophy-agency]]);
+  no periodic re-check of the whole library either way — checking at the moment the
+  video is actually opened is the only place this is quota-free and doesn't fight
+  [[product-frictionless-over-quota]]'s "no manual gates" bias in the other direction (a
+  cleanup-on-open is reactive, not a new manual quota-saving step). [[D-048]] is the
+  closest precedent (removed a permanent "channel unavailable" flag in favor of just
+  retrying) and argues against inventing a new sticky per-video status column too —
+  detecting live at open time, with no persisted "unavailable" state, matches that
+  precedent. Removing a video needs to cascade cleanly out of every place it can be
+  referenced (`video_state`, playlist membership, Watch Later, favorites) — a new
+  repository method, not just one `DELETE FROM videos`.
+- **Implementation (2026-09-04):** built as recommended above, unchanged. `PlayerSurface.tsx`'s
+  `onError` handler now branches error `100` into a new `'unavailable'` surface (kept
+  separate from `'embed-blocked'`; the iframe-gating condition changed from `surface !==
+  'embed-blocked'` to `surface === 'playing'` so it hides for either overlay). The new
+  overlay offers three actions: "Remove from library" (new), "Open in browser" (kept —
+  still a real escape hatch, and matches D-006's "a per-video open-in-browser hatch
+  always exists"), and "Back". `CatalogRepository.deleteVideo` (new, `repositories.ts`)
+  deletes `playlist_videos` → `video_state` → `videos` for one id in a single transaction
+  (Watch Later/favorites are columns on `video_state`, not separate tables, so this one
+  delete covers them too — no separate cascade needed there). Wired through a new
+  `video:remove` IPC channel (`contract.ts`/`preload.ts`/`main.ts`, same shape as the
+  existing single-video IPC calls) and a new `removeUnavailableVideo` handler in
+  `App.tsx` that calls it, filters the video out of `videos`/`playlistVideos`, and leaves
+  the player the same way Esc/Back would (`closePlayer`). Error `2` (invalid parameter)
+  was **not** added, unlike this entry's own earlier note floated — it's a different
+  failure (a malformed request, not a valid-but-gone video) and folding it in
+  unconfirmed felt like scope creep beyond what was actually observed. `playback.md`
+  §Unavailable videos and `local-data.md`'s Retention section were updated in the same
+  change. New test: `repositories.test.ts`'s `deleteVideo (B-130)` (cascades correctly,
+  leaves the playlist itself and unrelated membership untouched). Checked via `npm run
+  typecheck && npm run lint && npm test` (276/276); **not run live** (per
+  [[no-live-app-verification]]) — the owner tests live before this moves to Resolved,
+  same division of labor as always. The real Mitinho Player video from this entry's own
+  repro is the natural first thing to try it against.
+- **Owner feedback, round 1 (2026-09-04):** live-tested against the real Mitinho Player
+  video — still showed the old "channel disabled embedded playback" message, meaning
+  `surface` was landing on `'embed-blocked'`, not the new `'unavailable'` branch. A
+  temporary `console.info` logging the raw `onError` code (removed again below) showed
+  the actual value: **`150`** — not `100`. Confirmed directly, not guessed
+  ([[verify-dom-interaction-bugs-dont-guess]]).
+- **Round 2 fix (2026-09-04), same session:** the round-1 design's whole premise — that
+  error `100` (video gone) and `101`/`150` (owner disabled embedding) are distinguishable
+  signals — doesn't hold in practice: a video independently confirmed private via
+  YouTube's own watch page (`playabilityStatus.status === 'LOGIN_REQUIRED'`) still
+  raised `150` in the live embed, the same code the "owner disabled embedding" case
+  uses. Rather than patch the heuristic again, **merged the two overlays into one**
+  (`Surface` narrowed back to `'playing' | 'unavailable'`; `100`/`101`/`150` all land on
+  it) with neutral copy that doesn't assert which case it is — "can't be played here —
+  may be restricted by its creator, or no longer available." All three actions now live
+  on this single overlay: "open in browser" (unchanged — now doubles as the user's own
+  way to tell the two cases apart), "remove from library" (unchanged from round 1), and
+  "back." The dedicated `player.overlay.embedBlockedTitle`/`unavailableTitle` split in
+  `en.ts`/`pt-BR.ts` collapsed to one `unavailableTitle` key with the new neutral copy.
+  `playback.md` §Unplayable videos (renamed from §Unavailable videos) and
+  `local-data.md`'s Retention note were updated to match — both now describe the
+  round-1 two-overlay design as a disproven first attempt, same as this entry's own
+  narrative, rather than silently rewriting history. Checked via `npm run typecheck &&
+  npm run lint && npm test` (276/276, `deleteVideo` test untouched — the repository/IPC
+  layer didn't change, only which `onError` codes route to the one surface).
+- **Owner feedback, round 2 (2026-09-04):** confirmed working live against the real
+  Mitinho Player video.

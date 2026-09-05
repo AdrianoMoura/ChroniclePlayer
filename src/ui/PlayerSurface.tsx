@@ -40,7 +40,15 @@ function resumeValueFor(currentTime: number, durationSeconds: number | null): nu
   return Math.floor(currentTime)
 }
 
-type Surface = 'playing' | 'embed-blocked'
+// 'unavailable' (B-130): the embed can't play this video — owner-disabled
+// embedding (101/150) and a removed/private video (100, documented but not
+// observed live-testing this: YouTube's real embed returned 150 for a
+// confirmed-private video, not 100) turned out to be indistinguishable by
+// error code alone, so both collapse into one surface with neutral copy
+// rather than two separate (and sometimes wrong) messages. "Open in
+// browser" stays offered either way — it's the user's own way to find out
+// which case they actually hit.
+type Surface = 'playing' | 'unavailable'
 
 export interface PlayerSurfaceHandle {
   // There's no way to move this iframe's DOM node into a different
@@ -93,6 +101,8 @@ interface PlayerSurfaceProps {
   onToggleComments: () => void
   onAddToPlaylist: () => void
   onExtract: () => void
+  // B-130: the 'unavailable' overlay's explicit remove action.
+  onRemoveUnavailable: () => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
   // D-055: fires once per real ended transition — App.tsx uses it to look up
   // an "up next" Watch Later suggestion. Never drives auto-advance itself.
@@ -120,6 +130,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       onToggleComments,
       onAddToPlaylist,
       onExtract,
+      onRemoveUnavailable,
       onStatePatched,
       onEnded
     },
@@ -261,8 +272,13 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           }
         }
         if (payload.event === 'onError' && typeof payload.info === 'number') {
-          // 101/150 = embedding disabled by the owner (playback.md).
-          if (payload.info === 101 || payload.info === 150) setSurface('embed-blocked')
+          // 100 = video not found/removed/private; 101/150 = owner disabled
+          // embedding (playback.md) — collapsed into one surface (B-130),
+          // since live testing showed a private video can itself come back
+          // as 150, not 100.
+          if (payload.info === 100 || payload.info === 101 || payload.info === 150) {
+            setSurface('unavailable')
+          }
         }
         if (payload.event === 'infoDelivery') {
           const info = payload.info as { currentTime?: number; playerState?: number } | undefined
@@ -568,7 +584,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
                 }
           }
         >
-          {surface !== 'embed-blocked' && (
+          {surface === 'playing' && (
             <iframe
               ref={iframeRef}
               key={video.videoId}
@@ -581,12 +597,15 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
             />
           )}
 
-          {active && surface === 'embed-blocked' && (
+          {active && surface === 'unavailable' && (
             <div className="player-overlay">
-              <p className="overlay-title">{t('player.overlay.embedBlockedTitle')}</p>
+              <p className="overlay-title">{t('player.overlay.unavailableTitle')}</p>
               <div className="overlay-actions">
                 <button className="primary" onClick={openInBrowser}>
                   {t('player.overlay.openInBrowser')}
+                </button>
+                <button className="primary" onClick={onRemoveUnavailable}>
+                  {t('player.overlay.removeFromLibrary')}
                 </button>
                 <button className="primary" onClick={onClose}>
                   {t('player.overlay.back')}

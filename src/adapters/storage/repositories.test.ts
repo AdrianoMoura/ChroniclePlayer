@@ -626,4 +626,31 @@ describe('SqliteCatalogRepository', () => {
     addVideo('v1', '2026-07-08T10:00:00Z') // re-fetch
     expect(states.get('v1').readStatus).toBe('read')
   })
+
+  it('deleteVideo (B-130) removes the video plus its state and playlist membership', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    states.toggleFavorite('v1')
+    db.prepare(
+      `INSERT INTO playlists (playlist_id, name, created_at, updated_at)
+       VALUES ('p1', 'My List', :now, :now)`
+    ).run({ now: fixedClock.now().toISOString() })
+    db.prepare(
+      `INSERT INTO playlist_videos (playlist_id, video_id, position, added_at)
+       VALUES ('p1', 'v1', 1, :now)`
+    ).run({ now: fixedClock.now().toISOString() })
+
+    catalog.deleteVideo('v1')
+
+    expect(catalog.countVideos()).toBe(0)
+    expect(states.get('v1')).toEqual(states.get('never-existed'))
+    const membership = db
+      .prepare(`SELECT COUNT(*) AS n FROM playlist_videos WHERE video_id = 'v1'`)
+      .get() as { n: number | bigint }
+    expect(Number(membership.n)).toBe(0)
+    // The playlist itself, and any other membership row, are untouched.
+    const playlist = db.prepare(`SELECT name FROM playlists WHERE playlist_id = 'p1'`).get() as
+      | { name: string }
+      | undefined
+    expect(playlist?.name).toBe('My List')
+  })
 })

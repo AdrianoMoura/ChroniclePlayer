@@ -111,6 +111,11 @@ export interface CatalogRepository {
   upsertChannel(channel: Channel): void
   upsertVideo(video: Video, fetchedAt: string): void
   countVideos(): number
+  // B-130: a video confirmed gone on YouTube's side (removed/private, IFrame
+  // error 100) — removes it and every reference to it (state, playlist
+  // membership) so it stops resurfacing anywhere in the local library.
+  // User-triggered only, never automatic (a transient error is not proof).
+  deleteVideo(videoId: string): void
 }
 
 // ── M2 sync ports ────────────────────────────────────────────────

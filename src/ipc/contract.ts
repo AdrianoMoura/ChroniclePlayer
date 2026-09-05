@@ -378,6 +378,7 @@ export const IpcChannel = {
   openInBrowser: 'system:openInBrowser',
   openExternalUrl: 'system:openExternalUrl',
   getVideo: 'video:get',
+  removeVideo: 'video:remove',
   getAuthStatus: 'auth:status',
   getConnectedChannel: 'auth:whoami',
   getWizardState: 'wizard:get',
@@ -474,6 +475,11 @@ export interface ChronicleApi {
   // Local videos come from the DB; unknown ones are hydrated on demand
   // (videos.list, 1 unit) and stored outside the feed (D-029).
   getVideo(videoId: string): Promise<ResultDto<PlayerVideoDto>>
+  // B-130: the player's "video unavailable" overlay (removed/private on
+  // YouTube's side, IFrame error 100) offers this as an explicit action —
+  // never automatic. Drops the video and every reference to it (state,
+  // playlist membership) from the local library.
+  removeVideo(videoId: string): Promise<void>
   getAuthStatus(): Promise<AuthStatusDto>
   importClientSecret(json: string): Promise<ResultDto<AuthStatusDto>>
   connectGoogle(): Promise<ResultDto<AuthStatusDto>>

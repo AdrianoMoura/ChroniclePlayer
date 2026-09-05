@@ -59,8 +59,31 @@ The embed must not feel like a YouTube page inside the app. Concretely:
 - **Chrome-less player view**: the video sits in Chronicle's own view (title, channel,
   date, description, local action bar in Chronicle's typography/theme) — everything
   around the video is ours; only the video surface itself is YouTube.
-- **Embed-restricted videos** (owner disabled embedding — IFrame errors 101/150):
-  detected and routed automatically to "open in browser" with a one-line explanation.
+- **Unplayable videos (B-130, Final, 2026-09-04):** the embed's `onError` can report the
+  owner disabled embedding (IFrame errors 101/150) or that the video itself is gone —
+  removed or made private (error 100, per the IFrame API's own documented error codes).
+  **First implementation attempt kept these as two separate overlays** (a distinct
+  "video unavailable" surface for 100, offering a "remove from library" action, versus
+  the existing embed-restricted one for 101/150) — **disproven on the owner's own live
+  test**: a confirmed-private video (independently verified against YouTube's own public
+  watch page, `playabilityStatus.status === 'LOGIN_REQUIRED'`) actually raised error
+  `150` in the running embed, not `100`. YouTube's real embed doesn't reliably
+  distinguish "owner disabled embedding" from "video is private/gone" by error code —
+  at least not in this observed case — so building two different messages around that
+  distinction was building on a signal that doesn't hold. **Fixed by merging both into
+  one surface** (`100`/`101`/`150` all land on it) with neutral copy ("can't be played
+  here — may be restricted by its creator, or no longer available") instead of asserting
+  which case it is. Three actions: "open in browser" (unchanged — still the user's own
+  way to find out which case they actually hit: it works there, it's an embed
+  restriction; it doesn't, the video's actually gone), "remove from library" (new — the
+  only thing that deletes the local `videos` row, plus its `video_state` and any
+  playlist membership, `local-data.md`; deliberately **not automatic**, since neither a
+  transient error nor this merged surface is proof the video is really gone, and
+  silently deleting the user's own data on a guess cuts against the product's own agency
+  principle), and "back." No periodic re-check of the whole library — this only ever
+  fires at the moment a video is actually opened, the one place checking is free (no
+  extra API call; the embed's own error tells us) and doesn't need a new manual
+  quota-saving gate.
 - **Login quirk**: the embed is a plain `<iframe>` using Electron's own default session
   (cookies), not the OAuth token — playback works logged-out either way. No `partition`
   is set anywhere, so it's genuinely Electron's own persistent, isolated session (not

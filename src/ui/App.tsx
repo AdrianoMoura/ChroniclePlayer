@@ -1154,6 +1154,23 @@ export function App() {
     setUpNextPlaylistName(null)
   }, [])
 
+  // B-130: the player's "video unavailable" overlay's explicit remove
+  // action (never automatic — a transient error isn't proof the video is
+  // really gone). Drops it from every local list that might still show it,
+  // then leaves the player the same way Esc/Back would.
+  const removeUnavailableVideo = useCallback(
+    (videoId: string) => {
+      void window.chronicle.removeVideo(videoId).then(() => {
+        setVideos((current) => current.filter((v) => v.videoId !== videoId))
+        setPlaylistVideos((current) => current.filter((v) => v.videoId !== videoId))
+        closePlayer()
+        syncMeta()
+        loadChannels()
+      })
+    },
+    [closePlayer, syncMeta, loadChannels]
+  )
+
   // Called automatically by PlayerSurface's own Esc/Back dock-vs-close
   // decision (`closeOrDock`) — there's no manual "dock" button in the UI.
   const dockPlayer = useCallback(() => setMiniplayer(true), [])
@@ -2538,6 +2555,7 @@ export function App() {
                       onToggleComments={() => playerDetailsRef.current?.toggleComments()}
                       onAddToPlaylist={() => playerDetailsRef.current?.openAddToPlaylist()}
                       onExtract={extractToWindow}
+                      onRemoveUnavailable={() => removeUnavailableVideo(currentPlayerVideo.videoId)}
                       onStatePatched={patch}
                       onEnded={() => handleVideoEnded(currentPlayerVideo.videoId)}
                     />

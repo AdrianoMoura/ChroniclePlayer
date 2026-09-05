@@ -210,6 +210,15 @@ Design notes:
 - Videos and states are kept indefinitely by default — disk cost is trivial (metadata
   only; ~1 KB/video → 100k videos ≈ 100 MB worst case) and "user owns their data" implies
   not deleting it behind their back.
+- **Exception (B-130, Final):** a video the embed can't play (owner-restricted, or
+  actually gone — the two turned out not to be reliably distinguishable, `playback.md`
+  §Unplayable videos) can be deleted from the local library one at a time, but only via
+  an explicit user action from the player's overlay — never automatically, and never as
+  a background sweep over the existing library. `CatalogRepository.deleteVideo` removes
+  the `videos` row plus its `video_state` row and any `playlist_videos` membership in one
+  transaction; no new availability/status column was added to `videos` (unlike
+  `channels.available`) — this
+  stays a live, user-triggered check at open time, not a persisted flag.
 - Settings offer optional pruning: "remove videos older than N months **that have no
   state row** (never read/favorited/queued/noted)". Favorites/notes are never pruned
   automatically. **D-020 (Final): off by default.** Exercised at M5 — the "off" option
