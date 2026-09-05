@@ -416,10 +416,9 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `comments.update`), a direct product-owner request rather than an item from
   `tracker-current.md` — same pattern as D-050–D-063. Confirmed working live by the
   owner, after a same-day fix for the new Edit button rendering flush against the
-  existing Reply button with no gap. Also lands D-065 (a Settings storage indicator plus
-  an on-demand "clean up old videos" action, exercising D-020's previously-unbuilt
-  pruning idea as a manual, preview-then-confirm action rather than a background
-  toggle), implemented in the same cycle but **not yet live-tested by the owner**.
+  existing Reply button with no gap. Also lands D-065 (a Settings storage indicator:
+  the current on-disk footprint, display only), implemented in the same cycle but
+  **not yet live-tested by the owner**.
 
 ## M0 — Walking skeleton
 

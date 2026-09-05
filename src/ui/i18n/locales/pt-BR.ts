@@ -202,22 +202,6 @@ export const dict: Partial<Dict> = {
   'settings.data.exportedBanner': 'Exportados {videos} vídeos e {states} estados para {path}',
   'settings.data.exportFailedBanner': 'Falha na exportação: {message}',
   'settings.data.storageLine': '{db} de banco de dados · {cache} de cache de miniaturas · {videos} vídeos',
-  'settings.data.cleanupLabel': 'Remover vídeos sem nenhuma interação',
-  'settings.data.cleanupNote': 'Só entram vídeos sem nenhuma atividade salva.',
-  'settings.data.cleanupNoteDetail':
-    'Nunca favoritados, colocados na fila, marcados para ignorar ou adicionados a uma playlist, independente do status de lido ou do progresso de reprodução.',
-  'settings.data.cleanupOlderThan': 'Mais antigos que',
-  'settings.data.cleanupAll': 'Todos',
-  'settings.data.cleanup6Months': '6 meses',
-  'settings.data.cleanup12Months': '12 meses',
-  'settings.data.cleanup24Months': '24 meses',
-  'settings.data.cleanup36Months': '36 meses',
-  'settings.data.cleanupPreviewNone': 'Nada para remover',
-  'settings.data.cleanupPreviewCount': '{count} vídeos encontrados',
-  'settings.data.cleanupButton': 'Limpar',
-  'settings.data.cleanupConfirmButton': 'Clique de novo para apagar {count} vídeos definitivamente',
-  'settings.data.cleanupBanner': 'Removidos {count} vídeos e espaço liberado',
-  'settings.data.cleanupFailedBanner': 'Falha na limpeza: {message}',
 
   // Wizard — shared chrome
   'wizard.exitButton': '✕ Fechar',

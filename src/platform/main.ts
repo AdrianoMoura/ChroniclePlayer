@@ -26,7 +26,6 @@ import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { nextInPlaylist, type PlaylistSummary } from '../core/playlist'
 import { QuotaCounter, type Clock } from '../core/ports'
-import { pruneCutoffIso } from '../core/retention'
 import { isNewerVersion } from '../core/version'
 import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
 import type { VideoState } from '../core/state'
@@ -2049,25 +2048,6 @@ async function boot(): Promise<void> {
       }
     }
     return { dbBytes, cacheBytes: thumbnails.sizeBytes(), videoCount: catalogRepository.countVideos() }
-  })
-
-  // months === null means no age limit (a full pass over the whole library).
-  function pruneCutoffFor(months: unknown): string | null {
-    return typeof months === 'number' ? pruneCutoffIso(clock.now(), months) : null
-  }
-
-  ipcMain.handle(IpcChannel.previewPruneOldVideos, (_event, months: unknown): number => {
-    return catalogRepository.countPrunableVideos(pruneCutoffFor(months))
-  })
-
-  // User-triggered only, from Settings — never a background sweep
-  // (local-data.md §Retention). VACUUM reclaims the freed pages; node:sqlite
-  // has no autovacuum configured (database.ts), so without it the file
-  // wouldn't actually shrink.
-  ipcMain.handle(IpcChannel.pruneOldVideos, (_event, months: unknown): number => {
-    const removed = catalogRepository.pruneOldVideos(pruneCutoffFor(months))
-    if (removed > 0 && db !== undefined) db.exec('VACUUM')
-    return removed
   })
 
   // Skip the initial window only for the real launch (not a deleteAllData

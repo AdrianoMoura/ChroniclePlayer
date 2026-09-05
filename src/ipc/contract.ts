@@ -149,10 +149,10 @@ export type ResultDto<T> =
   | { ok: true; value: T }
   | { ok: false; errorKind: string; message: string }
 
-// D-020 exercised: Settings' storage indicator (local-data.md §Retention).
-// dbBytes covers chronicle.db plus its WAL/SHM files; cacheBytes is the
-// thumbnail disk cache (platform/thumbnail-cache.ts). videoCount is the
-// library's total row count, for context next to the byte figures.
+// D-065: Settings' storage indicator. dbBytes covers chronicle.db plus its
+// WAL/SHM files; cacheBytes is the thumbnail disk cache
+// (platform/thumbnail-cache.ts). videoCount is the library's total row
+// count, for context next to the byte figures.
 export interface StorageInfoDto {
   dbBytes: number
   cacheBytes: number
@@ -401,8 +401,6 @@ export const IpcChannel = {
   exportData: 'data:export',
   deleteAllData: 'data:deleteAll',
   getStorageInfo: 'data:getStorageInfo',
-  previewPruneOldVideos: 'data:previewPrune',
-  pruneOldVideos: 'data:prune',
   importClientSecret: 'auth:importClientSecret',
   connectGoogle: 'auth:connect',
   signOut: 'auth:signOut',
@@ -610,18 +608,8 @@ export interface ChronicleApi {
   // Removes the database, secrets and caches, then relaunches (local-data.md
   // §Privacy invariants). The UI confirms before calling.
   deleteAllData(): Promise<void>
-  // D-020 exercised: current on-disk footprint for Settings' storage
-  // indicator.
+  // D-065: current on-disk footprint for Settings' storage indicator.
   getStorageInfo(): Promise<StorageInfoDto>
-  // How many videos qualify for cleanup — not favorited/queued/ignored/in a
-  // playlist, and (unless months is null, meaning no age limit — a full pass
-  // over the whole library) published more than `months` ago. Shown before
-  // the user confirms pruneOldVideos.
-  previewPruneOldVideos(months: number | null): Promise<number>
-  // Deletes those videos and reclaims the freed disk space (VACUUM).
-  // User-triggered only, from Settings — never a background sweep
-  // (local-data.md §Retention, D-020). Returns the number actually removed.
-  pruneOldVideos(months: number | null): Promise<number>
   // Real subscriptions.delete (B-010, 50 units) plus the local soft-delete.
   // Requests the youtube.force-ssl write scope incrementally on first use
   // (D-032) — may briefly open the system browser for consent.
