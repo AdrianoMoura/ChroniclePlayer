@@ -70,6 +70,8 @@ export interface PlayerSurfaceHandle {
   // Closing the window to the tray with SettingsDto.popOutOnClose off (D-051)
   // pauses whatever's playing instead of popping it into the extract window.
   pause: () => void
+  // D-067: resumes playback paused for the Share dialog once it closes.
+  play: () => void
   // Jumps to a specific position — used by a comment's linkified timestamp
   // (e.g. "12:34"). Also resumes playback if paused, matching YouTube's own
   // comment-timestamp behavior (jump *and* play).
@@ -363,6 +365,9 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         isStillGoing,
         pause: () => {
           if (isStillGoing()) command('pauseVideo')
+        },
+        play: () => {
+          if (!isStillGoing()) command('playVideo')
         },
         seekTo: (seconds: number) => {
           command('seekTo', [Math.max(0, seconds), true])

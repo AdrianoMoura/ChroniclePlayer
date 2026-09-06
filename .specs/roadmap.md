@@ -411,14 +411,22 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   than an item from `tracker-current.md` — same pattern as D-050–D-062. Confirmed
   working live by the owner. Shipped as a **patch** version, per the owner's own
   explicit direction.
-- **0.10.3 — in progress.** Carrying B-108, B-101 forward from 0.10.2, unchanged.
-  Driven by D-064 (an Edit action on the viewer's own comments/replies, via
-  `comments.update`), a direct product-owner request rather than an item from
-  `tracker-current.md` — same pattern as D-050–D-063. Confirmed working live by the
-  owner, after a same-day fix for the new Edit button rendering flush against the
-  existing Reply button with no gap. Also lands D-065 (a Settings storage indicator:
-  the current on-disk footprint, display only), implemented in the same cycle but
-  **not yet live-tested by the owner**.
+- **0.11.0 — delivered.** Originally tracked toward 0.10.3 (a patch, carrying B-108,
+  B-101 forward from 0.10.2 unchanged). Driven by D-064 (an Edit action on the
+  viewer's own comments/replies, via `comments.update`, confirmed working live by the
+  owner after a same-day fix for the new Edit button rendering flush against the
+  existing Reply button with no gap), D-065 (a Settings storage indicator: the current
+  on-disk footprint, display only), and D-066 (Settings copy shortened with hover info
+  icons, em dashes dropped) — the three together amounted to real new scope, so it
+  shipped as a **minor** version instead, per the owner's own explicit direction,
+  skipping 0.10.3 entirely. Also closed B-130 (Fixed — a removed/private YouTube video
+  no longer misreports as "channel disabled embedding"). See
+  `tracker-history/v0.11.0.md`.
+- **0.11.1 — in progress.** Carrying B-108, B-101 forward from 0.11.0, unchanged.
+  Driven by D-067 (a Share button on the video's own screen: link + copy + an optional
+  current-timestamp checkbox, skipped for a live video), a direct product-owner request
+  rather than an item from `tracker-current.md` — same pattern as D-050–D-066.
+  Confirmed working live by the owner.
 
 ## M0 — Walking skeleton
 

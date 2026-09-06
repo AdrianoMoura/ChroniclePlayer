@@ -1491,7 +1491,18 @@ button.primary:disabled {
   margin-left: 2px;
 }
 
+.player-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.player-topbar-share,
 .player-topbar-extract {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-dim);
   padding: 4px 10px;
   border-radius: 6px;
@@ -1500,6 +1511,7 @@ button.primary:disabled {
   flex-shrink: 0;
 }
 
+.player-topbar-share:hover,
 .player-topbar-extract:hover {
   color: var(--text);
   background: var(--surface-2);
@@ -3030,9 +3042,52 @@ button.primary.danger {
 .add-to-playlist-actions .primary,
 .create-playlist-actions .primary,
 .settings-actions .primary,
-.playlists-toolbar .primary {
+.playlists-toolbar .primary,
+.share-url-row .primary,
+.share-actions .primary {
   align-self: auto;
   margin-top: 0;
+}
+
+.share-dialog {
+  min-width: 360px;
+  max-width: 440px;
+}
+
+.share-video-title {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.share-url-row .share-url-input {
+  flex: 1;
+}
+
+.share-timestamp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.share-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 /* A playlist's own screen header — same compact strip as ChannelHeader

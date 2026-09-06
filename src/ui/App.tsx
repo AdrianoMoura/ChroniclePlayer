@@ -2586,6 +2586,10 @@ export function App() {
                       onExtractChat={extractChat}
                       onClose={() => playerSurfaceRef.current?.requestClose()}
                       onExtract={extractToWindow}
+                      onGetCurrentTimeSeconds={() =>
+                        playerSurfaceRef.current?.getPlaybackSnapshot()?.currentTimeSeconds ?? 0
+                      }
+                      onResumePlayback={() => playerSurfaceRef.current?.play()}
                       onOpenVideo={(videoId) => openVideo(videoId)}
                       onOpenChannel={navigateToChannel}
                       onStatePatched={patch}

@@ -438,6 +438,7 @@ export const dict: Partial<Dict> = {
   'player.miniplayer.maximizeTitle': 'Voltar ao player completo (e)',
   'player.miniplayer.closeTitle': 'Fechar (x)',
   'player.extractTitle': 'Destacar em janela própria sempre visível (p)',
+  'player.shareTitle': 'Compartilhar',
   'player.miniplayer.resizeTitle': 'Arraste para redimensionar',
   'player.overlay.back': 'Voltar (Esc)',
   'player.overlay.unavailableTitle': 'Este vídeo não pode ser reproduzido aqui — pode estar restrito pelo criador, ou não estar mais disponível.',
@@ -598,5 +599,11 @@ export const dict: Partial<Dict> = {
   'addToPlaylist.empty': 'Nenhuma playlist ainda — crie uma abaixo.',
   'addToPlaylist.newPlaylistPlaceholder': 'Nome da nova playlist',
   'addToPlaylist.create': 'Criar',
-  'addToPlaylist.done': 'Concluído'
+  'addToPlaylist.done': 'Concluído',
+
+  'share.title': 'Compartilhar',
+  'share.copy': 'Copiar',
+  'share.copied': 'Copiado',
+  'share.includeTimestamp': 'Incluir o momento atual ({time})',
+  'share.done': 'Concluído'
 }

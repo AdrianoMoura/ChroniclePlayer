@@ -489,6 +489,20 @@ Changing speed from the embed's own control during playback is session-only and 
 writes back to the setting — the setting is "what speed do new videos start at," not "what
 speed am I watching this one at."
 
+## Sharing a video — D-067 (Final, confirmed working live)
+
+The full-view player's topbar gets a Share icon button next to the existing pop-out
+button. For a non-live video, clicking it pauses the video (same rationale as B-121's
+open-in-browser pause — sharing shifts attention away from Chronicle's own copy) and
+opens a dialog with the video's canonical `https://www.youtube.com/watch?v=<id>` URL, a
+Copy button, and a checkbox (unchecked by default) that appends `&t=<seconds>s` using
+the playback position captured the moment the dialog opened; closing the dialog resumes
+playback. **A live video (`liveContent === 'live'`) skips the pause/resume and the
+timestamp checkbox entirely** — there's no meaningful "current position" of a broadcast
+everyone else is also watching live, and pausing Chronicle's own copy doesn't pause it
+for anyone else. Scoped to the full-view player only — the miniplayer keeps its own
+extract button but gets no Share button.
+
 ## Mark-as-read trigger (Final)
 
 Opening the player view marks the video `read` immediately (not at N% watched). Rationale:

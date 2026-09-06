@@ -442,6 +442,7 @@ export const dict = {
   'player.miniplayer.maximizeTitle': 'Back to full player (e)',
   'player.miniplayer.closeTitle': 'Close (x)',
   'player.extractTitle': 'Pop out into its own always-on-top window (p)',
+  'player.shareTitle': 'Share',
   'player.miniplayer.resizeTitle': 'Drag to resize',
   'player.overlay.back': 'Back (Esc)',
   'player.overlay.unavailableTitle': "This video can't be played here — it may be restricted by its creator, or no longer available.",
@@ -600,5 +601,11 @@ export const dict = {
   'addToPlaylist.empty': 'No playlists yet — create one below.',
   'addToPlaylist.newPlaylistPlaceholder': 'New playlist name',
   'addToPlaylist.create': 'Create',
-  'addToPlaylist.done': 'Done'
+  'addToPlaylist.done': 'Done',
+
+  'share.title': 'Share',
+  'share.copy': 'Copy',
+  'share.copied': 'Copied',
+  'share.includeTimestamp': 'Include current timestamp ({time})',
+  'share.done': 'Done'
 } as const

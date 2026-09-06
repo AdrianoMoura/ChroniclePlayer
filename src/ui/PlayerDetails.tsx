@@ -4,7 +4,9 @@ import { parseYouTubeUrl } from '../ipc/youtube-url'
 import { AddToPlaylistDialog } from './AddToPlaylistDialog'
 import { CommentsSection, type CommentsSectionHandle } from './Comments'
 import { feedItemLabel } from './format'
+import { ShareIcon } from './icons'
 import { t } from './i18n'
+import { ShareDialog } from './ShareDialog'
 import { useWriteScopeGate } from './useWriteScopeGate'
 
 // The full-view player's chrome — title, meta, action bar, description,
@@ -48,6 +50,13 @@ interface PlayerDetailsProps {
   onExtractChat: () => void
   onClose: () => void
   onExtract: () => void
+  // D-067: read synchronously when the Share dialog opens, alongside the
+  // existing onPause — both reach PlayerSurface, a sibling component, the
+  // same way onSeekTo/onPause already do.
+  onGetCurrentTimeSeconds: () => number
+  // D-067: resumes playback once the Share dialog closes, undoing the pause
+  // it caused on open (never called for a live video — see openShare).
+  onResumePlayback: () => void
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
@@ -74,6 +83,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       onExtractChat,
       onClose,
       onExtract,
+      onGetCurrentTimeSeconds,
+      onResumePlayback,
       onOpenVideo,
       onOpenChannel,
       onStatePatched,
@@ -91,6 +102,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     const [subscribed, setSubscribed] = useState(video.isSubscribed)
     const [actionError, setActionError] = useState<string | null>(null)
     const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
+    const [shareOpen, setShareOpen] = useState(false)
+    const [shareSeconds, setShareSeconds] = useState<number | null>(null)
     const writeScopeGate = useWriteScopeGate()
 
     useEffect(() => {
@@ -100,6 +113,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       setSubscribed(video.isSubscribed)
       setActionError(null)
       setAddToPlaylistOpen(false)
+      setShareOpen(false)
+      setShareSeconds(null)
       void window.chronicle.getVideoRating(video.videoId).then((result) => {
         if (result.ok) setRating(result.value)
       })
@@ -112,6 +127,22 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     function openInBrowser(): void {
       onPause()
       void window.chronicle.openInBrowser(video.videoId)
+    }
+
+    // A live video has no meaningful "current position" to share and
+    // shouldn't be paused just to open this dialog — the broadcast keeps
+    // going for everyone else regardless.
+    function openShare(): void {
+      if (video.liveContent !== 'live') {
+        setShareSeconds(onGetCurrentTimeSeconds())
+        onPause()
+      }
+      setShareOpen(true)
+    }
+
+    function closeShare(): void {
+      setShareOpen(false)
+      if (video.liveContent !== 'live') onResumePlayback()
     }
 
     function toggleLike(): void {
@@ -162,13 +193,22 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
               {stackDepth > 1 ? t('player.topbar.back') : t('player.topbar.backToFeed')}{' '}
               <kbd>Esc</kbd>
             </button>
-            <button
-              className="player-topbar-extract"
-              title={t('player.extractTitle')}
-              onClick={onExtract}
-            >
-              ⧉
-            </button>
+            <div className="player-topbar-actions">
+              <button
+                className="player-topbar-share"
+                title={t('player.shareTitle')}
+                onClick={openShare}
+              >
+                <ShareIcon />
+              </button>
+              <button
+                className="player-topbar-extract"
+                title={t('player.extractTitle')}
+                onClick={onExtract}
+              >
+                ⧉
+              </button>
+            </div>
           </div>
           <div className={chatSurface === 'column' ? 'player-stage-row' : undefined}>
             <div ref={slotRef} className="player-stage-slot" />
@@ -324,6 +364,14 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
             videoTitle={video.title}
             onClose={() => setAddToPlaylistOpen(false)}
             onPlaylistsChanged={() => {}}
+          />
+        )}
+        {shareOpen && (
+          <ShareDialog
+            videoId={video.videoId}
+            videoTitle={video.title}
+            currentTimeSeconds={shareSeconds}
+            onClose={closeShare}
           />
         )}
       </>
