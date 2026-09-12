@@ -186,6 +186,10 @@ export interface HydratedVideo {
   thumbnailUrl: string | null
   description: string | null
   viewCount: number | null
+  // statistics.likeCount — official YouTube data (unlike dislikes, never
+  // removed), rides free on the same call. null when the field is absent
+  // (rare: a very old or restricted video).
+  likeCount: number | null
 }
 
 export interface VideoSource {
@@ -203,6 +207,21 @@ export interface VideoSource {
 // D-028 confirmation: HEAD youtube.com/shorts/{id} — zero quota.
 export interface ShortsProber {
   isShort(videoId: string): Promise<boolean>
+}
+
+// D-068: Return YouTube Dislike (returnyoutubedislike.com) — a free, keyless
+// third-party API estimating the dislike count YouTube's own API stopped
+// exposing in Dec 2021. Only called when SettingsDto.showDislikeEstimate is
+// on (opt-in): every call reveals the videoId to a server that isn't
+// YouTube, the one deliberate exception to Chronicle's "only talks to
+// YouTube" rule, so it must never fire silently.
+export interface DislikeEstimateSource {
+  // GET /votes?videoId=… — no auth. The service enforces its own rate limit
+  // (100/min, 10,000/day per client, per its usage-rights policy); not
+  // counted against YouTube quota. Returns null on any failure (network,
+  // 404, malformed body) — never throws, since the caller always has a
+  // fallback (the official like count alone, still shown).
+  fetchDislikeCount(videoId: string): Promise<number | null>
 }
 
 // D-026: an unauthenticated check against a public release feed — no

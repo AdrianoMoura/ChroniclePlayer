@@ -178,3 +178,23 @@ units becomes, worst case, roughly one unit per active channel per cycle — for
   continuously anyway; stale channels stop being displayed prominently; the offline
   metadata cache feature (`features.md`) must respect whatever the verified policy is.
 - Playback-related TOS constraints live in `playback.md`.
+
+## Dislike estimate — D-068 (Final)
+
+The one deliberate exception to "Chronicle only talks to YouTube." YouTube's own API
+stopped exposing `statistics.dislikeCount` in Dec 2021 (the like count was never
+removed — `statistics.likeCount` still rides free on the existing `videos.list` call
+used everywhere else). The only way to show an estimate is a third-party service,
+[Return YouTube Dislike](https://returnyoutubedislike.com) (RYD) — free, keyless,
+`GET https://returnyoutubedislikeapi.com/votes?videoId=…`. Their usage-rights policy
+(`returnyoutubedislike.com/docs/usage-rights`) permits third-party use, requires
+attribution (a link to their repo or site — Chronicle shows one under the Settings
+toggle that enables this), and caps at 100 req/min / 10,000/day per client — not
+counted against YouTube's own quota, and far beyond a single desktop user's pace, so no
+client-side throttling is implemented.
+
+Gated behind `SettingsDto.showDislikeEstimate`, **off by default** — with it off,
+Chronicle makes zero calls to RYD, same as before this feature existed. The result is
+cached in memory only (never written to disk), cleared on every app restart, per the
+product owner's explicit call. See `decisions.md` D-068 for the full rationale and the
+player UI it drives.

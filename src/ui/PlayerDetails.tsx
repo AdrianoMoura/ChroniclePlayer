@@ -1,11 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import type { PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
+import type { DislikeEstimateDto, PlayerVideoDto, VideoRatingDto, VideoStateDto } from '../ipc/contract'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
+import { ActionLabel } from './ActionLabel'
 import { AddToPlaylistDialog } from './AddToPlaylistDialog'
 import { CommentsSection, type CommentsSectionHandle } from './Comments'
 import { feedItemLabel } from './format'
 import { ShareIcon } from './icons'
 import { t } from './i18n'
+import { LikeDislikeBar } from './LikeDislikeBar'
 import { ShareDialog } from './ShareDialog'
 import { useWriteScopeGate } from './useWriteScopeGate'
 
@@ -68,6 +70,9 @@ interface PlayerDetailsProps {
   // behind the scenes — same sibling-reaches-PlayerSurface pattern as
   // onSeekTo above.
   onPause: () => void
+  // D-068: the dislike-estimate ⓘ, shown while the feature is off, links
+  // here (Settings' Playback section).
+  onOpenSettings: () => void
 }
 
 export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>(
@@ -89,7 +94,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       onOpenChannel,
       onStatePatched,
       onSeekTo,
-      onPause
+      onPause,
+      onOpenSettings
     }: PlayerDetailsProps,
     ref
   ) {
@@ -99,6 +105,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     // The user's own rating, fetched silently on open — failures (e.g. not
     // connected) are not worth a banner.
     const [rating, setRating] = useState<VideoRatingDto>('none')
+    // D-068: null while the lookup is in flight.
+    const [dislike, setDislike] = useState<DislikeEstimateDto | null>(null)
     const [subscribed, setSubscribed] = useState(video.isSubscribed)
     const [actionError, setActionError] = useState<string | null>(null)
     const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false)
@@ -110,6 +118,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       setDescriptionOpen(false)
       setDescriptionOverflows(false)
       setRating('none')
+      setDislike(null)
       setSubscribed(video.isSubscribed)
       setActionError(null)
       setAddToPlaylistOpen(false)
@@ -118,6 +127,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
       void window.chronicle.getVideoRating(video.videoId).then((result) => {
         if (result.ok) setRating(result.value)
       })
+      void window.chronicle.getDislikeEstimate(video.videoId).then(setDislike)
     }, [video.videoId, video.isSubscribed])
 
     function patch(next: VideoStateDto): void {
@@ -148,6 +158,19 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     function toggleLike(): void {
       setActionError(null)
       const next = rating === 'like' ? 'none' : 'like'
+      void writeScopeGate
+        .run(() => window.chronicle.rateVideo(video.videoId, next))
+        .then((result) => {
+          if (result.ok) setRating(next)
+          else if (result.errorKind !== 'cancelled') setActionError(result.message)
+        })
+    }
+
+    // D-068: no keyboard shortcut, deliberately — unlike Like's `l`, a
+    // one-key dislike risks an accidental press.
+    function toggleDislike(): void {
+      setActionError(null)
+      const next = rating === 'dislike' ? 'none' : 'dislike'
       void writeScopeGate
         .run(() => window.chronicle.rateVideo(video.videoId, next))
         .then((result) => {
@@ -302,11 +325,6 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 onClick={() => setAddToPlaylistOpen(true)}
               />
               <ActionButton
-                label={rating === 'like' ? t('player.action.liked') : t('player.action.like')}
-                active={rating === 'like'}
-                onClick={toggleLike}
-              />
-              <ActionButton
                 label={subscribed ? t('player.action.subscribed') : t('player.action.subscribe')}
                 active={subscribed}
                 onClick={toggleSubscribe}
@@ -321,6 +339,14 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 }
               />
               <ActionButton label={t('player.action.openInBrowser')} onClick={openInBrowser} />
+              <LikeDislikeBar
+                likeCount={video.likeCount}
+                rating={rating}
+                dislike={dislike}
+                onToggleLike={toggleLike}
+                onToggleDislike={toggleDislike}
+                onOpenSettings={onOpenSettings}
+              />
             </div>
             {actionError !== null && <p className="player-action-error">{actionError}</p>}
 
@@ -390,7 +416,7 @@ function ActionButton({
 }) {
   return (
     <button className={`primary${active ? ' active' : ''}`} onClick={onClick}>
-      {label}
+      <ActionLabel text={label} />
     </button>
   )
 }

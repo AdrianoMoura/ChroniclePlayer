@@ -94,9 +94,11 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.replyToComment, parentId, text),
   updateComment: (commentId: string, text: string) =>
     ipcRenderer.invoke(IpcChannel.updateComment, commentId, text),
-  rateVideo: (videoId: string, rating: 'like' | 'none') =>
+  rateVideo: (videoId: string, rating: 'like' | 'dislike' | 'none') =>
     ipcRenderer.invoke(IpcChannel.rateVideo, videoId, rating),
   getVideoRating: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideoRating, videoId),
+  getDislikeEstimate: (videoId: string) =>
+    ipcRenderer.invoke(IpcChannel.getDislikeEstimate, videoId),
   listAccounts: () => ipcRenderer.invoke(IpcChannel.listAccounts),
   startAddAccount: () => ipcRenderer.invoke(IpcChannel.startAddAccount),
   connectAccount: (accountId: string) => ipcRenderer.invoke(IpcChannel.connectAccount, accountId),

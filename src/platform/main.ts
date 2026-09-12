@@ -21,6 +21,7 @@ import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
 import { HybridVideoSource } from '../adapters/youtube/video-source'
 import { YouTubeRssClient } from '../adapters/rss/rss-client'
 import { GithubReleaseSource } from '../adapters/updates/github-release-source'
+import { RydClient } from '../adapters/ryd/ryd-client'
 import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
@@ -36,6 +37,7 @@ import type {
   ChannelDetailDto,
   ChronicleEventDto,
   CommentDto,
+  DislikeEstimateDto,
   FeedCursorDto,
   FeedSliceDto,
   FeedVideoDto,
@@ -539,6 +541,9 @@ async function boot(): Promise<void> {
   // project); only tokens/scopes are per-account.
   const quota = new QuotaCounter()
   const updateSource = new GithubReleaseSource(fetch)
+  // D-068: account-independent — not part of any account's YouTube auth
+  // stack, and its in-memory cache is intentionally process-lifetime only.
+  const rydClient = new RydClient(fetch)
 
   interface AccountStack {
     accountId: string
@@ -1289,11 +1294,18 @@ async function boot(): Promise<void> {
         // same reason. Never blocks opening the video: a failure (offline,
         // quota) just falls back to the shorter stored copy.
         let description = storedDescription
+        // D-068: likeCount rides the same on-demand hydrate() call above —
+        // never persisted (like description, kept fresh per open), null on
+        // the same failure path that leaves description at its stored copy.
+        let likeCount: number | null = null
         try {
           const [fresh] = await apiClient.hydrate([id])
-          if (fresh !== undefined) description = fresh.description
+          if (fresh !== undefined) {
+            description = fresh.description
+            likeCount = fresh.likeCount
+          }
         } catch {
-          // Keep the stored (possibly truncated) description.
+          // Keep the stored (possibly truncated) description; likeCount stays null.
         }
         return {
           ok: true,
@@ -1310,7 +1322,8 @@ async function boot(): Promise<void> {
             liveStartedAt: entry.video.liveStartedAt,
             liveEndedAt: entry.video.liveEndedAt,
             state: toStateDto(entry.state),
-            isSubscribed: feedRepository.isSubscribed(entry.video.channelId)
+            isSubscribed: feedRepository.isSubscribed(entry.video.channelId),
+            likeCount
           }
         }
       }
@@ -1336,7 +1349,8 @@ async function boot(): Promise<void> {
             liveStartedAt: video.liveStartedAt,
             liveEndedAt: video.liveEndedAt,
             state: toStateDto(stateRepository.get(video.videoId)),
-            isSubscribed: feedRepository.isSubscribed(video.channelId)
+            isSubscribed: feedRepository.isSubscribed(video.channelId),
+            likeCount: video.likeCount
           }
         }
       } catch (error) {
@@ -1691,7 +1705,9 @@ async function boot(): Promise<void> {
     IpcChannel.rateVideo,
     async (_event, videoId: unknown, rating: unknown): Promise<ResultDto<void>> => {
       const id = parseVideoId(videoId)
-      if (rating !== 'like' && rating !== 'none') throw new Error('invalid rating')
+      if (rating !== 'like' && rating !== 'dislike' && rating !== 'none') {
+        throw new Error('invalid rating')
+      }
       try {
         if (!authFlow.hasWriteScope()) {
           return {
@@ -1724,6 +1740,20 @@ async function boot(): Promise<void> {
         const kind = isDomainError(error) ? error.kind : 'internal'
         return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
       }
+    }
+  )
+  // D-068: settings is declared further below (`let settings`), but this
+  // handler only runs on a later IPC call, by which point the whole
+  // composition-root function has finished executing — same closure pattern
+  // every other settings-reading handler in this file relies on.
+  ipcMain.handle(
+    IpcChannel.getDislikeEstimate,
+    async (_event, videoId: unknown): Promise<DislikeEstimateDto> => {
+      const id = parseVideoId(videoId)
+      if (!settings.showDislikeEstimate) return { status: 'disabled' }
+      const dislikeCount = await rydClient.fetchDislikeCount(id)
+      if (dislikeCount === null) return { status: 'error' }
+      return { status: 'ok', dislikeCount }
     }
   )
   ipcMain.handle(IpcChannel.getWizardState, (): WizardStateDto => {

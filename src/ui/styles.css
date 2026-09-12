@@ -1895,10 +1895,99 @@ button.primary:disabled {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  /* D-068: .like-dislike-block, the last item, is taller than a plain
+     button (buttons + bar + counts stacked) — without this, flex's default
+     stretch would pull every other button on its line up to that height. */
+  align-items: flex-start;
+}
+
+/* D-068: rendered as the last item inside .player-actions (not its own row
+   above it, reported live as misplaced) — a flex item there like any other
+   button, so a narrow window wraps it as one atomic unit onto its own line
+   instead of splitting the bar away from its buttons mid-row. width:
+   fit-content sizes it to its widest real-content row — the Like/Dislike
+   buttons — so the bar and counts row underneath (both block-level, no
+   content of their own to size by) span exactly that same width instead of
+   stretching to fill the available space (reported live: the bar spanned
+   the full window when this block used to sit outside .player-actions). */
+.like-dislike-block {
+  width: fit-content;
+}
+
+.like-dislike-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* The trailing "(x)" keyboard-shortcut hint on every action button —
+   smaller and dimmer than its label, same "hint, not primary text" idea as
+   .player-back kbd. Opacity, not a fixed color, so it dims whatever color
+   it inherits (the theme's own text color, or the accent color a
+   button.primary.active takes on) instead of only working against one. */
+.action-shortcut {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.like-dislike-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.like-dislike-bar-like {
+  background: #a3e0a3;
+}
+
+.like-dislike-bar-dislike {
+  background: #e0a3a3;
+}
+
+/* No real dislike number yet (off, loading, or a failed lookup) — a neutral
+   "no data" cue instead of a false ratio. */
+.like-dislike-bar-dislike.placeholder {
+  background: var(--border);
+}
+
+.like-dislike-counts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.like-dislike-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Same native-title-tooltip pattern as .status-info/.settings-info. */
+.like-dislike-info {
+  opacity: 0.7;
+  cursor: pointer;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  font-size: 12px;
+  padding: 0;
+}
+
+.like-dislike-info:hover {
+  opacity: 1;
+}
+
+.like-dislike-count-loading {
+  width: 12px;
 }
 
 .player-actions .primary {
   margin-top: 0;
+  font-size: 13px;
 }
 
 button.primary.active {
@@ -2376,6 +2465,29 @@ button.primary.active {
   max-width: 420px;
   padding: 7px 0;
   cursor: pointer;
+}
+
+/* D-068: wraps a row (+ its InfoNote/notes) that the player's own ⓘ can jump
+   here to, e.g. the dislike-estimate toggle. Plain by default; .flash briefly
+   fades a gray background out once, drawing the eye to it right as the user
+   arrives, then settles back to normal. */
+.settings-highlight-target {
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: -6px -8px;
+}
+
+.settings-highlight-target.flash {
+  animation: settings-highlight-flash 3s ease-out;
+}
+
+@keyframes settings-highlight-flash {
+  from {
+    background-color: rgba(128, 128, 128, 0.25);
+  }
+  to {
+    background-color: transparent;
+  }
 }
 
 .settings-row select {

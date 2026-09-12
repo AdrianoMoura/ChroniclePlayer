@@ -188,7 +188,8 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
           isPremiere: false,
           thumbnailUrl: null,
           description: null,
-          viewCount: 1000
+          viewCount: 1000,
+          likeCount: null
         }))
       )
     },

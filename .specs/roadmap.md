@@ -426,7 +426,14 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   Driven by D-067 (a Share button on the video's own screen: link + copy + an optional
   current-timestamp checkbox, skipped for a live video), a direct product-owner request
   rather than an item from `tracker-current.md` — same pattern as D-050–D-066.
-  Confirmed working live by the owner.
+  Confirmed working live by the owner. Also driven by D-068 (a like/dislike bar on the
+  player screen: the real YouTube like count plus an opt-in third-party dislike
+  estimate via Return YouTube Dislike, off by default), another direct product-owner
+  request — implemented and passing `npm run typecheck && npm run lint && npm test`
+  plus a production build; not yet live-tested by the owner. Also driven by D-069
+  (widening D-066's em-dash ban from Settings copy to every user-facing string, wizard
+  included; code comments and `.specs/*.md` keep their own em-dash style), another
+  direct product-owner request, raised while reviewing D-068's own new copy.
 
 ## M0 — Walking skeleton
 

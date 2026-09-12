@@ -148,6 +148,13 @@ Data handling for externally opened videos (Final):
   duration, description (collapsed by default, links rendered per D-029 rules) +
   Chronicle's local action bar (read/unread toggle, favorite, watch later, ignore, open
   in browser).
+- **Like/dislike bar (D-068, Final):** its own block above the rest of the action bar —
+  Like/Dislike buttons over a proportion bar with real-number counts. The like count is
+  always YouTube's own `statistics.likeCount` (never removed); the dislike count is an
+  opt-in third-party estimate (`youtube-api.md` §Dislike estimate) shown only once
+  `SettingsDto.showDislikeEstimate` is on, off by default — while off, loading, or on a
+  failed lookup, the bar still shows the real like count with a neutral placeholder
+  split and an ⓘ in place of the dislike number, never hidden outright.
 - On `ended`, playback just stops — no auto-advance into anything (D-021, Final: off by
   default). If a video came from the Watch Later queue, jumping to the next queued one is
   a deliberate action (`n`, below), never automatic.
@@ -170,6 +177,8 @@ Data handling for externally opened videos (Final):
   toggle favorite (free to reuse here since Chronicle's own fullscreen shortcut was
   removed, see below), `w` toggle watch later, `l` toggle like, `s` subscribe/unsubscribe
   from the channel, `c` show/hide comments, `n` next in queue (only when one is queued),
+  Dislike (D-068) has **no shortcut**, deliberately — a one-key toggle risks an
+  accidental press, unlike Like's `l`.
   `p` pop out to the always-on-top window, `?` shortcuts overlay (previously did nothing
   here — [[B-102]] — the app-level handler that owns `?` for the feed bails out early
   whenever the full-view player is active, and the player's own keydown map had no `?`

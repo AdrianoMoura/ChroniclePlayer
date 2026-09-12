@@ -53,7 +53,8 @@ const VIDEOS_RESPONSE = {
       // 'processed' is the normal terminal status for basically every
       // finished video — must NOT be read as isPremiere outside liveContent
       // === 'live'.
-      status: { uploadStatus: 'processed' }
+      status: { uploadStatus: 'processed' },
+      statistics: { viewCount: '1000', likeCount: '42' }
     },
     {
       id: 'vid-2',
@@ -184,6 +185,16 @@ describe('YouTubeApiClient', () => {
       durationSeconds: 130,
       liveContent: 'upcoming'
     })
+  })
+
+  it('extracts statistics.likeCount, riding free on the same call (D-068); null when absent', async () => {
+    const fetchFn: FetchFn = () => Promise.resolve(jsonResponse(200, VIDEOS_RESPONSE))
+    const videos = await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).hydrate([
+      'vid-1',
+      'vid-2'
+    ])
+    expect(videos.find((v) => v.videoId === 'vid-1')).toMatchObject({ likeCount: 42 })
+    expect(videos.find((v) => v.videoId === 'vid-2')).toMatchObject({ likeCount: null })
   })
 
   it('captures liveStreamingDetails.actualEndTime once a broadcast has ended (D-053)', async () => {
@@ -597,6 +608,16 @@ describe('YouTubeApiClient', () => {
     expect(params.get('id')).toBe('v1')
     expect(params.get('rating')).toBe('like')
     expect(quota.spent).toBe(50)
+  })
+
+  it('rateVideo also accepts dislike (D-068)', async () => {
+    let calledUrl = ''
+    const fetchFn: FetchFn = (url) => {
+      calledUrl = String(url)
+      return Promise.resolve(new Response(null, { status: 204 }))
+    }
+    await new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).rateVideo('v1', 'dislike')
+    expect(new URL(calledUrl).searchParams.get('rating')).toBe('dislike')
   })
 
   it('getVideoRating reads the items[0].rating field, counts 1 unit', async () => {

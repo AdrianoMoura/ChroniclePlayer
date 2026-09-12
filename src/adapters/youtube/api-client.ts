@@ -177,6 +177,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       const details = item['contentDetails'] as Record<string, unknown>
       const statistics = item['statistics'] as Record<string, unknown> | undefined
       const rawViews = statistics?.['viewCount']
+      const rawLikes = statistics?.['likeCount']
       const live = snippet['liveBroadcastContent']
       const liveContent = live === 'live' || live === 'upcoming' ? live : 'none'
       const liveStreamingDetails = item['liveStreamingDetails'] as Record<string, unknown> | undefined
@@ -206,7 +207,8 @@ export class YouTubeApiClient implements SubscriptionSource {
         isPremiere,
         thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
         description: typeof snippet['description'] === 'string' ? snippet['description'] : null,
-        viewCount: typeof rawViews === 'string' ? Number(rawViews) : null
+        viewCount: typeof rawViews === 'string' ? Number(rawViews) : null,
+        likeCount: typeof rawLikes === 'string' ? Number(rawLikes) : null
       }
     })
   }
@@ -445,7 +447,10 @@ export class YouTubeApiClient implements SubscriptionSource {
 
   // videos.rate — 50 units, write scope required (B-006/D-032). YouTube's
   // public API has no equivalent endpoint to like a *comment* — only videos.
-  async rateVideo(videoId: string, rating: 'like' | 'none'): Promise<void> {
+  // D-068: 'dislike' is accepted the same as 'like' always was — the write
+  // itself never depended on YouTube's public dislike *count*, which is a
+  // separate, unrelated removal (only the aggregate number was hidden).
+  async rateVideo(videoId: string, rating: 'like' | 'dislike' | 'none'): Promise<void> {
     this.quota.add(50)
     const token = await this.auth.getAccessToken()
     const url = new URL(`${API_BASE}/videos/rate`)

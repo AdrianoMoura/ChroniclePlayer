@@ -64,7 +64,7 @@ export const dict = {
   'urlPrompt.title': 'Open a YouTube video',
   'urlPrompt.placeholder': 'https://www.youtube.com/watch?v=…',
   'urlPrompt.notice.shorts':
-    'That is a Shorts link — Chronicle never plays Shorts. Opening in the browser…',
+    'That is a Shorts link. Chronicle never plays Shorts. Opening in the browser…',
   'urlPrompt.notice.channelOrPlaylist': 'Channels and playlists open in the browser for now.',
   'urlPrompt.notice.invalid': 'That does not look like a YouTube video URL.',
 
@@ -72,7 +72,7 @@ export const dict = {
   'connect.readError': 'Could not read the file.',
   'connect.title': 'Connect Chronicle to your YouTube account',
   'connect.intro.part1':
-    'Chronicle ships with no credentials: you bring your own Google Cloud project, so your data and API quota belong to you alone. The one-time setup takes about ten minutes — see',
+    'Chronicle ships with no credentials: you bring your own Google Cloud project, so your data and API quota belong to you alone. The one-time setup takes about ten minutes, see',
   'connect.intro.part2':
     'in the repository for the step-by-step guide to creating the project and downloading your',
   'connect.intro.part3': '.',
@@ -88,7 +88,7 @@ export const dict = {
   'connect.step2.buttonConnecting': 'Waiting for the browser…',
   'connect.step2.button': 'Connect Google',
   'connect.storageWarning':
-    'Heads-up: no OS keychain was detected, so your token will be stored with reversible local encryption — anyone with access to your user account could read it.',
+    'Heads-up: no OS keychain was detected, so your token will be stored with reversible local encryption; anyone with access to your user account could read it.',
 
   // SettingsView
   'settings.language.heading': 'Language',
@@ -145,6 +145,12 @@ export const dict = {
   'settings.playback.watchLaterAutoRemoveNote': 'Removes the video from the queue the moment you open it.',
   'settings.playback.watchLaterAutoRemoveNoteDetail':
     'Same as untoggling it yourself. Off by default, so the queue only shrinks when you say so.',
+  'settings.playback.showDislikeEstimate': 'Show an estimated dislike count',
+  'settings.playback.showDislikeEstimateNote':
+    'YouTube removed the public dislike count in 2021; the like count is still real either way.',
+  'settings.playback.showDislikeEstimateNoteDetail':
+    "Off by default. Turning this on sends every video's id to returnyoutubedislike.com (a free, third-party service, not YouTube) to fetch an estimate. Nothing else about you is sent.",
+  'settings.playback.showDislikeEstimateAttribution': 'Dislike estimates provided by',
   'settings.appearance.heading': 'Appearance',
   'settings.appearance.theme': 'Theme',
   'settings.appearance.themeSystem': 'Follow system',
@@ -205,7 +211,7 @@ export const dict = {
   // Wizard — shared chrome
   'wizard.exitButton': '✕ Close',
   'wizard.screenshot.placeholder':
-    'Screenshot pending capture — the text on the left is the full guidance.',
+    'Screenshot pending capture. The text on the left is the full guidance.',
   'wizard.screenshot.verifiedOn': 'verified on {date}',
   'wizard.nav.back': '← Back',
   'wizard.nav.next': 'Next →',
@@ -218,36 +224,36 @@ export const dict = {
   'wizard.welcome.intro.pre': 'It is free, takes about',
   'wizard.welcome.intro.strong': '10 minutes, one time only',
   'wizard.welcome.intro.post': ', and it means your data and your access belong to you alone:',
-  'wizard.welcome.bullet.quota': 'Your own API quota — shared with nobody.',
+  'wizard.welcome.bullet.quota': 'Your own API quota, shared with nobody.',
   'wizard.welcome.bullet.noThirdParty':
-    'No third party in the loop — Chronicle’s developers never touch your account.',
+    'No third party in the loop. Chronicle’s developers never touch your account.',
   'wizard.welcome.bullet.revocable': 'Revocable by you, anytime, in your own Google console.',
   'wizard.welcome.dim': 'You’ll need a Google account. No billing account is required.',
   'wizard.welcome.startButton': 'Let’s set it up',
-  'wizard.welcome.quickPathButton': 'I’ve done this before — just import my key',
+  'wizard.welcome.quickPathButton': 'I’ve done this before: just import my key',
 
   // Wizard — ConsoleStep (shared)
-  'wizard.step.heading': 'Step {label} — {title}',
+  'wizard.step.heading': 'Step {label}: {title}',
   'wizard.step.variationsSummary': 'Something looks different?',
 
   // Wizard — ConsoleStep: project
   'wizard.step.project.title': 'Create a Google Cloud project',
   'wizard.step.project.why':
-    'Google groups API access into “projects”. You need one to hold your own key — it is free, and no billing account is required for the YouTube API’s default quota.',
+    'Google groups API access into “projects”. You need one to hold your own key. It is free, and no billing account is required for the YouTube API’s default quota.',
   'wizard.step.project.urlLabel': 'Open the project creation page',
   'wizard.step.project.copyLabel': 'Suggested project name',
   'wizard.step.project.confirmLabel': 'I created the project.',
   'wizard.step.project.variations':
-    'If Google asks for an organization, choose “No organization”. If you already have projects, the page may open a picker first — use “New project”.',
+    'If Google asks for an organization, choose “No organization”. If you already have projects, the page may open a picker first. Use “New project”.',
 
   // Wizard — ConsoleStep: enable-api
   'wizard.step.enableApi.title': 'Enable the YouTube Data API v3',
   'wizard.step.enableApi.why':
-    'Projects start with every API disabled; you are turning on just the one Chronicle needs — your subscriptions, video metadata, and (only when you choose to subscribe, comment, or like something) those actions too.',
+    'Projects start with every API disabled; you are turning on just the one Chronicle needs: your subscriptions, video metadata, and (only when you choose to subscribe, comment, or like something) those actions too.',
   'wizard.step.enableApi.urlLabel': 'Open the YouTube Data API page',
   'wizard.step.enableApi.confirmLabel': 'I clicked Enable.',
   'wizard.step.enableApi.variations':
-    'Make sure your new project is selected in the blue top bar before clicking Enable. If the button reads “Manage”, the API is already enabled — you are done here.',
+    'Make sure your new project is selected in the blue top bar before clicking Enable. If the button reads “Manage”, the API is already enabled. You are done here.',
 
   // Wizard — ConsoleStep: consent
   'wizard.step.consent.title': 'Configure the OAuth consent screen',
@@ -258,12 +264,12 @@ export const dict = {
   'wizard.step.consent.confirmLabel':
     'I configured the consent screen (External, my email in both contact fields).',
   'wizard.step.consent.variations':
-    'User type: External (Internal only exists for Workspace organizations). No logo and no scopes need to be added — Chronicle requests its read-only scope at connect time. Skip every optional section. Google occasionally renames this page “Audience” / “Branding” inside “Google Auth Platform”.',
+    'User type: External (Internal only exists for Workspace organizations). No logo and no scopes need to be added. Chronicle requests its read-only scope at connect time. Skip every optional section. Google occasionally renames this page “Audience” / “Branding” inside “Google Auth Platform”.',
 
   // Wizard — ConsoleStep: test-user
   'wizard.step.testUser.title': 'Add yourself as a Test user',
   'wizard.step.testUser.why':
-    'While the project is in “Testing” mode, only listed test users can sign in — that is you.',
+    'While the project is in “Testing” mode, only listed test users can sign in. That is you.',
   'wizard.step.testUser.urlLabel': 'Open the consent screen (Test users section)',
   'wizard.step.testUser.confirmLabel': 'I added my email as a Test user.',
   'wizard.step.testUser.variations':
@@ -276,17 +282,17 @@ export const dict = {
   // Wizard — ConsoleStep: publish
   'wizard.step.publish.title': 'Publish the app (recommended)',
   'wizard.step.publish.why':
-    'In Testing mode, Google expires your connection every 7 days. Clicking “Publish app” makes your token permanent. You may see an “unverified app” warning when connecting — that is expected: the “unverified developer” is you.',
+    'In Testing mode, Google expires your connection every 7 days. Clicking “Publish app” makes your token permanent. You may see an “unverified app” warning when connecting. That is expected: the “unverified developer” is you.',
   'wizard.step.publish.urlLabel': 'Open the consent screen (Publish app)',
   'wizard.step.publish.variations':
-    'Publishing with only the read-only YouTube scope does not require Google’s verification review. If you skip this, Chronicle will detect the weekly expiry and offer a two-click reconnect — plus a link back to this step.',
+    'Publishing with only the read-only YouTube scope does not require Google’s verification review. If you skip this, Chronicle will detect the weekly expiry and offer a two-click reconnect, plus a link back to this step.',
   'wizard.step.publish.publishedButton': 'I published it',
-  'wizard.step.publish.skipButton': 'Skip — I accept reconnecting weekly',
+  'wizard.step.publish.skipButton': 'Skip: I accept reconnecting weekly',
 
   // Wizard — ConsoleStep: client
   'wizard.step.client.title': 'Create a Desktop OAuth client',
   'wizard.step.client.why':
-    'This creates the actual key file Chronicle will use — it identifies your Chronicle install to your project.',
+    'This creates the actual key file Chronicle will use. It identifies your Chronicle install to your project.',
   'wizard.step.client.urlLabel': 'Open the credentials page',
   'wizard.step.client.copyLabel': 'Suggested client name',
   'wizard.step.client.confirmLabel': 'I created the Desktop client and downloaded the JSON file.',
@@ -294,28 +300,28 @@ export const dict = {
     'Create credentials → OAuth client ID → Application type must be “Desktop app” (not “Web application”). The download is usually named client_secret_… .json and lands in your Downloads folder.',
 
   // Wizard — ImportStep / FileDrop
-  'wizard.import.heading': 'Step 6 — Import your key file',
+  'wizard.import.heading': 'Step 6: Import your key file',
   'wizard.import.why.part1': 'Select the',
   'wizard.import.why.part2':
-    'you downloaded. Chronicle extracts the key into your system keychain — it never leaves this machine and never touches a server.',
+    'you downloaded. Chronicle extracts the key into your system keychain. It never leaves this machine and never touches a server.',
   'wizard.import.drop.part1': 'Drop',
   'wizard.import.drop.part2': 'here, or click to pick it',
   'wizard.import.backToClientStep': '← Back to Step 5 (create a Desktop client)',
   'wizard.import.okMessage':
-    '✓ Key imported — Chronicle stores it in your system keychain, never online.',
+    '✓ Key imported. Chronicle stores it in your system keychain, never online.',
   'wizard.import.okNote':
     'You may delete the downloaded file now if you wish; Chronicle never touches your files.',
   'wizard.import.storageWarning':
-    'No OS keychain was detected, so the key is stored with reversible local encryption — anyone with access to your user account could read it.',
+    'No OS keychain was detected, so the key is stored with reversible local encryption; anyone with access to your user account could read it.',
 
   // Wizard — ConnectStep
-  'wizard.connect.heading': 'Step 7 — Connect to Google',
+  'wizard.connect.heading': 'Step 7: Connect to Google',
   'wizard.connect.why':
-    'Your browser will open Google’s consent screen. Chronicle listens locally (127.0.0.1) for the answer — tokens never leave this machine.',
+    'Your browser will open Google’s consent screen. Chronicle listens locally (127.0.0.1) for the answer. Tokens never leave this machine.',
   'wizard.connect.warningTitle': 'Heads-up: the “unverified app” warning.',
   'wizard.connect.warning.part1': 'Google may show',
   'wizard.connect.warning.quote': '“Google hasn’t verified this app”',
-  'wizard.connect.warning.part2': '. That is expected — the unverified developer is',
+  'wizard.connect.warning.part2': '. That is expected. The unverified developer is',
   'wizard.connect.warning.you': 'you',
   'wizard.connect.warning.part3': '. Click',
   'wizard.connect.warning.advanced': 'Advanced',
@@ -345,20 +351,20 @@ export const dict = {
   // App — banners
   'app.banner.connectionFailed': 'Connection failed: {message}',
   'app.banner.reconnectRequired':
-    'Reconnect to Google — your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
+    'Reconnect to Google. Your authorization expired. (Testing-mode projects expire weekly; publishing the app fixes this permanently.)',
   'app.banner.reconnectAction': 'Reconnect',
-  'app.banner.offline': 'You appear to be offline — showing local data. Refresh will retry.',
+  'app.banner.offline': 'You appear to be offline. Showing local data. Refresh will retry.',
   'app.banner.refreshFailed': 'Refresh failed: {message}',
   'app.banner.openVideoFailed': 'Could not open the video: {message}',
   'app.banner.refreshAllFailed':
-    "Refresh couldn't reach any channel ({count} failed) — check your connection. Will retry next cycle.",
+    "Refresh couldn't reach any channel ({count} failed). Check your connection. Will retry next cycle.",
   'app.banner.showDetails': 'Details',
   'app.banner.hideDetails': 'Hide details',
   'app.banner.showDetailsTitle': 'Show which channels failed and why',
   'app.banner.failureAccountLevel': 'Account-level',
   'app.banner.quotaExceeded':
-    'Daily API limit reached — it resets at {time} your time. Chronicle keeps working from local data; discovery via RSS continues free.',
-  'app.banner.signedOut': 'Signed out. Local data was kept — reconnect anytime.',
+    'Daily API limit reached. It resets at {time} your time. Chronicle keeps working from local data; discovery via RSS continues free.',
+  'app.banner.signedOut': 'Signed out. Local data was kept. Reconnect anytime.',
   'app.banner.updateAvailable': 'Chronicle {version} is available.',
   'app.banner.updateAction': 'View release',
   'app.banner.dismissTitle': 'Dismiss',
@@ -389,14 +395,14 @@ export const dict = {
   'app.topbar.unsubscribe': 'Unsubscribe',
   'app.topbar.confirmUnsubscribe': 'Click again to unsubscribe',
   'app.topbar.openChannelTitle': "Open this channel's YouTube page",
-  'app.topbar.favoriteChannelTitle': 'Favorite — prioritize at the top of the main feed',
+  'app.topbar.favoriteChannelTitle': 'Favorite: prioritize at the top of the main feed',
   'app.topbar.unfavoriteChannelTitle': 'Unfavorite',
 
   // App — status text
   // "Identifying," not "filtering" — Shorts are shown, badged, not excluded
   // (see feed.md §Shorts / D-035); this phase only confirms which already-
   // visible videos get the badge.
-  'app.status.filteringShorts': 'identifying Shorts — {checked} of {total} checked…',
+  'app.status.filteringShorts': 'identifying Shorts ({checked} of {total} checked)…',
   'app.status.checkingChannels': 'checking {checked} of {total} channels…',
   'app.status.refreshing': 'refreshing…',
   'app.status.caughtUp': 'All caught up',
@@ -417,9 +423,9 @@ export const dict = {
   'app.feed.emptyNoVideos': 'Nothing here yet.',
 
   // FeedList — shared between list rows and grid cards
-  'feed.card.undoLabel': 'Ignored — it will leave this view',
+  'feed.card.undoLabel': 'Ignored: it will leave this view',
   'feed.card.undoButton': 'Undo (u)',
-  'feed.card.undoLabelPlaylist': 'Removed from playlist — it will leave this list',
+  'feed.card.undoLabelPlaylist': 'Removed from playlist: it will leave this list',
   'feed.card.undoButtonPlaylist': 'Undo',
   'feed.card.favoriteTitle': 'Favorite',
   'feed.card.watchLaterTitle': 'Watch Later',
@@ -445,7 +451,7 @@ export const dict = {
   'player.shareTitle': 'Share',
   'player.miniplayer.resizeTitle': 'Drag to resize',
   'player.overlay.back': 'Back (Esc)',
-  'player.overlay.unavailableTitle': "This video can't be played here — it may be restricted by its creator, or no longer available.",
+  'player.overlay.unavailableTitle': "This video can't be played here. It may be restricted by its creator, or no longer available.",
   'player.overlay.removeFromLibrary': 'Remove from library',
   'player.overlay.openInBrowser': 'Open in browser',
   'player.action.markRead': 'Mark read (m)',
@@ -461,6 +467,13 @@ export const dict = {
   'player.action.addToPlaylist': 'Add to Playlist (a)',
   'player.action.like': 'Like (l)',
   'player.action.liked': 'Liked (l)',
+  // D-068: no keyboard shortcut, deliberately, to avoid an accidental dislike.
+  'player.action.dislike': 'Dislike',
+  'player.action.disliked': 'Disliked',
+  'player.dislikeEstimate.disabledHint':
+    'Dislike counts were removed by YouTube. Click to enable an estimate from a third-party service in Settings.',
+  'player.dislikeEstimate.errorHint':
+    "Couldn't load the dislike estimate right now. The like count above is still real.",
   'player.description.showMore': 'Show more',
   'player.description.showLess': 'Show less',
   'player.description.shortsLinkTitle': 'Shorts open in the browser (Chronicle never plays Shorts)',
@@ -470,7 +483,7 @@ export const dict = {
   'player.chat.toggle': 'View live chat',
   'player.chat.extractTitle': 'Pop out chat into its own window',
   'player.chat.signInInfo':
-    "Live chat is loaded directly from YouTube, so Chronicle's own sign-in doesn't carry over to it — you'll need to sign in here separately, just once.",
+    "Live chat is loaded directly from YouTube, so Chronicle's own sign-in doesn't carry over to it. You'll need to sign in here separately, just once.",
   'player.chat.signInHint': "Want to chat? You'll need to sign in to YouTube here too:",
   'player.chat.signInLink': 'Sign in to YouTube',
   'player.chat.signInWindowTitle': 'Sign in for Live Chat',
@@ -504,11 +517,11 @@ export const dict = {
   'sidebar.accountMenu.remove': 'Remove account',
   'sidebar.accountMenu.confirmRemove': 'Click again to remove',
   'sidebar.accountMenu.removeDisabledTitle':
-    'The primary account can’t be removed here — use Sign Out in Settings instead',
+    'The primary account can’t be removed here. Use Sign Out in Settings instead',
   'sidebar.channelMenu.title': 'More',
   'sidebar.channelMenu.unsubscribe': 'Unsubscribe',
   'sidebar.channelMenu.confirmUnsubscribe': 'Click again to confirm',
-  'sidebar.channelMenu.favorite': 'Favorite — prioritize at the top of the main feed',
+  'sidebar.channelMenu.favorite': 'Favorite: prioritize at the top of the main feed',
   'sidebar.channelMenu.unfavorite': 'Unfavorite',
   'sidebar.channelMenu.notify': 'Notify me about new videos from this channel',
   'sidebar.channelMenu.unnotify': 'Stop notifying me about this channel',
@@ -528,7 +541,7 @@ export const dict = {
   'comments.loadingMore': 'Loading more comments…',
   'comments.empty': 'No comments yet.',
   'comments.reconnectRequired':
-    'Your connection needs renewing — reconnect from Settings to see comments.',
+    'Your connection needs renewing. Reconnect from Settings to see comments.',
   'comments.addPlaceholder': 'Add a comment…',
   'comments.replyPlaceholder': 'Write a reply…',
   'comments.postButton': 'Post',
@@ -577,8 +590,8 @@ export const dict = {
   'playlists.dialog.importLog.meta': 'Fetching playlist info…',
   'playlists.dialog.importLog.collecting': 'Found {count} videos so far…',
   'playlists.dialog.importLog.hydrating': 'Imported {count} of {total} videos…',
-  'playlists.dialog.importLog.stillWorking': 'Still working — this can take a while for a large playlist…',
-  'playlists.dialog.importLog.done': 'Done — imported {imported} of {total} videos.',
+  'playlists.dialog.importLog.stillWorking': 'Still working: this can take a while for a large playlist…',
+  'playlists.dialog.importLog.done': 'Done: imported {imported} of {total} videos.',
 
   // Sync an imported playlist (D-059) — add-only, pulls in videos the
   // source added since the import; never removes/reorders/renames anything.
@@ -598,7 +611,7 @@ export const dict = {
   'playlistDetail.emptyHint': 'Use “Add to Playlist” on any video to add one here.',
 
   'addToPlaylist.title': 'Add to playlist',
-  'addToPlaylist.empty': 'No playlists yet — create one below.',
+  'addToPlaylist.empty': 'No playlists yet. Create one below.',
   'addToPlaylist.newPlaylistPlaceholder': 'New playlist name',
   'addToPlaylist.create': 'Create',
   'addToPlaylist.done': 'Done',

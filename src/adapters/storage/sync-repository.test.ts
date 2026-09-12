@@ -40,7 +40,8 @@ function hydratedVideo(videoId: string, durationSeconds: number, channelId = 'UC
     isPremiere: false,
     thumbnailUrl: 'https://thumb.example/x.jpg',
     description: 'full description',
-    viewCount: 12345
+    viewCount: 12345,
+    likeCount: 100
   }
 }
 

@@ -180,7 +180,22 @@ export interface PlayerVideoDto {
   // lookup — cross-referenced against local subscription state the same way
   // search results already are.
   isSubscribed: boolean
+  // D-068: official YouTube data (statistics.likeCount) — unlike dislikes,
+  // never removed. Fetched fresh each time the player opens (same call
+  // already made for the full description), never persisted. Null only on a
+  // hydrate failure (e.g. offline).
+  likeCount: number | null
 }
+
+// D-068: the dislike side of the like/dislike bar — always a separate call
+// from getVideo, since it's the only part gated behind
+// SettingsDto.showDislikeEstimate (off by default: no call to a non-YouTube
+// server unless the user opts in). 'disabled' and 'error' are distinguished
+// so the UI can offer a link to Settings only in the former case.
+export type DislikeEstimateDto =
+  | { status: 'ok'; dislikeCount: number }
+  | { status: 'disabled' }
+  | { status: 'error' }
 
 // Wizard progress (onboarding.md §Design goals: interruptible/resumable).
 // Persisted locally in the meta table; email is used only to prefill the
@@ -247,6 +262,12 @@ export interface SettingsDto {
   // queue double as a "watch and it's gone" list instead of requiring a
   // separate untoggle per video.
   watchLaterAutoRemove: boolean
+  // D-068. Default off — the one deliberate exception to "Chronicle only
+  // talks to YouTube": turning this on calls returnyoutubedislike.com (a
+  // free, keyless, third-party service) for every video opened, revealing
+  // its videoId to a server that isn't YouTube. Off by default; the player's
+  // like/dislike bar still shows the real like count either way.
+  showDislikeEstimate: boolean
 }
 
 // B-009/D-031: a free-text search result — video or channel, across all of
@@ -424,6 +445,7 @@ export const IpcChannel = {
   updateComment: 'video:updateComment',
   rateVideo: 'video:rate',
   getVideoRating: 'video:getRating',
+  getDislikeEstimate: 'video:getDislikeEstimate',
   listAccounts: 'accounts:list',
   startAddAccount: 'accounts:startAdd',
   connectAccount: 'accounts:connect',
@@ -675,10 +697,16 @@ export interface ChronicleApi {
   // comment id and a reply id, both `comments` resources.
   updateComment(commentId: string, text: string): Promise<ResultDto<CommentDto>>
   // videos.rate (50 units, write scope). No public API exists to like a
-  // *comment* — only videos; see B-006's notes.
-  rateVideo(videoId: string, rating: 'like' | 'none'): Promise<ResultDto<void>>
+  // *comment* — only videos; see B-006's notes. D-068: 'dislike' works the
+  // same as 'like' always did — the write was never affected by YouTube
+  // hiding the public dislike *count*.
+  rateVideo(videoId: string, rating: VideoRatingDto): Promise<ResultDto<void>>
   // videos.getRating (1 unit, readonly scope) — the user's own existing rating.
   getVideoRating(videoId: string): Promise<ResultDto<VideoRatingDto>>
+  // D-068: the RYD-estimated dislike count, gated behind
+  // SettingsDto.showDislikeEstimate — 'disabled' when the setting is off (no
+  // call made at all), 'error' on any RYD failure. Never throws.
+  getDislikeEstimate(videoId: string): Promise<DislikeEstimateDto>
   // B-003: connected accounts, oldest first. The very first/primary account
   // (Settings' Connection section, the first-run wizard) is unaffected by
   // any of this — these five methods manage every *additional* account.

@@ -68,6 +68,12 @@ export interface AppSettings {
   // removes it from the queue right away, same effect as manually untoggling
   // it.
   watchLaterAutoRemove: boolean
+  // D-068. Default off — the one deliberate exception to "Chronicle only
+  // talks to YouTube": on, the player calls returnyoutubedislike.com (a
+  // free, keyless third-party service) for every video opened, revealing its
+  // videoId to a server that isn't YouTube. The real like count is shown
+  // either way, since it still comes from YouTube's own API.
+  showDislikeEstimate: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -89,7 +95,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyShorts: true,
   autoNotifyFavorites: false,
   popOutOnClose: true,
-  watchLaterAutoRemove: false
+  watchLaterAutoRemove: false,
+  showDislikeEstimate: false
 }
 
 // Field-by-field: one bad value falls back alone, the rest survive.
@@ -114,6 +121,7 @@ export function normalizeSettings(raw: unknown): AppSettings {
   const autoNotifyFavorites = source['autoNotifyFavorites']
   const popOutOnClose = source['popOutOnClose']
   const watchLaterAutoRemove = source['watchLaterAutoRemove']
+  const showDislikeEstimate = source['showDislikeEstimate']
   return {
     language: typeof language === 'string' && language.length > 0 ? language : DEFAULT_SETTINGS.language,
     theme: theme === 'dark' || theme === 'light' || theme === 'system' ? theme : DEFAULT_SETTINGS.theme,
@@ -165,7 +173,11 @@ export function normalizeSettings(raw: unknown): AppSettings {
     watchLaterAutoRemove:
       typeof watchLaterAutoRemove === 'boolean'
         ? watchLaterAutoRemove
-        : DEFAULT_SETTINGS.watchLaterAutoRemove
+        : DEFAULT_SETTINGS.watchLaterAutoRemove,
+    showDislikeEstimate:
+      typeof showDislikeEstimate === 'boolean'
+        ? showDislikeEstimate
+        : DEFAULT_SETTINGS.showDislikeEstimate
   }
 }
 

@@ -41,6 +41,14 @@ interface SettingsViewProps {
   // SettingsView doesn't itself display — the sidebar/channel-header icons
   // that do need to pick up the change.
   onChannelsChanged: () => void
+  // D-068: a specific row to scroll to and flash once, e.g. from the
+  // player's dislike-estimate ⓘ ("go enable this"). Only 'showDislikeEstimate'
+  // is wired up today; an unrecognized or null value just does nothing.
+  highlightKey: string | null
+  // Called once the highlight above has been used (or ignored, if
+  // unrecognized) — clears it in the parent so a later, unrelated visit to
+  // Settings doesn't replay the same highlight.
+  onHighlightConsumed: () => void
 }
 
 export function SettingsView({
@@ -54,7 +62,9 @@ export function SettingsView({
   onFixWeeklyLogout,
   onSignOut,
   onBanner,
-  onChannelsChanged
+  onChannelsChanged,
+  highlightKey,
+  onHighlightConsumed
 }: SettingsViewProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const confirmTimer = useRef<number | null>(null)
@@ -68,6 +78,23 @@ export function SettingsView({
 
   useEffect(() => {
     void window.chronicle.getStorageInfo().then(setStorageInfo)
+  }, [])
+
+  // D-068: scrolls to and briefly flashes the target row once, on mount —
+  // this component unmounts on leaving Settings (App.tsx renders it only
+  // while screen === 'settings'), so a fresh mount is exactly "the user just
+  // arrived here," and this only ever needs to run once per arrival.
+  const dislikeEstimateRowRef = useRef<HTMLDivElement>(null)
+  const [flashHighlight, setFlashHighlight] = useState(false)
+
+  useEffect(() => {
+    if (highlightKey === 'showDislikeEstimate') {
+      dislikeEstimateRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashHighlight(true)
+    }
+    onHighlightConsumed()
+    // Only ever runs once, right after mount — see comment above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const set = <K extends keyof SettingsDto>(key: K, value: SettingsDto[K]): void =>
@@ -259,6 +286,36 @@ export function SettingsView({
           text={t('settings.playback.watchLaterAutoRemoveNote')}
           detail={t('settings.playback.watchLaterAutoRemoveNoteDetail')}
         />
+        <div
+          ref={dislikeEstimateRowRef}
+          className={`settings-highlight-target${flashHighlight ? ' flash' : ''}`}
+          onAnimationEnd={() => setFlashHighlight(false)}
+        >
+          <label className="settings-row">
+            <span>{t('settings.playback.showDislikeEstimate')}</span>
+            <input
+              type="checkbox"
+              checked={settings.showDislikeEstimate}
+              onChange={(event) => set('showDislikeEstimate', event.target.checked)}
+            />
+          </label>
+          <InfoNote
+            text={t('settings.playback.showDislikeEstimateNote')}
+            detail={t('settings.playback.showDislikeEstimateNoteDetail')}
+          />
+          {settings.showDislikeEstimate && (
+            <p className="settings-line dim">
+              {t('settings.playback.showDislikeEstimateAttribution')}{' '}
+              <button
+                type="button"
+                className="channel-link"
+                onClick={() => void window.chronicle.openExternalUrl('https://returnyoutubedislike.com')}
+              >
+                returnyoutubedislike.com
+              </button>
+            </p>
+          )}
+        </div>
       </section>
 
       <section>

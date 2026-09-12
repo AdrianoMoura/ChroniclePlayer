@@ -64,7 +64,7 @@ export const dict: Partial<Dict> = {
   'urlPrompt.title': 'Abrir um vídeo do YouTube',
   'urlPrompt.placeholder': 'https://www.youtube.com/watch?v=…',
   'urlPrompt.notice.shorts':
-    'Esse é um link de Shorts — o Chronicle nunca reproduz Shorts. Abrindo no navegador…',
+    'Esse é um link de Shorts. O Chronicle nunca reproduz Shorts. Abrindo no navegador…',
   'urlPrompt.notice.channelOrPlaylist': 'Canais e playlists abrem no navegador por enquanto.',
   'urlPrompt.notice.invalid': 'Isso não parece ser uma URL de vídeo do YouTube.',
 
@@ -72,7 +72,7 @@ export const dict: Partial<Dict> = {
   'connect.readError': 'Não foi possível ler o arquivo.',
   'connect.title': 'Conecte o Chronicle à sua conta do YouTube',
   'connect.intro.part1':
-    'O Chronicle não vem com credenciais: você usa seu próprio projeto do Google Cloud, então seus dados e sua cota de API pertencem só a você. A configuração única leva cerca de dez minutos — veja',
+    'O Chronicle não vem com credenciais: você usa seu próprio projeto do Google Cloud, então seus dados e sua cota de API pertencem só a você. A configuração única leva cerca de dez minutos, veja',
   'connect.intro.part2': 'no repositório para o guia passo a passo de criar o projeto e baixar seu',
   'connect.intro.part3': '.',
   'connect.step1.title': 'Importe seu cliente OAuth',
@@ -87,7 +87,7 @@ export const dict: Partial<Dict> = {
   'connect.step2.buttonConnecting': 'Aguardando o navegador…',
   'connect.step2.button': 'Conectar com o Google',
   'connect.storageWarning':
-    'Atenção: nenhum chaveiro do sistema foi detectado, então seu token será guardado com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário poderia lê-lo.',
+    'Atenção: nenhum chaveiro do sistema foi detectado, então seu token será guardado com criptografia local reversível; qualquer pessoa com acesso à sua conta de usuário poderia lê-lo.',
 
   // SettingsView
   'settings.language.heading': 'Idioma',
@@ -142,6 +142,12 @@ export const dict: Partial<Dict> = {
   'settings.playback.watchLaterAutoRemoveNote': 'Remove o vídeo da fila assim que você o abre.',
   'settings.playback.watchLaterAutoRemoveNoteDetail':
     'O mesmo que desmarcar manualmente. Desligado por padrão, então a fila só diminui quando você decidir.',
+  'settings.playback.showDislikeEstimate': 'Mostrar uma estimativa de não curtidas',
+  'settings.playback.showDislikeEstimateNote':
+    'O YouTube removeu a contagem pública de não curtidas em 2021; o número de curtidas continua real de qualquer forma.',
+  'settings.playback.showDislikeEstimateNoteDetail':
+    'Desligado por padrão. Ativar isso envia o id de cada vídeo para o returnyoutubedislike.com (um serviço gratuito de terceiro, não o YouTube) para buscar uma estimativa. Nenhuma outra informação sua é enviada.',
+  'settings.playback.showDislikeEstimateAttribution': 'Estimativas de não curtidas fornecidas por',
   'settings.appearance.heading': 'Aparência',
   'settings.appearance.theme': 'Tema',
   'settings.appearance.themeSystem': 'Seguir o sistema',
@@ -206,7 +212,7 @@ export const dict: Partial<Dict> = {
   // Wizard — shared chrome
   'wizard.exitButton': '✕ Fechar',
   'wizard.screenshot.placeholder':
-    'Captura de tela pendente — o texto à esquerda traz a orientação completa.',
+    'Captura de tela pendente. O texto à esquerda traz a orientação completa.',
   'wizard.screenshot.verifiedOn': 'verificado em {date}',
   'wizard.nav.back': '← Voltar',
   'wizard.nav.next': 'Avançar →',
@@ -218,38 +224,38 @@ export const dict: Partial<Dict> = {
   'wizard.welcome.intro.pre': 'É grátis, leva cerca de',
   'wizard.welcome.intro.strong': '10 minutos, só uma vez',
   'wizard.welcome.intro.post': ', e significa que seus dados e seu acesso pertencem só a você:',
-  'wizard.welcome.bullet.quota': 'Sua própria cota de API — compartilhada com ninguém.',
+  'wizard.welcome.bullet.quota': 'Sua própria cota de API, compartilhada com ninguém.',
   'wizard.welcome.bullet.noThirdParty':
-    'Nenhum terceiro no meio — os desenvolvedores do Chronicle nunca acessam sua conta.',
+    'Nenhum terceiro no meio. Os desenvolvedores do Chronicle nunca acessam sua conta.',
   'wizard.welcome.bullet.revocable':
     'Revogável por você, a qualquer momento, no seu próprio console do Google.',
   'wizard.welcome.dim':
     'Você vai precisar de uma conta do Google. Nenhuma conta de faturamento é necessária.',
   'wizard.welcome.startButton': 'Vamos configurar',
-  'wizard.welcome.quickPathButton': 'Já fiz isso antes — só importar minha chave',
+  'wizard.welcome.quickPathButton': 'Já fiz isso antes: só importar minha chave',
 
   // Wizard — ConsoleStep (shared)
-  'wizard.step.heading': 'Etapa {label} — {title}',
+  'wizard.step.heading': 'Etapa {label}: {title}',
   'wizard.step.variationsSummary': 'Algo parece diferente?',
 
   // Wizard — ConsoleStep: project
   'wizard.step.project.title': 'Crie um projeto no Google Cloud',
   'wizard.step.project.why':
-    'O Google agrupa o acesso à API em "projetos". Você precisa de um para guardar sua própria chave — é grátis, e nenhuma conta de faturamento é necessária para a cota padrão da API do YouTube.',
+    'O Google agrupa o acesso à API em "projetos". Você precisa de um para guardar sua própria chave. É grátis, e nenhuma conta de faturamento é necessária para a cota padrão da API do YouTube.',
   'wizard.step.project.urlLabel': 'Abrir a página de criação de projeto',
   'wizard.step.project.copyLabel': 'Nome de projeto sugerido',
   'wizard.step.project.confirmLabel': 'Criei o projeto.',
   'wizard.step.project.variations':
-    'Se o Google pedir uma organização, escolha "Sem organização". Se você já tem projetos, a página pode abrir um seletor primeiro — use "Novo projeto".',
+    'Se o Google pedir uma organização, escolha "Sem organização". Se você já tem projetos, a página pode abrir um seletor primeiro. Use "Novo projeto".',
 
   // Wizard — ConsoleStep: enable-api
   'wizard.step.enableApi.title': 'Ative a YouTube Data API v3',
   'wizard.step.enableApi.why':
-    'Os projetos começam com todas as APIs desativadas; você está ativando só a que o Chronicle precisa — suas inscrições, metadados de vídeo e (somente quando você optar por se inscrever, comentar ou curtir algo) essas ações também.',
+    'Os projetos começam com todas as APIs desativadas; você está ativando só a que o Chronicle precisa: suas inscrições, metadados de vídeo e (somente quando você optar por se inscrever, comentar ou curtir algo) essas ações também.',
   'wizard.step.enableApi.urlLabel': 'Abrir a página da YouTube Data API',
   'wizard.step.enableApi.confirmLabel': 'Cliquei em Ativar.',
   'wizard.step.enableApi.variations':
-    'Confirme que seu novo projeto está selecionado na barra azul no topo antes de clicar em Ativar. Se o botão disser "Gerenciar", a API já está ativada — você terminou aqui.',
+    'Confirme que seu novo projeto está selecionado na barra azul no topo antes de clicar em Ativar. Se o botão disser "Gerenciar", a API já está ativada. Você terminou aqui.',
 
   // Wizard — ConsoleStep: consent
   'wizard.step.consent.title': 'Configure a tela de consentimento OAuth',
@@ -260,12 +266,12 @@ export const dict: Partial<Dict> = {
   'wizard.step.consent.confirmLabel':
     'Configurei a tela de consentimento (Externo, meu e-mail nos dois campos de contato).',
   'wizard.step.consent.variations':
-    'Tipo de usuário: Externo (Interno só existe para organizações Workspace). Não é preciso adicionar logo nem escopos — o Chronicle solicita seu escopo somente leitura no momento de conectar. Pule toda seção opcional. O Google às vezes renomeia essa página para "Audiência" / "Marca" dentro de "Google Auth Platform".',
+    'Tipo de usuário: Externo (Interno só existe para organizações Workspace). Não é preciso adicionar logo nem escopos. O Chronicle solicita seu escopo somente leitura no momento de conectar. Pule toda seção opcional. O Google às vezes renomeia essa página para "Audiência" / "Marca" dentro de "Google Auth Platform".',
 
   // Wizard — ConsoleStep: test-user
   'wizard.step.testUser.title': 'Adicione você mesmo como usuário de teste',
   'wizard.step.testUser.why':
-    'Enquanto o projeto está no modo "Teste", só os usuários de teste listados podem entrar — ou seja, você.',
+    'Enquanto o projeto está no modo "Teste", só os usuários de teste listados podem entrar: ou seja, você.',
   'wizard.step.testUser.urlLabel': 'Abrir a tela de consentimento (seção Usuários de teste)',
   'wizard.step.testUser.confirmLabel': 'Adicionei meu e-mail como usuário de teste.',
   'wizard.step.testUser.variations':
@@ -278,17 +284,17 @@ export const dict: Partial<Dict> = {
   // Wizard — ConsoleStep: publish
   'wizard.step.publish.title': 'Publique o app (recomendado)',
   'wizard.step.publish.why':
-    'No modo Teste, o Google expira sua conexão a cada 7 dias. Clicar em "Publicar app" torna seu token permanente. Você pode ver um aviso de "app não verificado" ao conectar — isso é esperado: o "desenvolvedor não verificado" é você.',
+    'No modo Teste, o Google expira sua conexão a cada 7 dias. Clicar em "Publicar app" torna seu token permanente. Você pode ver um aviso de "app não verificado" ao conectar. Isso é esperado: o "desenvolvedor não verificado" é você.',
   'wizard.step.publish.urlLabel': 'Abrir a tela de consentimento (Publicar app)',
   'wizard.step.publish.variations':
-    'Publicar usando apenas o escopo somente leitura do YouTube não exige revisão de verificação do Google. Se você pular isso, o Chronicle vai detectar a expiração semanal e oferecer uma reconexão em dois cliques — além de um link de volta para esta etapa.',
+    'Publicar usando apenas o escopo somente leitura do YouTube não exige revisão de verificação do Google. Se você pular isso, o Chronicle vai detectar a expiração semanal e oferecer uma reconexão em dois cliques, além de um link de volta para esta etapa.',
   'wizard.step.publish.publishedButton': 'Eu publiquei',
-  'wizard.step.publish.skipButton': 'Pular — aceito reconectar toda semana',
+  'wizard.step.publish.skipButton': 'Pular: aceito reconectar toda semana',
 
   // Wizard — ConsoleStep: client
   'wizard.step.client.title': 'Crie um cliente OAuth do tipo Desktop',
   'wizard.step.client.why':
-    'Isso cria o arquivo de chave que o Chronicle vai usar de fato — ele identifica sua instalação do Chronicle para o seu projeto.',
+    'Isso cria o arquivo de chave que o Chronicle vai usar de fato. Ele identifica sua instalação do Chronicle para o seu projeto.',
   'wizard.step.client.urlLabel': 'Abrir a página de credenciais',
   'wizard.step.client.copyLabel': 'Nome de cliente sugerido',
   'wizard.step.client.confirmLabel': 'Criei o cliente Desktop e baixei o arquivo JSON.',
@@ -296,28 +302,28 @@ export const dict: Partial<Dict> = {
     'Criar credenciais → ID do cliente OAuth → o Tipo de aplicativo precisa ser "Aplicativo para computador" (não "Aplicativo da Web"). O download geralmente se chama client_secret_….json e vai para a sua pasta de Downloads.',
 
   // Wizard — ImportStep / FileDrop
-  'wizard.import.heading': 'Etapa 6 — Importe seu arquivo de chave',
+  'wizard.import.heading': 'Etapa 6: Importe seu arquivo de chave',
   'wizard.import.why.part1': 'Selecione o',
   'wizard.import.why.part2':
-    'que você baixou. O Chronicle extrai a chave para o chaveiro do sistema — ela nunca sai desta máquina nem toca em um servidor.',
+    'que você baixou. O Chronicle extrai a chave para o chaveiro do sistema. Ela nunca sai desta máquina nem toca em um servidor.',
   'wizard.import.drop.part1': 'Solte o',
   'wizard.import.drop.part2': 'aqui, ou clique para selecioná-lo',
   'wizard.import.backToClientStep': '← Voltar à Etapa 5 (criar um cliente Desktop)',
   'wizard.import.okMessage':
-    '✓ Chave importada — o Chronicle a guarda no chaveiro do sistema, nunca on-line.',
+    '✓ Chave importada. O Chronicle a guarda no chaveiro do sistema, nunca on-line.',
   'wizard.import.okNote':
     'Você pode apagar o arquivo baixado agora, se quiser; o Chronicle nunca mexe nos seus arquivos.',
   'wizard.import.storageWarning':
-    'Nenhum chaveiro do sistema foi detectado, então a chave é guardada com criptografia local reversível — qualquer pessoa com acesso à sua conta de usuário poderia lê-la.',
+    'Nenhum chaveiro do sistema foi detectado, então a chave é guardada com criptografia local reversível; qualquer pessoa com acesso à sua conta de usuário poderia lê-la.',
 
   // Wizard — ConnectStep
-  'wizard.connect.heading': 'Etapa 7 — Conecte-se ao Google',
+  'wizard.connect.heading': 'Etapa 7: Conecte-se ao Google',
   'wizard.connect.why':
-    'Seu navegador vai abrir a tela de consentimento do Google. O Chronicle escuta localmente (127.0.0.1) pela resposta — os tokens nunca saem desta máquina.',
+    'Seu navegador vai abrir a tela de consentimento do Google. O Chronicle escuta localmente (127.0.0.1) pela resposta. Os tokens nunca saem desta máquina.',
   'wizard.connect.warningTitle': 'Atenção: o aviso de "app não verificado".',
   'wizard.connect.warning.part1': 'O Google pode mostrar',
   'wizard.connect.warning.quote': '"O Google não verificou este app"',
-  'wizard.connect.warning.part2': '. Isso é esperado — o desenvolvedor não verificado é',
+  'wizard.connect.warning.part2': '. Isso é esperado. O desenvolvedor não verificado é',
   'wizard.connect.warning.you': 'você',
   'wizard.connect.warning.part3': '. Clique em',
   'wizard.connect.warning.advanced': 'Avançado',
@@ -346,21 +352,21 @@ export const dict: Partial<Dict> = {
   // App — banners
   'app.banner.connectionFailed': 'Falha na conexão: {message}',
   'app.banner.reconnectRequired':
-    'Reconecte-se ao Google — sua autorização expirou. (Projetos em modo de teste expiram semanalmente; publicar o app corrige isso permanentemente.)',
+    'Reconecte-se ao Google. Sua autorização expirou. (Projetos em modo de teste expiram semanalmente; publicar o app corrige isso permanentemente.)',
   'app.banner.reconnectAction': 'Reconectar',
   'app.banner.offline':
-    'Parece que você está offline — mostrando dados locais. A atualização vai tentar de novo.',
+    'Parece que você está offline. Mostrando dados locais. A atualização vai tentar de novo.',
   'app.banner.refreshFailed': 'Falha na atualização: {message}',
   'app.banner.openVideoFailed': 'Não foi possível abrir o vídeo: {message}',
   'app.banner.refreshAllFailed':
-    'A atualização não conseguiu alcançar nenhum canal ({count} falharam) — verifique sua conexão. Vai tentar de novo no próximo ciclo.',
+    'A atualização não conseguiu alcançar nenhum canal ({count} falharam). Verifique sua conexão. Vai tentar de novo no próximo ciclo.',
   'app.banner.showDetails': 'Detalhes',
   'app.banner.hideDetails': 'Ocultar detalhes',
   'app.banner.showDetailsTitle': 'Mostrar quais canais falharam e por quê',
   'app.banner.failureAccountLevel': 'Nível de conta',
   'app.banner.quotaExceeded':
-    'Limite diário da API atingido — ele reinicia às {time} no seu horário. O Chronicle continua funcionando com os dados locais; a descoberta via RSS continua gratuita.',
-  'app.banner.signedOut': 'Você saiu. Os dados locais foram mantidos — reconecte quando quiser.',
+    'Limite diário da API atingido. Ele reinicia às {time} no seu horário. O Chronicle continua funcionando com os dados locais; a descoberta via RSS continua gratuita.',
+  'app.banner.signedOut': 'Você saiu. Os dados locais foram mantidos. Reconecte quando quiser.',
   'app.banner.updateAvailable': 'O Chronicle {version} está disponível.',
   'app.banner.updateAction': 'Ver lançamento',
   'app.banner.dismissTitle': 'Dispensar',
@@ -391,11 +397,11 @@ export const dict: Partial<Dict> = {
   'app.topbar.unsubscribe': 'Cancelar inscrição',
   'app.topbar.confirmUnsubscribe': 'Clique de novo para cancelar a inscrição',
   'app.topbar.openChannelTitle': 'Abrir a página deste canal no YouTube',
-  'app.topbar.favoriteChannelTitle': 'Favoritar — priorizar no topo do feed principal',
+  'app.topbar.favoriteChannelTitle': 'Favoritar: priorizar no topo do feed principal',
   'app.topbar.unfavoriteChannelTitle': 'Desfavoritar',
 
   // App — status text
-  'app.status.filteringShorts': 'identificando Shorts — {checked} de {total} verificados…',
+  'app.status.filteringShorts': 'identificando Shorts ({checked} de {total} verificados)…',
   'app.status.checkingChannels': 'verificando {checked} de {total} canais…',
   'app.status.refreshing': 'atualizando…',
   'app.status.caughtUp': 'Tudo em dia',
@@ -413,9 +419,9 @@ export const dict: Partial<Dict> = {
   'app.feed.emptyNoVideos': 'Nada por aqui ainda.',
 
   // FeedList — shared between list rows and grid cards
-  'feed.card.undoLabel': 'Ignorado — vai sair desta view',
+  'feed.card.undoLabel': 'Ignorado: vai sair desta view',
   'feed.card.undoButton': 'Desfazer (u)',
-  'feed.card.undoLabelPlaylist': 'Removido da playlist — vai sair desta lista',
+  'feed.card.undoLabelPlaylist': 'Removido da playlist: vai sair desta lista',
   'feed.card.undoButtonPlaylist': 'Desfazer',
   'feed.card.favoriteTitle': 'Favorito',
   'feed.card.watchLaterTitle': 'Assistir mais tarde',
@@ -441,7 +447,7 @@ export const dict: Partial<Dict> = {
   'player.shareTitle': 'Compartilhar',
   'player.miniplayer.resizeTitle': 'Arraste para redimensionar',
   'player.overlay.back': 'Voltar (Esc)',
-  'player.overlay.unavailableTitle': 'Este vídeo não pode ser reproduzido aqui — pode estar restrito pelo criador, ou não estar mais disponível.',
+  'player.overlay.unavailableTitle': 'Este vídeo não pode ser reproduzido aqui. Pode estar restrito pelo criador, ou não estar mais disponível.',
   'player.overlay.removeFromLibrary': 'Remover da biblioteca',
   'player.overlay.openInBrowser': 'Abrir no navegador',
   'player.action.markRead': 'Marcar como lido (m)',
@@ -457,6 +463,12 @@ export const dict: Partial<Dict> = {
   'player.action.addToPlaylist': 'Adicionar à playlist (a)',
   'player.action.like': 'Curtir (l)',
   'player.action.liked': 'Curtido (l)',
+  'player.action.dislike': 'Não curtir',
+  'player.action.disliked': 'Não curtido',
+  'player.dislikeEstimate.disabledHint':
+    'O YouTube removeu a contagem de não curtidas. Clique para ativar uma estimativa via um serviço de terceiro em Settings.',
+  'player.dislikeEstimate.errorHint':
+    'Não foi possível carregar a estimativa de não curtidas agora. O número de curtidas acima continua real.',
   'player.description.showMore': 'Mostrar mais',
   'player.description.showLess': 'Mostrar menos',
   'player.description.shortsLinkTitle':
@@ -467,7 +479,7 @@ export const dict: Partial<Dict> = {
   'player.chat.toggle': 'Ver chat ao vivo',
   'player.chat.extractTitle': 'Destacar o chat em janela própria',
   'player.chat.signInInfo':
-    'O chat é carregado direto do YouTube, então a sessão ativa no Chronicle não vale por lá — é preciso entrar aqui também, só essa vez.',
+    'O chat é carregado direto do YouTube, então a sessão ativa no Chronicle não vale por lá. É preciso entrar aqui também, só essa vez.',
   'player.chat.signInHint': 'Quer comentar? Entre no YouTube aqui também:',
   'player.chat.signInLink': 'Entrar no YouTube',
   'player.chat.signInWindowTitle': 'Entrar para o Chat ao Vivo',
@@ -501,11 +513,11 @@ export const dict: Partial<Dict> = {
   'sidebar.accountMenu.remove': 'Remover conta',
   'sidebar.accountMenu.confirmRemove': 'Clique de novo para remover',
   'sidebar.accountMenu.removeDisabledTitle':
-    'A conta principal não pode ser removida aqui — use Sair em Configurações',
+    'A conta principal não pode ser removida aqui. Use Sair em Configurações',
   'sidebar.channelMenu.title': 'Mais',
   'sidebar.channelMenu.unsubscribe': 'Cancelar inscrição',
   'sidebar.channelMenu.confirmUnsubscribe': 'Clique de novo para confirmar',
-  'sidebar.channelMenu.favorite': 'Favoritar — priorizar no topo do feed principal',
+  'sidebar.channelMenu.favorite': 'Favoritar: priorizar no topo do feed principal',
   'sidebar.channelMenu.unfavorite': 'Desfavoritar',
   'sidebar.channelMenu.notify': 'Me notificar sobre novos vídeos deste canal',
   'sidebar.channelMenu.unnotify': 'Parar de me notificar sobre este canal',
@@ -525,7 +537,7 @@ export const dict: Partial<Dict> = {
   'comments.loadingMore': 'Carregando mais comentários…',
   'comments.empty': 'Nenhum comentário ainda.',
   'comments.reconnectRequired':
-    'Sua conexão precisa ser renovada — reconecte em Configurações para ver os comentários.',
+    'Sua conexão precisa ser renovada. Reconecte em Configurações para ver os comentários.',
   'comments.addPlaceholder': 'Adicione um comentário…',
   'comments.replyPlaceholder': 'Escreva uma resposta…',
   'comments.postButton': 'Publicar',
@@ -574,8 +586,8 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.importLog.meta': 'Buscando informações da playlist…',
   'playlists.dialog.importLog.collecting': '{count} vídeos encontrados até agora…',
   'playlists.dialog.importLog.hydrating': '{count} de {total} vídeos importados…',
-  'playlists.dialog.importLog.stillWorking': 'Ainda trabalhando — pode demorar um pouco para playlists grandes…',
-  'playlists.dialog.importLog.done': 'Concluído — {imported} de {total} vídeos importados.',
+  'playlists.dialog.importLog.stillWorking': 'Ainda trabalhando: pode demorar um pouco para playlists grandes…',
+  'playlists.dialog.importLog.done': 'Concluído: {imported} de {total} vídeos importados.',
 
   // Sincronizar uma playlist importada (D-059) — só adiciona, traz os
   // vídeos que a origem ganhou desde a importação; nunca remove, reordena
@@ -596,7 +608,7 @@ export const dict: Partial<Dict> = {
   'playlistDetail.emptyHint': 'Use "Adicionar à playlist" em qualquer vídeo para adicionar um aqui.',
 
   'addToPlaylist.title': 'Adicionar à playlist',
-  'addToPlaylist.empty': 'Nenhuma playlist ainda — crie uma abaixo.',
+  'addToPlaylist.empty': 'Nenhuma playlist ainda. Crie uma abaixo.',
   'addToPlaylist.newPlaylistPlaceholder': 'Nome da nova playlist',
   'addToPlaylist.create': 'Criar',
   'addToPlaylist.done': 'Concluído',

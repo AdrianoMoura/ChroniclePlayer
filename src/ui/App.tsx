@@ -301,9 +301,15 @@ export function App() {
     notifyShorts: true,
     autoNotifyFavorites: false,
     popOutOnClose: true,
-    watchLaterAutoRemove: false
+    watchLaterAutoRemove: false,
+    showDislikeEstimate: false
   })
   const [appVersion, setAppVersion] = useState('')
+  // D-068: which Settings row (if any) to scroll to and flash once the
+  // Settings screen mounts — set right before switching screens, consumed
+  // (and cleared) by SettingsView on mount so it never re-fires on a later,
+  // unrelated visit to Settings.
+  const [settingsHighlight, setSettingsHighlight] = useState<string | null>(null)
 
   const viewRef = useRef<FeedViewDto>('all')
   const channelRef = useRef<string | null>(null)
@@ -2085,6 +2091,8 @@ export function App() {
               }}
               onBanner={(text) => setBanner({ text })}
               onChannelsChanged={loadChannels}
+              highlightKey={settingsHighlight}
+              onHighlightConsumed={() => setSettingsHighlight(null)}
             />
           </>
         ) : (
@@ -2595,6 +2603,10 @@ export function App() {
                       onStatePatched={patch}
                       onSeekTo={(seconds) => playerSurfaceRef.current?.seekTo(seconds)}
                       onPause={() => playerSurfaceRef.current?.pause()}
+                      onOpenSettings={() => {
+                        setSettingsHighlight('showDislikeEstimate')
+                        setScreen('settings')
+                      }}
                     />
                     <MiniPlayerBar
                       video={currentPlayerVideo}
