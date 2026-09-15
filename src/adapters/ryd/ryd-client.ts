@@ -1,4 +1,4 @@
-import type { DislikeEstimateSource } from '../../core/ports'
+import type { Clock, DislikeEstimateSource } from '../../core/ports'
 import { request, type FetchFn } from '../http'
 
 // D-068: Return YouTube Dislike (returnyoutubedislike.com) — free, keyless,
@@ -10,23 +10,35 @@ import { request, type FetchFn } from '../http'
 // desktop user's own viewing pace.
 //
 // Cache is in-memory only, per the product owner's explicit call — never
-// written to disk, cleared on every app restart. A failed lookup is cached
-// too (as null), so a temporarily-down service isn't rehit on every video
-// opened in the same session.
+// written to disk, cleared on every app restart. It's also time-bounded
+// (the owner routinely leaves the app open for days): a successful lookup
+// is fresh for SUCCESS_TTL_MS, a failed one for the much shorter
+// FAILURE_TTL_MS so a transient RYD outage doesn't get "stuck" for hours.
 
 const API_BASE = 'https://returnyoutubedislikeapi.com'
+const SUCCESS_TTL_MS = 60 * 60 * 1000
+const FAILURE_TTL_MS = 5 * 60 * 1000
+
+interface CacheEntry {
+  value: number | null
+  expiresAt: number
+}
 
 export class RydClient implements DislikeEstimateSource {
-  private readonly cache = new Map<string, number | null>()
+  private readonly cache = new Map<string, CacheEntry>()
 
-  constructor(private readonly fetchFn: FetchFn) {}
+  constructor(
+    private readonly fetchFn: FetchFn,
+    private readonly clock: Clock,
+  ) {}
 
   async fetchDislikeCount(videoId: string): Promise<number | null> {
     const cached = this.cache.get(videoId)
-    if (cached !== undefined) return cached
-    const result = await this.fetchFresh(videoId)
-    this.cache.set(videoId, result)
-    return result
+    if (cached && cached.expiresAt > this.clock.now().getTime()) return cached.value
+    const value = await this.fetchFresh(videoId)
+    const ttl = value === null ? FAILURE_TTL_MS : SUCCESS_TTL_MS
+    this.cache.set(videoId, { value, expiresAt: this.clock.now().getTime() + ttl })
+    return value
   }
 
   private async fetchFresh(videoId: string): Promise<number | null> {

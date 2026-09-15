@@ -543,7 +543,7 @@ async function boot(): Promise<void> {
   const updateSource = new GithubReleaseSource(fetch)
   // D-068: account-independent — not part of any account's YouTube auth
   // stack, and its in-memory cache is intentionally process-lifetime only.
-  const rydClient = new RydClient(fetch)
+  const rydClient = new RydClient(fetch, clock)
 
   interface AccountStack {
     accountId: string

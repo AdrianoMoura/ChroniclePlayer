@@ -195,6 +195,9 @@ client-side throttling is implemented.
 
 Gated behind `SettingsDto.showDislikeEstimate`, **off by default** — with it off,
 Chronicle makes zero calls to RYD, same as before this feature existed. The result is
-cached in memory only (never written to disk), cleared on every app restart, per the
-product owner's explicit call. See `decisions.md` D-068 for the full rationale and the
-player UI it drives.
+cached in memory only (never written to disk), never persisted across an app restart.
+The cache is also time-bounded, not indefinite: a successful lookup is fresh for one
+hour, a failed one for five minutes, so a multi-day session (the product owner routinely
+leaves the app running for days) doesn't serve a week-old count, and a transient RYD
+outage doesn't stay "stuck" past a few minutes. See `decisions.md` D-068 for the full
+rationale and the player UI it drives.
