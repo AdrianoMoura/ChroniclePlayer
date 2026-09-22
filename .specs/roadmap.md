@@ -662,10 +662,14 @@ review/annotate/publish manually — including a fix for a race condition where 
 three parallel OS jobs could each create their own draft release instead of sharing
 one), the GitHub-Releases-API update check (D-026), and B-084 (packaged AppImage
 showed YouTube Error 153; fixed by serving the renderer over a loopback `http://`
-origin instead of `file://` in packaged builds). Version bumped to 0.1.0. Still open:
-wizard screenshots (pending since M4), and the owner has not yet cut a real tag to
-exercise the release workflow end-to-end on GitHub Actions — the local
-`npm run package:linux` build is verified, the CI-hosted matrix build is not.
+origin instead of `file://` in packaged builds). Version bumped to 0.1.0. Still open at
+the time: wizard screenshots (pending since M4), and the owner had not yet cut a real
+tag to exercise the release workflow end-to-end on GitHub Actions — the local
+`npm run package:linux` build was verified, the CI-hosted matrix build was not.
+**Update:** the tag-cutting exit criterion has long since been satisfied — every
+release from `v0.1.0` through the current `v0.13.2` has gone out through a real pushed
+tag, exercising `release.yml`'s CI-hosted matrix build each time. Wizard screenshots
+remain the only open item (see M4's own status above).
 
 ## Post-MVP horizon (order per `features.md` rationale)
 
@@ -687,12 +691,13 @@ exercise the release workflow end-to-end on GitHub Actions — the local
 
 ## Dogfooding backlog
 
-**Status: the first two batches below are complete** — every item in B-001–B-017 and
-B-054–B-066 is Resolved in `tracker-history/v0.1.0.md` (shipped as part of 0.1.0), except B-022 which is
-still In progress. B-046 was carried over too but is now Resolved (Won't fix, researched
-2026-07-15); B-045 was carried over and is now Resolved (implemented and owner-confirmed
-live 2026-07-15); B-051 was carried over and is now Resolved (Fixed
-2026-07-15). Kept here for history.
+**Status: both batches below are complete** — every item in B-001–B-017 and
+B-054–B-066 is Resolved in `tracker-history/v0.1.0.md` (shipped as part of 0.1.0). B-022
+was carried over past 0.1.0 and stayed In progress across several later releases,
+Resolved in 0.10.1 (see above, confirmed live by the owner 2026-08-07). B-046 was
+carried over too but is now Resolved (Won't fix, researched 2026-07-15); B-045 was
+carried over and is now Resolved (implemented and owner-confirmed live 2026-07-15);
+B-051 was carried over and is now Resolved (Fixed 2026-07-15). Kept here for history.
 
 **First dogfooding batch (2026-07-11).** The first dogfooding batch, **B-001–B-017**, lives in `tracker-history/v0.1.0.md` (reported 2026-07-11;
 worked in batches when the product owner says so). **Batch plan agreed 2026-07-11**
