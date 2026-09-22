@@ -422,18 +422,40 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   skipping 0.10.3 entirely. Also closed B-130 (Fixed — a removed/private YouTube video
   no longer misreports as "channel disabled embedding"). See
   `tracker-history/v0.11.0.md`.
-- **0.11.1 — in progress.** Carrying B-108, B-101 forward from 0.11.0, unchanged.
-  Driven by D-067 (a Share button on the video's own screen: link + copy + an optional
-  current-timestamp checkbox, skipped for a live video), a direct product-owner request
-  rather than an item from `tracker-current.md` — same pattern as D-050–D-066.
-  Confirmed working live by the owner. Also driven by D-068 (a like/dislike bar on the
-  player screen: the real YouTube like count plus an opt-in third-party dislike
-  estimate via Return YouTube Dislike, off by default), another direct product-owner
-  request — implemented and passing `npm run typecheck && npm run lint && npm test`
-  plus a production build; not yet live-tested by the owner. Also driven by D-069
-  (widening D-066's em-dash ban from Settings copy to every user-facing string, wizard
-  included; code comments and `.specs/*.md` keep their own em-dash style), another
-  direct product-owner request, raised while reviewing D-068's own new copy.
+- **0.12.0 — delivered, 2026-09-06.** Carried B-108, B-101 forward from 0.11.0,
+  unchanged. Originally tracked toward 0.11.1 (a patch), but shipped as a **minor**
+  version instead, per the owner's own explicit direction, skipping 0.11.1 entirely
+  (same pattern as `0.3.0` skipping `0.2.3`, `0.11.0` skipping `0.10.3`). Driven
+  entirely by D-067 (a Share button on the video's own screen: link + copy + an
+  optional current-timestamp checkbox, skipped for a live video), a direct
+  product-owner request rather than an item from `tracker-current.md` — same pattern
+  as D-050–D-066. Confirmed working live by the owner.
+- **0.13.0 — delivered, 2026-09-12.** Carried B-108, B-101 forward from 0.12.0,
+  unchanged. Originally tracked toward 0.12.1 (a patch), but shipped as a **minor**
+  version instead, per the owner's own explicit direction (real new scope, not a
+  bug-fix batch), skipping 0.12.1 entirely (same pattern as `0.3.0`/`0.11.0`/`0.12.0`
+  above). Driven entirely by D-068 (a like/dislike bar on the player screen: the real
+  YouTube like count plus an opt-in, off-by-default third-party dislike estimate via
+  Return YouTube Dislike) and D-069 (widening D-066's em-dash ban from Settings copy to
+  every user-facing string, wizard included; code comments and `.specs/*.md` keep their
+  own em-dash style), both direct product-owner requests rather than items from
+  `tracker-current.md` — same pattern as D-050–D-067.
+- **0.13.1 — delivered, 2026-09-15.** Carried B-108, B-101 forward from 0.13.0,
+  unchanged. No bug-tracker batch of its own — a same-day amendment to D-068's RYD
+  dislike-estimate cache, raised directly by the product owner (routinely leaves the
+  app open for days, so a cache cleared only on restart could serve a stale count
+  indefinitely). The cache is now time-bounded via the existing `Clock` port instead of
+  app-lifetime: a successful lookup expires after 1 hour, a failed one after 5 minutes.
+  Shipped as a **patch** version, per the owner's own explicit direction (a tuning
+  amendment to existing scope, not a new feature).
+- **0.13.2 — delivered, 2026-09-22.** Carried B-108, B-101 forward from 0.13.1,
+  unchanged. No bug-tracker batch of its own — driven entirely by D-070 (comment/reply
+  author names in the comments panel now link to that user's own channel in-app,
+  reusing the existing `onOpenChannel`/`navigateToChannel` navigation the video's own
+  channel-title link already drives; no new data or IPC call, off the `authorChannelId`
+  field D-064 already surfaces), a direct product-owner request rather than an item
+  from `tracker-current.md` — same pattern as D-050–D-069. Shipped as a **patch**
+  version, per the owner's own explicit direction. Not yet live-tested by the owner.
 
 ## M0 — Walking skeleton
 
