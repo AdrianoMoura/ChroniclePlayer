@@ -2145,6 +2145,22 @@ button.primary.active {
   font-size: 13px;
 }
 
+button.comment-author {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.comment-author:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .comment-meta {
   color: var(--text-dim);
   font-size: 12px;

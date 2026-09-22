@@ -379,6 +379,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
                 runWithWriteScope={writeScopeGate.run}
                 onSeekTo={onSeekTo}
                 onPause={onPause}
+                onOpenChannel={onOpenChannel}
               />
             )}
           </div>

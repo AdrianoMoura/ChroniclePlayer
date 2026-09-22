@@ -41,10 +41,14 @@ interface CommentsSectionProps {
   // button — same B-121 rule as the player's own open-in-browser action:
   // opening the real YouTube tab shouldn't leave this copy also playing.
   onPause: () => void
+  // Threaded down to every CommentItem/ReplyItem's author name — the same
+  // in-app channel navigation PlayerDetails' own channel-title link uses,
+  // so it works for any channel (subscribed or not), never an external tab.
+  onOpenChannel: (channelId: string, channelTitle: string) => void
 }
 
 export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSectionProps>(
-  function CommentsSection({ videoId, runWithWriteScope, onSeekTo, onPause }, ref) {
+  function CommentsSection({ videoId, runWithWriteScope, onSeekTo, onPause, onOpenChannel }, ref) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
@@ -213,6 +217,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
                 runWithWriteScope={runWithWriteScope}
                 onSeekTo={onSeekTo}
                 onPause={onPause}
+                onOpenChannel={onOpenChannel}
                 onEdited={updateCommentText}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
@@ -241,6 +246,7 @@ function CommentItem({
   runWithWriteScope,
   onSeekTo,
   onPause,
+  onOpenChannel,
   onEdited,
   onReplyPosted
 }: {
@@ -250,6 +256,7 @@ function CommentItem({
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
   onPause: () => void
+  onOpenChannel: (channelId: string, channelTitle: string) => void
   onEdited: (commentId: string, text: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
@@ -281,7 +288,12 @@ function CommentItem({
 
   return (
     <div className="comment">
-      <CommentAuthorRow videoId={videoId} comment={comment} onPause={onPause} />
+      <CommentAuthorRow
+        videoId={videoId}
+        comment={comment}
+        onPause={onPause}
+        onOpenChannel={onOpenChannel}
+      />
       {editing ? (
         <CommentEditForm
           commentId={comment.commentId}
@@ -335,6 +347,7 @@ function CommentItem({
               runWithWriteScope={runWithWriteScope}
               onSeekTo={onSeekTo}
               onPause={onPause}
+              onOpenChannel={onOpenChannel}
               onEdited={onEdited}
               onReplyPosted={onReplyPosted}
             />
@@ -357,6 +370,7 @@ function ReplyItem({
   runWithWriteScope,
   onSeekTo,
   onPause,
+  onOpenChannel,
   onEdited,
   onReplyPosted
 }: {
@@ -367,6 +381,7 @@ function ReplyItem({
   runWithWriteScope: RunWithWriteScope
   onSeekTo: (seconds: number) => void
   onPause: () => void
+  onOpenChannel: (channelId: string, channelTitle: string) => void
   onEdited: (commentId: string, text: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
@@ -398,7 +413,12 @@ function ReplyItem({
 
   return (
     <div className="comment reply">
-      <CommentAuthorRow videoId={videoId} comment={reply} onPause={onPause} />
+      <CommentAuthorRow
+        videoId={videoId}
+        comment={reply}
+        onPause={onPause}
+        onOpenChannel={onOpenChannel}
+      />
       {editing ? (
         <CommentEditForm
           commentId={reply.commentId}
@@ -542,13 +562,16 @@ function CommentEditForm({
 function CommentAuthorRow({
   videoId,
   comment,
-  onPause
+  onPause,
+  onOpenChannel
 }: {
   videoId: string
   comment: CommentDto
   onPause: () => void
+  onOpenChannel: (channelId: string, channelTitle: string) => void
 }) {
   const liked = comment.viewerRating === 'like'
+  const authorChannelId = comment.authorChannelId
   return (
     <div className="comment-author-row">
       {comment.authorProfileImageUrl !== null ? (
@@ -561,7 +584,17 @@ function CommentAuthorRow({
       ) : (
         <div className="comment-avatar" />
       )}
-      <span className="comment-author">{comment.authorDisplayName}</span>
+      {authorChannelId !== null ? (
+        <button
+          type="button"
+          className="comment-author"
+          onClick={() => onOpenChannel(authorChannelId, comment.authorDisplayName)}
+        >
+          {comment.authorDisplayName}
+        </button>
+      ) : (
+        <span className="comment-author">{comment.authorDisplayName}</span>
+      )}
       <span className="comment-meta">
         {publishedLabel(comment.publishedAt)} ·{' '}
         <span className={`comment-like${liked ? ' liked' : ''}`}>♥ {comment.likeCount}</span>
