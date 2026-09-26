@@ -375,6 +375,7 @@ export const dict = {
   'app.banner.accountConnectFailed': "Couldn't connect the account: {message}",
   'app.banner.accountSyncFailed': "Couldn't sync this account: {message}",
   'app.banner.removeAccountFailed': "Couldn't remove this account: {message}",
+  'app.banner.videoActionFailed': "Couldn't do that: {message}",
   'app.writeScopeDialog.body':
     'Chronicle needs an extra one-time permission from Google for this action (like, subscribe, or comment). Continuing opens your browser to grant it.',
   'app.writeScopeDialog.cancel': 'Not now',
@@ -529,6 +530,9 @@ export const dict = {
   // YouTube search (B-009)
   'search.empty': 'No results.',
   'search.searching': 'Searching all of YouTube…',
+  // B-131: distinct from search.searching above — this is a specific
+  // channel's own uploads loading, not a YouTube-wide search.
+  'search.channelLoading': 'Loading channel…',
   'search.subscribeButton': 'Subscribe',
   'search.subscribedButton': 'Subscribed',
   'search.videoChannelPrefix': 'on',

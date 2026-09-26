@@ -59,7 +59,10 @@ function errorMessage(error: unknown): string {
 // youtube-api.md politeness bound — concurrency doesn't meaningfully affect
 // RSS failure rate, so a higher value only shortens first-sync discovery time.
 const RSS_CONCURRENCY = 12
-const SHORTS_CONCURRENCY = 8 // same politeness bound; first sync probes ~1k candidates
+// Exported so main.ts's on-demand Shorts confirmation for a transient search/
+// channel-preview list (B-131) shares the exact same politeness bound rather
+// than drifting from it independently.
+export const SHORTS_CONCURRENCY = 8 // first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle
 const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'

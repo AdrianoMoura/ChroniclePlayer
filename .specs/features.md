@@ -87,8 +87,14 @@ all of YouTube, including channels the user doesn't follow. It never re-filters 
 already-loaded feed (browsing followed channels is the sidebar's job). Results reuse
 the feed's own layout/item-size settings and paginate via "Load more results." Pasted
 @handle/channel/video URLs resolve via a 1-unit lookup; free-text queries cost 100
-units (`search.list`) — the UI communicates this. Search results get the same Shorts
-tagging/filtering as the main feed.
+units (`search.list`) — the UI communicates this. Rows here and in a non-subscribed
+channel's video list (opened from a channel search result) have favorite/Watch
+Later/ignore actions, same as the main feed, and Shorts are filtered with the same
+HEAD-probe confirmation the synced feed uses (zero quota), run on demand before the
+page is returned rather than persisted. A non-subscribed channel's video list also
+groups into the same date buckets as the main feed (it's chronologically ordered, so
+this is possible); free-text search results stay a flat list, since `search.list`'s
+relevance order isn't chronological (see [[B-131]]).
 
 ### Comments & likes (D-032)
 From the player's action bar: like a video (`videos.rate`, 50 units), load comments on

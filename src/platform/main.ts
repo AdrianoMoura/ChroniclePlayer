@@ -23,12 +23,13 @@ import { YouTubeRssClient } from '../adapters/rss/rss-client'
 import { GithubReleaseSource } from '../adapters/updates/github-release-source'
 import { RydClient } from '../adapters/ryd/ryd-client'
 import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
-import { startOfToday } from '../core/feed'
+import { startOfToday, effectiveDate, bucketOf } from '../core/feed'
 import { isDomainError } from '../core/errors'
 import { nextInPlaylist, type PlaylistSummary } from '../core/playlist'
 import { QuotaCounter, type Clock } from '../core/ports'
 import { isNewerVersion } from '../core/version'
-import { SyncService, type SyncReport, type SyncTrigger } from '../core/sync-service'
+import { SyncService, SHORTS_CONCURRENCY, type SyncReport, type SyncTrigger } from '../core/sync-service'
+import { mapPool } from '../core/concurrency'
 import type { VideoState } from '../core/state'
 import { FEED_VIEWS, type FeedView } from '../core/views'
 import type {
@@ -544,6 +545,10 @@ async function boot(): Promise<void> {
   // D-068: account-independent — not part of any account's YouTube auth
   // stack, and its in-memory cache is intentionally process-lifetime only.
   const rydClient = new RydClient(fetch, clock)
+  // Account-independent, like rydClient above — a HEAD probe by videoId
+  // needs no auth. Shared between every account's SyncService (D-028) and
+  // the on-demand confirmation below (B-131) so there's only ever one.
+  const shortsProber = new HeadShortsProber(fetch)
 
   interface AccountStack {
     accountId: string
@@ -564,7 +569,7 @@ async function boot(): Promise<void> {
       subscriptions: apiClient,
       videoSource: new HybridVideoSource(new YouTubeRssClient(fetch), apiClient),
       repo: syncRepository,
-      shortsProber: new HeadShortsProber(fetch),
+      shortsProber,
       quota,
       clock,
       onProgress: (progress) =>
@@ -919,12 +924,13 @@ async function boot(): Promise<void> {
   )
   ipcMain.handle(
     IpcChannel.addVideoToPlaylist,
-    (_event, playlistId: unknown, videoId: unknown) => {
-      playlistRepository.addVideoToPlaylist(
-        parsePlaylistId(playlistId),
-        parseVideoId(videoId),
-        clock.now().toISOString()
-      )
+    // B-131: playlist_videos has the same FK to videos as video_state —
+    // reachable from a search/channel-preview row too now, so this needs
+    // the same on-demand ensureVideoExists guard (declared further below).
+    async (_event, playlistId: unknown, videoId: unknown) => {
+      const id = parseVideoId(videoId)
+      await ensureVideoExists(id)
+      playlistRepository.addVideoToPlaylist(parsePlaylistId(playlistId), id, clock.now().toISOString())
     }
   )
   ipcMain.handle(
@@ -1118,9 +1124,50 @@ async function boot(): Promise<void> {
       }
     }
   )
-  function toSearchResultDto(result: SearchResult): SearchResultDto {
-    if (result.kind === 'video') return result
-    return { ...result, subscribed: feedRepository.isSubscribed(result.channelId) }
+  // B-131: same 180s candidate cutoff as the synced feed's own
+  // shortCandidates() query (sync-repository.ts), applied on-demand here
+  // instead of persisted, since these two lists (free-text search, a
+  // non-subscribed channel's preview) are transient. Confirms via the same
+  // zero-quota HEAD probe (shortsProber), bounded by the same concurrency
+  // limit the synced pipeline uses. A probe failure (429, 5xx, timeout)
+  // leaves that video unconfirmed — same "don't hide a real video" rule as
+  // confirmShorts() itself (feed.md §Detection), so it stays visible. Awaited
+  // fully before the caller's page is returned, per the owner's own call to
+  // match the synced feed's real behavior: it never shows a page of results
+  // before its own Shorts pass has finished either (see B-131's notes).
+  const SHORTS_CANDIDATE_MAX_SECONDS = 180
+  async function confirmShorts<T extends { videoId: string; durationSeconds: number | null }>(
+    videos: readonly T[]
+  ): Promise<ReadonlyMap<string, boolean>> {
+    const candidates = videos.filter(
+      (v) => v.durationSeconds !== null && v.durationSeconds <= SHORTS_CANDIDATE_MAX_SECONDS
+    )
+    const results = await mapPool(candidates, SHORTS_CONCURRENCY, (v) => shortsProber.isShort(v.videoId))
+    const confirmed = new Map<string, boolean>()
+    candidates.forEach((v, i) => {
+      const result = results[i]
+      confirmed.set(v.videoId, result.ok ? result.value : false)
+    })
+    return confirmed
+  }
+  function toSearchResultDto(
+    result: SearchResult,
+    confirmedShorts: ReadonlyMap<string, boolean>
+  ): SearchResultDto {
+    if (result.kind === 'channel') {
+      return { ...result, subscribed: feedRepository.isSubscribed(result.channelId) }
+    }
+    const state = stateRepository.get(result.videoId)
+    return {
+      ...result,
+      isShort: confirmedShorts.get(result.videoId) ?? false,
+      favorite: state.favorite,
+      watchLater: state.watchLater,
+      readStatus: state.readStatus,
+      // Relevance-ordered, not chronological — see the field's own comment
+      // on SearchVideoResultDto.
+      bucket: null
+    }
   }
   ipcMain.handle(
     IpcChannel.searchYouTube,
@@ -1133,9 +1180,15 @@ async function boot(): Promise<void> {
       if (q === '') return { ok: true, value: { results: [], nextPageToken: null } }
       try {
         const page = await apiClient.search(q, typeof pageToken === 'string' ? pageToken : undefined)
+        const confirmedShorts = await confirmShorts(
+          page.results.filter((r): r is Extract<SearchResult, { kind: 'video' }> => r.kind === 'video')
+        )
         return {
           ok: true,
-          value: { results: page.results.map(toSearchResultDto), nextPageToken: page.nextPageToken }
+          value: {
+            results: page.results.map((r) => toSearchResultDto(r, confirmedShorts)),
+            nextPageToken: page.nextPageToken
+          }
         }
       } catch (error) {
         const kind = isDomainError(error) ? error.kind : 'internal'
@@ -1211,17 +1264,51 @@ async function boot(): Promise<void> {
           typeof pageToken === 'string' ? pageToken : undefined
         )
         const hydrated = await apiClient.hydrate(page.videoIds)
-        const videos: SearchVideoResultDto[] = hydrated.map((video) => ({
-          kind: 'video',
-          videoId: video.videoId,
-          title: video.title,
-          channelId: video.channelId,
-          channelTitle: video.channelTitle,
-          publishedAt: video.publishedAt,
-          thumbnailUrl: video.thumbnailUrl,
-          durationSeconds: video.durationSeconds,
-          isShort: video.durationSeconds !== null && video.durationSeconds <= 60
-        }))
+        const confirmedShorts = await confirmShorts(hydrated)
+        const now = clock.now()
+        const videos: SearchVideoResultDto[] = hydrated.map((video) => {
+          const state = stateRepository.get(video.videoId)
+          const isShort = confirmedShorts.get(video.videoId) ?? false
+          // B-131: real chronological order here (unlike search:), so a real
+          // bucket makes sense — same effectiveDate/bucketOf D-053 logic
+          // FeedService.getSlice() uses for the synced feed, fed from the
+          // same hydrated live-broadcast fields (never persisted here).
+          const bucket = bucketOf(
+            effectiveDate(
+              {
+                videoId: video.videoId,
+                channelId: video.channelId,
+                title: video.title,
+                publishedAt: video.publishedAt,
+                durationSeconds: video.durationSeconds,
+                thumbnailUrl: video.thumbnailUrl,
+                viewCount: video.viewCount,
+                isShort,
+                liveContent: video.liveContent,
+                liveStartedAt: video.liveStartedAt,
+                liveEndedAt: video.liveEndedAt,
+                isPremiere: video.isPremiere
+              },
+              now
+            ),
+            now
+          )
+          return {
+            kind: 'video',
+            videoId: video.videoId,
+            title: video.title,
+            channelId: video.channelId,
+            channelTitle: video.channelTitle,
+            publishedAt: video.publishedAt,
+            thumbnailUrl: video.thumbnailUrl,
+            durationSeconds: video.durationSeconds,
+            isShort,
+            favorite: state.favorite,
+            watchLater: state.watchLater,
+            readStatus: state.readStatus,
+            bucket
+          }
+        })
         return { ok: true, value: { videos, nextPageToken: page.nextPageToken } }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {
@@ -1248,9 +1335,25 @@ async function boot(): Promise<void> {
     else throw new Error(`invalid window control: ${String(action)}`)
   })
 
-  ipcMain.handle(IpcChannel.setReadStatus, (_event, videoId: unknown, status: unknown) =>
-    toStateDto(stateRepository.setReadStatus(parseVideoId(videoId), parseReadStatus(status)))
-  )
+  // B-131: a video acted on from a transient list (free-text search results,
+  // a non-subscribed channel's preview) has no `videos` row yet — video_state
+  // has a real FK to it. Hydrate + upsert on demand, exactly like opening
+  // such a video into the player already does (D-029's getVideo branch
+  // above) — never during list render, only on the actual state-changing
+  // action. A no-op (single indexed lookup) for any video that already has a
+  // row, which covers every normal-feed call site.
+  async function ensureVideoExists(videoId: string): Promise<void> {
+    if (feedRepository.findVideo(videoId) !== null) return
+    const [video] = await apiClient.hydrate([videoId])
+    if (video === undefined) throw new Error('video not found on YouTube')
+    syncRepository.upsertExternalVideo(video, clock.now().toISOString())
+  }
+
+  ipcMain.handle(IpcChannel.setReadStatus, async (_event, videoId: unknown, status: unknown) => {
+    const id = parseVideoId(videoId)
+    await ensureVideoExists(id)
+    return toStateDto(stateRepository.setReadStatus(id, parseReadStatus(status)))
+  })
   ipcMain.handle(IpcChannel.markAllRead, (_event, channelId: unknown, accountId: unknown) =>
     feedRepository.markManyRead(
       parseChannelId(channelId) ?? null,
@@ -1259,12 +1362,16 @@ async function boot(): Promise<void> {
       parseAccountId(accountId)
     )
   )
-  ipcMain.handle(IpcChannel.toggleFavorite, (_event, videoId: unknown) =>
-    toStateDto(stateRepository.toggleFavorite(parseVideoId(videoId)))
-  )
-  ipcMain.handle(IpcChannel.toggleWatchLater, (_event, videoId: unknown) =>
-    toStateDto(stateRepository.toggleWatchLater(parseVideoId(videoId)))
-  )
+  ipcMain.handle(IpcChannel.toggleFavorite, async (_event, videoId: unknown) => {
+    const id = parseVideoId(videoId)
+    await ensureVideoExists(id)
+    return toStateDto(stateRepository.toggleFavorite(id))
+  })
+  ipcMain.handle(IpcChannel.toggleWatchLater, async (_event, videoId: unknown) => {
+    const id = parseVideoId(videoId)
+    await ensureVideoExists(id)
+    return toStateDto(stateRepository.toggleWatchLater(id))
+  })
   ipcMain.handle(IpcChannel.reorderWatchLater, (_event, videoIds: unknown) => {
     if (!Array.isArray(videoIds)) throw new Error('invalid video id list')
     stateRepository.reorderWatchLater(videoIds.map(parseVideoId))

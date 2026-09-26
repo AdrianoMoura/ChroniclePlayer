@@ -45,7 +45,8 @@ import {
   SearchChannelCard,
   SearchChannelRow,
   SearchVideoCard,
-  SearchVideoRow
+  SearchVideoRow,
+  type SearchVideoActions
 } from './SearchResults'
 import { NAV_ORDER, Sidebar, viewLabel } from './Sidebar'
 import { UpNextCard } from './UpNextCard'
@@ -274,7 +275,13 @@ export function App() {
   // The video whose "Add to Playlist" button was clicked — reachable from
   // every video card/row everywhere (feed, channel, watch later, player), so
   // this dialog is global rather than owned by any one screen.
-  const [addToPlaylistVideo, setAddToPlaylistVideo] = useState<FeedVideoDto | null>(null)
+  // B-131: narrowed to what AddToPlaylistDialog actually reads (not the full
+  // FeedVideoDto) so a search/channel-preview row's SearchVideoResultDto can
+  // open this dialog too, with no cast — both shapes satisfy this.
+  const [addToPlaylistVideo, setAddToPlaylistVideo] = useState<{
+    videoId: string
+    title: string
+  } | null>(null)
   // B-010: topbar Unsubscribe arms on first click, fires on the second
   // (mirrors Settings' delete-all confirmation), auto-disarms after 6s.
   const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
@@ -937,6 +944,30 @@ export function App() {
       // the playlist is reopened.
       setPlaylistVideos((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+      )
+      // B-131: the two transient search lists (free-text results, a
+      // non-subscribed channel's preview) carry the same three state fields
+      // flattened rather than nested under `state` — same staleness reason
+      // as playlistVideos above.
+      const flat = { favorite: state.favorite, watchLater: state.watchLater, readStatus: state.readStatus }
+      setSearchResults((current) =>
+        current === null
+          ? current
+          : current.map((result) =>
+              result.kind === 'video' && result.videoId === videoId
+                ? { ...result, ...flat }
+                : result
+            )
+      )
+      setChannelPreview((current) =>
+        current === null
+          ? current
+          : {
+              ...current,
+              videos: current.videos.map((video) =>
+                video.videoId === videoId ? { ...video, ...flat } : video
+              )
+            }
       )
       syncMeta()
       // The sidebar's per-channel unread badge is a separate data source
@@ -1678,6 +1709,50 @@ export function App() {
     [setStatus, ignoreVideo, undoIgnore, patch, currentPlayerVideo]
   )
 
+  // B-131: favorite/Watch Later/Add to Playlist/open-in-browser for the two
+  // transient search lists (free-text results, a non-subscribed channel's
+  // preview) — no ignore here, see SearchVideoActions' own comment. Unlike
+  // `actions` above, these videos may have no local `videos` row yet — the
+  // backend hydrates + upserts one on demand (ensureVideoExists, D-029's
+  // same on-open pattern) before applying a state change, which costs a
+  // real network call and can fail (offline, quota, video removed since
+  // listed).
+  const searchVideoActions = useMemo<SearchVideoActions>(() => {
+    const onFailure = (error: unknown): void => {
+      setBanner({
+        text: t('app.banner.videoActionFailed', {
+          message: error instanceof Error ? error.message : String(error)
+        })
+      })
+    }
+    return {
+      toggleFavorite: (result) =>
+        void window.chronicle
+          .toggleFavorite(result.videoId)
+          .then((state) => patch(result.videoId, state))
+          .catch(onFailure),
+      toggleWatchLater: (result) =>
+        void window.chronicle
+          .toggleWatchLater(result.videoId)
+          .then((state) => patch(result.videoId, state))
+          .catch(onFailure),
+      // AddToPlaylistDialog does its own addVideoToPlaylist IPC call per
+      // checklist item — this just opens it (same as the normal feed's own
+      // addToPlaylist action).
+      addToPlaylist: (result) => setAddToPlaylistVideo({ videoId: result.videoId, title: result.title }),
+      openInBrowser: (result) => {
+        // Same B-121 rule as the normal feed's own openInBrowser: don't let
+        // Chronicle's copy keep playing behind the real YouTube tab.
+        if (currentPlayerVideo?.videoId === result.videoId) playerSurfaceRef.current?.pause()
+        void window.chronicle.openInBrowser(result.videoId)
+        void window.chronicle
+          .setReadStatus(result.videoId, 'read')
+          .then((state) => patch(result.videoId, state))
+          .catch(onFailure)
+      }
+    }
+  }, [patch, currentPlayerVideo])
+
   const effectiveCursor = filtered.length === 0 ? -1 : Math.min(cursorIdx, filtered.length - 1)
 
   useEffect(() => {
@@ -2361,6 +2436,7 @@ export function App() {
                                   key={result.videoId}
                                   result={result}
                                   onOpen={() => openVideo(result.videoId, 'replace')}
+                                  actions={searchVideoActions}
                                 />
                               ) : (
                                 <SearchChannelCard
@@ -2389,6 +2465,7 @@ export function App() {
                             key={result.videoId}
                             result={result}
                             onOpen={() => openVideo(result.videoId, 'replace')}
+                            actions={searchVideoActions}
                           />
                         ) : (
                           <SearchChannelRow
@@ -2420,7 +2497,7 @@ export function App() {
                         loadMoreChannelPreview()
                     }}
                   >
-                    {channelPreview.loading && <div className="empty">{t('search.searching')}</div>}
+                    {channelPreview.loading && <div className="empty">{t('search.channelLoading')}</div>}
                     {!channelPreview.loading && channelPreview.videos.length === 0 && (
                       <div className="empty">{t('search.empty')}</div>
                     )}
@@ -2428,30 +2505,47 @@ export function App() {
                       const visible = channelPreview.videos.filter(
                         (video) => settings.showShorts || !video.isShort
                       )
-                      if (settings.layout === 'grid') {
-                        return (
-                          <div
-                            className="grid-row"
-                            style={{
-                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                            }}
-                          >
-                            {visible.map((video) => (
-                              <SearchVideoCard
+                      // B-131: chronologically ordered (unlike free-text
+                      // search results), so consecutive same-bucket runs can
+                      // just be grouped in place — no re-sort needed.
+                      const groups: { bucket: FeedBucketDto | null; videos: SearchVideoResultDto[] }[] = []
+                      for (const video of visible) {
+                        const last = groups.at(-1)
+                        if (last && last.bucket === video.bucket) last.videos.push(video)
+                        else groups.push({ bucket: video.bucket, videos: [video] })
+                      }
+                      return groups.map((group, groupIndex) => (
+                        <div key={group.bucket ?? `g-${groupIndex}`}>
+                          {group.bucket !== null && (
+                            <h2 className="group-header">{bucketLabel(group.bucket)}</h2>
+                          )}
+                          {settings.layout === 'grid' ? (
+                            <div
+                              className="grid-row"
+                              style={{
+                                gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
+                              }}
+                            >
+                              {group.videos.map((video) => (
+                                <SearchVideoCard
+                                  key={video.videoId}
+                                  result={video}
+                                  onOpen={() => openVideo(video.videoId, 'replace')}
+                                  actions={searchVideoActions}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            group.videos.map((video) => (
+                              <SearchVideoRow
                                 key={video.videoId}
                                 result={video}
                                 onOpen={() => openVideo(video.videoId, 'replace')}
+                                actions={searchVideoActions}
                               />
-                            ))}
-                          </div>
-                        )
-                      }
-                      return visible.map((video) => (
-                        <SearchVideoRow
-                          key={video.videoId}
-                          result={video}
-                          onOpen={() => openVideo(video.videoId, 'replace')}
-                        />
+                            ))
+                          )}
+                        </div>
                       ))
                     })()}
                     {channelPreview.loadingMore && (

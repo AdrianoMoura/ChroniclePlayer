@@ -26,9 +26,9 @@ export type SearchResult =
       publishedAt: string
       thumbnailUrl: string | null
       durationSeconds: number | null
-      // Duration-heuristic only (<=60s) — unlike the synced feed's D-028
-      // pipeline, there's no HEAD-probe confirmation step for a transient
-      // search result list; good enough for a display badge/filter.
+      // Always false here — this client has no ShortsProber (that's a
+      // sibling adapter). main.ts's confirmShorts() (B-131) overwrites this
+      // with the real, HEAD-confirmed value before it ever reaches the UI.
       isShort: boolean
     }
   | {
@@ -320,8 +320,9 @@ export class YouTubeApiClient implements SubscriptionSource {
       return []
     })
 
-    // Two small batched follow-ups (1 unit each, at most) — the Short
-    // badge/filter and channel subscriber count both need data search.list's
+    // Two small batched follow-ups (1 unit each, at most) — video duration
+    // (needed for both the duration badge and main.ts's Shorts confirmation,
+    // B-131) and channel subscriber count both need data search.list's
     // snippet doesn't return.
     const [durations, subscriberCounts] = await Promise.all([
       this.fetchVideoDurations(videoIds),
@@ -329,8 +330,7 @@ export class YouTubeApiClient implements SubscriptionSource {
     ])
     const results = rough.map((result) => {
       if (result.kind === 'video') {
-        const duration = durations.get(result.videoId) ?? null
-        return { ...result, durationSeconds: duration, isShort: duration !== null && duration <= 60 }
+        return { ...result, durationSeconds: durations.get(result.videoId) ?? null }
       }
       return { ...result, subscriberCount: subscriberCounts.get(result.channelId) ?? null }
     })

@@ -282,9 +282,21 @@ export interface SearchVideoResultDto {
   publishedAt: string
   thumbnailUrl: string | null
   durationSeconds: number | null
-  // Duration-heuristic (<=60s) — no HEAD-probe confirmation step for a
-  // transient result list, unlike the synced feed's D-028 pipeline.
+  // Confirmed via the same zero-quota HEAD probe the synced feed's D-028
+  // pipeline uses (B-131) — not persisted, run fresh on every page.
   isShort: boolean
+  // Cross-referenced against local video_state (B-131), same as
+  // SearchChannelResultDto.subscribed below — reflects existing state even
+  // for a video with no local `videos` row yet (defaults false/unread).
+  favorite: boolean
+  watchLater: boolean
+  readStatus: ReadStatusDto
+  // B-131: only a non-subscribed channel's own preview (channel:getVideos)
+  // computes a real bucket — its videos come back in chronological order, so
+  // date headers make sense. A free-text search result (search:) always gets
+  // null here — relevance-ordered results would produce nonsensical
+  // out-of-order headers, so the UI never renders one for this list.
+  bucket: FeedBucketDto | null
 }
 
 export interface SearchChannelResultDto {

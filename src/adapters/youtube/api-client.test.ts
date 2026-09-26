@@ -423,7 +423,9 @@ describe('YouTubeApiClient', () => {
         publishedAt: '2026-07-10T08:00:00Z',
         thumbnailUrl: null,
         durationSeconds: 30,
-        isShort: true
+        // Always false from this adapter — B-131's confirmation runs
+        // downstream in main.ts, not here.
+        isShort: false
       },
       { kind: 'channel', channelId: 'UCcat', title: 'Cats Inc', thumbnailUrl: null, subscriberCount: 4200 }
     ])

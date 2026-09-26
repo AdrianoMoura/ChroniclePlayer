@@ -377,6 +377,7 @@ export const dict: Partial<Dict> = {
   'app.banner.accountConnectFailed': 'Não foi possível conectar a conta: {message}',
   'app.banner.accountSyncFailed': 'Não foi possível sincronizar esta conta: {message}',
   'app.banner.removeAccountFailed': 'Não foi possível remover esta conta: {message}',
+  'app.banner.videoActionFailed': 'Não foi possível fazer isso: {message}',
   'app.writeScopeDialog.body':
     'O Chronicle precisa de uma permissão extra, única, do Google para esta ação (curtir, se inscrever ou comentar). Continuar abre seu navegador para concedê-la.',
   'app.writeScopeDialog.cancel': 'Agora não',
@@ -525,6 +526,7 @@ export const dict: Partial<Dict> = {
   // YouTube search (B-009)
   'search.empty': 'Nenhum resultado.',
   'search.searching': 'Buscando em todo o YouTube…',
+  'search.channelLoading': 'Carregando canal…',
   'search.subscribeButton': 'Inscrever-se',
   'search.subscribedButton': 'Inscrito',
   'search.videoChannelPrefix': 'em',
