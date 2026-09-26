@@ -565,6 +565,6 @@ Resolved entries add:
 - **Fix (2026-09-25), same session it was reported:** added the same
   `margin-bottom: 12px` to `.add-to-playlist-empty`. A pure CSS change — no
   typecheck/test impact; `npm run lint` still passes. Not run live.
-- **Resolved:** 2026-09-26 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-09-26 · **Commit:** 5a84205 · **Outcome:** Fixed
 - **Resolution:** matched `.add-to-playlist-list`'s own `margin-bottom: 12px`.
 
