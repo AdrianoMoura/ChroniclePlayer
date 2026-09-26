@@ -263,12 +263,19 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   [[B-108]] and [[B-101]] didn't make it in and carried their **Target** forward
   again. Full narrative in `decisions.md` D-070, not a dedicated tracker-history note
   of its own. Shipped as a **patch** version, per the owner's own explicit direction.
+- [`tracker-history/v0.13.3.md`](tracker-history/v0.13.3.md) — two entries, both Fixed:
+  [[B-131]] (a non-subscribed channel's video list now has real actions, HEAD-confirmed
+  Shorts filtering, and date-bucket grouping, matching the main feed — five same-session
+  rounds plus one pre-existing bug the owner's own live test caught along the way) and
+  [[B-132]] (a CSS spacing gap in the Add to Playlist dialog's empty state). [[B-108]]
+  and [[B-101]] didn't make it in and carried their **Target** forward again. No new
+  `D-NNN` scope this cycle. Shipped as a **patch** version (a pure bug-fix batch).
+  Shipped 2026-09-26.
 
-**Current target: 0.13.3.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.13.4.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, or 0.13.2 either (see above — every one of those shipped driven by a
-direct product-owner decision or a different bug batch instead). [[B-131]] (new,
-reported 2026-09-25) also targets 0.13.3.
+0.13.0, 0.13.1, 0.13.2, or 0.13.3 either (see above — every one of those shipped driven
+by a direct product-owner decision or a different bug batch instead).
 
 ## Entry template
 
@@ -296,8 +303,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.13.3
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, and 0.13.2 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.13.4
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, and 0.13.3 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -322,8 +329,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.13.3
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, and 0.13.2 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.13.4
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, and 0.13.3 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -419,152 +426,3 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
-
-### B-131 — Non-subscribed channel's video list is missing actions, date grouping, and real Shorts filtering
-- **Type:** bug · **Severity:** major
-- **Status:** Resolved · **Reported:** 2026-09-25 · **Target:** 0.13.3
-- **Area:** feed
-- **What happens:** opening a channel via search (a channel you don't follow) shows its
-  uploads through the same transient list used for free-text search results, not the
-  normal feed. Compared to a subscribed channel's own page: (1) video rows have no
-  favorite/Watch Later/ignore buttons at all; (2) videos aren't grouped into date
-  buckets (Today/Yesterday/This Week/Earlier) — it's a flat list; (3) "Show Shorts"
-  is applied, but against a much weaker signal (duration ≤60s, no HEAD-probe
-  confirmation) than the main feed's, so real Shorts between 61s–180s (and anything
-  the fast heuristic misjudges) leak through.
-- **Expected:** a non-subscribed channel's video list should behave like a subscribed
-  one wherever the difference isn't inherent to the video not having synced local
-  state yet — actions should work (mirroring what already works once such a video is
-  opened into the player, per D-029's "externally opened videos get local state"
-  guarantee), videos should bucket by date, and Shorts should be filtered as
-  reliably as in the main feed.
-- **Code refs:** `src/ui/App.tsx` (`openChannelPreview`, `navigateToChannel`, the
-  `channelPreview` render branch), `src/ui/SearchResults.tsx` (`SearchVideoRow`/
-  `SearchVideoCard` — no `VideoActions` prop), `src/platform/main.ts` (`channel:getVideos`
-  handler — pure YouTube passthrough, no `SyncService`/`upsertExternalVideo`),
-  `src/adapters/youtube/api-client.ts` (`search()`'s `isShort: duration <= 60`
-  heuristic, duplicated in `main.ts`'s channel-preview handler), `src/core/sync-service.ts`
-  (`confirmShorts()` — the real, HEAD-confirmed pipeline this path skips).
-- **Notes:** root cause is architectural, not a one-line fix — a non-subscribed
-  channel's videos are served through the same transient, YouTube-only passthrough as
-  free-text search (never persisted as a `videos` row, never run through
-  `SyncService`), rendered with the search-results components, which were never given
-  action wiring or date-bucket grouping. `.specs/features.md`'s D-031 section
-  previously overstated Shorts parity between search and the main feed; corrected in
-  the same change as this entry.
-- **Round 1 fix (2026-09-25), same session it was reported:** addressed the missing
-  actions (point 1). `SearchVideoRow`/`SearchVideoCard` (`src/ui/SearchResults.tsx`)
-  gained an optional `SearchVideoActions` prop (`toggleFavorite`/`toggleWatchLater`/
-  `ignore`), wired at both call sites (free-text search results and a non-subscribed
-  channel's preview, `src/ui/App.tsx`). On the backend, a new `ensureVideoExists()`
-  helper (`src/platform/main.ts`) hydrates (`apiClient.hydrate`, 1 unit) and upserts
-  (`syncRepository.upsertExternalVideo`) a video on demand — only when
-  `toggleFavorite`/`toggleWatchLater`/`setReadStatus` is actually invoked on a videoId
-  with no local `videos` row yet, never during list render — the same on-demand
-  pattern D-029 already uses when such a video is opened into the player, so no
-  interaction with a video the user never touches writes anything to the database.
-  `SearchVideoResultDto` gained `favorite`/`watchLater`/`readStatus` fields (merged
-  from `stateRepository.get()` in both the `search:` and `channel:getVideos`
-  handlers, the same way `SearchChannelResultDto.subscribed` already was), so the new
-  buttons/glyphs reflect real current state rather than a blind toggle. A failed
-  hydrate (offline, quota, video removed since listed) surfaces via the existing
-  banner pattern (`app.banner.videoActionFailed`) instead of silently no-oping.
-  Checked via `npm run typecheck && npm run lint && npm test` (290/290); not run live
-  (per [[no-live-app-verification]]) — needs the owner's hands-on check. Points 2
-  (date grouping) and 3 (the weak Shorts heuristic) are unaddressed — **status stays
-  Open**.
-- **Round 2 fix (2026-09-25), same session:** addressed the weak Shorts heuristic
-  (point 3). The owner first assumed real confirmation was impossible here since it
-  "depends on hydrate" — checked against the code: only the *candidate* signal
-  (duration, to know who's worth probing) comes from hydrate, which both handlers
-  already call; the actual confirmation (`ShortsProber.isShort`, a zero-quota HEAD
-  probe by videoId) is fully independent of it. New `confirmShorts()` in
-  `src/platform/main.ts` reuses the exact same mechanism the synced feed's own
-  `SyncService.confirmShorts()` (`src/core/sync-service.ts`) already runs: the same
-  180s candidate cutoff (was 60s here), the same `SHORTS_CONCURRENCY`-bounded
-  `mapPool` probing (that constant is now exported from sync-service.ts so both share
-  one source of truth instead of drifting), and the same "a probe failure leaves the
-  video visible, never guessed-Short" rule. `shortsProber` (`HeadShortsProber`) is now
-  a single account-independent instance shared between every account's `SyncService`
-  and this on-demand path, instead of one instance per account stack. Both
-  `channel:getVideos` and `search:` await the full confirmation batch before
-  returning their page — a deliberate design match verified against the synced feed's
-  own real behavior first: `App.tsx`'s `refresh:progress` handler only reloads the
-  feed early (before its own Shorts pass finishes) when the feed is still empty
-  (first launch, or an all-Shorts channel, [[B-116]]); the ordinary case already waits
-  for `refresh:done` — which only fires after `confirmShorts()` has settled — before
-  showing anything new, so the search/channel-preview lists now behaving the same way
-  (wait, then show) matches the app's actual steady-state UX rather than departing
-  from it. `api-client.ts`'s old `isShort: duration <= 60` heuristic in `search()` is
-  gone — it always returns `false` now, overwritten downstream by this confirmation,
-  never computed twice. Checked via `npm run typecheck && npm run lint && npm test`
-  (290/290, including a fixed expectation in `api-client.test.ts`); not run live (per
-  [[no-live-app-verification]]). Point 2 (date grouping) remains unaddressed — status
-  stays **Open**.
-- **Round 3 fix (2026-09-25), same session:** addressed the missing date grouping
-  (point 2), for the channel-preview list only — free-text search results stay a flat
-  list, deliberately: `search.list` returns relevance order, not chronological, so
-  date headers there would jump around nonsensically rather than read top-to-bottom.
-  `SearchVideoResultDto` gained a `bucket: FeedBucketDto | null` field
-  (`src/ipc/contract.ts`) — always `null` from `search:` (no header rendered), a real
-  bucket from `channel:getVideos`. That bucket is the exact same value the synced feed
-  itself would compute: `bucketOf(effectiveDate(video, now), now)` (`src/core/feed.ts`,
-  D-053's own live-broadcast-aware logic), fed from `HydratedVideo`'s live-broadcast
-  fields (`liveContent`/`liveStartedAt`/`liveEndedAt`/`isPremiere`) that
-  `channel:getVideos` already had on hand from `apiClient.hydrate()` but wasn't using —
-  never persisted, computed fresh per request like the Shorts confirmation above.
-  `App.tsx`'s channel-preview render branch now groups consecutive same-bucket videos
-  (the list is already chronologically ordered, so no re-sort is needed) and renders a
-  `group-header` between groups, in both list and grid layout — the same header markup
-  the main feed's own bucket headers and the priority section already use. Checked via
-  `npm run typecheck && npm run lint && npm test` (290/290); not run live (per
-  [[no-live-app-verification]]). All three original points are now addressed in code —
-  needs the owner's hands-on check before this can move to **Resolved** (no commit made
-  yet this session, per [[feedback-batch-commits-dont-push-every-edit]]).
-- **Owner's live test caught (2026-09-25):** opening a channel preview showed "Searching
-  all of YouTube…" while it loaded — a pre-existing bug (predates this entry), not
-  something the rounds above introduced: `channelPreview.loading`'s message
-  (`App.tsx`) reused the free-text search's own `search.searching` string, wrong for
-  loading one specific channel's uploads. Fixed with a dedicated
-  `search.channelLoading` key ("Loading channel…" / "Carregando canal…") used only for
-  that state. Checked via `npm run typecheck && npm run lint && npm test` (290/290).
-- **Round 4 (2026-09-25), owner's own follow-up request:** added Add to Playlist and
-  open-in-browser to the same two rows (`SearchVideoActions` gained `addToPlaylist`/
-  `openInBrowser`, `src/ui/SearchResults.tsx`) — the owner's own read that these two
-  were simpler than the round 1 set held up: open-in-browser needed no backend change
-  at all (`shell.openExternal`, no `videos` row involved), and Add to Playlist only
-  needed the same `ensureVideoExists` guard round 1 already built, added to
-  `addVideoToPlaylist`'s handler (`playlist_videos` has the same FK to `videos` as
-  `video_state`). `addToPlaylistVideo` (`App.tsx`) was narrowed from the full
-  `FeedVideoDto` to just `{videoId, title}` — all `AddToPlaylistDialog` ever read off
-  it — so a `SearchVideoResultDto` satisfies it with no cast. Checked via
-  `npm run typecheck && npm run lint && npm test` (290/290); not run live.
-- **Round 5 (2026-09-26), owner's own call:** removed ignore from these two rows'
-  actions entirely, same precedent as [[B-128]]'s removal from a playlist's own video
-  list — ignoring a video from a channel the user doesn't even follow isn't a
-  meaningful "hide this," so it's a non-action rather than a bug worth fixing.
-  `SearchVideoActions.ignore` and its button are gone (`src/ui/SearchResults.tsx`),
-  along with the corresponding handler in `App.tsx`'s `searchVideoActions`. Favorite,
-  Watch Later, Add to Playlist, and open-in-browser (round 4) are unaffected. Checked
-  via `npm run typecheck && npm run lint && npm test` (290/290).
-- **Resolved:** 2026-09-26 · **Commit:** 35b2154 · **Outcome:** Fixed
-
-### B-132 — "No playlists yet" text has no gap before the create-playlist row
-- **Type:** bug · **Severity:** minor
-- **Status:** Resolved · **Reported:** 2026-09-25 · **Target:** 0.13.3
-- **Area:** ui-shell
-- **What happens:** in the Add to Playlist dialog, when the account has no local
-  playlists yet, the "No playlists yet. Create one below." text sits right against the
-  new-playlist name field below it — no visible gap, unlike the normal case where the
-  playlist checklist has one.
-- **Expected:** the same spacing either way, checklist or empty message.
-- **Code refs:** `src/ui/styles.css` (`.add-to-playlist-empty`, `.add-to-playlist-list`).
-- **Root cause:** `.add-to-playlist-list` (the `<ul>` shown when there's at least one
-  playlist) has `margin-bottom: 12px`; `.add-to-playlist-empty` (the `<p>` that
-  replaces it when the list is empty) never had one.
-- **Fix (2026-09-25), same session it was reported:** added the same
-  `margin-bottom: 12px` to `.add-to-playlist-empty`. A pure CSS change — no
-  typecheck/test impact; `npm run lint` still passes. Not run live.
-- **Resolved:** 2026-09-26 · **Commit:** 5a84205 · **Outcome:** Fixed
-- **Resolution:** matched `.add-to-playlist-list`'s own `margin-bottom: 12px`.
-
