@@ -418,23 +418,6 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
-### B-132 — "No playlists yet" text has no gap before the create-playlist row
-- **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-09-25 · **Target:** 0.13.3
-- **Area:** ui-shell
-- **What happens:** in the Add to Playlist dialog, when the account has no local
-  playlists yet, the "No playlists yet. Create one below." text sits right against the
-  new-playlist name field below it — no visible gap, unlike the normal case where the
-  playlist checklist has one.
-- **Expected:** the same spacing either way, checklist or empty message.
-- **Code refs:** `src/ui/styles.css` (`.add-to-playlist-empty`, `.add-to-playlist-list`).
-- **Root cause:** `.add-to-playlist-list` (the `<ul>` shown when there's at least one
-  playlist) has `margin-bottom: 12px`; `.add-to-playlist-empty` (the `<p>` that
-  replaces it when the list is empty) never had one.
-- **Fix (2026-09-25), same session it was reported:** added the same
-  `margin-bottom: 12px` to `.add-to-playlist-empty`. A pure CSS change — no
-  typecheck/test impact; `npm run lint` still passes. Not run live.
-
 ## Resolved
 
 ### B-131 — Non-subscribed channel's video list is missing actions, date grouping, and real Shorts filtering
@@ -564,5 +547,24 @@ Resolved entries add:
   along with the corresponding handler in `App.tsx`'s `searchVideoActions`. Favorite,
   Watch Later, Add to Playlist, and open-in-browser (round 4) are unaffected. Checked
   via `npm run typecheck && npm run lint && npm test` (290/290).
+- **Resolved:** 2026-09-26 · **Commit:** 35b2154 · **Outcome:** Fixed
+
+### B-132 — "No playlists yet" text has no gap before the create-playlist row
+- **Type:** bug · **Severity:** minor
+- **Status:** Resolved · **Reported:** 2026-09-25 · **Target:** 0.13.3
+- **Area:** ui-shell
+- **What happens:** in the Add to Playlist dialog, when the account has no local
+  playlists yet, the "No playlists yet. Create one below." text sits right against the
+  new-playlist name field below it — no visible gap, unlike the normal case where the
+  playlist checklist has one.
+- **Expected:** the same spacing either way, checklist or empty message.
+- **Code refs:** `src/ui/styles.css` (`.add-to-playlist-empty`, `.add-to-playlist-list`).
+- **Root cause:** `.add-to-playlist-list` (the `<ul>` shown when there's at least one
+  playlist) has `margin-bottom: 12px`; `.add-to-playlist-empty` (the `<p>` that
+  replaces it when the list is empty) never had one.
+- **Fix (2026-09-25), same session it was reported:** added the same
+  `margin-bottom: 12px` to `.add-to-playlist-empty`. A pure CSS change — no
+  typecheck/test impact; `npm run lint` still passes. Not run live.
 - **Resolved:** 2026-09-26 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** matched `.add-to-playlist-list`'s own `margin-bottom: 12px`.
 

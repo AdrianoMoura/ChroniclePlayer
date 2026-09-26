@@ -3111,6 +3111,10 @@ button.primary.danger {
 .add-to-playlist-empty {
   color: var(--text-dim);
   font-size: 13px;
+  /* Matches .add-to-playlist-list's own margin-bottom below — this <p>
+     replaces that <ul> when there are no playlists yet, and needs the same
+     gap before the create-playlist row. */
+  margin-bottom: 12px;
 }
 
 .add-to-playlist-list {
