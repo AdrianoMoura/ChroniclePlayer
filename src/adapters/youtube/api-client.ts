@@ -266,18 +266,23 @@ export class YouTubeApiClient implements SubscriptionSource {
 
   // search.list — 100 units/call (youtube-api.md, D-031). Explicit
   // user-typed queries only — never called from sync/automation, never
-  // injected into the feed.
+  // injected into the feed. D-071: an optional channelId scopes the same
+  // call to one channel's own uploads (type narrows to video-only, since a
+  // channel can't return itself as a channel result) — reused for a
+  // channel screen's own search, same 100-unit cost, same Enter-only gate.
   async search(
     query: string,
-    pageToken?: string
+    pageToken?: string,
+    channelId?: string
   ): Promise<{ results: SearchResult[]; nextPageToken: string | null }> {
     const page = await this.get(
       'search',
       {
         part: 'snippet',
         q: query,
-        type: 'video,channel',
+        type: channelId ? 'video' : 'video,channel',
         maxResults: '25',
+        ...(channelId ? { channelId } : {}),
         ...(pageToken ? { pageToken } : {})
       },
       100

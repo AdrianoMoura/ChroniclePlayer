@@ -433,6 +433,63 @@ describe('YouTubeApiClient', () => {
     expect(quota.spent).toBe(102)
   })
 
+  // D-071: a channel screen's own search scopes the same call to one
+  // channel's uploads — video-only (a channel can't return itself as a
+  // channel result), same 100-unit cost.
+  it('search scoped to a channelId narrows type to video-only and passes channelId through', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const parsed = new URL(String(url))
+      const params = parsed.searchParams
+      if (parsed.pathname.endsWith('/search')) {
+        expect(params.get('q')).toBe('cats')
+        expect(params.get('type')).toBe('video')
+        expect(params.get('channelId')).toBe('UCcat')
+        return Promise.resolve(
+          jsonResponse(200, {
+            nextPageToken: null,
+            items: [
+              {
+                id: { kind: 'youtube#video', videoId: 'v1' },
+                snippet: {
+                  title: 'Cat video',
+                  channelId: 'UCcat',
+                  channelTitle: 'Cats Inc',
+                  publishedAt: '2026-07-10T08:00:00Z',
+                  thumbnails: {}
+                }
+              }
+            ]
+          })
+        )
+      }
+      expect(parsed.pathname.endsWith('/videos')).toBe(true)
+      return Promise.resolve(
+        jsonResponse(200, { items: [{ id: 'v1', contentDetails: { duration: 'PT30S' } }] })
+      )
+    }
+    const { results, nextPageToken } = await new YouTubeApiClient(auth, fetchFn, quota).search(
+      'cats',
+      undefined,
+      'UCcat'
+    )
+    expect(results).toEqual([
+      {
+        kind: 'video',
+        videoId: 'v1',
+        title: 'Cat video',
+        channelId: 'UCcat',
+        channelTitle: 'Cats Inc',
+        publishedAt: '2026-07-10T08:00:00Z',
+        thumbnailUrl: null,
+        durationSeconds: 30,
+        isShort: false
+      }
+    ])
+    expect(nextPageToken).toBeNull()
+    expect(quota.spent).toBe(101)
+  })
+
   it('listComments maps threads with nested replies and counts 1 unit', async () => {
     const quota = new QuotaCounter()
     const fetchFn: FetchFn = () =>

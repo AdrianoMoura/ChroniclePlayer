@@ -673,10 +673,13 @@ export interface ChronicleApi {
     channelId: string
   ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>>
   // D-031: search.list, 100 units/call — explicit user-typed queries
-  // only, fired on Enter. pageToken continues the same query.
+  // only, fired on Enter. pageToken continues the same query. D-071: an
+  // optional channelId scopes the same call to a channel screen's own
+  // videos (subscribed or not) — video-only results, same cost and gate.
   searchYouTube(
     query: string,
-    pageToken?: string | null
+    pageToken?: string | null,
+    channelId?: string | null
   ): Promise<ResultDto<{ results: SearchResultDto[]; nextPageToken: string | null }>>
   // subscriptions.insert (D-030, 50 units) — the other half of B-010's
   // unsubscribe; shares the same incremental write-scope consent (D-032).

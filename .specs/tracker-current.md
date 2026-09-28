@@ -271,11 +271,21 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   and [[B-101]] didn't make it in and carried their **Target** forward again. No new
   `D-NNN` scope this cycle. Shipped as a **patch** version (a pure bug-fix batch).
   Shipped 2026-09-26.
+- **v0.14.0** — no bug-tracker batch of its own, same pattern as
+  `v0.4.0`/`v0.4.2`/`v0.4.4`/`v0.4.6`/`v0.6.0`/`v0.7.0`/`v0.8.0`/`v0.9.0`/`v0.10.1`/
+  `v0.10.2`/`v0.12.0`/`v0.13.1`/`v0.13.2`: driven entirely by D-071 (a channel screen's
+  own search — the topbar `/` field scopes to that channel's own videos, subscribed or
+  not, instead of all of YouTube, reusing D-031's `search.list` call with an added
+  `channelId` param), a direct product-owner request rather than an item reported here.
+  [[B-108]] and [[B-101]] didn't make it in and carried their **Target** forward again.
+  Full narrative in `decisions.md` D-071, not a dedicated tracker-history note of its
+  own. Shipped as a **minor** version, per the owner's own explicit direction (real new
+  scope, not a bug-fix batch).
 
-**Current target: 0.13.4.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.14.1.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, 0.13.2, or 0.13.3 either (see above — every one of those shipped driven
-by a direct product-owner decision or a different bug batch instead).
+0.13.0, 0.13.1, 0.13.2, 0.13.3, or 0.14.0 either (see above — every one of those shipped
+driven by a direct product-owner decision or a different bug batch instead).
 
 ## Entry template
 
@@ -303,8 +313,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.13.4
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, and 0.13.3 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.14.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, and 0.14.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -329,8 +339,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.13.4
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, and 0.13.3 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.14.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, and 0.14.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the

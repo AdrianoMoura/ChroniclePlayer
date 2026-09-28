@@ -89,7 +89,7 @@ with a visible cursor row.
 | `1…6` | switch view/screen (All, Unread, WL, **Playlists** — D-058, opens the Playlists screen's list rather than a `FeedView` — Fav, Ignored) |
 | `r` | refresh |
 | `Ctrl+O` | open a YouTube video by URL (D-029) |
-| `/` | focus the search field — Enter searches YouTube directly (D-031); also works while a video is playing, exiting fully back to the feed first |
+| `/` | focus the search field — Enter searches YouTube directly (D-031), or scopes to the open channel's own videos if a channel screen is showing (D-071); also works while a video is playing, exiting fully back to the feed first |
 | `c` | focus the sidebar's channel-filter field (B-024) |
 | `s` | show/hide the sidebar (B-037) — added in the B-043 audit, had no keyboard path at all |
 | `?` | shortcut overlay — also reachable from the full-view player as of B-102 |

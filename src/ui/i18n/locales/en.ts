@@ -389,6 +389,8 @@ export const dict = {
   'app.topbar.channelFallback': 'Channel',
   'app.topbar.markAllRead': 'Mark all as read (M)',
   'app.topbar.searchYouTubePlaceholder': 'Search',
+  // D-071: same field, shown only while a channel screen is open.
+  'app.topbar.searchChannelPlaceholder': 'Search this channel',
   'app.topbar.clearFilterTitle': 'Clear',
   'app.topbar.itemSizeTitle': 'Item size: {size}',
   'app.topbar.switchToListView': 'Switch to list view (v)',
@@ -530,6 +532,9 @@ export const dict = {
   // YouTube search (B-009)
   'search.empty': 'No results.',
   'search.searching': 'Searching all of YouTube…',
+  // D-071: a channel-scoped search (see search.searching above for the
+  // unscoped case).
+  'search.searchingChannel': 'Searching this channel…',
   // B-131: distinct from search.searching above — this is a specific
   // channel's own uploads loading, not a YouTube-wide search.
   'search.channelLoading': 'Loading channel…',

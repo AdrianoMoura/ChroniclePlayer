@@ -456,6 +456,30 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   field D-064 already surfaces), a direct product-owner request rather than an item
   from `tracker-current.md` — same pattern as D-050–D-069. Shipped as a **patch**
   version, per the owner's own explicit direction. Not yet live-tested by the owner.
+- **0.13.3 — delivered, 2026-09-26.** Carried B-108, B-101 forward from 0.13.2,
+  unchanged. Two Fixed entries, `tracker-history/v0.13.3.md`: B-131 (a non-subscribed
+  channel's video list, opened via a channel search result, gained real
+  favorite/Watch Later/Add-to-Playlist/open-in-browser actions, HEAD-confirmed Shorts
+  filtering matching the main feed's own D-028 pipeline, and date-bucket grouping —
+  five same-session rounds plus one pre-existing bug the owner's own live test caught
+  along the way) and B-132 (a CSS spacing gap in the Add to Playlist dialog's empty
+  state). No new `D-NNN` scope this cycle — shipped as a **patch** version (a pure
+  bug-fix batch). B-108, B-101 carried forward, untouched, now targeting **0.13.4**
+  (see `tracker-current.md`).
+- **0.14.0 — delivered, 2026-09-28.** Carried B-108, B-101 forward from 0.13.3,
+  unchanged. No bug-tracker batch of its own — driven entirely by D-071 (a channel
+  screen's own search — the topbar `/` field scopes to that channel's own videos,
+  subscribed or not, instead of all of YouTube whenever a channel screen is open;
+  reuses D-031's `search.list` call with an added `channelId` param and `type` narrowed
+  to video-only, same 100-unit cost, same Enter-only gate), a direct product-owner
+  request rather than an item from `tracker-current.md` — same pattern as D-050–D-070.
+  Also fixed, as part of the same change: `closeSearch()` no longer clears
+  `channelPreview`, which used to strand a non-subscribed channel's preview once its
+  leftover search text was cleared. Checked via `npm run typecheck && npm run lint &&
+  npm test`, plus a new contract test for the scoped `search()` call. Shipped as a
+  **minor** version, per the owner's own explicit direction (real new scope, not a
+  bug-fix batch). Not yet live-tested by the owner. B-108, B-101 carried forward,
+  untouched, now targeting **0.14.1**.
 
 ## M0 — Walking skeleton
 

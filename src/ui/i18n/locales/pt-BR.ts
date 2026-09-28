@@ -391,6 +391,7 @@ export const dict: Partial<Dict> = {
   'app.topbar.channelFallback': 'Canal',
   'app.topbar.markAllRead': 'Marcar tudo como lido (M)',
   'app.topbar.searchYouTubePlaceholder': 'Buscar',
+  'app.topbar.searchChannelPlaceholder': 'Buscar neste canal',
   'app.topbar.clearFilterTitle': 'Limpar',
   'app.topbar.itemSizeTitle': 'Tamanho do item: {size}',
   'app.topbar.switchToListView': 'Mudar para visualização em lista (v)',
@@ -526,6 +527,7 @@ export const dict: Partial<Dict> = {
   // YouTube search (B-009)
   'search.empty': 'Nenhum resultado.',
   'search.searching': 'Buscando em todo o YouTube…',
+  'search.searchingChannel': 'Buscando neste canal…',
   'search.channelLoading': 'Carregando canal…',
   'search.subscribeButton': 'Inscrever-se',
   'search.subscribedButton': 'Inscrito',

@@ -201,6 +201,10 @@ export function App() {
   const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  // D-071: set whenever a search is fired while a channel screen is open —
+  // scopes that search (and its pagination) to that channel's own videos,
+  // subscribed or not. Null for the ordinary all-of-YouTube search.
+  const [searchChannelId, setSearchChannelId] = useState<string | null>(null)
   const [searchNextPageToken, setSearchNextPageToken] = useState<string | null>(null)
   const [searchLoadingMore, setSearchLoadingMore] = useState(false)
   // Browsing a not-yet-subscribed channel's uploads, opened from a search
@@ -669,20 +673,26 @@ export function App() {
   )
 
   // B-009/D-031: explicit user action only — never fired on keystroke.
+  // D-071: while a channel screen is open, the same field scopes the search
+  // to that channel's own videos instead of all of YouTube — one field, one
+  // predictable behavior per context, same as D-031's own single-behavior
+  // precedent.
   const runSearch = useCallback(
     (query: string) => {
       const q = query.trim()
       if (q === '') {
         setSearchResults(null)
         setSearchNextPageToken(null)
+        setSearchChannelId(null)
         return
       }
       // Submitting an actual search is a navigation like any other — it always
       // leaves the player, even though focusing the field to type it does not.
       leavePlayerForNavigation()
       setSearchQuery(q)
+      setSearchChannelId(channelFilter)
       setSearching(true)
-      void window.chronicle.searchYouTube(q).then((result) => {
+      void window.chronicle.searchYouTube(q, null, channelFilter).then((result) => {
         setSearching(false)
         if (!result.ok) {
           if (result.errorKind === 'quota-exceeded') {
@@ -700,32 +710,36 @@ export function App() {
         setSearchNextPageToken(result.value.nextPageToken)
       })
     },
-    [leavePlayerForNavigation]
+    [channelFilter, leavePlayerForNavigation]
   )
 
   // Explicit navigation (a sidebar view/channel/account/settings click)
   // always leaves search, even when the destination happens to already
   // match the current view/channel/account — state setters alone don't
   // fire the "navigation changed" effect on a same-value no-op click.
+  // D-071: leaves channelPreview alone — it's a sibling of channelFilter,
+  // not of search (see its own state comment); nulling it here used to
+  // strand a non-subscribed channel's preview the moment its leftover
+  // search text was cleared with no scoped search ever having replaced it.
   const closeSearch = useCallback(() => {
     setFilter('')
     setSearchResults(null)
     setSearchQuery('')
+    setSearchChannelId(null)
     setSearchNextPageToken(null)
     setSearching(false)
-    setChannelPreview(null)
   }, [])
 
   const loadMoreSearchResults = useCallback(() => {
     if (searchNextPageToken === null || searchLoadingMore) return
     setSearchLoadingMore(true)
-    void window.chronicle.searchYouTube(searchQuery, searchNextPageToken).then((result) => {
+    void window.chronicle.searchYouTube(searchQuery, searchNextPageToken, searchChannelId).then((result) => {
       setSearchLoadingMore(false)
       if (!result.ok) return
       setSearchResults((current) => [...(current ?? []), ...result.value.results])
       setSearchNextPageToken(result.value.nextPageToken)
     })
-  }, [searchQuery, searchNextPageToken, searchLoadingMore])
+  }, [searchQuery, searchChannelId, searchNextPageToken, searchLoadingMore])
 
   // Search results only page via the `.search-results` container's own
   // onScroll handler — a small result count, small grid item size, or tall
@@ -2237,7 +2251,11 @@ export function App() {
                   <input
                     ref={filterInputRef}
                     className="filter"
-                    placeholder={t('app.topbar.searchYouTubePlaceholder')}
+                    placeholder={t(
+                      channelFilter !== null
+                        ? 'app.topbar.searchChannelPlaceholder'
+                        : 'app.topbar.searchYouTubePlaceholder'
+                    )}
                     value={filter}
                     onChange={(event) => setFilter(event.target.value)}
                     onKeyDown={(event) => {
@@ -2298,7 +2316,10 @@ export function App() {
             {screen === 'feed' &&
               (!playerOpen || miniplayer) &&
               channelFilter !== null &&
-              searchResults === null &&
+              // D-071: a channel-scoped search keeps the header (back/
+              // unsubscribe/favorite context) visible — only an unscoped,
+              // all-of-YouTube search result set replaces it entirely.
+              (searchResults === null || searchChannelId === channelFilter) &&
               (() => {
                 const selectedChannel = channels.find((c) => c.channelId === channelFilter)
                 const preview = channelPreview?.channelId === channelFilter ? channelPreview : null
@@ -2413,7 +2434,11 @@ export function App() {
                         loadMoreSearchResults()
                     }}
                   >
-                    {searching && <div className="empty">{t('search.searching')}</div>}
+                    {searching && (
+                      <div className="empty">
+                        {t(searchChannelId !== null ? 'search.searchingChannel' : 'search.searching')}
+                      </div>
+                    )}
                     {!searching && searchResults.length === 0 && (
                       <div className="empty">{t('search.empty')}</div>
                     )}

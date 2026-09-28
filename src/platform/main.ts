@@ -1174,12 +1174,17 @@ async function boot(): Promise<void> {
     async (
       _event,
       query: unknown,
-      pageToken: unknown
+      pageToken: unknown,
+      channelId: unknown
     ): Promise<ResultDto<{ results: SearchResultDto[]; nextPageToken: string | null }>> => {
       const q = String(query).trim()
       if (q === '') return { ok: true, value: { results: [], nextPageToken: null } }
       try {
-        const page = await apiClient.search(q, typeof pageToken === 'string' ? pageToken : undefined)
+        const page = await apiClient.search(
+          q,
+          typeof pageToken === 'string' ? pageToken : undefined,
+          typeof channelId === 'string' ? channelId : undefined
+        )
         const confirmedShorts = await confirmShorts(
           page.results.filter((r): r is Extract<SearchResult, { kind: 'video' }> => r.kind === 'video')
         )

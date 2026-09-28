@@ -96,6 +96,13 @@ groups into the same date buckets as the main feed (it's chronologically ordered
 this is possible); free-text search results stay a flat list, since `search.list`'s
 relevance order isn't chronological (see [[B-131]]).
 
+**D-071:** the same search field, while a channel screen is open (subscribed or a
+non-subscribed preview), scopes the query to that channel's own videos instead of all
+of YouTube — one field, one behavior per context, no separate control. Same
+`search.list` call and cost, with `channelId` set and `type` narrowed to video-only;
+results stay a flat, relevance-ordered list like the unscoped case. The channel header
+(back/unsubscribe/favorite/notify) stays visible throughout, unlike an unscoped search.
+
 ### Comments & likes (D-032)
 From the player's action bar: like a video (`videos.rate`, 50 units), load comments on
 explicit action (`commentThreads.list`, 1 unit — never auto-loaded), post a top-level
