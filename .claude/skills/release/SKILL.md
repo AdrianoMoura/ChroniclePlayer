@@ -1,18 +1,28 @@
 ---
 name: release
-description: Close out a Chronicle release end-to-end — rotate the bug tracker, bump the version, tag, and draft release notes. Use when the product owner asks to "fechar a versão", "close the release", "cut a release", "ship vX.Y.Z", or similar for this project.
+description: Close out a Chronicle release end-to-end — rotate the bug tracker, bump the version, tag, push, write the release notes directly into the GitHub draft release via `gh`, then follow the Actions build matrix to completion and report status before handing back the release link. Use when the product owner asks to "fechar a versão", "close the release", "cut a release", "ship vX.Y.Z", or similar for this project.
 ---
 
 # Chronicle release process
 
 A release is a fixed sequence with two hard confirmation gates (the version number
 and the push). Follow the steps in order; don't skip or reorder the gates, and don't
-silently pick a version number or push without an explicit yes.
+silently pick a version number or push without an explicit yes. Everything else is
+mechanical — do it without pausing for permission at each step.
+
+This skill ends by writing the notes into the GitHub draft release itself (via `gh`)
+and handing back its URL — not by handing the owner text to paste in by hand. It never
+publishes the release: clicking "Publish release" on GitHub stays the owner's own,
+separate action.
+
+Requires `gh` authenticated (`gh auth status`) with at least `repo` scope. If it isn't,
+stop and ask the owner to run `gh auth login` — don't fall back to drafting notes as
+plain text instead.
 
 ## 1. Ask the version number
 
 Ask the product owner what version this release will be (`X.Y.Z`, no `v` prefix yet —
-that gets added in step 5). Don't guess it.
+that gets added in step 4). Don't guess it.
 
 You can help them decide by skimming `.specs/tracker-current.md` (which entries are
 Resolved/Fixed) and any `D-NNN` entries added to `.specs/decisions.md` since the last
@@ -39,16 +49,12 @@ top of that file (its own "Release" step):
 - Rewrite `.specs/tracker-current.md`: keep its own "How this file is used" /
   "Conventions" sections unchanged, list only the carried-forward items.
 
-## 3. Bump the version
+## 3. Bump the version, commit, and merge to main
 
 Update the `"version"` field in `package.json` **and** `package-lock.json` (both the
 top-level `version` and the matching `packages[""].version` entry) to the new version.
-
 Do not run `npm version` — it creates its own commit and tag with a generic message,
-and this project always hand-writes a specific commit (step 4) and a lightweight tag
-(step 5).
-
-## 4. Commit and merge to main
+and this project always hand-writes a specific commit and a lightweight tag (next step).
 
 Stage the bug-tracker rotation and the version bump together in one commit. Match the
 existing commit style (see `git log --oneline -10` for recent examples):
@@ -60,24 +66,23 @@ e.g. `Prepare 0.4.5: bump version, archive B-112, B-113`.
 No PR: fast-forward merge this commit into `main` locally, same as every other
 release in this repo's history.
 
-## 5. Tag
+## 4. Tag
 
 Create a **lightweight** tag (no `-a`/annotated — every existing tag in this repo is
-lightweight) named `v<version>` pointing at the commit from step 4, once it's on
+lightweight) named `v<version>` pointing at the commit from step 3, once it's on
 `main`.
 
-## 6. Confirm before pushing
+## 5. Confirm before pushing
 
 Ask explicitly before pushing anything: pushing the tag triggers
-`.github/workflows/release.yml`, which builds the Linux/macOS/Windows matrix and
-publishes a **draft** GitHub Release under that tag — real CI usage and a public
-(if draft) artifact, not a no-op. Only push after an explicit yes. Push `main` and the
-tag together, e.g. `git push origin main v<version>`.
+`.github/workflows/release.yml`, which immediately creates an empty **draft** GitHub
+Release for the tag, then builds the Linux/macOS/Windows matrix and uploads installers
+into it — real CI usage and a public (if draft) artifact, not a no-op. Only push after
+an explicit yes. Push `main` and the tag together, e.g. `git push origin main v<version>`.
 
-## 7. Hand back release notes
+## 6. Draft the release notes
 
-Draft the release-notes body for the owner to paste into the GitHub draft release (CI
-creates it with empty notes). Format:
+Write the release-notes body. Format:
 
     ## Chronicle X.Y.Z
 
@@ -101,11 +106,63 @@ Rules for the text:
 - Skip anything purely internal (refactors, spec cleanup, test-only changes) — these
   notes are for the owner's own tracking/announcement, not a commit log.
 
+## 7. Write the notes into the draft release and hand back the link
+
+The workflow's `prepare-release` job creates the empty draft within roughly a minute of
+the push — well before the slower OS build matrix finishes, and notes don't depend on
+the matrix at all. Poll for it rather than guessing it's ready:
+
+    until gh release view v<version> >/dev/null 2>&1; do sleep 10; done
+
+(`gh` auto-detects the repo from the working directory — no `--repo` needed.) Give this
+a few minutes; if it never appears, run `gh run list --workflow=release.yml -L1` and
+`gh run view <run-id> --log-failed` to check whether `prepare-release` itself failed
+(e.g. a bad token) rather than polling forever.
+
+Once it exists, write the notes body from step 6 into it — from a temp file in the
+scratchpad directory, not inline on the command line (multi-line, and avoids shell
+quoting issues):
+
+    gh release edit v<version> --notes-file <scratchpad>/notes.md
+
+Do **not** pass `--draft=false` — this must stay a draft. Publishing is the owner's own
+action, in the GitHub UI, whenever they're ready (e.g. once they've sanity-checked the
+uploaded installers).
+
+## 8. Follow the build matrix to completion, then hand back the link
+
+Writing the notes doesn't mean the release is ready — the Linux/macOS/Windows build
+matrix in the same workflow run is usually still going. Find the run and watch it
+rather than stopping here:
+
+    gh run list --workflow=release.yml -L1 --json databaseId -q '.[0].databaseId'
+
+Watch that run id to completion — it commonly takes several minutes, longer than a
+single foreground command should block for, so run the watch in the background and
+report progress in the conversation as it changes (queued → running → each job's
+result), not silently:
+
+    gh run watch <run-id> --exit-status
+
+Once it finishes, check every job's own conclusion, not just the overall run status:
+
+    gh run view <run-id> --json jobs -q '.jobs[] | "\(.name): \(.conclusion)"'
+
+Report the outcome plainly — which jobs passed, which (if any) failed — then hand back
+the release link again:
+
+    gh release view v<version> --json url -q .url
+
+so the owner can review the uploaded installers and publish manually. If any matrix job
+failed, say so explicitly instead of only handing back the link — a partially-built
+draft isn't ready to publish, even though the draft itself and its notes exist.
+
 ---
 
-Once pushed, this skill's job is done. Note: `CLAUDE.md`'s "Current state of the
-repository" section and `.specs/roadmap.md`'s "Release status" section traditionally
-also get a narrative paragraph per release (what shipped, why, what broke and got
-caught live). This skill does not write that automatically — it takes judgment about
-what's worth narrating. Do it as a separate pass afterward if the release has a story
-worth capturing (it usually does).
+Once notes are written, the build matrix has finished, and the link is handed back,
+this skill's job is done. Note:
+`CLAUDE.md`'s "Current state of the repository" section and `.specs/roadmap.md`'s
+"Release status" section traditionally also get a narrative paragraph per release (what
+shipped, why, what broke and got caught live). This skill does not write that
+automatically — it takes judgment about what's worth narrating. Do it as a separate
+pass afterward if the release has a story worth capturing (it usually does).
