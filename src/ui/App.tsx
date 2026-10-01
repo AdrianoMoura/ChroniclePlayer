@@ -1994,8 +1994,41 @@ export function App() {
       if (handled) event.preventDefault()
     }
 
+    // The mouse "back" side button (XButton1, event.button === 3) steps back
+    // one level, mirroring Escape's own behavior in each branch above. The
+    // full-view player owns this button itself (PlayerSurface) whenever it's
+    // open in that mode, via the same early return the keyboard handler uses.
+    function onMouseUp(event: MouseEvent): void {
+      if (event.button !== 3) return
+      if ((playerOpen && !miniplayer) || urlPromptOpen) return
+      event.preventDefault()
+      if (screen === 'settings') {
+        setScreen('feed')
+        return
+      }
+      if (screen === 'playlists') {
+        if (helpOpen) {
+          setHelpOpen(false)
+          return
+        }
+        if (playlistFilter !== null) setPlaylistFilter(null)
+        else setScreen('feed')
+        return
+      }
+      if (helpOpen) {
+        setHelpOpen(false)
+        return
+      }
+      if (filter !== '') setFilter('')
+      else setChannelFilter(null)
+    }
+
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
   }, [
     filtered,
     effectiveCursor,

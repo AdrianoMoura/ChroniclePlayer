@@ -436,3 +436,28 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
+
+### B-133 — Mouse "back" button only works inside the full-view player
+- **Type:** adjustment
+- **Status:** Fixed · **Reported:** 2026-10-01 · **Target:** 0.14.1
+- **Area:** ui-shell
+- **What happens:** [[B-039]] made the mouse back/side button (XButton1,
+  `event.button === 3`) exit the full-view player, mirroring Esc. Everywhere else in the
+  app (the main feed's channel filter, the Playlists screen and its own detail view,
+  Settings, the shortcuts help overlay) the button did nothing.
+- **Expected:** the mouse back button steps back one level anywhere Esc already does,
+  not just inside the full-view player.
+- **Code refs:** `src/ui/App.tsx` — the keydown effect that owns Esc's per-screen
+  back-one-level behavior; `src/ui/PlayerSurface.tsx` — the existing full-view-only
+  handler from [[B-039]], left untouched.
+- **Resolved:** 2026-10-01 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolution:** added a `mouseup` listener alongside `App.tsx`'s existing keydown
+  effect, gated the same way as keyboard input (skipped while the full-view player or
+  the open-by-URL prompt owns input) so it never double-fires with `PlayerSurface`'s own
+  handler. On `event.button === 3` it closes the help overlay if open, otherwise mirrors
+  Esc's exact per-screen logic: Settings → feed; Playlists detail → Playlists list →
+  feed; main feed's filter text → channel filter → nothing further. Checked via
+  `npm run typecheck && npm run lint && npm test`; not run live (per
+  [[no-live-app-verification]]) — the underlying `event.button === 3` mechanism was
+  already live-verified on the owner's hardware by [[B-039]], so this only extends where
+  it's wired up, not the detection itself.
