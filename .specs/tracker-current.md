@@ -450,7 +450,7 @@ Resolved entries add:
 - **Code refs:** `src/ui/App.tsx` — the keydown effect that owns Esc's per-screen
   back-one-level behavior; `src/ui/PlayerSurface.tsx` — the existing full-view-only
   handler from [[B-039]], left untouched.
-- **Resolved:** 2026-10-01 · **Commit:** (pending) · **Outcome:** Fixed
+- **Resolved:** 2026-10-01 · **Commit:** 2d1bf31 · **Outcome:** Fixed
 - **Resolution:** added a `mouseup` listener alongside `App.tsx`'s existing keydown
   effect, gated the same way as keyboard input (skipped while the full-view player or
   the open-by-URL prompt owns input) so it never double-fires with `PlayerSurface`'s own
