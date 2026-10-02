@@ -281,11 +281,17 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   Full narrative in `decisions.md` D-071, not a dedicated tracker-history note of its
   own. Shipped as a **minor** version, per the owner's own explicit direction (real new
   scope, not a bug-fix batch).
+- [`tracker-history/v0.14.1.md`](tracker-history/v0.14.1.md) — a single entry, [[B-133]]
+  (Fixed — the mouse "back" side button, previously wired up only inside the full-view
+  player by [[B-039]], now steps back one level anywhere Esc already does across the
+  whole app). [[B-108]] and [[B-101]] didn't make it in and carried their **Target**
+  forward again. No new `D-NNN` scope this cycle. Shipped as a **patch** version (a pure
+  bug-fix batch). Shipped 2026-10-01.
 
-**Current target: 0.14.1.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.14.2.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, 0.13.2, 0.13.3, or 0.14.0 either (see above — every one of those shipped
-driven by a direct product-owner decision or a different bug batch instead).
+0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, or 0.14.1 either (see above — every one of those
+shipped driven by a direct product-owner decision or a different bug batch instead).
 
 ## Entry template
 
@@ -313,8 +319,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.14.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, and 0.14.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.14.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, and 0.14.1 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -339,8 +345,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.14.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, and 0.14.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.14.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, and 0.14.1 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -436,28 +442,3 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
-
-### B-133 — Mouse "back" button only works inside the full-view player
-- **Type:** adjustment
-- **Status:** Fixed · **Reported:** 2026-10-01 · **Target:** 0.14.1
-- **Area:** ui-shell
-- **What happens:** [[B-039]] made the mouse back/side button (XButton1,
-  `event.button === 3`) exit the full-view player, mirroring Esc. Everywhere else in the
-  app (the main feed's channel filter, the Playlists screen and its own detail view,
-  Settings, the shortcuts help overlay) the button did nothing.
-- **Expected:** the mouse back button steps back one level anywhere Esc already does,
-  not just inside the full-view player.
-- **Code refs:** `src/ui/App.tsx` — the keydown effect that owns Esc's per-screen
-  back-one-level behavior; `src/ui/PlayerSurface.tsx` — the existing full-view-only
-  handler from [[B-039]], left untouched.
-- **Resolved:** 2026-10-01 · **Commit:** 2d1bf31 · **Outcome:** Fixed
-- **Resolution:** added a `mouseup` listener alongside `App.tsx`'s existing keydown
-  effect, gated the same way as keyboard input (skipped while the full-view player or
-  the open-by-URL prompt owns input) so it never double-fires with `PlayerSurface`'s own
-  handler. On `event.button === 3` it closes the help overlay if open, otherwise mirrors
-  Esc's exact per-screen logic: Settings → feed; Playlists detail → Playlists list →
-  feed; main feed's filter text → channel filter → nothing further. Checked via
-  `npm run typecheck && npm run lint && npm test`; not run live (per
-  [[no-live-app-verification]]) — the underlying `event.button === 3` mechanism was
-  already live-verified on the owner's hardware by [[B-039]], so this only extends where
-  it's wired up, not the detection itself.
