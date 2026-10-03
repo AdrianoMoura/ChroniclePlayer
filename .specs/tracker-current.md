@@ -441,4 +441,45 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+### B-134 — Resume playback position doesn't save/restore consistently
+- **Type:** bug · **Severity:** major
+- **Status:** Open · **Reported:** 2026-10-03 · **Target:** 0.14.2
+- **Area:** player
+- **What happens:** the product owner reports that `resume_position_seconds` (D-044,
+  `playback.md` §Resume playback position) doesn't reliably reflect where they actually
+  stopped watching — sometimes a reopened video resumes from an old or wrong position,
+  sometimes from the very start.
+- **Expected:** reopening a video always resumes from the last position actually
+  watched, per the existing spec (10s minimum, 30s end margin).
+- **Code refs:** `src/ui/PlayerSurface.tsx` (the three save checkpoints: pause, ended,
+  the video-switch/unmount cleanup effect), `src/platform/main.ts` (`createWindow`'s
+  `close` handler, `app.on('will-quit' | 'before-quit')`), `src/ui/ExtractedPlayerWindow.tsx`
+  (`onBeforeUnload`, for comparison).
+- **Notes:** found by reading the code (not yet live-verified by the owner, per
+  [[no-live-app-verification]]) — two distinct gaps, either of which would produce this
+  symptom on its own:
+  1. **No save path on real app quit.** The three checkpoints in `PlayerSurface.tsx`
+     only fire from React's own lifecycle (a pause event, the ended transition, or the
+     video-switch/unmount cleanup at line ~542) — none of them run when the whole app
+     quits while a video is actively playing (closing the main window for real, Cmd+Q, a
+     tray Quit, an OS logout). `app.on('will-quit', ...)` in `main.ts` only clears timers
+     and closes the DB handle; it never asks the renderer for a final playback position.
+     `ExtractedPlayerWindow.tsx` already solves exactly this for the pop-out window via
+     its own `window.addEventListener('beforeunload', ...)` (persists `currentTimeRef`
+     right before that window closes) — that mechanism was never added to the main
+     window's `PlayerSurface.tsx`, so quitting Chronicle mid-video (rather than pausing
+     or navigating away first) silently loses the checkpoint.
+  2. **Save-on-pause only trusts the one-shot `onStateChange` event.** The checkpoint
+     write for a pause (`payload.info === 2`) lives solely in the `onStateChange`
+     branch of `PlayerSurface.tsx`'s message handler. [[B-111]] already established that
+     a state transition the embed initiates on its own (e.g. clicking the embed's native
+     pause button, not Chronicle's own Space shortcut) isn't guaranteed to produce an
+     observed `onStateChange` round trip — which is why `playerStateRef` and the "ended"
+     side effects were both given a second detection path off the steady `infoDelivery`
+     heartbeat. The pause-triggered resume-position save was never given that same
+     second path, so it's exposed to the identical reliability gap B-111 already fixed
+     for the other two cases.
+  - Neither cause has a confirmed fix yet — this entry is Open, to be attacked when the
+    owner says to.
+
 ## Resolved
