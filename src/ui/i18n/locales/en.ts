@@ -5,7 +5,7 @@ import type { LocaleMeta } from '../types'
 // same keys, so a translation can lag behind new keys without breaking the
 // build; t() falls back to English per missing key. `{name}` placeholders
 // are substituted by `t()`.
-export const meta: LocaleMeta = { code: 'en', nativeName: 'English' }
+export const meta: LocaleMeta = { code: 'en', nativeName: 'English', reviewed: true }
 
 export const dict = {
   // format.ts
@@ -94,6 +94,9 @@ export const dict = {
   'settings.language.heading': 'Language',
   'settings.language.label': 'Language',
   'settings.language.system': 'Follow system',
+  'settings.language.unreviewedNote': 'This translation was AI-generated and has not been reviewed by a native speaker yet.',
+  'settings.language.unreviewedNoteDetail':
+    'It may contain mistakes or awkward phrasing. If you speak this language, a correction or a full review is a welcome contribution.',
   'settings.connection.heading': 'Connection',
   'settings.connection.stateConnected': 'Connected to your Google account.',
   'settings.connection.stateDisconnected': 'API key imported, but not connected.',

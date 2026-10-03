@@ -13,4 +13,7 @@ export interface LocaleMeta {
   code: string
   // Name shown in the Settings dropdown, in that language itself (not English).
   nativeName: string
+  // D-072: false for a locale that's an AI-generated first pass, never checked
+  // by a native speaker — SettingsView shows a note when one is selected.
+  reviewed: boolean
 }

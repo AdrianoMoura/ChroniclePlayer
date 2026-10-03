@@ -480,6 +480,11 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   **minor** version, per the owner's own explicit direction (real new scope, not a
   bug-fix batch). Not yet live-tested by the owner. B-108, B-101 carried forward,
   untouched, now targeting **0.14.1**.
+- **0.14.2 — in progress.** Candidate scope: D-072 (five new AI-generated,
+  explicitly-unreviewed interface languages — Spanish, German, French, Italian,
+  Japanese — alongside the existing human-reviewed English/Portuguese, D-054), a
+  direct product-owner request not sourced from `tracker-current.md`, pending the
+  owner's own live confirmation. B-108, B-101 carried forward from 0.14.1, untouched.
 
 ## M0 — Walking skeleton
 

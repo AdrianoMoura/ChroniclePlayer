@@ -158,6 +158,12 @@ export function SettingsView({
             ))}
           </select>
         </label>
+        {AVAILABLE_LOCALES.find((locale) => locale.code === settings.language)?.reviewed === false && (
+          <InfoNote
+            text={t('settings.language.unreviewedNote')}
+            detail={t('settings.language.unreviewedNoteDetail')}
+          />
+        )}
       </section>
 
       <section>

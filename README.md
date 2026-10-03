@@ -226,6 +226,26 @@ Whenever implementation and specification diverge, the specification is updated 
 
 ---
 
+## Language
+
+Chronicle's interface is available in:
+
+| Language | Status |
+|---|---|
+| English | Native |
+| Português (Brasil) | Native |
+| Español | AI-generated, not yet reviewed |
+| Deutsch | AI-generated, not yet reviewed |
+| Français | AI-generated, not yet reviewed |
+| Italiano | AI-generated, not yet reviewed |
+| 日本語 | AI-generated, not yet reviewed |
+
+"AI-generated, not yet reviewed" means the translation hasn't been checked by a native speaker yet — it may contain mistakes or awkward phrasing. Chronicle shows a note about this directly in Settings when one of these is selected.
+
+If you speak one of these languages, a correction or a full review is a welcome contribution. Each locale is a single file at `src/ui/i18n/locales/<code>.ts` — see D-054 and D-072 in `.specs/decisions.md`.
+
+---
+
 ## Installation
 
 Packaged releases are currently unsigned.

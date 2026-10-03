@@ -4,7 +4,7 @@ import type { Dict, LocaleMeta } from '../types'
 // can lag behind new English keys without breaking the build — t() falls
 // back to English for any key missing here. `{name}` placeholders must stay
 // exactly as in en.ts; only the surrounding text is translated.
-export const meta: LocaleMeta = { code: 'pt-BR', nativeName: 'Português (Brasil)' }
+export const meta: LocaleMeta = { code: 'pt-BR', nativeName: 'Português (Brasil)', reviewed: true }
 
 export const dict: Partial<Dict> = {
   // format.ts
@@ -93,6 +93,9 @@ export const dict: Partial<Dict> = {
   'settings.language.heading': 'Idioma',
   'settings.language.label': 'Idioma',
   'settings.language.system': 'Seguir o sistema',
+  'settings.language.unreviewedNote': 'Esta tradução foi gerada por IA e ainda não foi revisada por um falante nativo.',
+  'settings.language.unreviewedNoteDetail':
+    'Ela pode conter erros ou frases pouco naturais. Se você fala esse idioma, uma correção ou revisão completa é uma contribuição muito bem-vinda.',
   'settings.connection.heading': 'Conexão',
   'settings.connection.stateConnected': 'Conectado à sua conta do Google.',
   'settings.connection.stateDisconnected': 'Chave de API importada, mas não conectada.',
