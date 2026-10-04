@@ -1,5 +1,4 @@
-import { app, BrowserWindow, Notification, Tray, dialog, ipcMain, protocol, safeStorage, shell } from 'electron'
-import { randomUUID } from 'node:crypto'
+import { app, BrowserWindow, Notification, Tray, dialog, ipcMain, protocol, safeStorage } from 'electron'
 import { mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
@@ -15,52 +14,29 @@ import { SqliteSyncRepository } from '../adapters/storage/sync-repository'
 import { FileSecretStore, type SecretCipher } from '../adapters/secrets/file-secret-store'
 import { MachineKeyCipher } from '../adapters/secrets/machine-key-cipher'
 import { GoogleOAuth } from '../adapters/oauth/google-oauth'
-import { AuthFlow, DEFAULT_ACCOUNT_ID, GoogleAuthProvider } from '../adapters/oauth/auth'
-import { YouTubeApiClient, type Comment, type SearchResult } from '../adapters/youtube/api-client'
+import { DEFAULT_ACCOUNT_ID } from '../adapters/oauth/auth'
 import { HeadShortsProber } from '../adapters/youtube/shorts-prober'
-import { HybridVideoSource } from '../adapters/youtube/video-source'
-import { YouTubeRssClient } from '../adapters/rss/rss-client'
 import { GithubReleaseSource } from '../adapters/updates/github-release-source'
 import { RydClient } from '../adapters/ryd/ryd-client'
-import { FeedService, type FeedItem, type FeedSlice } from '../core/feed-service'
-import { startOfToday, effectiveDate, bucketOf } from '../core/feed'
+import { FeedService } from '../core/feed-service'
+import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
-import { nextInPlaylist, type PlaylistSummary } from '../core/playlist'
 import { QuotaCounter, type Clock } from '../core/ports'
 import { isNewerVersion } from '../core/version'
-import { SyncService, SHORTS_CONCURRENCY, type SyncReport, type SyncTrigger } from '../core/sync-service'
-import { mapPool } from '../core/concurrency'
-import type { VideoState } from '../core/state'
-import { FEED_VIEWS, type FeedView } from '../core/views'
-import type {
-  AccountDto,
-  AuthStatusDto,
-  ChannelDetailDto,
-  ChronicleEventDto,
-  CommentDto,
-  DislikeEstimateDto,
-  FeedCursorDto,
-  FeedSliceDto,
-  FeedVideoDto,
-  PlayerVideoDto,
-  PlaylistDto,
-  ReadStatusDto,
-  ResultDto,
-  SearchResultDto,
-  SearchVideoResultDto,
-  StorageInfoDto,
-  SyncReportDto,
-  VideoRatingDto,
-  VideoStateDto,
-  WizardStateDto
-} from '../ipc/contract'
-import {
-  IpcChannel,
-  PLAYBACK_RATES,
-  PLAYLIST_DESCRIPTION_MAX_LENGTH,
-  PLAYLIST_NAME_MAX_LENGTH
-} from '../ipc/contract'
-import { parseYouTubeUrl } from '../ipc/youtube-url'
+import type { SyncReport, SyncTrigger } from '../core/sync-service'
+import type { AccountDto, AuthStatusDto, ChronicleEventDto, ResultDto, StorageInfoDto, SyncReportDto, WizardStateDto } from '../ipc/contract'
+import { IpcChannel, PLAYBACK_RATES } from '../ipc/contract'
+import { buildAccountStack, type AccountStack } from './ipc/account-stack'
+import { toReportDto } from './ipc/dto-mappers'
+import { parseVideoId } from './ipc/validators'
+import type { BootContext } from './ipc/context'
+import { registerFeedHandlers } from './ipc/feed-handlers'
+import { registerVideoStateHandlers } from './ipc/video-state-handlers'
+import { registerChannelHandlers } from './ipc/channel-handlers'
+import { registerSearchHandlers } from './ipc/search-handlers'
+import { registerPlaylistHandlers } from './ipc/playlist-handlers'
+import { registerAccountHandlers } from './ipc/account-handlers'
+import { registerCommentsHandlers } from './ipc/comments-handlers'
 import { chronicleDataDir } from './data-dir'
 import { seedDevFixtures } from './dev-fixtures'
 import { setLinuxAutostart } from './linux-autostart'
@@ -72,16 +48,16 @@ import { createAppTray } from './tray'
 const clock: Clock = { now: () => new Date() }
 
 // Must be checked before anything else registers: with "Run in background"
-// (D-050) keeping the process alive with no window open, a second launch
-// on top of a tray-resident instance would leave two independent processes
-// each with their own tray icon.
+// keeping the process alive with no window open, a second launch on top of
+// a tray-resident instance would leave two independent processes each with
+// their own tray icon.
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
   app.quit()
 }
 
-// "Start minimized" (D-050) needs to know a launch was actually triggered by
-// the OS autostart entry, not a manual open. macOS reports this natively
+// "Start minimized" needs to know a launch was actually triggered by the OS
+// autostart entry, not a manual open. macOS reports this natively
 // (wasOpenedAtLogin); Windows/Linux have no per-launch signal, so
 // applyAutoStart() below bakes this flag into the login item's args /
 // .desktop Exec= line, read back here at boot.
@@ -95,7 +71,7 @@ function wasLaunchedViaAutostart(): boolean {
 // On anything else (niri, sway, headless) it silently picks basic_text even
 // when org.freedesktop.secrets is live on D-Bus. Requesting gnome-libsecret
 // explicitly is safe: if no Secret Service answers, isEncryptionAvailable()
-// stays false and chooseSecretStore falls back to the machine key (D-013).
+// stays false and chooseSecretStore falls back to the machine key.
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
 }
@@ -106,150 +82,11 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'thumb', privileges: { standard: true, secure: true, stream: true } }
 ])
 
-// Refresh triggers (youtube-api.md §Refresh policy): every launch (B-011),
-// manual always, background timer while running. Interval per D-016 —
-// default 30 min, user-configurable down to 15 min or manual-only.
+// Refresh triggers (youtube-api.md §Refresh policy): every launch, manual
+// always, background timer while running — default 30 min,
+// user-configurable down to 15 min or manual-only.
 
-function toStateDto(state: VideoState): VideoStateDto {
-  return {
-    readStatus: state.readStatus,
-    favorite: state.favorite,
-    watchLater: state.watchLater,
-    resumePositionSeconds: state.resumePositionSeconds
-  }
-}
-
-function toVideoDto({ entry, bucket }: FeedItem): FeedVideoDto {
-  return {
-    videoId: entry.video.videoId,
-    title: entry.video.title,
-    channelId: entry.video.channelId,
-    channelTitle: entry.channelTitle,
-    publishedAt: entry.video.publishedAt,
-    durationSeconds: entry.video.durationSeconds,
-    thumbnailUrl: entry.video.thumbnailUrl,
-    viewCount: entry.video.viewCount,
-    isShort: entry.video.isShort,
-    liveContent: entry.video.liveContent,
-    liveStartedAt: entry.video.liveStartedAt,
-    liveEndedAt: entry.video.liveEndedAt,
-    isPremiere: entry.video.isPremiere,
-    state: toStateDto(entry.state),
-    bucket
-  }
-}
-
-function toSliceDto(slice: FeedSlice): FeedSliceDto {
-  return {
-    view: slice.view,
-    videos: slice.items.map(toVideoDto),
-    nextCursor: slice.nextCursor,
-    unreadCount: slice.unreadCount,
-    caughtUp: slice.caughtUp
-  }
-}
-
-function toPlaylistDto(playlist: PlaylistSummary): PlaylistDto {
-  return {
-    playlistId: playlist.playlistId,
-    name: playlist.name,
-    description: playlist.description,
-    createdAt: playlist.createdAt,
-    updatedAt: playlist.updatedAt,
-    videoCount: playlist.videoCount,
-    totalDurationSeconds: playlist.totalDurationSeconds,
-    thumbnailUrls: playlist.thumbnailUrls,
-    sourcePlaylistId: playlist.sourcePlaylistId
-  }
-}
-
-function toReportDto(report: SyncReport): SyncReportDto {
-  return {
-    outcome: report.outcome,
-    channelsPolled: report.channelsPolled,
-    channelsFailed: report.channelsFailed,
-    failures: report.failures,
-    videosNew: report.videosNew,
-    quotaSpent: report.quotaSpent,
-    finishedAt: report.finishedAt,
-    subscriptions: report.subscriptions
-  }
-}
-
-// IPC inputs cross a trust boundary — compile-time types don't survive it.
-function parseView(value: unknown): FeedView {
-  if (typeof value === 'string' && (FEED_VIEWS as readonly string[]).includes(value)) {
-    return value as FeedView
-  }
-  throw new Error(`invalid feed view: ${String(value)}`)
-}
-
-function parseReadStatus(value: unknown): ReadStatusDto {
-  if (value === 'unread' || value === 'read' || value === 'ignored') return value
-  throw new Error(`invalid read status: ${String(value)}`)
-}
-
-function parseVideoId(value: unknown): string {
-  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
-  throw new Error('invalid video id')
-}
-
-function parseChannelId(value: unknown): string | undefined {
-  if (value === null || value === undefined) return undefined
-  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
-  throw new Error('invalid channel id')
-}
-
-function parseChannelIdRequired(value: unknown): string {
-  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
-  throw new Error('invalid channel id')
-}
-
-// B-003: same shape as parseChannelId — accountId narrows the combined feed.
-function parseAccountId(value: unknown): string | undefined {
-  if (value === null || value === undefined) return undefined
-  if (typeof value === 'string' && value.length > 0 && value.length <= 128) return value
-  throw new Error('invalid account id')
-}
-
-function parsePlaylistId(value: unknown): string {
-  if (typeof value === 'string' && /^[\w-]{1,64}$/.test(value)) return value
-  throw new Error('invalid playlist id')
-}
-
-function parsePlaylistName(value: unknown): string {
-  const name = typeof value === 'string' ? value.trim() : ''
-  if (name === '' || name.length > PLAYLIST_NAME_MAX_LENGTH) throw new Error('invalid playlist name')
-  return name
-}
-
-function parsePlaylistDescription(value: unknown): string | null {
-  if (value === null || value === undefined) return null
-  const description = typeof value === 'string' ? value.trim() : ''
-  if (description.length > PLAYLIST_DESCRIPTION_MAX_LENGTH) throw new Error('invalid playlist description')
-  return description === '' ? null : description
-}
-
-function parseCursor(value: unknown): FeedCursorDto | null {
-  if (value === null || value === undefined) return null
-  if (typeof value === 'object') {
-    const cursor = value as Record<string, unknown>
-    if (
-      typeof cursor['publishedAt'] === 'string' &&
-      typeof cursor['channelTitle'] === 'string' &&
-      typeof cursor['videoId'] === 'string'
-    ) {
-      return {
-        publishedAt: cursor['publishedAt'],
-        channelTitle: cursor['channelTitle'],
-        videoId: cursor['videoId']
-      }
-    }
-  }
-  throw new Error('invalid feed cursor')
-}
-
-// D-013 cipher selection: (a) Electron safeStorage when a real OS keychain
+// Cipher selection: (a) Electron safeStorage when a real OS keychain
 // backs it; (b) machine-derived key otherwise (honest obfuscation — the UI
 // warns). The choice is pinned inside the store file so entries written by
 // one cipher keep decrypting even if the machine later gains a keychain.
@@ -280,17 +117,17 @@ function devRendererUrl(): string | undefined {
   return process.env['ELECTRON_RENDERER_URL']
 }
 
-// Deliberately not a named partition (B-093): every BrowserWindow here omits
+// Deliberately not a named partition: every BrowserWindow here omits
 // `webPreferences.partition`, so they all share Electron's default session —
 // same as the player's embedded iframe (inherits its embedding page's
 // session) and the "Sign in to YouTube" window below. `protocol.handle()`
 // (used for `thumb://` further down) registers on `session.defaultSession`
 // specifically, so a named partition would have no handler on it. Chronicle's
-// own OAuth flow (D-001/D-012) runs in the system browser, never this
-// session, so it starts out signed into nothing regardless.
+// own OAuth flow runs in the system browser, never this session, so it
+// starts out signed into nothing regardless.
 
-// Shared by createWindow() and the extract-to-window flow below (B-045) —
-// both load the same renderer bundle; the extracted window adds a query
+// Shared by createWindow() and the extract-to-window flow below — both load
+// the same renderer bundle; the extracted window adds a query
 // string main.tsx checks to render a smaller UI instead of the full app.
 function loadRenderer(window: BrowserWindow, query?: Record<string, string>): void {
   const qs = query ? `?${new URLSearchParams(query).toString()}` : ''
@@ -311,7 +148,7 @@ function loadRenderer(window: BrowserWindow, query?: Record<string, string>): vo
 // build/icon.png isn't part of electron-builder's `files` (only consumed at
 // package time for the app's own OS icon) — extraResources copies it to
 // resources/icon.png for the packaged app; in dev it's the project's own
-// build/icon.png (D-050).
+// build/icon.png.
 function trayIconPath(): string {
   return app.isPackaged
     ? join(process.resourcesPath, 'icon.png')
@@ -323,7 +160,7 @@ function createWindow(): BrowserWindow {
     width: 1200,
     height: 800,
     backgroundColor: '#101014',
-    // Frameless shell (B-014): Chronicle draws its own titlebar. On macOS
+    // Frameless shell: Chronicle draws its own titlebar. On macOS
     // the native traffic lights are kept as an overlay instead.
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hidden' as const }
@@ -338,15 +175,15 @@ function createWindow(): BrowserWindow {
   loadRenderer(window)
   mainWindow = window
   // While "Run in background" is on, closing the window hides it to the tray
-  // instead of quitting (D-050) — the tray's own Quit item (or any other real
-  // quit path) sets isQuitting first so this doesn't also intercept that.
+  // instead of quitting — the tray's own Quit item (or any other real quit
+  // path) sets isQuitting first so this doesn't also intercept that.
   window.on('close', (event) => {
     if (backgroundModeEnabled && !isQuitting) {
       event.preventDefault()
       window.hide()
       // The renderer decides whether to pop the video out to the always-on-top
-      // window or pause it, per settings.popOutOnClose (D-051) — it owns the
-      // live playback state, this process doesn't.
+      // window or pause it, per settings.popOutOnClose — it owns the live
+      // playback state, this process doesn't.
       broadcast({ type: 'app:closedToTray' })
     }
   })
@@ -358,7 +195,7 @@ function createWindow(): BrowserWindow {
 
 // A second BrowserWindow (its own renderer process — the live iframe's DOM
 // node can't move between them) hosting the minimal ExtractedPlayerWindow UI,
-// seeked to wherever the main window's player was when extracted (B-045).
+// seeked to wherever the main window's player was when extracted.
 // alwaysOnTop is the point: a small floating video above other windows.
 function createExtractWindow(
   videoId: string,
@@ -367,11 +204,11 @@ function createExtractWindow(
   playing: boolean,
   defaultPlaybackRate: number,
   // True when extraction was triggered by closing to tray rather than the
-  // user pressing `p` (D-051); its close must stop the video for good, not
-  // hand it back to the possibly still-hidden main window.
+  // user pressing `p`; its close must stop the video for good, not hand it
+  // back to the possibly still-hidden main window.
   auto: boolean
 ): void {
-  // Guards against two extract windows open at once (B-112) — not currently
+  // Guards against two extract windows open at once — not currently
   // reachable from the renderer, but enforced here regardless.
   if (extractWindow !== null && !extractWindow.isDestroyed()) {
     extractWindow.destroy()
@@ -409,7 +246,7 @@ function createExtractWindow(
   // Tracks whichever video is currently showing in the extract window, not
   // just the one it was created with — loadInExtractWindow updates this when
   // the user swaps videos, so the restore-on-close path hands back the right
-  // one (B-112).
+  // one.
   extractWindowVideoId = videoId
   // The main window's miniplayer picks the video back up once this window
   // closes, resuming from wherever ExtractedPlayerWindow's own beforeunload
@@ -426,13 +263,13 @@ function createExtractWindow(
   })
 }
 
-// D-056: a bare top-level navigation to YouTube's own `live_chat` embed —
-// unlike createExtractWindow above, there's no live playback state to keep
-// in sync, so no preload/postMessage bridge is needed at all, same pattern
-// as the plain Sign In window. The page is YouTube's own, so it naturally
+// A bare top-level navigation to YouTube's own `live_chat` embed — unlike
+// createExtractWindow above, there's no live playback state to keep in
+// sync, so no preload/postMessage bridge is needed at all, same pattern as
+// the plain Sign In window. The page is YouTube's own, so it naturally
 // carries YouTube's own title (Electron mirrors document.title into the
 // native window title) — already distinct from "Chronicle," no override
-// needed the way the video extract window required one (D-051).
+// needed the way the video extract window requires one.
 function createChatWindow(videoId: string): void {
   if (chatWindow !== null && !chatWindow.isDestroyed()) {
     chatWindow.destroy()
@@ -462,7 +299,7 @@ let closeRendererServer: (() => void) | null = null
 // times boot() has run.
 let timer: ReturnType<typeof setInterval> | null = null
 let updateTimer: ReturnType<typeof setInterval> | null = null
-// Tray-resident mode (D-050). mainWindow is tracked so the tray's "Open" item
+// Tray-resident mode. mainWindow is tracked so the tray's "Open" item
 // and a notification click can re-show it instead of only spawning a fresh
 // one; isQuitting distinguishes a real quit (let the window close) from the
 // user clicking the window's close button while backgroundMode is on (hide
@@ -472,11 +309,10 @@ let tray: Tray | null = null
 let isQuitting = false
 // Tracks the single always-on-top extract window (if any) so a newly
 // selected video can be routed into it instead of the main window, and so its
-// close handler can look up whichever video is currently showing there
-// (B-112).
+// close handler can look up whichever video is currently showing there.
 let extractWindow: BrowserWindow | null = null
 let extractWindowVideoId: string | null = null
-// D-056: the extracted live-chat popup (if any) — fully independent of
+// The extracted live-chat popup (if any) — fully independent of
 // extractWindow above, so both can be open at once for different purposes.
 let chatWindow: BrowserWindow | null = null
 // Mirrors settings.backgroundMode (boot()-local) so the module-level
@@ -487,7 +323,7 @@ let backgroundModeEnabled = false
 // deleteAllData reset re-runs boot() while the window is already open and
 // visible, and process.argv/getLoginItemSettings() don't change mid-process,
 // so without this guard wasLaunchedViaAutostart() would still read true on
-// that later re-boot too (D-050).
+// that later re-boot too.
 let hasBootedBefore = false
 
 // Isolated try/catch so a throwing destroy() (unlikely, but seen with flaky
@@ -536,57 +372,48 @@ async function boot(): Promise<void> {
 
   const secrets = chooseSecretStore(join(dataDir, 'secrets.json'))
   const oauth = new GoogleOAuth(fetch)
-  // B-003: one Google Cloud project/OAuth client and one quota pool shared
-  // by every account (that's the whole point — additional accounts skip the
-  // console walkthrough and just add themselves as a Test user on the same
-  // project); only tokens/scopes are per-account.
+  // One Google Cloud project/OAuth client and one quota pool shared by every
+  // account (that's the whole point — additional accounts skip the console
+  // walkthrough and just add themselves as a Test user on the same project);
+  // only tokens/scopes are per-account.
   const quota = new QuotaCounter()
   const updateSource = new GithubReleaseSource(fetch)
-  // D-068: account-independent — not part of any account's YouTube auth
-  // stack, and its in-memory cache is intentionally process-lifetime only.
+  // Account-independent — not part of any account's YouTube auth stack, and
+  // its in-memory cache is intentionally process-lifetime only.
   const rydClient = new RydClient(fetch, clock)
   // Account-independent, like rydClient above — a HEAD probe by videoId
-  // needs no auth. Shared between every account's SyncService (D-028) and
-  // the on-demand confirmation below (B-131) so there's only ever one.
+  // needs no auth. Shared between every account's SyncService and the
+  // on-demand confirmation below so there's only ever one.
   const shortsProber = new HeadShortsProber(fetch)
-
-  interface AccountStack {
-    accountId: string
-    label: string
-    authFlow: AuthFlow
-    authProvider: GoogleAuthProvider
-    apiClient: YouTubeApiClient
-    syncService: SyncService
-  }
 
   const accountStacks = new Map<string, AccountStack>()
 
-  function buildAccountStack(accountId: string, label: string): AccountStack {
-    const authFlow = new AuthFlow(secrets, oauth, (url) => shell.openExternal(url), accountId)
-    const authProvider = new GoogleAuthProvider(secrets, oauth, clock, accountId)
-    const apiClient = new YouTubeApiClient(authProvider, fetch, quota)
-    const syncService = new SyncService({
-      subscriptions: apiClient,
-      videoSource: new HybridVideoSource(new YouTubeRssClient(fetch), apiClient),
-      repo: syncRepository,
-      shortsProber,
-      quota,
-      clock,
-      onProgress: (progress) =>
-        broadcast({
-          type: 'refresh:progress',
-          phase: progress.phase,
-          checked: progress.checked,
-          total: progress.total
-        })
-    })
-    return { accountId, label, authFlow, authProvider, apiClient, syncService }
+  function buildStack(accountId: string, label: string): AccountStack {
+    return buildAccountStack(
+      {
+        secrets,
+        oauth,
+        quota,
+        shortsProber,
+        clock,
+        syncRepository,
+        onSyncProgress: (progress) =>
+          broadcast({
+            type: 'refresh:progress',
+            phase: progress.phase,
+            checked: progress.checked,
+            total: progress.total
+          })
+      },
+      accountId,
+      label
+    )
   }
 
   // Load every already-persisted account (from a prior session, or the
   // schema-v6 migration's backfill of a pre-existing single-account install).
   for (const account of syncRepository.listAccounts()) {
-    accountStacks.set(account.accountId, buildAccountStack(account.accountId, account.label))
+    accountStacks.set(account.accountId, buildStack(account.accountId, account.label))
   }
   // The first-run wizard and Settings' Connection section predate
   // multi-account and are unaffected by it: they always operate on this one
@@ -594,7 +421,7 @@ async function boot(): Promise<void> {
   // fresh install (not yet persisted — that happens on first successful
   // connect, exactly like the old single-account model always did).
   if (!accountStacks.has(DEFAULT_ACCOUNT_ID)) {
-    accountStacks.set(DEFAULT_ACCOUNT_ID, buildAccountStack(DEFAULT_ACCOUNT_ID, 'My account'))
+    accountStacks.set(DEFAULT_ACCOUNT_ID, buildStack(DEFAULT_ACCOUNT_ID, 'My account'))
   }
   function primaryAccountId(): string {
     return accountStacks.keys().next().value ?? DEFAULT_ACCOUNT_ID
@@ -645,7 +472,7 @@ async function boot(): Promise<void> {
     return { state, secureStorage: secrets.isSecure(), writeScopeGranted: authFlow.hasWriteScope() }
   }
 
-  // B-003: merges one SyncReport per refreshed account into a single DTO —
+  // Merges one SyncReport per refreshed account into a single DTO —
   // sums counters, keeps the worst outcome, ORs firstSync (any account's
   // first-ever sync still triggers the connect-time backlog auto-read).
   function mergeReports(reports: readonly SyncReport[]): SyncReport {
@@ -678,9 +505,9 @@ async function boot(): Promise<void> {
   // fire-and-forget, so every call chains onto this queue instead of racing a
   // single boolean guard: it always eventually runs, with its own
   // refresh:started/refresh:done pair, rather than returning `busy` and
-  // vanishing (B-070).
+  // vanishing.
   let refreshQueue: Promise<unknown> = Promise.resolve()
-  // accountId (B-003) targets one account explicitly (e.g. sidebar "Sync
+  // accountId targets one account explicitly (e.g. sidebar "Sync
   // now"); channelId resolves to whichever account(s) actually subscribe to
   // it (usually one); neither means "every connected account" — the
   // combined-feed default, and what launch/timer refreshes always mean.
@@ -729,7 +556,7 @@ async function boot(): Promise<void> {
         reports.push(report)
         // On an account's first subscription sync, videos already published
         // before today start read — the user opens onto "what's new", not an
-        // unclearable backlog (B-020). SyncService.refresh applies this per
+        // unclearable backlog. SyncService.refresh applies this per
         // hydrated batch as it runs; this pass is a safety net for anything
         // quota-interrupted hydration left behind, and still runs before
         // refresh:done so the event's unread count is correct.
@@ -763,9 +590,9 @@ async function boot(): Promise<void> {
       }
       const message = hardFailure?.message ?? 'refresh failed'
       const kind = hardFailure?.kind ?? 'internal'
-      // B-023: every refresh:started must be paired with a terminal event,
-      // or a renderer that saw "started" spins its refresh indicator
-      // forever with no way to recover short of a manual reload.
+      // Every refresh:started must be paired with a terminal event, or a
+      // renderer that saw "started" spins its refresh indicator forever
+      // with no way to recover short of a manual reload.
       broadcast({ type: 'refresh:failed', errorKind: kind, message })
       return { ok: false, errorKind: kind, message }
     }
@@ -779,9 +606,9 @@ async function boot(): Promise<void> {
     return { ok: true, value: dto }
   }
 
-  // Startup connection validation (D-012): a cheap token refresh on every
-  // open, for every connected account; invalid_grant surfaces as the
-  // reconnect banner, never a blocker.
+  // Startup connection validation: a cheap token refresh on every open, for
+  // every connected account; invalid_grant surfaces as the reconnect
+  // banner, never a blocker.
   async function validateConnectionAndCatchUp(): Promise<void> {
     const connected = [...accountStacks.values()].filter((stack) => stack.authFlow.hasRefreshToken())
     if (connected.length === 0) return
@@ -796,539 +623,75 @@ async function boot(): Promise<void> {
       }
     }
     if (!anyReachable) return
-    // Every launch syncs (B-011) — RSS conditional GETs make a no-change
-    // pass cost ~0 quota, so no staleness guard is needed.
+    // Every launch syncs — RSS conditional GETs make a no-change pass cost
+    // ~0 quota, so no staleness guard is needed.
     void runRefresh('launch')
   }
 
   // An owning-account lookup for actions that operate on one account's
   // relationship to a channel (favorite/unsubscribe/backfill) — the UI only
-  // ever passes a channelId, never an accountId, for these (B-003). Usually
+  // ever passes a channelId, never an accountId, for these. Usually
   // exactly one account owns a channel; if more than one does, the action
   // applies to the first.
   function resolveOwningAccountId(channelId: string): string | undefined {
     return syncRepository.listAccountIdsForChannel(channelId)[0]
   }
 
-  ipcMain.handle(
-    IpcChannel.getFeed,
-    (_event, view: unknown, cursor: unknown, channelId: unknown, accountId: unknown) =>
-      toSliceDto(
-        feedService.getSlice(
-          parseView(view),
-          parseCursor(cursor),
-          undefined,
-          parseChannelId(channelId),
-          settings.showShorts,
-          parseAccountId(accountId)
-        )
-      )
-  )
-  ipcMain.handle(IpcChannel.getFeedMeta, (_event, accountId: unknown) => {
-    const id = parseAccountId(accountId)
-    const slice = feedService.getSlice('unread', null, 1, undefined, settings.showShorts, id)
-    return {
-      unreadCount: slice.unreadCount,
-      caughtUp: slice.caughtUp,
-      lastRefreshAt: syncRepository.lastSyncStartedAt(),
-      watchLaterCount: feedRepository.countWatchLater(settings.showShorts),
-      refreshing
-    }
-  })
-  ipcMain.handle(IpcChannel.getChannels, (_event, accountId: unknown) =>
-    feedRepository
-      .listFollowedChannels(settings.showShorts, parseAccountId(accountId))
-      .map((followed) => ({
-        channelId: followed.channel.channelId,
-        title: followed.channel.title,
-        thumbnailUrl: followed.channel.thumbnailUrl,
-        unreadCount: followed.unreadCount,
-        favorite: followed.favorite,
-        notify: followed.notify,
-        latestPublishedAt: followed.latestPublishedAt
-      }))
-  )
-  ipcMain.handle(IpcChannel.toggleChannelFavorite, (_event, channelId: unknown) => {
-    const id = parseChannelIdRequired(channelId)
-    const accountId = resolveOwningAccountId(id)
-    if (accountId === undefined) return false
-    const favorite = feedRepository.toggleChannelFavorite(accountId, id)
-    // A one-shot nudge at the moment of the favorite toggle, not a persistent
-    // binding — a later manual notify toggle on this channel isn't
-    // re-overridden until the next favorite/unfavorite event (D-050).
-    if (settings.autoNotifyFavorites) feedRepository.setChannelNotify(accountId, id, favorite)
-    return favorite
-  })
-  ipcMain.handle(IpcChannel.toggleChannelNotify, (_event, channelId: unknown) => {
-    const id = parseChannelIdRequired(channelId)
-    const accountId = resolveOwningAccountId(id)
-    if (accountId === undefined) return false
-    return feedRepository.toggleChannelNotify(accountId, id)
-  })
-  ipcMain.handle(IpcChannel.bulkSetChannelNotifyForFavorites, (_event, enable: unknown) => {
-    feedRepository.bulkSetNotifyForFavorites(Boolean(enable))
-  })
-  ipcMain.handle(IpcChannel.getPriorityFeed, (_event, accountId: unknown): FeedVideoDto[] =>
-    feedService.getPriorityVideos(settings.showShorts, parseAccountId(accountId)).map(toVideoDto)
-  )
-  ipcMain.handle(
-    IpcChannel.getNextWatchLater,
-    (_event, currentVideoId: unknown): FeedVideoDto | null => {
-      const item = feedService.getNextWatchLater(parseVideoId(currentVideoId), settings.showShorts)
-      return item ? toVideoDto(item) : null
-    }
-  )
-
-  // Playlists (local-only, never synced to YouTube) — see decisions.md.
-  function requirePlaylistSummary(playlistId: string): PlaylistSummary {
-    const summary = playlistRepository.getPlaylistSummary(playlistId)
-    if (summary === null) throw new Error('playlist not found')
-    return summary
-  }
-  ipcMain.handle(IpcChannel.listPlaylists, (): PlaylistDto[] =>
-    playlistRepository.listPlaylists().map(toPlaylistDto)
-  )
-  ipcMain.handle(
-    IpcChannel.createPlaylist,
-    (_event, name: unknown, description: unknown): PlaylistDto => {
-      const playlist = playlistRepository.createPlaylist(
-        randomUUID(),
-        parsePlaylistName(name),
-        parsePlaylistDescription(description),
-        clock.now().toISOString()
-      )
-      return toPlaylistDto({ ...playlist, videoCount: 0, totalDurationSeconds: 0, thumbnailUrls: [] })
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.updatePlaylist,
-    (_event, playlistId: unknown, name: unknown, description: unknown): PlaylistDto => {
-      const id = parsePlaylistId(playlistId)
-      const updated = playlistRepository.updatePlaylist(
-        id,
-        parsePlaylistName(name),
-        parsePlaylistDescription(description),
-        clock.now().toISOString()
-      )
-      if (updated === null) throw new Error('playlist not found')
-      return toPlaylistDto(requirePlaylistSummary(id))
-    }
-  )
-  ipcMain.handle(IpcChannel.deletePlaylist, (_event, playlistId: unknown) => {
-    playlistRepository.deletePlaylist(parsePlaylistId(playlistId))
-  })
-  ipcMain.handle(IpcChannel.getPlaylistVideos, (_event, playlistId: unknown): FeedVideoDto[] =>
-    playlistRepository
-      .listPlaylistVideos(parsePlaylistId(playlistId))
-      .map((entry) => toVideoDto({ entry, bucket: null }))
-  )
-  ipcMain.handle(
-    IpcChannel.addVideoToPlaylist,
-    // B-131: playlist_videos has the same FK to videos as video_state —
-    // reachable from a search/channel-preview row too now, so this needs
-    // the same on-demand ensureVideoExists guard (declared further below).
-    async (_event, playlistId: unknown, videoId: unknown) => {
-      const id = parseVideoId(videoId)
-      await ensureVideoExists(id)
-      playlistRepository.addVideoToPlaylist(parsePlaylistId(playlistId), id, clock.now().toISOString())
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.removeVideoFromPlaylist,
-    (_event, playlistId: unknown, videoId: unknown) => {
-      playlistRepository.removeVideoFromPlaylist(parsePlaylistId(playlistId), parseVideoId(videoId))
-    }
-  )
-  ipcMain.handle(IpcChannel.getPlaylistsForVideo, (_event, videoId: unknown): string[] =>
-    playlistRepository.listPlaylistsForVideo(parseVideoId(videoId))
-  )
-  ipcMain.handle(IpcChannel.reorderPlaylist, (_event, playlistId: unknown, videoIds: unknown) => {
-    if (!Array.isArray(videoIds)) throw new Error('invalid video id list')
-    playlistRepository.reorderPlaylist(parsePlaylistId(playlistId), videoIds.map(parseVideoId))
-  })
-  ipcMain.handle(
-    IpcChannel.getNextInPlaylist,
-    (_event, playlistId: unknown, currentVideoId: unknown): FeedVideoDto | null => {
-      const videos = playlistRepository.listPlaylistVideos(parsePlaylistId(playlistId))
-      const next = nextInPlaylist(videos, parseVideoId(currentVideoId))
-      return next ? toVideoDto({ entry: next, bucket: null }) : null
-    }
-  )
-
-  // D-059: video-id collection shared by importPlaylist, checkPlaylistUpdates,
-  // and syncPlaylist — playlistItems.list, 1 unit per 50-item page. Bounded
-  // at 100 pages (5000 videos) since YouTube itself caps a playlist there;
-  // this is a one-time explicit user action, not routine sync, so there's no
-  // resumable cursor like the channel-archive backfill (B-002) has.
-  async function collectSourceVideoIds(
-    sourcePlaylistId: string,
-    onPage?: (collectedSoFar: number) => void
-  ): Promise<string[]> {
-    const videoIds: string[] = []
-    let pageToken: string | undefined
-    for (let page = 0; page < 100; page++) {
-      const result = await apiClient.listUploads(sourcePlaylistId, pageToken)
-      videoIds.push(...result.videoIds)
-      onPage?.(videoIds.length)
-      if (result.nextPageToken === null) break
-      pageToken = result.nextPageToken
-    }
-    return videoIds
-  }
-
-  ipcMain.handle(
-    IpcChannel.importPlaylist,
-    async (
-      _event,
-      url: unknown
-    ): Promise<ResultDto<{ playlist: PlaylistDto; imported: number; total: number }>> => {
-      const link = parseYouTubeUrl(typeof url === 'string' ? url : '')
-      if (link.kind !== 'playlist') {
-        return { ok: false, errorKind: 'invalid-url', message: 'not a YouTube playlist URL' }
-      }
-      try {
-        broadcast({ type: 'playlist:importProgress', phase: 'meta', count: 0, total: null })
-        const meta = await apiClient.fetchPlaylistMeta(link.playlistId)
-        if (meta === null) {
-          return { ok: false, errorKind: 'not-found', message: 'playlist not found or private' }
-        }
-        const now = clock.now().toISOString()
-        // Truncated, not rejected — a fetched YouTube title/description isn't
-        // the user's own input to validate against the usual length caps.
-        const playlist = playlistRepository.createPlaylist(
-          randomUUID(),
-          meta.title.slice(0, PLAYLIST_NAME_MAX_LENGTH),
-          meta.description?.slice(0, PLAYLIST_DESCRIPTION_MAX_LENGTH) ?? null,
-          now,
-          link.playlistId
-        )
-        const videoIds = await collectSourceVideoIds(link.playlistId, (count) =>
-          broadcast({ type: 'playlist:importProgress', phase: 'collecting', count, total: null })
-        )
-        let imported = 0
-        for (let i = 0; i < videoIds.length; i += 50) {
-          const batch = videoIds.slice(i, i + 50)
-          const hydrated = await apiClient.hydrate(batch)
-          for (const video of hydrated) {
-            syncRepository.upsertExternalVideo(video, now)
-            playlistRepository.addVideoToPlaylist(playlist.playlistId, video.videoId, now)
-            imported++
-          }
-          broadcast({
-            type: 'playlist:importProgress',
-            phase: 'hydrating',
-            count: imported,
-            total: videoIds.length
-          })
-        }
-        return {
-          ok: true,
-          value: {
-            playlist: toPlaylistDto(requirePlaylistSummary(playlist.playlistId)),
-            imported,
-            total: videoIds.length
-          }
-        }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-
-  ipcMain.handle(
-    IpcChannel.checkPlaylistUpdates,
-    async (_event, playlistId: unknown): Promise<ResultDto<{ newCount: number }>> => {
-      const id = parsePlaylistId(playlistId)
-      const playlist = playlistRepository.getPlaylist(id)
-      if (playlist?.sourcePlaylistId == null) {
-        return { ok: false, errorKind: 'not-imported', message: 'not an imported playlist' }
-      }
-      try {
-        const sourceIds = await collectSourceVideoIds(playlist.sourcePlaylistId)
-        const existing = playlistRepository.listImportedVideoIds(id)
-        const newCount = sourceIds.filter((videoId) => !existing.has(videoId)).length
-        return { ok: true, value: { newCount } }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-
-  ipcMain.handle(
-    IpcChannel.syncPlaylist,
-    async (_event, playlistId: unknown): Promise<ResultDto<{ playlist: PlaylistDto; added: number }>> => {
-      const id = parsePlaylistId(playlistId)
-      const playlist = playlistRepository.getPlaylist(id)
-      if (playlist?.sourcePlaylistId == null) {
-        return { ok: false, errorKind: 'not-imported', message: 'not an imported playlist' }
-      }
-      try {
-        const sourceIds = await collectSourceVideoIds(playlist.sourcePlaylistId)
-        const existing = playlistRepository.listImportedVideoIds(id)
-        const toAdd = sourceIds.filter((videoId) => !existing.has(videoId))
-        const now = clock.now().toISOString()
-        let added = 0
-        for (let i = 0; i < toAdd.length; i += 50) {
-          const batch = toAdd.slice(i, i + 50)
-          const hydrated = await apiClient.hydrate(batch)
-          for (const video of hydrated) {
-            syncRepository.upsertExternalVideo(video, now)
-            playlistRepository.addVideoToPlaylist(id, video.videoId, now)
-            added++
-          }
-        }
-        return { ok: true, value: { playlist: toPlaylistDto(requirePlaylistSummary(id)), added } }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-
   const backfillingChannels = new Set<string>()
-  ipcMain.handle(
-    IpcChannel.backfillChannelArchive,
-    async (
-      _event,
-      channelId: unknown
-    ): Promise<ResultDto<{ videosNew: number; exhausted: boolean }>> => {
-      const id = parseChannelIdRequired(channelId)
-      if (backfillingChannels.has(id)) {
-        return { ok: false, errorKind: 'busy', message: 'already loading older videos' }
-      }
-      const owningAccountId = resolveOwningAccountId(id)
-      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
-      if (stack === undefined) {
-        return {
-          ok: false,
-          errorKind: 'not-found',
-          message: 'channel is not subscribed by any connected account'
-        }
-      }
-      backfillingChannels.add(id)
-      try {
-        const result = await stack.syncService.backfillArchive(stack.accountId, id)
-        return { ok: true, value: result }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          stack.authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      } finally {
-        backfillingChannels.delete(id)
-      }
-    }
-  )
-  // B-131: same 180s candidate cutoff as the synced feed's own
-  // shortCandidates() query (sync-repository.ts), applied on-demand here
-  // instead of persisted, since these two lists (free-text search, a
-  // non-subscribed channel's preview) are transient. Confirms via the same
-  // zero-quota HEAD probe (shortsProber), bounded by the same concurrency
-  // limit the synced pipeline uses. A probe failure (429, 5xx, timeout)
-  // leaves that video unconfirmed — same "don't hide a real video" rule as
-  // confirmShorts() itself (feed.md §Detection), so it stays visible. Awaited
-  // fully before the caller's page is returned, per the owner's own call to
-  // match the synced feed's real behavior: it never shows a page of results
-  // before its own Shorts pass has finished either (see B-131's notes).
-  const SHORTS_CANDIDATE_MAX_SECONDS = 180
-  async function confirmShorts<T extends { videoId: string; durationSeconds: number | null }>(
-    videos: readonly T[]
-  ): Promise<ReadonlyMap<string, boolean>> {
-    const candidates = videos.filter(
-      (v) => v.durationSeconds !== null && v.durationSeconds <= SHORTS_CANDIDATE_MAX_SECONDS
-    )
-    const results = await mapPool(candidates, SHORTS_CONCURRENCY, (v) => shortsProber.isShort(v.videoId))
-    const confirmed = new Map<string, boolean>()
-    candidates.forEach((v, i) => {
-      const result = results[i]
-      confirmed.set(v.videoId, result.ok ? result.value : false)
-    })
-    return confirmed
+
+  // A video acted on from a transient list (free-text search results, a
+  // non-subscribed channel's preview) has no `videos` row yet — video_state
+  // has a real FK to it. Hydrate + upsert on demand, exactly like opening
+  // such a video into the player already does (getVideo) — never during
+  // list render, only on the actual state-changing action. A no-op (single
+  // indexed lookup) for any video that already has a row, which covers
+  // every normal-feed call site.
+  async function ensureVideoExists(videoId: string): Promise<void> {
+    if (feedRepository.findVideo(videoId) !== null) return
+    const [video] = await apiClient.hydrate([videoId])
+    if (video === undefined) throw new Error('video not found on YouTube')
+    syncRepository.upsertExternalVideo(video, clock.now().toISOString())
   }
-  function toSearchResultDto(
-    result: SearchResult,
-    confirmedShorts: ReadonlyMap<string, boolean>
-  ): SearchResultDto {
-    if (result.kind === 'channel') {
-      return { ...result, subscribed: feedRepository.isSubscribed(result.channelId) }
-    }
-    const state = stateRepository.get(result.videoId)
-    return {
-      ...result,
-      isShort: confirmedShorts.get(result.videoId) ?? false,
-      favorite: state.favorite,
-      watchLater: state.watchLater,
-      readStatus: state.readStatus,
-      // Relevance-ordered, not chronological — see the field's own comment
-      // on SearchVideoResultDto.
-      bucket: null
-    }
+
+  // Everything an extracted ipc/ handler module needs from this composition
+  // root — see ipc/context.ts. getSettings/isRefreshing are live getters
+  // since `settings`/`refreshing` below are reassigned, not mutated.
+  const ctx: BootContext = {
+    feedRepository,
+    stateRepository,
+    catalogRepository,
+    syncRepository,
+    playlistRepository,
+    feedService,
+    clock,
+    rydClient,
+    shortsProber,
+    apiClient,
+    authFlow,
+    authProvider,
+    accountStacks,
+    pendingAccountStacks,
+    buildAccountStack: buildStack,
+    backfillingChannels,
+    primaryAccountId,
+    resolveOwningAccountId,
+    ensureVideoExists,
+    runRefresh,
+    isRefreshing: () => refreshing,
+    authStatus,
+    toAccountDto,
+    getSettings: () => settings,
+    broadcast
   }
-  ipcMain.handle(
-    IpcChannel.searchYouTube,
-    async (
-      _event,
-      query: unknown,
-      pageToken: unknown,
-      channelId: unknown
-    ): Promise<ResultDto<{ results: SearchResultDto[]; nextPageToken: string | null }>> => {
-      const q = String(query).trim()
-      if (q === '') return { ok: true, value: { results: [], nextPageToken: null } }
-      try {
-        const page = await apiClient.search(
-          q,
-          typeof pageToken === 'string' ? pageToken : undefined,
-          typeof channelId === 'string' ? channelId : undefined
-        )
-        const confirmedShorts = await confirmShorts(
-          page.results.filter((r): r is Extract<SearchResult, { kind: 'video' }> => r.kind === 'video')
-        )
-        return {
-          ok: true,
-          value: {
-            results: page.results.map((r) => toSearchResultDto(r, confirmedShorts)),
-            nextPageToken: page.nextPageToken
-          }
-        }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.subscribeChannel,
-    // A newly discovered channel (search) has no owning account yet to
-    // resolve — subscribes under the primary account (B-003).
-    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
-      const id = parseChannelIdRequired(channelId)
-      try {
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'subscribing needs an extra permission'
-          }
-        }
-        const channel = await apiClient.subscribe(id)
-        const now = clock.now().toISOString()
-        syncRepository.upsertSubscribedChannel(primaryAccountId(), channel, now)
-        const playlists = await apiClient.fetchUploadsPlaylists([id])
-        const playlistId = playlists.get(id)
-        if (playlistId !== undefined) syncRepository.setUploadsPlaylist(id, playlistId)
-        void runRefresh('manual', undefined, id)
-        return { ok: true, value: undefined }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.getChannelDetail,
-    async (_event, channelId: unknown): Promise<ResultDto<ChannelDetailDto>> => {
-      const id = parseChannelIdRequired(channelId)
-      try {
-        const detail = await apiClient.fetchChannelDetail(id)
-        return { ok: true, value: detail }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.getChannelVideos,
-    async (
-      _event,
-      channelId: unknown,
-      pageToken: unknown
-    ): Promise<ResultDto<{ videos: SearchVideoResultDto[]; nextPageToken: string | null }>> => {
-      const id = parseChannelIdRequired(channelId)
-      try {
-        const playlists = await apiClient.fetchUploadsPlaylists([id])
-        const uploadsPlaylistId = playlists.get(id)
-        if (uploadsPlaylistId === undefined) return { ok: true, value: { videos: [], nextPageToken: null } }
-        const page = await apiClient.listUploads(
-          uploadsPlaylistId,
-          typeof pageToken === 'string' ? pageToken : undefined
-        )
-        const hydrated = await apiClient.hydrate(page.videoIds)
-        const confirmedShorts = await confirmShorts(hydrated)
-        const now = clock.now()
-        const videos: SearchVideoResultDto[] = hydrated.map((video) => {
-          const state = stateRepository.get(video.videoId)
-          const isShort = confirmedShorts.get(video.videoId) ?? false
-          // B-131: real chronological order here (unlike search:), so a real
-          // bucket makes sense — same effectiveDate/bucketOf D-053 logic
-          // FeedService.getSlice() uses for the synced feed, fed from the
-          // same hydrated live-broadcast fields (never persisted here).
-          const bucket = bucketOf(
-            effectiveDate(
-              {
-                videoId: video.videoId,
-                channelId: video.channelId,
-                title: video.title,
-                publishedAt: video.publishedAt,
-                durationSeconds: video.durationSeconds,
-                thumbnailUrl: video.thumbnailUrl,
-                viewCount: video.viewCount,
-                isShort,
-                liveContent: video.liveContent,
-                liveStartedAt: video.liveStartedAt,
-                liveEndedAt: video.liveEndedAt,
-                isPremiere: video.isPremiere
-              },
-              now
-            ),
-            now
-          )
-          return {
-            kind: 'video',
-            videoId: video.videoId,
-            title: video.title,
-            channelId: video.channelId,
-            channelTitle: video.channelTitle,
-            publishedAt: video.publishedAt,
-            thumbnailUrl: video.thumbnailUrl,
-            durationSeconds: video.durationSeconds,
-            isShort,
-            favorite: state.favorite,
-            watchLater: state.watchLater,
-            readStatus: state.readStatus,
-            bucket
-          }
-        })
-        return { ok: true, value: { videos, nextPageToken: page.nextPageToken } }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(IpcChannel.refreshFeed, (_event, channelId: unknown, accountId: unknown) =>
-    runRefresh('manual', parseAccountId(accountId), parseChannelId(channelId))
-  )
+
+  registerFeedHandlers(ctx)
+  registerVideoStateHandlers(ctx)
+  registerChannelHandlers(ctx)
+  registerSearchHandlers(ctx)
+  registerPlaylistHandlers(ctx)
+  registerAccountHandlers(ctx)
+  registerCommentsHandlers(ctx)
+
   ipcMain.handle(IpcChannel.windowControl, (event, action: unknown) => {
     const target = BrowserWindow.fromWebContents(event.sender)
     if (target === null) return
@@ -1340,534 +703,6 @@ async function boot(): Promise<void> {
     else throw new Error(`invalid window control: ${String(action)}`)
   })
 
-  // B-131: a video acted on from a transient list (free-text search results,
-  // a non-subscribed channel's preview) has no `videos` row yet — video_state
-  // has a real FK to it. Hydrate + upsert on demand, exactly like opening
-  // such a video into the player already does (D-029's getVideo branch
-  // above) — never during list render, only on the actual state-changing
-  // action. A no-op (single indexed lookup) for any video that already has a
-  // row, which covers every normal-feed call site.
-  async function ensureVideoExists(videoId: string): Promise<void> {
-    if (feedRepository.findVideo(videoId) !== null) return
-    const [video] = await apiClient.hydrate([videoId])
-    if (video === undefined) throw new Error('video not found on YouTube')
-    syncRepository.upsertExternalVideo(video, clock.now().toISOString())
-  }
-
-  ipcMain.handle(IpcChannel.setReadStatus, async (_event, videoId: unknown, status: unknown) => {
-    const id = parseVideoId(videoId)
-    await ensureVideoExists(id)
-    return toStateDto(stateRepository.setReadStatus(id, parseReadStatus(status)))
-  })
-  ipcMain.handle(IpcChannel.markAllRead, (_event, channelId: unknown, accountId: unknown) =>
-    feedRepository.markManyRead(
-      parseChannelId(channelId) ?? null,
-      null,
-      clock.now().toISOString(),
-      parseAccountId(accountId)
-    )
-  )
-  ipcMain.handle(IpcChannel.toggleFavorite, async (_event, videoId: unknown) => {
-    const id = parseVideoId(videoId)
-    await ensureVideoExists(id)
-    return toStateDto(stateRepository.toggleFavorite(id))
-  })
-  ipcMain.handle(IpcChannel.toggleWatchLater, async (_event, videoId: unknown) => {
-    const id = parseVideoId(videoId)
-    await ensureVideoExists(id)
-    return toStateDto(stateRepository.toggleWatchLater(id))
-  })
-  ipcMain.handle(IpcChannel.reorderWatchLater, (_event, videoIds: unknown) => {
-    if (!Array.isArray(videoIds)) throw new Error('invalid video id list')
-    stateRepository.reorderWatchLater(videoIds.map(parseVideoId))
-  })
-  ipcMain.handle(IpcChannel.setResumePosition, (_event, videoId: unknown, seconds: unknown) => {
-    const value = typeof seconds === 'number' ? seconds : null
-    return toStateDto(stateRepository.setResumePosition(parseVideoId(videoId), value))
-  })
-  ipcMain.handle(IpcChannel.openInBrowser, (_event, videoId: unknown) =>
-    shell.openExternal(`https://www.youtube.com/watch?v=${parseVideoId(videoId)}`)
-  )
-  ipcMain.handle(IpcChannel.openExternalUrl, (_event, url: unknown) => {
-    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) throw new Error('invalid url')
-    return shell.openExternal(url)
-  })
-  ipcMain.handle(
-    IpcChannel.getVideo,
-    async (_event, videoId: unknown): Promise<ResultDto<PlayerVideoDto>> => {
-      const id = parseVideoId(videoId)
-      const local = feedRepository.findVideo(id)
-      if (local !== null) {
-        const { entry, description: storedDescription } = local
-        // Storage keeps descriptions truncated to 500 chars (local-data.md).
-        // The player wants the full text, so it's re-fetched here rather
-        // than served straight from the truncated copy — videos.list, 1 unit,
-        // same call the external-video branch below already makes for the
-        // same reason. Never blocks opening the video: a failure (offline,
-        // quota) just falls back to the shorter stored copy.
-        let description = storedDescription
-        // D-068: likeCount rides the same on-demand hydrate() call above —
-        // never persisted (like description, kept fresh per open), null on
-        // the same failure path that leaves description at its stored copy.
-        let likeCount: number | null = null
-        try {
-          const [fresh] = await apiClient.hydrate([id])
-          if (fresh !== undefined) {
-            description = fresh.description
-            likeCount = fresh.likeCount
-          }
-        } catch {
-          // Keep the stored (possibly truncated) description; likeCount stays null.
-        }
-        return {
-          ok: true,
-          value: {
-            videoId: entry.video.videoId,
-            channelId: entry.video.channelId,
-            title: entry.video.title,
-            channelTitle: entry.channelTitle,
-            publishedAt: entry.video.publishedAt,
-            durationSeconds: entry.video.durationSeconds,
-            thumbnailUrl: entry.video.thumbnailUrl,
-            description,
-            liveContent: entry.video.liveContent,
-            liveStartedAt: entry.video.liveStartedAt,
-            liveEndedAt: entry.video.liveEndedAt,
-            state: toStateDto(entry.state),
-            isSubscribed: feedRepository.isSubscribed(entry.video.channelId),
-            likeCount
-          }
-        }
-      }
-      // External video (D-029): hydrate on demand — videos.list, 1 unit.
-      try {
-        const [video] = await apiClient.hydrate([id])
-        if (video === undefined) {
-          return { ok: false, errorKind: 'not-found', message: 'video not found on YouTube' }
-        }
-        syncRepository.upsertExternalVideo(video, clock.now().toISOString())
-        return {
-          ok: true,
-          value: {
-            videoId: video.videoId,
-            channelId: video.channelId,
-            title: video.title,
-            channelTitle: video.channelTitle,
-            publishedAt: video.publishedAt,
-            durationSeconds: video.durationSeconds,
-            thumbnailUrl: video.thumbnailUrl,
-            description: video.description, // full text — storage keeps the truncated copy
-            liveContent: video.liveContent,
-            liveStartedAt: video.liveStartedAt,
-            liveEndedAt: video.liveEndedAt,
-            state: toStateDto(stateRepository.get(video.videoId)),
-            isSubscribed: feedRepository.isSubscribed(video.channelId),
-            likeCount: video.likeCount
-          }
-        }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-
-  // B-130: the player's "video unavailable" overlay's explicit remove
-  // action — never triggered automatically.
-  ipcMain.handle(IpcChannel.removeVideo, (_event, videoId: unknown) => {
-    catalogRepository.deleteVideo(parseVideoId(videoId))
-  })
-
-  ipcMain.handle(IpcChannel.getAuthStatus, () => authStatus())
-  ipcMain.handle(IpcChannel.importClientSecret, (_event, json: unknown): ResultDto<AuthStatusDto> => {
-    try {
-      authFlow.importClientSecret(String(json))
-      return { ok: true, value: authStatus() }
-    } catch (error) {
-      const kind = isDomainError(error) ? error.kind : 'internal'
-      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-    }
-  })
-  ipcMain.handle(IpcChannel.connectGoogle, async (): Promise<ResultDto<AuthStatusDto>> => {
-    try {
-      await authFlow.connect()
-      authProvider.invalidate()
-      // The primary account needs its accounts row too — every other write to
-      // account_channels has an FK on it (B-003). A nice label is best-effort.
-      let label = 'My account'
-      try {
-        const channel = await apiClient.getOwnChannel()
-        if (channel !== null) label = channel.title
-      } catch {
-        // keep the placeholder — not worth failing the connection over
-      }
-      syncRepository.addAccount(primaryAccountId(), label, clock.now().toISOString())
-      // The in-memory stack was built with the placeholder label before this
-      // connection happened (or on a prior run) — without this, the sidebar
-      // keeps showing "My account" until the next app restart even though
-      // the real channel title is already persisted.
-      const primaryStack = accountStacks.get(primaryAccountId())
-      if (primaryStack) primaryStack.label = label
-      void runRefresh('manual')
-      return { ok: true, value: authStatus() }
-    } catch (error) {
-      const kind = isDomainError(error) ? error.kind : 'internal'
-      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-    }
-  })
-  ipcMain.handle(IpcChannel.signOut, async () => {
-    await authFlow.signOut()
-    authProvider.invalidate()
-    return authStatus()
-  })
-  ipcMain.handle(IpcChannel.requestWriteScope, async (): Promise<ResultDto<void>> => {
-    try {
-      await authFlow.requestWriteScope()
-      authProvider.invalidate()
-      return { ok: true, value: undefined }
-    } catch (error) {
-      const kind = isDomainError(error) ? error.kind : 'internal'
-      return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-    }
-  })
-  ipcMain.handle(
-    IpcChannel.requestWriteScopeForChannel,
-    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
-      const id = parseChannelIdRequired(channelId)
-      const owningAccountId = resolveOwningAccountId(id)
-      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
-      if (stack === undefined) {
-        return {
-          ok: false,
-          errorKind: 'not-found',
-          message: 'channel is not subscribed by any connected account'
-        }
-      }
-      try {
-        await stack.authFlow.requestWriteScope()
-        stack.authProvider.invalidate()
-        return { ok: true, value: undefined }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.unsubscribeChannel,
-    async (_event, channelId: unknown): Promise<ResultDto<void>> => {
-      const id = parseChannelIdRequired(channelId)
-      const owningAccountId = resolveOwningAccountId(id)
-      const stack = owningAccountId !== undefined ? accountStacks.get(owningAccountId) : undefined
-      if (stack === undefined) {
-        return {
-          ok: false,
-          errorKind: 'not-found',
-          message: 'channel is not subscribed by any connected account'
-        }
-      }
-      try {
-        // Incremental consent (D-032): surfaced as an in-app dialog before
-        // any browser opens, never requested silently by the action itself.
-        if (!stack.authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'unsubscribing needs an extra permission'
-          }
-        }
-        let subscriptionId = syncRepository.getSubscriptionId(stack.accountId, id)
-        if (subscriptionId === null) {
-          // Channels subscribed before schema v3 have no cached id yet.
-          subscriptionId = await stack.apiClient.findSubscriptionId(id)
-        }
-        if (subscriptionId === null) {
-          return {
-            ok: false,
-            errorKind: 'not-found',
-            message: 'no active subscription found for this channel'
-          }
-        }
-        await stack.apiClient.unsubscribe(subscriptionId)
-        syncRepository.markUnsubscribed(stack.accountId, id)
-        return { ok: true, value: undefined }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          stack.authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.getConnectedChannel,
-    async (): Promise<ResultDto<{ title: string; channelId: string }>> => {
-      try {
-        const channel = await apiClient.getOwnChannel()
-        if (channel === null) {
-          return { ok: false, errorKind: 'not-found', message: 'no channel on this account' }
-        }
-        return { ok: true, value: channel }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-
-  // Additional-account management (B-003). The primary account above is
-  // untouched by any of this — Settings and the first-run wizard keep
-  // working the same.
-  ipcMain.handle(IpcChannel.listAccounts, (): AccountDto[] =>
-    [...accountStacks.values()].map(toAccountDto)
-  )
-  ipcMain.handle(
-    IpcChannel.startAddAccount,
-    (): { accountId: string; isFirstAccount: boolean } => {
-      const isFirstAccount = accountStacks.size === 0
-      const accountId = randomUUID()
-      pendingAccountStacks.set(accountId, buildAccountStack(accountId, 'New account'))
-      return { accountId, isFirstAccount }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.connectAccount,
-    async (_event, accountId: unknown): Promise<ResultDto<AccountDto>> => {
-      const id = typeof accountId === 'string' ? accountId : ''
-      const stack = pendingAccountStacks.get(id) ?? accountStacks.get(id)
-      if (stack === undefined) {
-        return { ok: false, errorKind: 'not-found', message: 'unknown account' }
-      }
-      try {
-        await stack.authFlow.connect()
-        stack.authProvider.invalidate()
-        // A nice label beats the raw id — best-effort, never blocks connecting.
-        try {
-          const channel = await stack.apiClient.getOwnChannel()
-          if (channel !== null) stack.label = channel.title
-        } catch {
-          // keep the placeholder label — not worth failing the connection over
-        }
-        const now = clock.now().toISOString()
-        syncRepository.addAccount(stack.accountId, stack.label, now)
-        accountStacks.set(stack.accountId, stack)
-        pendingAccountStacks.delete(stack.accountId)
-        void runRefresh('manual', stack.accountId)
-        return { ok: true, value: toAccountDto(stack) }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(IpcChannel.removeAccount, async (_event, accountId: unknown): Promise<void> => {
-    const id = typeof accountId === 'string' ? accountId : ''
-    // The primary account signs out via Settings (unchanged) — removing it
-    // here would strand the first-run wizard/Settings' Connection section,
-    // which always assume it exists.
-    if (id === primaryAccountId()) throw new Error('cannot remove the primary account here')
-    const stack = accountStacks.get(id)
-    if (stack === undefined) return
-    await stack.authFlow.signOut()
-    syncRepository.removeAccount(id)
-    accountStacks.delete(id)
-  })
-  ipcMain.handle(
-    IpcChannel.syncAccountNow,
-    async (_event, accountId: unknown): Promise<ResultDto<SyncReportDto>> => {
-      const id = typeof accountId === 'string' ? accountId : ''
-      if (!accountStacks.has(id)) {
-        return { ok: false, errorKind: 'not-found', message: 'unknown account' }
-      }
-      return runRefresh('manual', id)
-    }
-  )
-
-  function toCommentDto(comment: Comment): CommentDto {
-    return { ...comment, replies: comment.replies.map(toCommentDto) }
-  }
-
-  function parseCommentText(value: unknown): string {
-    const text = typeof value === 'string' ? value.trim() : ''
-    if (text === '') throw new Error('empty comment text')
-    return text
-  }
-
-  ipcMain.handle(
-    IpcChannel.getComments,
-    async (
-      _event,
-      videoId: unknown,
-      pageToken: unknown,
-      order: unknown
-    ): Promise<ResultDto<{ comments: CommentDto[]; nextPageToken: string | null }>> => {
-      const id = parseVideoId(videoId)
-      try {
-        // Reading comments requires the write scope too, not just readonly
-        // (the opposite of what Google's docs say) — commentThreads.list
-        // 403s until the force-ssl grant from a Like action. Gated like
-        // every other write-scope action so the dialog shows instead of a
-        // bare 403.
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'reading comments needs an extra permission'
-          }
-        }
-        const result = await apiClient.listComments(
-          id,
-          typeof pageToken === 'string' ? pageToken : undefined,
-          order === 'time' ? 'time' : 'relevance'
-        )
-        return {
-          ok: true,
-          value: { comments: result.comments.map(toCommentDto), nextPageToken: result.nextPageToken }
-        }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.postComment,
-    async (_event, videoId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
-      const id = parseVideoId(videoId)
-      try {
-        const body = parseCommentText(text)
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'posting a comment needs an extra permission'
-          }
-        }
-        const comment = await apiClient.postComment(id, body)
-        return { ok: true, value: toCommentDto(comment) }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.replyToComment,
-    async (_event, parentId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
-      try {
-        const id = typeof parentId === 'string' ? parentId : ''
-        if (id === '') throw new Error('invalid comment id')
-        const body = parseCommentText(text)
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'replying needs an extra permission'
-          }
-        }
-        const comment = await apiClient.replyToComment(id, body)
-        return { ok: true, value: toCommentDto(comment) }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.updateComment,
-    async (_event, commentId: unknown, text: unknown): Promise<ResultDto<CommentDto>> => {
-      try {
-        const id = typeof commentId === 'string' ? commentId : ''
-        if (id === '') throw new Error('invalid comment id')
-        const body = parseCommentText(text)
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'editing a comment needs an extra permission'
-          }
-        }
-        const comment = await apiClient.updateComment(id, body)
-        return { ok: true, value: toCommentDto(comment) }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.rateVideo,
-    async (_event, videoId: unknown, rating: unknown): Promise<ResultDto<void>> => {
-      const id = parseVideoId(videoId)
-      if (rating !== 'like' && rating !== 'dislike' && rating !== 'none') {
-        throw new Error('invalid rating')
-      }
-      try {
-        if (!authFlow.hasWriteScope()) {
-          return {
-            ok: false,
-            errorKind: 'write-scope-required',
-            message: 'rating a video needs an extra permission'
-          }
-        }
-        await apiClient.rateVideo(id, rating)
-        return { ok: true, value: undefined }
-      } catch (error) {
-        if (isDomainError(error, 'auth-expired')) {
-          authProvider.invalidate()
-          broadcast({ type: 'auth:required' })
-          return { ok: false, errorKind: 'auth-expired', message: error.message }
-        }
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  ipcMain.handle(
-    IpcChannel.getVideoRating,
-    async (_event, videoId: unknown): Promise<ResultDto<VideoRatingDto>> => {
-      const id = parseVideoId(videoId)
-      try {
-        const rating = await apiClient.getVideoRating(id)
-        return { ok: true, value: rating }
-      } catch (error) {
-        const kind = isDomainError(error) ? error.kind : 'internal'
-        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
-      }
-    }
-  )
-  // D-068: settings is declared further below (`let settings`), but this
-  // handler only runs on a later IPC call, by which point the whole
-  // composition-root function has finished executing — same closure pattern
-  // every other settings-reading handler in this file relies on.
-  ipcMain.handle(
-    IpcChannel.getDislikeEstimate,
-    async (_event, videoId: unknown): Promise<DislikeEstimateDto> => {
-      const id = parseVideoId(videoId)
-      if (!settings.showDislikeEstimate) return { status: 'disabled' }
-      const dislikeCount = await rydClient.fetchDislikeCount(id)
-      if (dislikeCount === null) return { status: 'error' }
-      return { status: 'ok', dislikeCount }
-    }
-  )
   ipcMain.handle(IpcChannel.getWizardState, (): WizardStateDto => {
     const raw = syncRepository.getMeta('wizard_state')
     if (raw !== null) {
@@ -1901,8 +736,8 @@ async function boot(): Promise<void> {
   }
   applyRefreshTimer()
 
-  // Notice-only background check against GitHub's public Releases API
-  // (D-026) — a startup check plus a slow (24h) interval.
+  // Notice-only background check against GitHub's public Releases API — a
+  // startup check plus a slow (24h) interval.
   const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000
   async function checkForUpdates(): Promise<void> {
     const release = await updateSource.latestRelease()
@@ -1920,7 +755,7 @@ async function boot(): Promise<void> {
   }
   applyUpdateCheckTimer()
 
-  // Three independent toggles, none gating any other (D-050). Both apply*
+  // Three independent toggles, none gating any other. Both apply*
   // functions below feature-detect and swallow errors rather than throw —
   // only Linux autostart is hands-on tested, so an unsupported platform
   // should silently no-op, not crash the app.
@@ -1932,7 +767,7 @@ async function boot(): Promise<void> {
       // argument so a dev-mode autostart actually opens Chronicle too.
       const devArgs = app.isPackaged ? [] : [resolve(process.argv[1] ?? '.')]
       if (process.platform === 'linux') {
-        // The Linux target is AppImage-only (D-024). process.execPath
+        // The Linux target is AppImage-only. process.execPath
         // resolves inside the AppImage's own temporary SquashFS mount,
         // torn down as soon as this run exits — use $APPIMAGE (the stable
         // file path the AppImage runtime sets) instead whenever present.
@@ -1964,7 +799,7 @@ async function boot(): Promise<void> {
   // The tray is only ever destroyed at real quit (will-quit) or a
   // deleteAllData reset, never recreated mid-session — some Linux tray hosts
   // go stale under a destroy()-then-recreate cycle while the process stays
-  // alive, even though it works fine on real quit (D-050). Trade-off:
+  // alive, even though it works fine on real quit. Trade-off:
   // turning "Run in background" off no longer removes an already-shown icon
   // immediately — window-close-quits-the-app behavior is still fully
   // restored via backgroundModeEnabled below, the icon just lingers until
@@ -1996,7 +831,7 @@ async function boot(): Promise<void> {
   applyBackgroundMode()
 
   // Never fires on an account's first sync — that's backlog, not something
-  // that happened while backgrounded (D-050). 'all' ignores the per-channel
+  // that happened while backgrounded. 'all' ignores the per-channel
   // notify flag; 'selected' respects it (OR'd across every connected
   // account, same semantics listFollowedChannels uses elsewhere) — switching
   // scope never writes to those flags, so they survive round-trips.
@@ -2007,7 +842,7 @@ async function boot(): Promise<void> {
     try {
       if (!Notification.isSupported()) return
       // A Short hidden from the feed (showShorts off) never notifies; when
-      // shown, notifyShorts decides whether it also triggers one (D-052).
+      // shown, notifyShorts decides whether it also triggers one.
       const includeShorts = settings.showShorts && settings.notifyShorts
       let matched = report.newVideosByChannel
         .map((entry) => ({ ...entry, count: includeShorts ? entry.count : entry.count - entry.shortsCount }))
@@ -2042,11 +877,11 @@ async function boot(): Promise<void> {
   ipcMain.handle(IpcChannel.getAppVersion, () => app.getVersion())
 
   // No automation, no credential handling — a plain window at youtube.com,
-  // sharing the default session the player's iframe already uses (B-093).
-  // The user signs in (or not) exactly like they would in any browser. An
-  // explicit `title` (e.g. from the live chat sign-in link, D-056) is pinned
-  // against youtube.com's own page-title-updated events, which would
-  // otherwise overwrite it back to "YouTube" the moment the page loads.
+  // sharing the default session the player's iframe already uses. The user
+  // signs in (or not) exactly like they would in any browser. An explicit
+  // `title` (e.g. from the live chat sign-in link) is pinned against
+  // youtube.com's own page-title-updated events, which would otherwise
+  // overwrite it back to "YouTube" the moment the page loads.
   ipcMain.handle(IpcChannel.openYouTubeSignIn, (_event, title: unknown) => {
     const signInWindow = new BrowserWindow({ width: 480, height: 720 })
     signInWindow.removeMenu()
@@ -2081,8 +916,8 @@ async function boot(): Promise<void> {
   )
 
   // Routes a newly-selected video into the already-open extract window
-  // rather than the main window (B-112). Returns false (not an error) if no
-  // extract window is open.
+  // rather than the main window. Returns false (not an error) if no extract
+  // window is open.
   ipcMain.handle(IpcChannel.loadInExtractWindow, (_event, videoId: unknown, title: unknown) => {
     if (extractWindow === null || extractWindow.isDestroyed()) return false
     const id = parseVideoId(videoId)
@@ -2154,7 +989,7 @@ async function boot(): Promise<void> {
     // The tray's click callbacks close over this boot() generation's
     // runRefresh/settings — destroyed here and freshly recreated by the new
     // generation's applyBackgroundMode() rather than left pointing at
-    // torn-down state (D-050).
+    // torn-down state.
     destroyTray()
     // Every handler this boot() generation registered must go before the
     // next boot() re-registers them — ipcMain.handle throws if a channel
@@ -2176,10 +1011,10 @@ async function boot(): Promise<void> {
     for (const window of staleWindows) window.destroy()
   })
 
-  // D-020 exercised: Settings' storage indicator. dbBytes sums chronicle.db
-  // plus its WAL/SHM sidecar files (present whenever the app has WAL pages
-  // not yet checkpointed) rather than just the main file, so the number
-  // matches what's actually on disk.
+  // Settings' storage indicator. dbBytes sums chronicle.db plus its WAL/SHM
+  // sidecar files (present whenever the app has WAL pages not yet
+  // checkpointed) rather than just the main file, so the number matches
+  // what's actually on disk.
   ipcMain.handle(IpcChannel.getStorageInfo, (): StorageInfoDto => {
     let dbBytes = 0
     for (const suffix of ['', '-wal', '-shm']) {
@@ -2195,7 +1030,7 @@ async function boot(): Promise<void> {
   // Skip the initial window only for the real launch (not a deleteAllData
   // re-boot), only when it came from the OS autostart entry, and only when
   // there's a tray to fall back to (backgroundMode) — otherwise the process
-  // would be fully unreachable (D-050).
+  // would be fully unreachable.
   const skipInitialWindow =
     !hasBootedBefore &&
     wasLaunchedViaAutostart() &&
@@ -2223,8 +1058,8 @@ void app.whenReady().then(async () => {
 })
 
 // A second launch attempt (e.g. clicking the app icon while tray-resident)
-// hits this in the original instance instead of spawning its own process
-// (D-050) — bring the existing window forward like the tray's Open item.
+// hits this in the original instance instead of spawning its own process —
+// bring the existing window forward like the tray's Open item.
 app.on('second-instance', () => {
   if (gotSingleInstanceLock) showOrCreateMainWindow()
 })
@@ -2250,7 +1085,7 @@ app.on('will-quit', () => {
 
 // Falls back to isQuitting = true on any other route to a real quit (Cmd+Q
 // on macOS, an OS session logout) so backgroundMode's close intercept
-// doesn't fight the app actually trying to exit (D-050).
+// doesn't fight the app actually trying to exit.
 app.on('before-quit', () => {
   isQuitting = true
 })
