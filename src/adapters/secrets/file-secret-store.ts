@@ -4,8 +4,8 @@ import type { SecretStore } from '../../core/ports'
 
 // Secrets live in one encrypted file in the app data dir; the cipher is
 // injected — Electron safeStorage when a real keychain backs it, else a
-// machine-derived-key fallback (D-013). isSecure() reports which one so
-// settings can show an honest warning. Values are never stored in plaintext.
+// machine-derived-key fallback. isSecure() reports which one so settings
+// can show an honest warning. Values are never stored in plaintext.
 //
 // The file pins the cipher that wrote it (`cipher` field), so entries keep
 // decrypting correctly even if the machine later gains a keychain.

@@ -9,6 +9,7 @@ import { GRID_CARD_SIZES, type ItemSize } from './FeedList'
 import { formatPlaylistDuration } from './format'
 import { t } from './i18n'
 import { PlaylistThumb } from './PlaylistThumb'
+import { useDialogDismiss } from './useDialogDismiss'
 
 interface PlaylistsViewProps {
   playlists: PlaylistDto[]
@@ -220,6 +221,7 @@ function CreatePlaylistDialog({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
+  const dismiss = useDialogDismiss(onCancel)
 
   function submit(): void {
     const trimmed = name.trim()
@@ -230,16 +232,7 @@ function CreatePlaylistDialog({
 
   return (
     <div className="overlay-backdrop" onClick={onCancel}>
-      <div
-        className="overlay create-playlist"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          // A dialog on top of the content owns Escape while it's open —
-          // never let it bubble to whatever's underneath.
-          event.stopPropagation()
-          if (event.key === 'Escape') onCancel()
-        }}
-      >
+      <div {...dismiss} className="overlay create-playlist" onClick={(event) => event.stopPropagation()}>
         <h2>{t('playlists.dialog.createTitle')}</h2>
         <label className="create-playlist-label">{t('playlists.dialog.nameLabel')}</label>
         <input
@@ -278,8 +271,8 @@ function CreatePlaylistDialog({
   )
 }
 
-// D-059: paste any YouTube playlist URL, creates a new local Playlist
-// pre-named from the source's own title/description, populated with the
+// Paste any YouTube playlist URL, creates a new local Playlist pre-named
+// from the source's own title/description, populated with the
 // same videos in the same order — a one-time snapshot, never an ongoing
 // sync (see the playlist's own Sync action, PlaylistDetailView, for that).
 // One line per progress event (playlist:importProgress) — the import is a
@@ -309,6 +302,9 @@ function ImportPlaylistDialog({
   const [submitting, setSubmitting] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const logRef = useRef<HTMLDivElement>(null)
+  const dismiss = useDialogDismiss(() => {
+    if (!submitting) onCancel()
+  })
 
   useEffect(() => {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight)
@@ -356,14 +352,7 @@ function ImportPlaylistDialog({
 
   return (
     <div className="overlay-backdrop" onClick={submitting ? undefined : onCancel}>
-      <div
-        className="overlay create-playlist"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation()
-          if (!submitting && event.key === 'Escape') onCancel()
-        }}
-      >
+      <div {...dismiss} className="overlay create-playlist" onClick={(event) => event.stopPropagation()}>
         <h2>{t('playlists.dialog.importTitle')}</h2>
         <input
           autoFocus

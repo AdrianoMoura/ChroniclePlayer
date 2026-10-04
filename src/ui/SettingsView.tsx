@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { PLAYBACK_RATES, type AuthStatusDto, type SettingsDto, type StorageInfoDto } from '../ipc/contract'
 import { formatBytes } from './format'
 import { AVAILABLE_LOCALES, t } from './i18n'
+import { useDialogDismiss } from './useDialogDismiss'
 
-// Settings surface. One column, quiet sections — every control maps to a
-// spec decision: D-016 interval, theme (ui.md), D-018 view counts, D-038
-// default speed (playback.md), D-013 storage honesty, export/delete
-// (local-data.md). Layout and item size (D-022, D-037) live inline in the
-// feed topbar instead — see App.tsx.
+// Settings surface. One column, quiet sections — refresh interval, theme
+// (ui.md), view counts, default playback speed (playback.md), storage
+// honesty, export/delete (local-data.md). Layout and item size live inline
+// in the feed topbar instead — see App.tsx.
 
 // A one-line summary under a control, with the fuller explanation moved into
-// a hover ⓘ (same native-title-tooltip pattern as the topbar's .status-info,
-// B-105) instead of a second paragraph.
+// a hover ⓘ (same native-title-tooltip pattern as the topbar's .status-info)
+// instead of a second paragraph.
 function InfoNote({ text, detail }: { text: string; detail?: string }) {
   return (
     <p className="settings-line dim">
@@ -41,9 +41,9 @@ interface SettingsViewProps {
   // SettingsView doesn't itself display — the sidebar/channel-header icons
   // that do need to pick up the change.
   onChannelsChanged: () => void
-  // D-068: a specific row to scroll to and flash once, e.g. from the
-  // player's dislike-estimate ⓘ ("go enable this"). Only 'showDislikeEstimate'
-  // is wired up today; an unrecognized or null value just does nothing.
+  // A specific row to scroll to and flash once, e.g. from the player's
+  // dislike-estimate ⓘ ("go enable this"). Only 'showDislikeEstimate' is
+  // wired up today; an unrecognized or null value just does nothing.
   highlightKey: string | null
   // Called once the highlight above has been used (or ignored, if
   // unrecognized) — clears it in the parent so a later, unrelated visit to
@@ -72,16 +72,20 @@ export function SettingsView({
   // this only gates the separate question of whether to *also* bulk-clear
   // notify from currently-favorited channels.
   const [confirmingAutoNotifyDisable, setConfirmingAutoNotifyDisable] = useState(false)
+  const autoNotifyDisableDismiss = useDialogDismiss(
+    () => resolveAutoNotifyDisableConfirm(false),
+    confirmingAutoNotifyDisable
+  )
 
-  // D-065: storage indicator.
+  // Storage indicator.
   const [storageInfo, setStorageInfo] = useState<StorageInfoDto | null>(null)
 
   useEffect(() => {
     void window.chronicle.getStorageInfo().then(setStorageInfo)
   }, [])
 
-  // D-068: scrolls to and briefly flashes the target row once, on mount —
-  // this component unmounts on leaving Settings (App.tsx renders it only
+  // Scrolls to and briefly flashes the target row once, on mount — this
+  // component unmounts on leaving Settings (App.tsx renders it only
   // while screen === 'settings'), so a fresh mount is exactly "the user just
   // arrived here," and this only ever needs to run once per arrival.
   const dislikeEstimateRowRef = useRef<HTMLDivElement>(null)
@@ -505,7 +509,11 @@ export function SettingsView({
           className="overlay-backdrop"
           onClick={() => resolveAutoNotifyDisableConfirm(false)}
         >
-          <div className="overlay write-scope-dialog" onClick={(event) => event.stopPropagation()}>
+          <div
+            {...autoNotifyDisableDismiss}
+            className="overlay write-scope-dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
             <p>{t('settings.notifications.autoFavoriteDisableConfirm')}</p>
             <div className="write-scope-dialog-actions">
               <button onClick={() => resolveAutoNotifyDisableConfirm(false)}>

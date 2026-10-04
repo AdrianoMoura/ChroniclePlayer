@@ -36,9 +36,9 @@ export function groupFeed(entries: readonly FeedEntry[], now: Date): FeedGroup[]
   })
 }
 
-// feed.md §Ordering: effectiveDate descending (D-053) — publishedAt for
-// everything that was never live; ties break by channel title, then
-// videoId — deterministic order is part of "predictable".
+// feed.md §Ordering: effectiveDate descending — publishedAt for everything
+// that was never live; ties break by channel title, then videoId —
+// deterministic order is part of "predictable".
 function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
   const timeDiff = effectiveDate(b.video, now).getTime() - effectiveDate(a.video, now).getTime()
   if (timeDiff !== 0) return timeDiff
@@ -46,8 +46,8 @@ function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
   return a.video.videoId < b.video.videoId ? -1 : 1
 }
 
-// D-053: the single timestamp driving both bucket and sort order —
-// publishedAt normally; `now` while genuinely live (always sorts atop
+// The single timestamp driving both bucket and sort order — publishedAt
+// normally; `now` while genuinely live (always sorts atop
 // "today"); liveEndedAt once ended (so a stream crossing midnight lands
 // under the day it wrapped, not the day it started). Bucket and sort must
 // share this one value, or an entry could sort into one bucket while its
@@ -82,7 +82,8 @@ function localDayNumber(date: Date): number {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000
 }
 
-// D-017 (Pending): weeks start on ISO Monday.
+// Weeks start on ISO Monday (an unconfirmed assumption — see decisions.md
+// if this ever needs revisiting).
 function isoWeekdayIndex(date: Date): number {
   return (date.getDay() + 6) % 7
 }
@@ -93,7 +94,7 @@ export function unreadCount(entries: readonly FeedEntry[]): number {
 }
 
 // feed.md §Caught up: Today/Yesterday/This Week contain zero unread videos.
-// "Earlier" depth never affects it — the archive is not new content (D-027).
+// "Earlier" depth never affects it — the archive is not new content.
 export function isCaughtUp(groups: readonly FeedGroup[]): boolean {
   return groups.every(
     (group) => group.bucket === 'earlier' || unreadCount(group.entries) === 0
@@ -109,8 +110,8 @@ export function recentWindowStart(now: Date): Date {
 }
 
 // Start of the local calendar day — same boundary bucketOf uses for
-// "Today" (B-020: the connect-time auto-read cutoff is "published before
-// today", so it must agree with what the feed itself calls today).
+// "Today". The connect-time auto-read cutoff is "published before today",
+// so it must agree with what the feed itself calls today.
 export function startOfToday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }

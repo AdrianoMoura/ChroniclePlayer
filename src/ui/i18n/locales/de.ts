@@ -1,7 +1,8 @@
 import type { Dict, LocaleMeta } from '../types'
 
-// D-072: AI-generated translation, not yet reviewed by a native speaker — it
-// may contain mistakes or awkward phrasing. If you speak German, a
+// This translation was AI-generated and has not yet been reviewed by a
+// native speaker — it may contain mistakes or awkward phrasing. If you
+// speak German, a
 // correction or a full review is a welcome contribution: this is a plain
 // Partial<Dict>, so missing/wrong keys don't break anything — t() falls
 // back to English for any key missing here. `{name}`-style placeholders
@@ -502,7 +503,7 @@ export const dict: Partial<Dict> = {
   'sidebar.noChannels': 'Dieses Konto folgt noch keinen Kanälen.',
   'sidebar.settingsLabel': 'Einstellungen',
 
-  // Sidebar — Accounts (B-003)
+  // Sidebar — Accounts
   'sidebar.accountsHeader': 'Konten',
   'sidebar.accountDisconnected': 'Erneute Verbindung erforderlich',
   'sidebar.addAccount': '+ Konto hinzufügen',
@@ -520,7 +521,7 @@ export const dict: Partial<Dict> = {
   'sidebar.channelMenu.notify': 'Über neue Videos dieses Kanals benachrichtigen',
   'sidebar.channelMenu.unnotify': 'Benachrichtigungen für diesen Kanal beenden',
 
-  // YouTube search (B-009)
+  // YouTube search
   'search.empty': 'Keine Ergebnisse.',
   'search.searching': 'Durchsucht ganz YouTube…',
   'search.searchingChannel': 'Durchsucht diesen Kanal…',
@@ -530,7 +531,7 @@ export const dict: Partial<Dict> = {
   'search.videoChannelPrefix': 'auf',
   'search.loadingMore': 'Lädt weitere Ergebnisse…',
 
-  // Comments (B-006)
+  // Comments
   'comments.show': 'Kommentare anzeigen (c)',
   'comments.hide': 'Kommentare ausblenden (c)',
   'comments.loading': 'Kommentare werden geladen…',
@@ -550,7 +551,7 @@ export const dict: Partial<Dict> = {
   'comments.saveButton': 'Speichern',
   'comments.cancelButton': 'Abbrechen',
 
-  // Add another account (B-003)
+  // Add another account
   'addAccount.title': 'Ein weiteres Google-Konto hinzufügen',
   'addAccount.instructions':
     'Füge die E-Mail-Adresse des neuen Kontos als Testnutzer zu deinem bestehenden Google-Cloud-Projekt hinzu (demselben aus deiner ersten Einrichtung) und verbinde es dann unten.',
@@ -572,7 +573,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.create': 'Erstellen',
   'playlists.dialog.cancel': 'Abbrechen',
 
-  // Import a YouTube playlist (D-059)
+  // Import a YouTube playlist
   'playlists.importButton': 'Von YouTube importieren',
   'playlists.dialog.importTitle': 'Eine YouTube-Wiedergabeliste importieren',
   'playlists.dialog.urlPlaceholder': 'Füge die URL einer YouTube-Wiedergabeliste ein',
@@ -585,7 +586,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.importLog.stillWorking': 'Noch in Arbeit: Das kann bei einer großen Wiedergabeliste eine Weile dauern…',
   'playlists.dialog.importLog.done': 'Fertig: {imported} von {total} Videos importiert.',
 
-  // Sync an imported playlist (D-059)
+  // Sync an imported playlist
   'playlists.sync.upToDate': 'Auf dem neuesten Stand',
   'playlists.sync.checkButton': 'Synchronisieren',
   'playlists.sync.button': 'Synchronisieren ({count} neu)',

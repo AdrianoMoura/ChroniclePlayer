@@ -14,7 +14,7 @@ import {
 
 // niri sets this for its own IPC; other tiling compositors (sway, i3) take
 // the same "minimize is incompatible with tiling" stance but expose no
-// equivalent marker to check cheaply, so only niri is covered (B-026).
+// equivalent marker to check cheaply, so only niri is covered.
 const minimizeSupported = process.env['NIRI_SOCKET'] === undefined
 
 const api: ChronicleApi = {

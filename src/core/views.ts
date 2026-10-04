@@ -1,8 +1,8 @@
 import type { VideoState } from './state'
 
-// MVP views per feed.md §Filters and ui.md §Layout. Shorts exclusion (D-028)
-// is NOT a view — it is unconditional and happens before videos ever reach
-// the feed (sync pipeline, M2).
+// MVP views per feed.md §Filters and ui.md §Layout. Shorts exclusion is NOT
+// a view — it is unconditional and happens before videos ever reach the
+// feed, in the sync pipeline.
 export type FeedView = 'all' | 'unread' | 'favorites' | 'watch-later' | 'ignored'
 
 export const FEED_VIEWS: readonly FeedView[] = [

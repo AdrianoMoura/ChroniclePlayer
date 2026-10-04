@@ -1,8 +1,9 @@
 import type { Dict, LocaleMeta } from '../types'
 
-// D-072: AI-generated translation, not yet reviewed by a native speaker — it
-// may contain mistakes or awkward phrasing. If you speak Japanese, a
-// correction or a full review is a welcome contribution: this is a plain
+// This translation was AI-generated and has not yet been reviewed by a
+// native speaker — it may contain mistakes or awkward phrasing. If you
+// speak Japanese, a correction or a full review is a welcome contribution:
+// this is a plain
 // Partial<Dict>, so missing/wrong keys don't break anything — t() falls
 // back to English for any key missing here. `{name}`-style placeholders
 // must stay exactly as in en.ts; only the surrounding text should change.
@@ -502,7 +503,7 @@ export const dict: Partial<Dict> = {
   'sidebar.noChannels': 'このアカウントはまだどのチャンネルも登録していません。',
   'sidebar.settingsLabel': '設定',
 
-  // Sidebar — Accounts (B-003)
+  // Sidebar — Accounts
   'sidebar.accountsHeader': 'アカウント',
   'sidebar.accountDisconnected': '再接続が必要です',
   'sidebar.addAccount': '+ アカウントを追加',
@@ -520,7 +521,7 @@ export const dict: Partial<Dict> = {
   'sidebar.channelMenu.notify': 'このチャンネルの新しい動画を通知する',
   'sidebar.channelMenu.unnotify': 'このチャンネルの通知を停止する',
 
-  // YouTube search (B-009)
+  // YouTube search
   'search.empty': '結果がありません。',
   'search.searching': 'YouTube 全体を検索中…',
   'search.searchingChannel': 'このチャンネル内を検索中…',
@@ -530,7 +531,7 @@ export const dict: Partial<Dict> = {
   'search.videoChannelPrefix': '投稿元:',
   'search.loadingMore': 'さらに結果を読み込み中…',
 
-  // Comments (B-006)
+  // Comments
   'comments.show': 'コメントを表示 (c)',
   'comments.hide': 'コメントを非表示 (c)',
   'comments.loading': 'コメントを読み込み中…',
@@ -550,7 +551,7 @@ export const dict: Partial<Dict> = {
   'comments.saveButton': '保存',
   'comments.cancelButton': 'キャンセル',
 
-  // Add another account (B-003)
+  // Add another account
   'addAccount.title': '別の Google アカウントを追加',
   'addAccount.instructions':
     '新しいアカウントのメールアドレスを、既存の Google Cloud プロジェクト（最初のセットアップと同じもの）のテストユーザーとして追加してから、下で接続してください。',
@@ -572,7 +573,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.create': '作成',
   'playlists.dialog.cancel': 'キャンセル',
 
-  // Import a YouTube playlist (D-059)
+  // Import a YouTube playlist
   'playlists.importButton': 'YouTube からインポート',
   'playlists.dialog.importTitle': 'YouTube の再生リストをインポート',
   'playlists.dialog.urlPlaceholder': 'YouTube の再生リストの URL を貼り付け',
@@ -585,7 +586,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.importLog.stillWorking': '処理中です: 大きな再生リストの場合、時間がかかることがあります…',
   'playlists.dialog.importLog.done': '完了: {total} 件中 {imported} 件の動画をインポートしました。',
 
-  // Sync an imported playlist (D-059)
+  // Sync an imported playlist
   'playlists.sync.upToDate': '最新の状態です',
   'playlists.sync.checkButton': '同期',
   'playlists.sync.button': '同期（新着 {count} 件）',

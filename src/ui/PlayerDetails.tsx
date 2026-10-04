@@ -43,8 +43,8 @@ interface PlayerDetailsProps {
   // nothing to measure/align to for a render pass.
   hidden: boolean
   slotRef: (element: HTMLDivElement | null) => void
-  // D-056: owned by App.tsx, not local state here — restoring the docked
-  // column when the extracted popup closes needs to cross-reference the
+  // Owned by App.tsx, not local state here — restoring the docked column
+  // when the extracted popup closes needs to cross-reference the
   // miniplayer/current-video state App.tsx already tracks, so the whole
   // three-way surface lives up there instead of split across components.
   chatSurface: 'closed' | 'column' | 'extracted'
@@ -52,26 +52,26 @@ interface PlayerDetailsProps {
   onExtractChat: () => void
   onClose: () => void
   onExtract: () => void
-  // D-067: read synchronously when the Share dialog opens, alongside the
-  // existing onPause — both reach PlayerSurface, a sibling component, the
-  // same way onSeekTo/onPause already do.
+  // Read synchronously when the Share dialog opens, alongside the existing
+  // onPause — both reach PlayerSurface, a sibling component, the same way
+  // onSeekTo/onPause already do.
   onGetCurrentTimeSeconds: () => number
-  // D-067: resumes playback once the Share dialog closes, undoing the pause
-  // it caused on open (never called for a live video — see openShare).
+  // Resumes playback once the Share dialog closes, undoing the pause it
+  // caused on open (never called for a live video — see openShare).
   onResumePlayback: () => void
   onOpenVideo: (videoId: string) => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
-  // B-113: a comment's linkified timestamp (e.g. "12:34") seeks the player
-  // to that position — PlayerSurface owns the actual seek command, a
+  // A comment's linkified timestamp (e.g. "12:34") seeks the player to that
+  // position — PlayerSurface owns the actual seek command, a
   // sibling component, so this reaches it the same way onExtract/onClose do.
   onSeekTo: (seconds: number) => void
   // Opening in the real YouTube tab shouldn't leave this copy also playing
   // behind the scenes — same sibling-reaches-PlayerSurface pattern as
   // onSeekTo above.
   onPause: () => void
-  // D-068: the dislike-estimate ⓘ, shown while the feature is off, links
-  // here (Settings' Playback section).
+  // The dislike-estimate ⓘ, shown while the feature is off, links here
+  // (Settings' Playback section).
   onOpenSettings: () => void
 }
 
@@ -105,7 +105,7 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
     // The user's own rating, fetched silently on open — failures (e.g. not
     // connected) are not worth a banner.
     const [rating, setRating] = useState<VideoRatingDto>('none')
-    // D-068: null while the lookup is in flight.
+    // null while the lookup is in flight.
     const [dislike, setDislike] = useState<DislikeEstimateDto | null>(null)
     const [subscribed, setSubscribed] = useState(video.isSubscribed)
     const [actionError, setActionError] = useState<string | null>(null)
@@ -166,8 +166,8 @@ export const PlayerDetails = forwardRef<PlayerDetailsHandle, PlayerDetailsProps>
         })
     }
 
-    // D-068: no keyboard shortcut, deliberately — unlike Like's `l`, a
-    // one-key dislike risks an accidental press.
+    // No keyboard shortcut, deliberately — unlike Like's `l`, a one-key
+    // dislike risks an accidental press.
     function toggleDislike(): void {
       setActionError(null)
       const next = rating === 'dislike' ? 'none' : 'dislike'
@@ -422,8 +422,8 @@ function ActionButton({
   )
 }
 
-// Description links follow the D-029 rules: video → in-app (navigation
-// stack), Shorts → browser (D-028), everything else → browser.
+// Description links follow universal-opening rules: video → in-app
+// (navigation stack), Shorts → browser, everything else → browser.
 const URL_PATTERN = /(https?:\/\/[^\s<>()]+)/g
 
 function Description({

@@ -24,9 +24,9 @@ interface PlaylistDetailViewProps {
   onUndoRemoveVideo: (video: FeedVideoDto) => void
   onRename: (name: string, description: string | null) => void
   onDelete: () => void
-  // D-059: only ever called for an imported playlist (sourcePlaylistId set)
-  // — App.tsx refreshes currentPlaylist/playlists/playlistVideos from it,
-  // same shape as onRename's own callback does for a rename.
+  // Only ever called for an imported playlist (sourcePlaylistId set) — App.tsx
+  // refreshes currentPlaylist/playlists/playlistVideos from it, same shape
+  // as onRename's own callback does for a rename.
   onSynced: (playlist: PlaylistDto) => void
   // So this screen's own keydown handler (below) can stay quiet while the
   // shortcuts overlay is open, the same way the main feed's own handler
@@ -215,9 +215,9 @@ function PlaylistDetailHeader({
   const [nameDraft, setNameDraft] = useState(playlist.name)
   const [descriptionDraft, setDescriptionDraft] = useState(playlist.description ?? '')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  // D-059: only meaningful for an imported playlist. null = not checked yet
-  // (or the check itself failed) — the Sync button still works in that case,
-  // it just can't show a count ahead of time.
+  // Only meaningful for an imported playlist. null = not checked yet (or the
+  // check itself failed) — the Sync button still works in that case, it
+  // just can't show a count ahead of time.
   const [newCount, setNewCount] = useState<number | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -240,9 +240,9 @@ function PlaylistDetailHeader({
     return () => window.clearTimeout(timer)
   }, [confirmingDelete])
 
-  // D-059: fetched fresh on every visit to an imported playlist's own
-  // screen — same "check live, don't persist a staleness policy" precedent
-  // as the channel screen's own banner/subscriber-count fetch.
+  // Fetched fresh on every visit to an imported playlist's own screen —
+  // same "check live, don't persist a staleness policy" precedent as the
+  // channel screen's own banner/subscriber-count fetch.
   useEffect(() => {
     setNewCount(null)
     setSyncError(null)

@@ -1,6 +1,6 @@
-// Link routing rules for D-029 (playback.md §Universal video opening):
-// video links open in-app; Shorts links never play in-app (D-028) — the UI
-// offers the browser; channel/playlist/anything-else goes to the browser.
+// Link routing rules (playback.md §Universal video opening): video links
+// open in-app; Shorts links never play in-app — the UI offers the browser;
+// channel/playlist/anything-else goes to the browser.
 // Lives in ipc/ because links are routed at the renderer boundary and ui/
 // may only import from ipc/ (architecture.md §Dependency rule); it is pure.
 

@@ -11,8 +11,8 @@ export interface Clock {
   now(): Date
 }
 
-// Keyset cursor for continuous scroll over the local archive (D-027). The
-// triple mirrors the feed ordering exactly (published desc, channel title,
+// Keyset cursor for continuous scroll over the local archive. The triple
+// mirrors the feed ordering exactly (published desc, channel title,
 // videoId) so pages never skip or duplicate tied rows.
 export interface FeedCursor {
   publishedAt: string
@@ -30,17 +30,17 @@ export interface FollowedChannel {
   // Freshest video (Shorts included unless the setting hides them).
   latestPublishedAt: string | null
   unreadCount: number
-  // B-042: channel-level priority marker (distinct from a video's own
-  // favorite, D-010) — does not affect sidebar sort order (still B-008).
+  // Channel-level priority marker (distinct from a video's own favorite) —
+  // does not affect sidebar sort order.
   favorite: boolean
-  // D-050: opt-in for the "Custom" new-video notification scope.
+  // Opt-in for the "Custom" new-video notification scope.
   notify: boolean
 }
 
 export interface FeedRepository {
-  // channelId narrows to one channel (ui.md sidebar). showShorts (B-028,
-  // default true): false excludes is_short videos. accountId (B-003) narrows
-  // to one account; undefined means the combined feed across all accounts.
+  // channelId narrows to one channel (ui.md sidebar). showShorts
+  // (default true): false excludes is_short videos. accountId narrows to
+  // one account; undefined means the combined feed across all accounts.
   listPage(
     view: FeedView,
     cursor: FeedCursor | null,
@@ -51,46 +51,46 @@ export interface FeedRepository {
   ): FeedPage
   // Watch Later is an ordered queue, not a chronological view (feed.md) —
   // account-agnostic like Favorites, since it also reaches externally
-  // opened videos (D-029) with no subscribing account at all.
+  // opened videos with no subscribing account at all.
   listWatchLaterQueue(showShorts?: boolean): FeedEntry[]
-  // Queue size for the sidebar badge (B-025) — same membership as the queue.
+  // Queue size for the sidebar badge — same membership as the queue.
   countWatchLater(showShorts?: boolean): number
   countUnread(showShorts?: boolean, accountId?: string): number
   // Unread within the recent window (feeds the caught-up state).
   countUnreadSince(publishedAtIso: string, showShorts?: boolean, accountId?: string): number
-  // Sidebar list (B-008): freshest channel first, with its unread count.
+  // Sidebar list: freshest channel first, with its unread count.
   listFollowedChannels(showShorts?: boolean, accountId?: string): FollowedChannel[]
-  // B-042: toggles a channel's priority-feed membership for one account;
-  // returns the new state.
+  // Toggles a channel's priority-feed membership for one account; returns
+  // the new state.
   toggleChannelFavorite(accountId: string, channelId: string): boolean
-  // D-050: toggles a channel's per-channel notify flag (the "Selected
-  // Channels" scope membership) for one account; returns the new state.
+  // Toggles a channel's per-channel notify flag (the "Selected Channels"
+  // scope membership) for one account; returns the new state.
   toggleChannelNotify(accountId: string, channelId: string): boolean
-  // D-050: direct set (not toggle) — syncs notify to a channel's new
-  // favorite state when autoNotifyFavorites is on.
+  // Direct set (not toggle) — syncs notify to a channel's new favorite
+  // state when autoNotifyFavorites is on.
   setChannelNotify(accountId: string, channelId: string, notify: boolean): void
-  // D-050: bulk-applies notify to every currently-favorited channel (any
-  // account) — used by the autoNotifyFavorites enable/disable flow.
+  // Bulk-applies notify to every currently-favorited channel (any account)
+  // — used by the autoNotifyFavorites enable/disable flow.
   bulkSetNotifyForFavorites(enable: boolean): void
-  // B-042: unread videos from favorited channels, most recent first — a
-  // separate capped list (like listWatchLaterQueue), not merged into the
-  // main keyset-paginated feed (D-039: also stays in its normal bucket).
+  // Unread videos from favorited channels, most recent first — a separate
+  // capped list (like listWatchLaterQueue), not merged into the main
+  // keyset-paginated feed (also stays in its normal bucket).
   listPriorityVideos(limit: number, showShorts?: boolean, accountId?: string): FeedEntry[]
   // Player view read (playback.md): any locally known video, feed or not.
   findVideo(videoId: string): { entry: FeedEntry; description: string | null } | null
-  // Bulk unread → read (B-020, D-010 semantics — manual and automatic
-  // marking are indistinguishable). channelId scopes to one channel, null
-  // is the whole feed. beforeIso, when set, only touches videos published
-  // strictly before it (the connect-time backlog auto-read). Returns the
-  // number of videos changed. accountId (B-003) narrows to one account.
+  // Bulk unread → read (manual and automatic marking are indistinguishable).
+  // channelId scopes to one channel, null is the whole feed. beforeIso, when
+  // set, only touches videos published strictly before it (the connect-time
+  // backlog auto-read). Returns the number of videos changed. accountId
+  // narrows to one account.
   markManyRead(
     channelId: string | null,
     beforeIso: string | null,
     now: string,
     accountId?: string
   ): number
-  // B-009: cross-references a channel id against local state (subscribed by
-  // any connected account) — shows "Subscribed" instead of a live button.
+  // Cross-references a channel id against local state (subscribed by any
+  // connected account) — shows "Subscribed" instead of a live button.
   isSubscribed(channelId: string): boolean
 }
 
@@ -111,7 +111,7 @@ export interface CatalogRepository {
   upsertChannel(channel: Channel): void
   upsertVideo(video: Video, fetchedAt: string): void
   countVideos(): number
-  // B-130: a video confirmed gone on YouTube's side (removed/private, IFrame
+  // A video confirmed gone on YouTube's side (removed/private, IFrame
   // error 100) — removes it and every reference to it (state, playlist
   // membership) so it stops resurfacing anywhere in the local library.
   // User-triggered only, never automatic (a transient error is not proof).
@@ -175,7 +175,7 @@ export interface HydratedVideo {
   // Premiere) has actually started, null before then or for a video that
   // was never live. See Video.liveStartedAt for how it's used.
   liveStartedAt: string | null
-  // D-053: liveStreamingDetails.actualEndTime — present once YouTube reports
+  // liveStreamingDetails.actualEndTime — present once YouTube reports
   // the broadcast has ended, null while it's still live/upcoming or for a
   // video that was never live. See Video.liveEndedAt for how it's used.
   liveEndedAt: string | null
@@ -204,12 +204,12 @@ export interface VideoSource {
   ): Promise<{ videoIds: string[]; nextPageToken: string | null }>
 }
 
-// D-028 confirmation: HEAD youtube.com/shorts/{id} — zero quota.
+// Shorts confirmation: HEAD youtube.com/shorts/{id} — zero quota.
 export interface ShortsProber {
   isShort(videoId: string): Promise<boolean>
 }
 
-// D-068: Return YouTube Dislike (returnyoutubedislike.com) — a free, keyless
+// Return YouTube Dislike (returnyoutubedislike.com) — a free, keyless
 // third-party API estimating the dislike count YouTube's own API stopped
 // exposing in Dec 2021. Only called when SettingsDto.showDislikeEstimate is
 // on (opt-in): every call reveals the videoId to a server that isn't
@@ -224,8 +224,8 @@ export interface DislikeEstimateSource {
   fetchDislikeCount(videoId: string): Promise<number | null>
 }
 
-// D-026: an unauthenticated check against a public release feed — no
-// identifiers sent, nothing but "what's the latest version".
+// An unauthenticated check against a public release feed — no identifiers
+// sent, nothing but "what's the latest version".
 export interface UpdateRelease {
   version: string
   url: string
@@ -239,7 +239,7 @@ export interface SecretStore {
   get(key: string): string | null
   set(key: string, value: string): void
   delete(key: string): void
-  // false = fallback encryption (D-013) — settings must show the warning.
+  // false = fallback encryption — settings must show the warning.
   isSecure(): boolean
 }
 
@@ -267,8 +267,8 @@ export interface SyncLogEntry {
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
 }
 
-// B-003: an account's local record — its own YouTube subscriptions/tokens,
-// but sharing the one Google Cloud project/OAuth client and quota pool.
+// An account's local record — its own YouTube subscriptions/tokens, but
+// sharing the one Google Cloud project/OAuth client and quota pool.
 export interface Account {
   accountId: string
   label: string
@@ -277,10 +277,10 @@ export interface Account {
 
 // Storage surface the sync engine needs (implemented by adapters/storage).
 export interface SyncRepository {
-  // channelId scopes to a single channel (B-036: channel-scoped refresh).
-  // B-003: accountId scopes to one account's subscriptions — channels
-  // themselves (facts: title, uploads playlist, RSS state) are shared across
-  // every account that follows them.
+  // channelId scopes to a single channel (channel-scoped refresh).
+  // accountId scopes to one account's subscriptions — channels themselves
+  // (facts: title, uploads playlist, RSS state) are shared across every
+  // account that follows them.
   listSubscribedChannels(accountId: string, channelId?: string): ChannelSyncInfo[]
   // Diff-apply a fresh subscription list for one account: upsert current,
   // mark missing ones unsubscribed *for that account* — videos and states
@@ -290,7 +290,7 @@ export interface SyncRepository {
     channels: readonly Channel[],
     now: string
   ): { added: number; removed: number }
-  // Channel fact, account-agnostic (B-003) — set once, shared.
+  // Channel fact, account-agnostic — set once, shared.
   setUploadsPlaylist(channelId: string, playlistId: string): void
   knownVideoIds(videoIds: readonly string[]): Set<string>
   insertDiscoveredVideos(channelId: string, videos: readonly DiscoveredVideo[], now: string): void
@@ -303,9 +303,9 @@ export interface SyncRepository {
     channelId: string,
     meta: { rssEtag: string | null; rssLastModified: string | null; lastSyncedAt: string }
   ): void
-  // B-002: continuation state for on-demand back-catalog backfill, distinct
-  // from the routine-sync gap-backfill path (which doesn't persist a cursor).
-  // B-003: per (account, channel) — each account walks its own cursor.
+  // Continuation state for on-demand back-catalog backfill, distinct from
+  // the routine-sync gap-backfill path (which doesn't persist a cursor).
+  // Per (account, channel) — each account walks its own cursor.
   getBackfillState(
     accountId: string,
     channelId: string
@@ -316,25 +316,25 @@ export interface SyncRepository {
     pageToken: string | null,
     exhausted: boolean
   ): void
-  // B-003: connected accounts.
+  // Connected accounts.
   listAccounts(): Account[]
   addAccount(accountId: string, label: string, now: string): void
   removeAccount(accountId: string): void
   // duration ≤ 180 s and is_short IS NULL (feed.md §Shorts detection).
-  // channelId scopes to a single channel (B-036).
+  // channelId scopes to a single channel.
   shortCandidates(channelId?: string): string[]
   setShortStatus(videoId: string, isShort: boolean): void
   // How many of the given (already-confirmed) videoIds are Shorts — used
   // after confirmShorts() to split newVideosByChannel counts for the
-  // notify-shorts filter (D-052).
+  // notify-shorts filter.
   countShorts(videoIds: readonly string[]): number
   // liveContent is only captured at hydration time — a video hydrated before
   // the broadcast started stays 'upcoming' until re-queried. channelId
-  // scopes to a single channel (B-036).
+  // scopes to a single channel.
   upcomingVideoIds(channelId?: string): string[]
   // The mirror-image gap: a video hydrated while genuinely live stays 'live'
-  // (duration_seconds stuck at 0) until re-queried (B-114). channelId scopes
-  // to a single channel (B-036).
+  // (duration_seconds stuck at 0) until re-queried. channelId scopes to a
+  // single channel.
   liveVideoIds(channelId?: string): string[]
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null
@@ -352,8 +352,8 @@ export interface PlaylistRepository {
   // refresh the DTO after a create/rename/membership change without
   // re-listing every playlist.
   getPlaylistSummary(playlistId: string): PlaylistSummary | null
-  // sourcePlaylistId (D-059): set only when created via "Import from
-  // YouTube"; omit/null for an ordinary local playlist.
+  // sourcePlaylistId: set only when created via "Import from YouTube";
+  // omit/null for an ordinary local playlist.
   createPlaylist(
     playlistId: string,
     name: string,
@@ -375,9 +375,9 @@ export interface PlaylistRepository {
   // Every playlist id that currently contains this video — drives the Add to
   // Playlist dialog's checkbox state.
   listPlaylistsForVideo(videoId: string): string[]
-  // D-059: membership of one playlist as a Set, for the Sync diff (and the
-  // import path's own de-dupe) — same data as listPlaylistVideos but keyed
-  // for O(1) lookup instead of feed-entry shaped.
+  // Membership of one playlist as a Set, for the Sync diff (and the import
+  // path's own de-dupe) — same data as listPlaylistVideos but keyed for
+  // O(1) lookup instead of feed-entry shaped.
   listImportedVideoIds(playlistId: string): Set<string>
   // Drag-and-drop reorder (mirrors StateRepository.reorderWatchLater):
   // videoIds is the full playlist in its new order.

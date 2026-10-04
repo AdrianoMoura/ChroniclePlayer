@@ -1,4 +1,20 @@
+import type { FeedBucketDto } from '../ipc/contract'
 import { t } from './i18n'
+
+// A function, not a module-level object — must re-resolve against the
+// active language on every call (same reasoning as Sidebar.tsx's viewLabel).
+export function bucketLabel(bucket: FeedBucketDto): string {
+  switch (bucket) {
+    case 'today':
+      return t('app.bucket.today')
+    case 'yesterday':
+      return t('app.bucket.yesterday')
+    case 'this-week':
+      return t('app.bucket.thisWeek')
+    case 'earlier':
+      return t('app.bucket.earlier')
+  }
+}
 
 // feed.md §Feed item presentation: relative within 7 days, absolute date beyond.
 export function publishedLabel(publishedAt: string, now = Date.now()): string {
@@ -64,21 +80,21 @@ export function quotaResetLocalTime(): string {
   return formatClockTime(new Date(now.getTime() + untilMidnightMin * 60_000).toISOString())
 }
 
-// D-018: shown only when the setting enables it.
+// Shown only when the view-count setting enables it.
 export function formatViews(viewCount: number): string {
   return t('format.views', {
     count: new Intl.NumberFormat(undefined, { notation: 'compact' }).format(viewCount)
   })
 }
 
-// B-056: channel screen only — null when YouTube reports the count hidden.
+// Channel screen only — null when YouTube reports the count hidden.
 export function formatSubscriberCount(count: number): string {
   return t('format.subscribers', {
     count: new Intl.NumberFormat(undefined, { notation: 'compact' }).format(count)
   })
 }
 
-// Settings' storage indicator (D-020 exercised, local-data.md §Retention).
+// Settings' storage indicator (see local-data.md §Retention).
 // Unit abbreviations (MB/GB) are the same string in every shipped locale, so
 // this skips t() rather than adding translation keys for them.
 export function formatBytes(bytes: number): string {

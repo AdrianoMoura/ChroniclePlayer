@@ -1,24 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// "Extract to an always-on-top window" (B-045): a second BrowserWindow is a
-// separate renderer process, so there's no way to move the main window's
-// iframe DOM node into it. This reuses the same renderer bundle (loaded
-// with an `?extract=` query string, see main.tsx) as a fresh, minimal
-// instance: a bare clean-embed iframe filling the window, seeked to the
-// snapshot the main window handed off — no Chronicle chrome, no keyboard
-// shortcuts. It speaks the same postMessage widget protocol PlayerSurface
-// uses, for three reasons: (1) the URL's own `autoplay=1` alone doesn't
-// reliably start playback in this top-level context, so this issues an
-// explicit `playVideo()` command once the embed announces itself; (2)
+// The always-on-top extract window is a second BrowserWindow, a separate
+// renderer process — there's no way to move the main window's iframe DOM
+// node into it. This reuses the same renderer bundle (loaded with an
+// `?extract=` query string, see main.tsx) as a fresh, minimal instance: a
+// bare clean-embed iframe filling the window, seeked to the snapshot the
+// main window handed off — no Chronicle chrome, no keyboard shortcuts. It
+// speaks the same postMessage widget protocol PlayerSurface uses, for three
+// reasons: (1) the URL's own `autoplay=1` alone doesn't reliably start
+// playback in this top-level context, so this issues an explicit
+// `playVideo()` command once the embed announces itself; (2)
 // `resumePositionSeconds` is kept current so closing this window lets the
 // main window's miniplayer pick the video back up without losing the
-// user's place; (3) D-038's default playback rate is applied the same way
+// user's place; (3) the default playback rate is applied the same way
 // PlayerSurface applies it — there's no URL param for playback rate.
 
 const VIDEO_ID_PATTERN = /^[\w-]{1,64}$/
 const PLAYER_ORIGIN = 'https://www.youtube.com'
 const RESUME_MIN_SECONDS = 10
-// D-038's rate reissue normally fires on the first onStateChange(playing)
+// Playback-rate reissue normally fires on the first onStateChange(playing)
 // event, but the autoplay-initiated onStateChange isn't reliably observed
 // here. Reissuing on every infoDelivery tick instead — a steady heartbeat
 // once the widget is up — reliably lands the command after YouTube's own
@@ -64,7 +64,7 @@ export function ExtractedPlayerWindow({
   // this, index.html's static <title>Chronicle</title> would make this
   // window indistinguishable from the main one at the OS level (taskbar/
   // alt-tab/compositor window rules), since both load the same bundle and
-  // neither shows its own visible titlebar (D-051).
+  // neither shows its own visible titlebar.
   useEffect(() => {
     document.title = title ? `${title} - Chronicle` : 'Chronicle'
   }, [title])
@@ -88,9 +88,9 @@ export function ExtractedPlayerWindow({
     // See the file comment: the URL's autoplay=1 alone isn't reliable here,
     // so this is issued explicitly once the widget protocol is live.
     if (autoplay) command('playVideo')
-    // D-038: same as PlayerSurface — set the default rate up front, and
-    // reissue it once playback actually starts (below), since YouTube can
-    // reset it back to 1x the moment the stream begins.
+    // Same as PlayerSurface — set the default rate up front, and reissue it
+    // once playback actually starts (below), since YouTube can reset it
+    // back to 1x the moment the stream begins.
     if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
   }, [command, autoplay, defaultPlaybackRate])
 

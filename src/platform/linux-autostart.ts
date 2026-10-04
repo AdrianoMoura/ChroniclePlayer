@@ -2,10 +2,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-// D-050: Electron's app.setLoginItemSettings() only covers Windows/macOS —
-// Linux has no Electron-level auto-start API, so this hand-writes/removes an
-// XDG Autostart desktop entry (freedesktop.org spec), plain fs, no native
-// module (D-034).
+// Electron's app.setLoginItemSettings() only covers Windows/macOS — Linux has
+// no Electron-level auto-start API, so this hand-writes/removes an XDG
+// Autostart desktop entry (freedesktop.org spec) with plain fs, no native module.
 export function autostartDesktopFilePath(): string {
   return join(homedir(), '.config', 'autostart', 'chronicle-player.desktop')
 }

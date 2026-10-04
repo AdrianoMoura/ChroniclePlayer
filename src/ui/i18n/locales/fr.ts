@@ -1,8 +1,9 @@
 import type { Dict, LocaleMeta } from '../types'
 
-// D-072: AI-generated translation, not yet reviewed by a native speaker — it
-// may contain mistakes or awkward phrasing. If you speak French, a
-// correction or a full review is a welcome contribution: this is a plain
+// This translation was AI-generated and has not yet been reviewed by a
+// native speaker — it may contain mistakes or awkward phrasing. If you
+// speak French, a correction or a full review is a welcome contribution:
+// this is a plain
 // Partial<Dict>, so missing/wrong keys don't break anything — t() falls
 // back to English for any key missing here. `{name}`-style placeholders
 // must stay exactly as in en.ts; only the surrounding text should change.
@@ -502,7 +503,7 @@ export const dict: Partial<Dict> = {
   'sidebar.noChannels': 'Ce compte ne suit encore aucune chaîne.',
   'sidebar.settingsLabel': 'Paramètres',
 
-  // Sidebar — Accounts (B-003)
+  // Sidebar — Accounts
   'sidebar.accountsHeader': 'Comptes',
   'sidebar.accountDisconnected': 'Reconnexion nécessaire',
   'sidebar.addAccount': '+ Ajouter un compte',
@@ -520,7 +521,7 @@ export const dict: Partial<Dict> = {
   'sidebar.channelMenu.notify': 'Me notifier des nouvelles vidéos de cette chaîne',
   'sidebar.channelMenu.unnotify': 'Arrêter de me notifier pour cette chaîne',
 
-  // YouTube search (B-009)
+  // YouTube search
   'search.empty': 'Aucun résultat.',
   'search.searching': 'Recherche dans tout YouTube…',
   'search.searchingChannel': 'Recherche dans cette chaîne…',
@@ -530,7 +531,7 @@ export const dict: Partial<Dict> = {
   'search.videoChannelPrefix': 'sur',
   'search.loadingMore': 'Chargement d’autres résultats…',
 
-  // Comments (B-006)
+  // Comments
   'comments.show': 'Afficher les commentaires (c)',
   'comments.hide': 'Masquer les commentaires (c)',
   'comments.loading': 'Chargement des commentaires…',
@@ -550,7 +551,7 @@ export const dict: Partial<Dict> = {
   'comments.saveButton': 'Enregistrer',
   'comments.cancelButton': 'Annuler',
 
-  // Add another account (B-003)
+  // Add another account
   'addAccount.title': 'Ajouter un autre compte Google',
   'addAccount.instructions':
     'Ajoutez l’e-mail du nouveau compte comme utilisateur test sur votre projet Google Cloud existant (le même que lors de votre première configuration), puis connectez-le ci-dessous.',
@@ -572,7 +573,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.create': 'Créer',
   'playlists.dialog.cancel': 'Annuler',
 
-  // Import a YouTube playlist (D-059)
+  // Import a YouTube playlist
   'playlists.importButton': 'Importer depuis YouTube',
   'playlists.dialog.importTitle': 'Importer une playlist YouTube',
   'playlists.dialog.urlPlaceholder': 'Collez l’URL d’une playlist YouTube',
@@ -585,7 +586,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.importLog.stillWorking': 'Toujours en cours : cela peut prendre du temps pour une grande playlist…',
   'playlists.dialog.importLog.done': 'Terminé : {imported} vidéos importées sur {total}.',
 
-  // Sync an imported playlist (D-059)
+  // Sync an imported playlist
   'playlists.sync.upToDate': 'À jour',
   'playlists.sync.checkButton': 'Synchroniser',
   'playlists.sync.button': 'Synchroniser ({count} nouvelles)',

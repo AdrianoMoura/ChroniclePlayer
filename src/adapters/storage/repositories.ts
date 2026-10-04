@@ -53,7 +53,7 @@ export const FEED_SELECT = `
   LEFT JOIN video_state s ON s.video_id = v.video_id
 `
 
-// B-028: Shorts are shown by default, tagged with a badge — this filter only
+// Shorts are shown by default, tagged with a badge — this filter only
 // applies when the user's "Show Shorts" setting is off. Candidates are
 // excluded only after confirmation (is_short = 1); NULL (unknown) and 0
 // (confirmed not) both stay visible either way.
@@ -63,8 +63,8 @@ function shortsFilter(showShorts: boolean): string {
   return showShorts ? '' : `AND ${NOT_SHORT}`
 }
 
-// B-003: subscribed/favorite live per (account, channel) in account_channels
-// — more than one local account can follow the same channel. An EXISTS
+// subscribed/favorite live per (account, channel) in account_channels —
+// more than one local account can follow the same channel. An EXISTS
 // subquery (not a JOIN) avoids duplicating a video row per subscribing
 // account; accountId narrows to one account, undefined means any connected
 // account (the combined-feed default).
@@ -76,9 +76,8 @@ function membershipExists(column: 'subscribed' | 'favorite', accountId?: string)
   )`
 }
 
-// A favorited-but-unsubscribed channel (favorite outlives unsubscribe, D-039)
-// must not surface in the priority section — requires both flags on the
-// same row.
+// A favorited-but-unsubscribed channel (favorite outlives unsubscribe) must
+// not surface in the priority section — requires both flags on the same row.
 function favoritedAndSubscribedExists(accountId?: string): string {
   return `EXISTS (
     SELECT 1 FROM account_channels ac
@@ -88,8 +87,8 @@ function favoritedAndSubscribedExists(accountId?: string): string {
 }
 
 // Feed membership (feed.md): subscribed channels only. Favorites and Watch
-// Later are NOT feed views — they also reach externally opened videos
-// (D-029), so they skip the subscribed filter.
+// Later are NOT feed views — they also reach externally opened videos, so
+// they skip the subscribed filter.
 function viewPredicate(view: FeedView, accountId?: string): string {
   const subscribed = membershipExists('subscribed', accountId)
   switch (view) {
@@ -106,9 +105,9 @@ function viewPredicate(view: FeedView, accountId?: string): string {
   }
 }
 
-// Keyset pagination (D-027) fetch order — plain publishedAt, not core's
-// effectiveDate-based compareFeedOrder (D-053): a keyset cursor can't be
-// built on a value like "now" that changes between calls. FeedService.getSlice
+// Keyset pagination fetch order — plain publishedAt, not core's
+// effectiveDate-based compareFeedOrder: a keyset cursor can't be built on a
+// value like "now" that changes between calls. FeedService.getSlice
 // re-sorts each fetched page by effectiveDate for display without changing
 // which rows a page contains.
 const FEED_ORDER = `ORDER BY v.published_at DESC, c.title ASC, v.video_id ASC`
@@ -302,13 +301,13 @@ export class SqliteFeedRepository implements FeedRepository {
     return { entry: toEntry(row), description: row.description }
   }
 
-  // accountId (B-003) narrows to one account; unfiltered shows every channel
+  // accountId narrows to one account; unfiltered shows every channel
   // followed by any connected account, deduped (favorite = true if any
   // account favorites it — same OR-across-accounts semantics as membership).
   listFollowedChannels(showShorts = true, accountId?: string): FollowedChannel[] {
-    // Favorited channels first, then freshest channel first (B-008); channels
-    // with nothing synced sink to the bottom alphabetically. Counts mirror
-    // the unread view predicate.
+    // Favorited channels first, then freshest channel first; channels with
+    // nothing synced sink to the bottom alphabetically. Counts mirror the
+    // unread view predicate.
     const filter = shortsFilter(showShorts)
     const rows = this.db
       .prepare(
@@ -353,8 +352,8 @@ export class SqliteFeedRepository implements FeedRepository {
     }))
   }
 
-  // B-042: returns the new favorite state. accountId (B-003) scopes which
-  // account's relationship to the channel gets toggled.
+  // Returns the new favorite state. accountId scopes which account's
+  // relationship to the channel gets toggled.
   toggleChannelFavorite(accountId: string, channelId: string): boolean {
     const row = this.db
       .prepare(`SELECT favorite FROM account_channels WHERE account_id = ? AND channel_id = ?`)
@@ -366,7 +365,7 @@ export class SqliteFeedRepository implements FeedRepository {
     return next === 1
   }
 
-  // D-050: returns the new notify state (the "Custom" notification-scope
+  // Returns the new notify state (the "Custom" notification-scope
   // membership toggle) — same shape as toggleChannelFavorite above.
   toggleChannelNotify(accountId: string, channelId: string): boolean {
     const row = this.db
@@ -379,23 +378,23 @@ export class SqliteFeedRepository implements FeedRepository {
     return next === 1
   }
 
-  // D-050: direct set (not toggle) — syncs the notify flag to a channel's
-  // favorite state when autoNotifyFavorites is on.
+  // Direct set (not toggle) — syncs the notify flag to a channel's favorite
+  // state when autoNotifyFavorites is on.
   setChannelNotify(accountId: string, channelId: string, notify: boolean): void {
     this.db
       .prepare(`UPDATE account_channels SET notify = ? WHERE account_id = ? AND channel_id = ?`)
       .run(notify ? 1 : 0, accountId, channelId)
   }
 
-  // D-050: bulk-applies the notify flag to every row (any account) currently
+  // Bulk-applies the notify flag to every row (any account) currently
   // marked favorite, for the "auto-enable on favorite" setting.
   bulkSetNotifyForFavorites(enable: boolean): void {
     this.db.prepare(`UPDATE account_channels SET notify = ? WHERE favorite = 1`).run(enable ? 1 : 0)
   }
 
-  // B-009: cross-references search-result channels against local state so
-  // the UI can show "Subscribed" instead of a live Subscribe button —
-  // subscribed by any connected account (B-003).
+  // Cross-references search-result channels against local state so the UI
+  // can show "Subscribed" instead of a live Subscribe button — subscribed
+  // by any connected account.
   isSubscribed(channelId: string): boolean {
     const row = this.db
       .prepare(`SELECT 1 AS present FROM account_channels WHERE channel_id = ? AND subscribed = 1`)
@@ -403,11 +402,11 @@ export class SqliteFeedRepository implements FeedRepository {
     return row !== undefined
   }
 
-  // B-042: unread videos from favorited channels, most recent first, capped.
-  // D-039: these also stay in their normal chronological bucket — this is a
-  // separate, additive list, not a filter that removes them from elsewhere.
-  // accountId (B-003) narrows to one account's favorites; unfiltered is any
-  // connected account's favorites.
+  // Unread videos from favorited channels, most recent first, capped. These
+  // also stay in their normal chronological bucket — this is a separate,
+  // additive list, not a filter that removes them from elsewhere. accountId
+  // narrows to one account's favorites; unfiltered is any connected
+  // account's favorites.
   listPriorityVideos(limit: number, showShorts = true, accountId?: string): FeedEntry[] {
     const rows = this.db
       .prepare(
@@ -604,7 +603,7 @@ export class SqliteCatalogRepository implements CatalogRepository {
     return Number(row.n)
   }
 
-  // B-130: no ON DELETE CASCADE from video_state/playlist_videos onto videos
+  // No ON DELETE CASCADE from video_state/playlist_videos onto videos
   // (local-data.md), so each reference is dropped explicitly, in one
   // transaction, before the video row itself.
   deleteVideo(videoId: string): void {
