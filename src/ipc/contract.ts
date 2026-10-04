@@ -72,6 +72,18 @@ export interface FeedSliceDto {
   caughtUp: boolean
 }
 
+// D-073: the History screen's own keyset cursor — ordered by last_watched_at,
+// never publishedAt, so it can't reuse FeedCursorDto.
+export interface HistoryCursorDto {
+  lastWatchedAt: string
+  videoId: string
+}
+
+export interface HistoryPageDto {
+  videos: FeedVideoDto[]
+  nextCursor: HistoryCursorDto | null
+}
+
 // Local-only user-created playlists (never synced to YouTube). name/
 // description share these caps between the renderer's own input limits and
 // main.ts's boundary validation (same pattern as PLAYBACK_RATES above).
@@ -481,6 +493,10 @@ export const IpcChannel = {
   importPlaylist: 'playlist:import',
   checkPlaylistUpdates: 'playlist:checkUpdates',
   syncPlaylist: 'playlist:sync',
+  markWatched: 'state:markWatched',
+  clearWatched: 'state:clearWatched',
+  clearAllWatched: 'state:clearAllWatched',
+  searchHistory: 'history:search',
   events: 'chronicle:event'
 } as const
 
@@ -517,6 +533,17 @@ export interface ChronicleApi {
   // Persisted on pause/unmount, read back to resume playback. null clears
   // it (finished, or never played).
   setResumePosition(videoId: string, seconds: number | null): Promise<VideoStateDto>
+  // D-073: stamps "last watched" to now — called once per real player open
+  // (openVideo, App.tsx), independent of setReadStatus. Feeds the History
+  // screen only; no return value, nothing in the UI reads it directly.
+  markWatched(videoId: string): Promise<void>
+  // D-073: the History screen's own "remove from history" row action —
+  // clears last_watched_at only, leaving readStatus/favorite/watchLater
+  // untouched.
+  clearWatched(videoId: string): Promise<void>
+  // D-073: "Clear History" — clears every video's last_watched_at at once,
+  // regardless of the screen's current search query.
+  clearAllWatched(): Promise<void>
   // Per-video escape hatch (ui.md `b`); the backend builds the URL.
   openInBrowser(videoId: string): Promise<void>
   // Non-video links from descriptions (D-029: browser, always).
@@ -665,6 +692,15 @@ export interface ChronicleApi {
   // queue's FIFO suggestion for whatever just finished. Null once there's
   // nothing left to suggest.
   getNextWatchLater(currentVideoId: string): Promise<FeedVideoDto | null>
+  // D-073: the History screen — every watched video, most recently watched
+  // first, subscribed or not. query, when non-empty, narrows to a local
+  // substring match on title/channel title (never a YouTube API call).
+  // cursor continues from a previous page's nextCursor; null starts fresh.
+  searchHistory(
+    query: string,
+    cursor: HistoryCursorDto | null,
+    limit: number
+  ): Promise<HistoryPageDto>
   // B-002: on-demand back-catalog fetch (uploads playlist paging + hydration,
   // ~2 units/call) — triggered when scrolling past the local archive in a
   // channel-filtered view. Resumable across calls; exhausted once the

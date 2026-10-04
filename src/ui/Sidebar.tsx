@@ -75,8 +75,11 @@ function ContextMenu({
 // screen (its own screen, not a FeedView — a playlist has no read/unread
 // concept) at position 4, per the product owner's own placement. Keyboard
 // digit shortcuts (App.tsx) index into this same array, so its order is the
-// single source of truth for both the rendered list and `1`-`6`.
-export type NavEntry = { kind: 'view'; view: FeedViewDto } | { kind: 'playlists' }
+// single source of truth for both the rendered list and `1`-`7`. History
+// (D-073, also its own screen — every watched video has no read/unread
+// concept either) is appended last rather than interleaved, so it doesn't
+// renumber the six digit shortcuts people already have memorized.
+export type NavEntry = { kind: 'view'; view: FeedViewDto } | { kind: 'playlists' } | { kind: 'history' }
 
 export const NAV_ORDER: readonly NavEntry[] = [
   { kind: 'view', view: 'all' },
@@ -84,7 +87,8 @@ export const NAV_ORDER: readonly NavEntry[] = [
   { kind: 'view', view: 'watch-later' },
   { kind: 'playlists' },
   { kind: 'view', view: 'favorites' },
-  { kind: 'view', view: 'ignored' }
+  { kind: 'view', view: 'ignored' },
+  { kind: 'history' }
 ]
 
 // A function, not a module-level object — the label must resolve against
@@ -165,10 +169,12 @@ interface SidebarProps {
   channelQueryRef: RefObject<HTMLInputElement | null>
   settingsOpen: boolean
   playlistsOpen: boolean
+  historyOpen: boolean
   onSelectView: (view: FeedViewDto) => void
   onSelectChannel: (channelId: string | null) => void
   onOpenSettings: () => void
   onOpenPlaylists: () => void
+  onOpenHistory: () => void
   onToggleCollapse: () => void
   onUnsubscribe: (channelId: string) => void
   onToggleFavorite: (channelId: string) => void
@@ -194,10 +200,12 @@ export function Sidebar({
   channelQueryRef,
   settingsOpen,
   playlistsOpen,
+  historyOpen,
   onSelectView,
   onSelectChannel,
   onOpenSettings,
   onOpenPlaylists,
+  onOpenHistory,
   onToggleCollapse,
   onUnsubscribe,
   onToggleFavorite,
@@ -300,20 +308,35 @@ export function Sidebar({
         </button>
       </div>
       <nav>
-        {NAV_ORDER.map((entry, index) =>
-          entry.kind === 'playlists' ? (
-            <button
-              key="playlists"
-              className={`view${playlistsOpen ? ' active' : ''}`}
-              onClick={onOpenPlaylists}
-            >
-              <span className="view-key">{index + 1}</span>
-              <span className="view-label">{t('sidebar.view.playlists')}</span>
-            </button>
-          ) : (
+        {NAV_ORDER.map((entry, index) => {
+          if (entry.kind === 'playlists') {
+            return (
+              <button
+                key="playlists"
+                className={`view${playlistsOpen ? ' active' : ''}`}
+                onClick={onOpenPlaylists}
+              >
+                <span className="view-key">{index + 1}</span>
+                <span className="view-label">{t('sidebar.view.playlists')}</span>
+              </button>
+            )
+          }
+          if (entry.kind === 'history') {
+            return (
+              <button
+                key="history"
+                className={`view${historyOpen ? ' active' : ''}`}
+                onClick={onOpenHistory}
+              >
+                <span className="view-key">{index + 1}</span>
+                <span className="view-label">{t('sidebar.view.history')}</span>
+              </button>
+            )
+          }
+          return (
             <button
               key={entry.view}
-              className={`view${entry.view === view && channelFilter === null && !playlistsOpen ? ' active' : ''}`}
+              className={`view${entry.view === view && channelFilter === null && !playlistsOpen && !historyOpen ? ' active' : ''}`}
               onClick={() => onSelectView(entry.view)}
             >
               <span className="view-key">{index + 1}</span>
@@ -326,7 +349,7 @@ export function Sidebar({
               )}
             </button>
           )
-        )}
+        })}
       </nav>
 
       <div className="channel-list">

@@ -110,10 +110,14 @@ CREATE TABLE video_state (               -- D-010 model: status + orthogonal fla
   watch_later       INTEGER NOT NULL DEFAULT 0,
   watch_later_pos   INTEGER,                 -- queue order; NULL when not in queue
   resume_position_seconds INTEGER,           -- last playback position; NULL = none/finished (v7, B-044)
+  last_watched_at   TEXT,                    -- v19 (D-073): when this video was last opened in the
+                                              -- player, regardless of read_status; NULL = never watched.
+                                              -- Drives the History screen (feed.md §History)
   status_changed_at TEXT NOT NULL,
   updated_at        TEXT NOT NULL
 );
 CREATE INDEX idx_state_status ON video_state (read_status);
+CREATE INDEX idx_state_last_watched ON video_state (last_watched_at);
 
 CREATE TABLE playlists (                 -- D-058: user-created, local-only, never synced
   playlist_id       TEXT PRIMARY KEY,

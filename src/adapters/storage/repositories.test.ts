@@ -79,7 +79,7 @@ describe('migrations', () => {
   it('are idempotent (user_version guards re-application)', () => {
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('PRAGMA user_version').get() as { user_version: number | bigint }
-    expect(Number(row.user_version)).toBe(18)
+    expect(Number(row.user_version)).toBe(19)
   })
 
   it('upgrades a v1 database in place (forward-only chain)', () => {
@@ -204,6 +204,122 @@ describe('SqliteStateRepository', () => {
     addVideo('v1', '2026-07-08T10:00:00Z')
     states.setResumePosition('v1', 90)
     expect(feed.findVideo('v1')?.entry.state.resumePositionSeconds).toBe(90)
+  })
+})
+
+describe('markWatched / searchHistory (D-073)', () => {
+  function mutableClock(startIso: string): Clock & { advance: (ms: number) => void } {
+    let now = new Date(startIso).getTime()
+    return { now: () => new Date(now), advance: (ms: number) => (now += ms) }
+  }
+
+  it('a video never watched is absent from history', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    expect(feed.searchHistory('', null, 50).entries).toEqual([])
+  })
+
+  it('markWatched stamps last_watched_at without disturbing other state', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    states.toggleFavorite('v1')
+    states.markWatched('v1')
+    expect(states.get('v1')).toEqual({
+      readStatus: 'unread',
+      favorite: true,
+      watchLater: false,
+      resumePositionSeconds: null
+    })
+    expect(feed.searchHistory('', null, 50).entries.map((e) => e.entry.video.videoId)).toEqual(['v1'])
+  })
+
+  it('orders by most recently watched first, including a non-subscribed video (D-029)', () => {
+    const clock = mutableClock('2026-07-08T10:00:00Z')
+    const watchStates = new SqliteStateRepository(db, clock)
+    addVideo('v1', '2026-07-01T00:00:00Z')
+    addVideo('v2', '2026-07-02T00:00:00Z')
+    catalog.upsertChannel({ channelId: 'UCx', title: 'Unsubscribed', thumbnailUrl: null })
+    addVideo('v3', '2026-07-03T00:00:00Z', 'UCx') // never subscribed
+
+    watchStates.markWatched('v1')
+    clock.advance(1000)
+    watchStates.markWatched('v3')
+    clock.advance(1000)
+    watchStates.markWatched('v2')
+
+    expect(feed.searchHistory('', null, 50).entries.map((e) => e.entry.video.videoId)).toEqual([
+      'v2',
+      'v3',
+      'v1'
+    ])
+  })
+
+  it('rewatching moves a video back to the top', () => {
+    const clock = mutableClock('2026-07-08T10:00:00Z')
+    const watchStates = new SqliteStateRepository(db, clock)
+    addVideo('v1', '2026-07-01T00:00:00Z')
+    addVideo('v2', '2026-07-02T00:00:00Z')
+    watchStates.markWatched('v1')
+    clock.advance(1000)
+    watchStates.markWatched('v2')
+    clock.advance(1000)
+    watchStates.markWatched('v1')
+    expect(feed.searchHistory('', null, 50).entries.map((e) => e.entry.video.videoId)).toEqual([
+      'v1',
+      'v2'
+    ])
+  })
+
+  it('query filters by title or channel title, case-insensitively, as a local substring match', () => {
+    addVideo('v1', '2026-07-01T00:00:00Z', 'UCa') // "Video v1", channel "Alpha"
+    addVideo('v2', '2026-07-02T00:00:00Z', 'UCb') // "Video v2", channel "Beta"
+    states.markWatched('v1')
+    states.markWatched('v2')
+    expect(feed.searchHistory('alpha', null, 50).entries.map((e) => e.entry.video.videoId)).toEqual([
+      'v1'
+    ])
+    expect(feed.searchHistory('video', null, 50).entries.map((e) => e.entry.video.videoId).sort()).toEqual(
+      ['v1', 'v2']
+    )
+    expect(feed.searchHistory('nonexistent', null, 50).entries).toEqual([])
+  })
+
+  it('a literal % or _ in the query is matched literally, not as a LIKE wildcard', () => {
+    addVideo('v1', '2026-07-01T00:00:00Z')
+    states.markWatched('v1')
+    expect(feed.searchHistory('100%', null, 50).entries).toEqual([])
+  })
+
+  it('paginates via a last_watched_at/videoId keyset cursor', () => {
+    const clock = mutableClock('2026-07-08T10:00:00Z')
+    const watchStates = new SqliteStateRepository(db, clock)
+    for (const id of ['v1', 'v2', 'v3']) {
+      addVideo(id, '2026-07-01T00:00:00Z')
+      watchStates.markWatched(id)
+      clock.advance(1000)
+    }
+    const page1 = feed.searchHistory('', null, 2)
+    expect(page1.entries.map((e) => e.entry.video.videoId)).toEqual(['v3', 'v2'])
+    expect(page1.nextCursor).not.toBeNull()
+    const page2 = feed.searchHistory('', page1.nextCursor, 2)
+    expect(page2.entries.map((e) => e.entry.video.videoId)).toEqual(['v1'])
+    expect(page2.nextCursor).toBeNull()
+  })
+
+  it('clearWatched removes one video from history without touching other state', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    states.toggleFavorite('v1')
+    states.markWatched('v1')
+    states.clearWatched('v1')
+    expect(feed.searchHistory('', null, 50).entries).toEqual([])
+    expect(states.get('v1').favorite).toBe(true) // untouched
+  })
+
+  it('clearAllWatched clears every video at once', () => {
+    addVideo('v1', '2026-07-08T10:00:00Z')
+    addVideo('v2', '2026-07-08T11:00:00Z')
+    states.markWatched('v1')
+    states.markWatched('v2')
+    states.clearAllWatched()
+    expect(feed.searchHistory('', null, 50).entries).toEqual([])
   })
 })
 

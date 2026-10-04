@@ -10,7 +10,7 @@ plus local follows once D-030's "Follow locally" mechanism is built) — and not
 Videos opened via links or URL
 (D-029, `playback.md`) are stored locally but **never enter the feed** and never count
 as unread; they are reachable through the states the user gave them (Favorites, Watch
-Later).
+Later) or, once opened at all, through History (D-073).
 
 - **Multi-account (B-003, implemented 2026-07-12):** with more than one connected Google
   account, the feed is every connected account's subscriptions **combined** by default —
@@ -210,6 +210,31 @@ own next video (`core/playlist.ts`'s `nextInPlaylist`) instead of falling back t
 Later — unlike `nextWatchLaterAfter` (D-057), this deliberately does **not** wrap around:
 a playlist is a curated collection with a real end, not a rotation to dip in and out of,
 so its last video ending suggests nothing further.
+
+### History (D-073)
+
+Every video Chronicle has ever played, most recently watched first — subscribed or not,
+and regardless of `read_status`/favorite/Watch Later. Backed by a new `video_state.
+last_watched_at` timestamp (`local-data.md`), stamped once per real player open
+(`openVideo()`, not the read/unread toggle) — distinct from `status_changed_at` (moves on
+an unrelated manual `m` toggle, with no watching involved) and from
+`resume_position_seconds` (progress within one watch, cleared once finished). Not a
+`FeedView` — like Playlists, it's its own screen, since "last watched" has no read/unread
+concept to filter by. Bucketed the same Today/Yesterday/This Week/Earlier way as the main
+feed (below) — same grouping, just keyed on when each video was watched instead of when it
+was published; `core/feed-service.ts`'s `getHistory` computes the bucket off
+`last_watched_at` via the same `bucketOf` the main feed uses. Rewatching an already-ignored
+(or otherwise hidden) video still revives it to the top — `last_watched_at` doesn't look at
+`read_status` at all. Has its own local-only free-text search (title/channel title
+substring match), never a YouTube API call, kept visually and mechanically separate from
+the topbar's own `/` search (which always reaches YouTube, `youtube-api.md`) so neither
+reads as the other. A per-video "remove from history" action clears just that video's
+`last_watched_at` (inline undo, same mechanism as Playlists' own removal, D-058); a
+"Clear History" button clears every video's at once, regardless of the screen's current
+search query. Neither ever touches `read_status`/favorite/Watch Later — removing a watch
+record isn't the same as un-reading or un-favoriting a video. 100% local, never synced to
+YouTube — same rule as every other state here (D-003); not the YouTube API's own watch
+history, which the API doesn't expose at all.
 
 ## Feed item presentation
 

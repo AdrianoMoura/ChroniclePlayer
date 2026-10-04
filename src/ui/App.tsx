@@ -9,6 +9,7 @@ import type {
   FeedMetaDto,
   FeedVideoDto,
   FeedViewDto,
+  HistoryCursorDto,
   PlayerVideoDto,
   PlaylistDto,
   ReadStatusDto,
@@ -32,12 +33,13 @@ import {
   type FeedRow,
   type VideoActions
 } from './FeedList'
-import { formatClockTime, quotaResetLocalTime } from './format'
+import { bucketLabel, formatClockTime, quotaResetLocalTime } from './format'
 import { HelpOverlay } from './HelpOverlay'
 import { setLocale, t } from './i18n'
 import { MiniPlayerBar } from './MiniPlayerBar'
 import { PlayerDetails, type PlayerDetailsHandle } from './PlayerDetails'
 import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
+import { HistoryView } from './HistoryView'
 import { PlaylistDetailView } from './PlaylistDetailView'
 import { PlaylistsView } from './PlaylistsView'
 import { SettingsView } from './SettingsView'
@@ -55,22 +57,8 @@ import { useWriteScopeGate } from './useWriteScopeGate'
 import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
-// A function, not a module-level object — see Sidebar.tsx's viewLabel for
-// why (D-054): must re-resolve against the active language on every call.
-function bucketLabel(bucket: FeedBucketDto): string {
-  switch (bucket) {
-    case 'today':
-      return t('app.bucket.today')
-    case 'yesterday':
-      return t('app.bucket.yesterday')
-    case 'this-week':
-      return t('app.bucket.thisWeek')
-    case 'earlier':
-      return t('app.bucket.earlier')
-  }
-}
-
 const UNDO_WINDOW_MS = 5000
+const HISTORY_PAGE_SIZE = 50 // D-073, mirrors FEED_PAGE_SIZE (core/feed-service.ts)
 
 // B-097: the banner itself stays a one-line count; per-channel detail is an
 // on-demand disclosure rather than always-rendered clutter.
@@ -189,6 +177,10 @@ export function App() {
   // above — playlist rows never show the ignore action at all, so a video
   // can only ever be undoable one way or the other.
   const [playlistUndoable, setPlaylistUndoable] = useState<ReadonlySet<string>>(new Set())
+  // Same shape, separately scoped, for "remove from history" (D-073) — a
+  // video is never undoable via both playlist-removal and history-removal
+  // at once, but each still needs its own set to avoid cross-screen bleed.
+  const [historyUndoable, setHistoryUndoable] = useState<ReadonlySet<string>>(new Set())
   const [auth, setAuth] = useState<AuthStatusDto | null>(null)
   const [banner, setBanner] = useState<Banner | null>(null)
   const [failureDetailsOpen, setFailureDetailsOpen] = useState(false)
@@ -268,7 +260,7 @@ export function App() {
   const [newVideosPill, setNewVideosPill] = useState<number | null>(null)
   const [wizard, setWizard] = useState<WizardStateDto | null>(null)
   const [wizardEntry, setWizardEntry] = useState<WizardStateDto | null>(null)
-  const [screen, setScreen] = useState<'feed' | 'settings' | 'playlists'>('feed')
+  const [screen, setScreen] = useState<'feed' | 'settings' | 'playlists' | 'history'>('feed')
   // Playlists (local-only, never synced to YouTube). playlistFilter mirrors
   // channelFilter's own null-means-list-view pattern: null shows the
   // PlaylistsView list, a playlistId shows that playlist's own detail screen.
@@ -276,6 +268,16 @@ export function App() {
   const [playlistFilter, setPlaylistFilter] = useState<string | null>(null)
   const [currentPlaylist, setCurrentPlaylist] = useState<PlaylistDto | null>(null)
   const [playlistVideos, setPlaylistVideos] = useState<FeedVideoDto[]>([])
+  // D-073: the History screen. Flat and infinite-scrolled (unlike the fully-
+  // loaded playlist video lists above) since it only ever grows across the
+  // app's whole lifetime — same keyset-pagination shape as the main feed,
+  // just on its own last_watched_at-based cursor.
+  const [historyQuery, setHistoryQuery] = useState('')
+  const [historyVideos, setHistoryVideos] = useState<FeedVideoDto[]>([])
+  const [historyCursor, setHistoryCursor] = useState<HistoryCursorDto | null>(null)
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
+  const historyLoadingRef = useRef(false)
+  const historyGenerationRef = useRef(0)
   // The video whose "Add to Playlist" button was clicked — reachable from
   // every video card/row everywhere (feed, channel, watch later, player), so
   // this dialog is global rather than owned by any one screen.
@@ -328,6 +330,7 @@ export function App() {
   const loadingRef = useRef(false)
   const undoInfo = useRef(new Map<string, { previous: ReadStatusDto; timer: number }>())
   const playlistUndoInfo = useRef(new Map<string, { timer: number }>())
+  const historyUndoInfo = useRef(new Map<string, { timer: number }>())
   const lastG = useRef(0)
   const filterInputRef = useRef<HTMLInputElement>(null)
   const channelQueryRef = useRef<HTMLInputElement>(null)
@@ -517,6 +520,39 @@ export function App() {
       loadPlaylistDetail(playlistFilter)
     }
   }, [screen, playlistFilter, loadPlaylists, loadPlaylistDetail])
+
+  // D-073: same generation-guard shape as loadView/loadMore below — a query
+  // change or screen re-entry can start a new fetch before a previous one
+  // resolves, and a stale response must never clobber newer results.
+  const loadHistory = useCallback((query: string) => {
+    const generation = ++historyGenerationRef.current
+    historyLoadingRef.current = true
+    void window.chronicle.searchHistory(query, null, HISTORY_PAGE_SIZE).then((page) => {
+      if (historyGenerationRef.current !== generation) return
+      historyLoadingRef.current = false
+      setHistoryVideos(page.videos)
+      setHistoryCursor(page.nextCursor)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (screen !== 'history') return
+    loadHistory(historyQuery)
+  }, [screen, historyQuery, loadHistory])
+
+  const loadMoreHistory = useCallback(() => {
+    if (historyLoadingRef.current || historyCursor === null) return
+    const generation = historyGenerationRef.current
+    historyLoadingRef.current = true
+    setHistoryLoadingMore(true)
+    void window.chronicle.searchHistory(historyQuery, historyCursor, HISTORY_PAGE_SIZE).then((page) => {
+      if (historyGenerationRef.current !== generation) return
+      historyLoadingRef.current = false
+      setHistoryLoadingMore(false)
+      setHistoryVideos((current) => [...current, ...page.videos])
+      setHistoryCursor(page.nextCursor)
+    })
+  }, [historyQuery, historyCursor])
 
   useEffect(() => {
     feedEmptyRef.current = videos.length === 0
@@ -959,6 +995,12 @@ export function App() {
       setPlaylistVideos((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
+      // Same staleness reason, for the History screen's own separate fetch
+      // (B-125-127's precedent) — e.g. favoriting a video from inside
+      // History must update its icon immediately, not just on next visit.
+      setHistoryVideos((current) =>
+        current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
+      )
       // B-131: the two transient search lists (free-text results, a
       // non-subscribed channel's preview) carry the same three state fields
       // flattened rather than nested under `state` — same staleness reason
@@ -1004,6 +1046,10 @@ export function App() {
           return
         }
         let state = await window.chronicle.setReadStatus(videoId, 'read')
+        // D-073: stamps this open into the History screen's own timeline.
+        // Fire-and-forget like setResumePosition's own checkpoints — nothing
+        // in this screen's state depends on the result.
+        void window.chronicle.markWatched(videoId)
         // Opening a queued video can double as "watch it and it's gone" —
         // opt-in, since the default (queue only shrinks on a deliberate
         // toggle) is what most Watch Later users expect.
@@ -1075,6 +1121,20 @@ export function App() {
       openVideo(video.videoId, 'replace')
     },
     [playlistVideos, currentPlaylist, openVideo]
+  )
+
+  // D-073: mirrors openFromFeed's own shape for the History screen — no
+  // queue, no playlist context (History isn't a curated collection to offer
+  // an "up next" suggestion from, just a chronological log).
+  const openFromHistory = useCallback(
+    (videoIndex: number) => {
+      const video = historyVideos[videoIndex]
+      if (!video) return
+      queueRef.current = null
+      playlistContextRef.current = null
+      openVideo(video.videoId, 'replace')
+    },
+    [historyVideos, openVideo]
   )
 
   const createPlaylist = useCallback((playlist: PlaylistDto) => {
@@ -1174,6 +1234,58 @@ export function App() {
     },
     [playlistFilter, clearPlaylistUndo, playlistVideos]
   )
+
+  const clearHistoryUndo = useCallback((videoId: string) => {
+    const info = historyUndoInfo.current.get(videoId)
+    if (info) window.clearTimeout(info.timer)
+    historyUndoInfo.current.delete(videoId)
+    setHistoryUndoable((set) => {
+      const next = new Set(set)
+      next.delete(videoId)
+      return next
+    })
+  }, [])
+
+  // D-073: same inline-undo shape as removeVideoFromCurrentPlaylist above —
+  // persists immediately (clears last_watched_at), keeps the row on screen
+  // as an undo strip until UNDO_WINDOW_MS actually drops it from
+  // historyVideos. Simpler than the playlist case: no server-side order to
+  // keep in sync, just the one timestamp.
+  const removeVideoFromHistory = useCallback(
+    (videoId: string) => {
+      void window.chronicle.clearWatched(videoId).then(() => {
+        const timer = window.setTimeout(() => {
+          clearHistoryUndo(videoId)
+          setHistoryVideos((current) => current.filter((v) => v.videoId !== videoId))
+        }, UNDO_WINDOW_MS)
+        historyUndoInfo.current.set(videoId, { timer })
+        setHistoryUndoable((set) => new Set(set).add(videoId))
+      })
+    },
+    [clearHistoryUndo]
+  )
+
+  // Restamps last_watched_at to now rather than its exact original value —
+  // the row never left `historyVideos` during the undo window, so nothing
+  // visibly moves; only a later reload would resort it, landing at the top
+  // as "just watched" again, which is an acceptable reading of "undo."
+  const undoRemoveFromHistory = useCallback(
+    (video: FeedVideoDto) => {
+      if (!historyUndoInfo.current.has(video.videoId)) return
+      clearHistoryUndo(video.videoId)
+      void window.chronicle.markWatched(video.videoId)
+    },
+    [clearHistoryUndo]
+  )
+
+  // D-073: "Clear History" — unscoped by the screen's current search query
+  // (clears everything, not just what's currently filtered/visible).
+  const clearAllHistory = useCallback(() => {
+    void window.chronicle.clearAllWatched().then(() => {
+      setHistoryVideos([])
+      setHistoryCursor(null)
+    })
+  }, [])
 
   // Drag-and-drop reorder within a playlist's own screen — same local-first-
   // then-persist shape as reorderWatchLater below, scoped to playlistVideos
@@ -1315,6 +1427,12 @@ export function App() {
     leavePlayerForNavigation()
     setScreen('playlists')
     setPlaylistFilter(null)
+  }, [closeSearch, leavePlayerForNavigation])
+
+  const openHistoryScreen = useCallback(() => {
+    closeSearch()
+    leavePlayerForNavigation()
+    setScreen('history')
   }, [closeSearch, leavePlayerForNavigation])
 
   const nextInQueue = useCallback(() => {
@@ -1785,37 +1903,40 @@ export function App() {
         if (event.key === 'Escape') setScreen('feed')
         return
       }
-      // The Playlists screen renders (and stays interactive) regardless of
-      // whether a video is also docked over it (App.tsx's own screen ===
-      // 'playlists' branch always shows PlaylistsView/PlaylistDetailView,
-      // same as the main feed staying visible under its own docked
+      // The Playlists/History screens render (and stay interactive)
+      // regardless of whether a video is also docked over them (App.tsx's
+      // own screen === 'playlists'/'history' branches always show their own
+      // view, same as the main feed staying visible under its own docked
       // miniplayer) — the early return above already excludes the one case
-      // where it wouldn't be visible (a full-view player covering
-      // everything). So this owns the keyboard whenever screen is
-      // 'playlists', docked video or not.
-      if (screen === 'playlists') {
-        // Editing a playlist's name/description (PlaylistDetailView) needs
-        // normal typing — same guard the main input-handling block below
-        // applies, just checked earlier since this branch returns before
-        // ever reaching that block.
+      // where neither would be visible (a full-view player covering
+      // everything). So this owns the keyboard whenever screen is one of
+      // the two, docked video or not.
+      if (screen === 'playlists' || screen === 'history') {
+        // Editing a playlist's name/description (PlaylistDetailView), or
+        // typing into History's own search field, needs normal typing —
+        // same guard the main input-handling block below applies, just
+        // checked earlier since this branch returns before ever reaching
+        // that block.
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
           return
         if (helpOpen) {
           if (event.key === 'Escape' || event.key === '?') setHelpOpen(false)
           return
         }
-        // Per-video navigation (j/k/Enter/m/f/w/i/b) inside a playlist's own
-        // video list is owned by PlaylistDetailView's own keydown handler —
-        // it has the playlist-scoped cursor/video list this handler has no
-        // access to. Only the shortcuts that are meaningful regardless of
-        // screen live here, mirroring the main feed's own bindings below.
+        // Per-video navigation (j/k/Enter/m/f/w/i/b) inside a playlist's or
+        // History's own video list is owned by PlaylistDetailView's/
+        // HistoryView's own keydown handler — each has the scoped cursor/
+        // video list this handler has no access to. Only the shortcuts
+        // that are meaningful regardless of screen live here, mirroring the
+        // main feed's own bindings below.
         switch (event.key) {
           case 'Escape':
             // Mirrors channelFilter's own Escape behavior in the main feed
             // (narrows back out one level rather than leaving the screen
             // outright): a playlist's own detail screen steps back to the
-            // list first; the list itself then leaves to the main feed.
-            if (playlistFilter !== null) setPlaylistFilter(null)
+            // list first; the list itself (or History, which has no further
+            // level to step back through) then leaves to the main feed.
+            if (screen === 'playlists' && playlistFilter !== null) setPlaylistFilter(null)
             else setScreen('feed')
             break
           case '1':
@@ -1823,10 +1944,13 @@ export function App() {
           case '3':
           case '4':
           case '5':
-          case '6': {
+          case '6':
+          case '7': {
             const entry = NAV_ORDER[Number(event.key) - 1]
             if (entry.kind === 'playlists') {
               openPlaylistsScreen()
+            } else if (entry.kind === 'history') {
+              openHistoryScreen()
             } else {
               setScreen('feed')
               setChannelFilter(null)
@@ -1918,7 +2042,7 @@ export function App() {
           if (current) actions.openInBrowser(current)
           break
         case 'm':
-          if (current) actions.toggleRead(current)
+          if (current) actions.toggleRead!(current)
           break
         case 'i':
           if (current) actions.ignore?.(current)
@@ -1977,10 +2101,13 @@ export function App() {
         case '3':
         case '4':
         case '5':
-        case '6': {
+        case '6':
+        case '7': {
           const entry = NAV_ORDER[Number(event.key) - 1]
           if (entry.kind === 'playlists') {
             openPlaylistsScreen()
+          } else if (entry.kind === 'history') {
+            openHistoryScreen()
           } else {
             setScreen('feed')
             setChannelFilter(null)
@@ -2006,12 +2133,12 @@ export function App() {
         setScreen('feed')
         return
       }
-      if (screen === 'playlists') {
+      if (screen === 'playlists' || screen === 'history') {
         if (helpOpen) {
           setHelpOpen(false)
           return
         }
-        if (playlistFilter !== null) setPlaylistFilter(null)
+        if (screen === 'playlists' && playlistFilter !== null) setPlaylistFilter(null)
         else setScreen('feed')
         return
       }
@@ -2049,7 +2176,8 @@ export function App() {
     changeSettings,
     closePlayer,
     openPlaylistsScreen,
-    playlistFilter
+    playlistFilter,
+    openHistoryScreen
   ])
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
@@ -2143,6 +2271,7 @@ export function App() {
           channelQueryRef={channelQueryRef}
           settingsOpen={screen === 'settings'}
           playlistsOpen={screen === 'playlists'}
+          historyOpen={screen === 'history'}
           onSelectView={(next) => {
             closeSearch()
             leavePlayerForNavigation()
@@ -2170,6 +2299,7 @@ export function App() {
             void window.chronicle.getAuthStatus().then(setAuth)
           }}
           onOpenPlaylists={openPlaylistsScreen}
+          onOpenHistory={openHistoryScreen}
           onToggleCollapse={toggleSidebar}
           onUnsubscribe={unsubscribeChannel}
           onToggleFavorite={toggleChannelFavorite}
@@ -2219,9 +2349,11 @@ export function App() {
           </>
         ) : (
           <>
-            {screen === 'playlists' ? (
+            {screen === 'playlists' || screen === 'history' ? (
               <header className="topbar">
-                <span className="topbar-view">{t('sidebar.view.playlists')}</span>
+                <span className="topbar-view">
+                  {t(screen === 'playlists' ? 'sidebar.view.playlists' : 'sidebar.view.history')}
+                </span>
                 <span className="topbar-spacer" />
                 <input
                   className="size-slider"
@@ -2435,6 +2567,26 @@ export function App() {
                     />
                   )
                 )
+              ) : screen === 'history' ? (
+                <HistoryView
+                  videos={historyVideos}
+                  query={historyQuery}
+                  onQueryChange={setHistoryQuery}
+                  itemSize={settings.itemSize}
+                  layout={settings.layout}
+                  showViewCounts={settings.showViewCounts}
+                  undoable={historyUndoable}
+                  actions={actions}
+                  onOpen={openFromHistory}
+                  onOpenChannel={navigateToChannel}
+                  onNearEnd={loadMoreHistory}
+                  loadingMore={historyLoadingMore}
+                  onRemoveVideo={removeVideoFromHistory}
+                  onUndoRemoveVideo={undoRemoveFromHistory}
+                  onClearAll={clearAllHistory}
+                  helpOpen={helpOpen}
+                  playerFullView={playerOpen && !miniplayer}
+                />
               ) : showConnectPanel ? (
                 <ConnectPanel
                   auth={auth}

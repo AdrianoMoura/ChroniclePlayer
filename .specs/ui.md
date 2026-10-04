@@ -30,8 +30,11 @@ Three-region desktop layout:
 
 - **Sidebar**: views (All, Unread, Watch Later, **Playlists** (D-058, position 4 —
   user-created local playlists; its own screen, not a `FeedView`, so it sits between
-  the five views without being one of them), Favorites, Ignored), then the channel
-  list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
+  the five views without being one of them), Favorites, Ignored, **History** (D-073,
+  appended last rather than interleaved like Playlists — every watched video, most
+  recently watched first; also its own screen, not a `FeedView`, specifically so it
+  doesn't renumber the six digit shortcuts people already had memorized)), then the
+  channel list (click = filter feed to that channel, `…` menu = Favorite/Unfavorite,
   Unsubscribe — B-010/B-042), with an inline sort control (D-060: Favorites
   default/Recent/Unread/Name, session-only, always restarts on Favorites), then an
   **Accounts** section (B-003, implemented
@@ -86,7 +89,7 @@ with a visible cursor row.
 | `e` | maximize the docked miniplayer back to the full player (only while docked) — B-104 |
 | `x` | close the docked miniplayer (only while docked) — B-104 |
 | `gg` / `G` | top / end of loaded feed |
-| `1…6` | switch view/screen (All, Unread, WL, **Playlists** — D-058, opens the Playlists screen's list rather than a `FeedView` — Fav, Ignored) |
+| `1…7` | switch view/screen (All, Unread, WL, **Playlists** — D-058, opens the Playlists screen's list rather than a `FeedView` — Fav, Ignored, **History** — D-073, same "its own screen" shape as Playlists) |
 | `r` | refresh |
 | `Ctrl+O` | open a YouTube video by URL (D-029) |
 | `/` | focus the search field — Enter searches YouTube directly (D-031), or scopes to the open channel's own videos if a channel screen is showing (D-071); also works while a video is playing, exiting fully back to the feed first |

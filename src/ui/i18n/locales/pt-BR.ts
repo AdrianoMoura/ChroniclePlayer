@@ -38,7 +38,7 @@ export const dict: Partial<Dict> = {
   'help.action.toggleLayout': 'alternar visualização em grade / lista',
   'help.action.topEnd': 'início / fim do feed carregado',
   'help.action.switchView':
-    'trocar de view (Todos, Não lidos, Assistir depois, Playlists, Favoritos, Ignorados)',
+    'trocar de view (Todos, Não lidos, Assistir depois, Playlists, Favoritos, Ignorados, Histórico)',
   'help.action.reload': 'recarregar a partir dos dados locais',
   'help.action.filter': 'filtrar na view',
   'help.action.findChannel': 'buscar canal (barra lateral)',
@@ -428,6 +428,8 @@ export const dict: Partial<Dict> = {
   'feed.card.undoButton': 'Desfazer (u)',
   'feed.card.undoLabelPlaylist': 'Removido da playlist: vai sair desta lista',
   'feed.card.undoButtonPlaylist': 'Desfazer',
+  'feed.card.undoLabelHistory': 'Removido do histórico: vai sair desta lista',
+  'feed.card.undoButtonHistory': 'Desfazer',
   'feed.card.favoriteTitle': 'Favorito',
   'feed.card.watchLaterTitle': 'Assistir mais tarde',
   'feed.card.toggleReadTitle': 'Alternar lido (m)',
@@ -437,6 +439,7 @@ export const dict: Partial<Dict> = {
   'feed.card.openInBrowserTitle': 'Abrir no navegador (b)',
   'feed.card.addToPlaylistTitle': 'Adicionar à playlist',
   'feed.card.removeFromPlaylistTitle': 'Remover desta playlist',
+  'feed.card.removeFromHistoryTitle': 'Remover do histórico',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Ao vivo',
   'feed.card.premiereBadge': 'Estreia',
@@ -497,6 +500,7 @@ export const dict: Partial<Dict> = {
   'sidebar.view.favorites': 'Favoritos',
   'sidebar.view.playlists': 'Playlists',
   'sidebar.view.ignored': 'Ignorados',
+  'sidebar.view.history': 'Histórico',
   'sidebar.channelsHeader': 'Canais',
   'sidebar.channelSortTitle': 'Ordenar canais',
   'sidebar.channelSort.favorites': 'Favoritos',
@@ -624,5 +628,12 @@ export const dict: Partial<Dict> = {
   'share.copy': 'Copiar',
   'share.copied': 'Copiado',
   'share.includeTimestamp': 'Incluir o momento atual ({time})',
-  'share.done': 'Concluído'
+  'share.done': 'Concluído',
+
+  // Histórico (D-073) — todo vídeo que o Chronicle já reproduziu, só local.
+  'history.searchPlaceholder': 'Buscar no seu histórico…',
+  'history.empty': 'Nada assistido ainda.',
+  'history.emptyFiltered': 'Nenhum resultado no seu histórico.',
+  'history.clearButton': 'Limpar histórico',
+  'history.confirmClear': 'Clique novamente para confirmar'
 }

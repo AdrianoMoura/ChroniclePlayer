@@ -38,7 +38,7 @@ export const dict = {
   'help.action.markAllRead': 'mark all as read (current view)',
   'help.action.toggleLayout': 'toggle grid / list view',
   'help.action.topEnd': 'top / end of loaded feed',
-  'help.action.switchView': 'switch view (All, Unread, WL, Playlists, Fav, Ignored)',
+  'help.action.switchView': 'switch view (All, Unread, WL, Playlists, Fav, Ignored, History)',
   'help.action.reload': 'reload from local data',
   'help.action.filter': 'filter in view',
   'help.action.findChannel': 'find channel (sidebar)',
@@ -433,6 +433,8 @@ export const dict = {
   'feed.card.undoButton': 'Undo (u)',
   'feed.card.undoLabelPlaylist': 'Removed from playlist: it will leave this list',
   'feed.card.undoButtonPlaylist': 'Undo',
+  'feed.card.undoLabelHistory': 'Removed from history: it will leave this list',
+  'feed.card.undoButtonHistory': 'Undo',
   'feed.card.favoriteTitle': 'Favorite',
   'feed.card.watchLaterTitle': 'Watch Later',
   'feed.card.toggleReadTitle': 'Toggle read (m)',
@@ -442,6 +444,7 @@ export const dict = {
   'feed.card.openInBrowserTitle': 'Open in browser (b)',
   'feed.card.addToPlaylistTitle': 'Add to playlist',
   'feed.card.removeFromPlaylistTitle': 'Remove from this playlist',
+  'feed.card.removeFromHistoryTitle': 'Remove from history',
   'feed.card.shortBadge': 'Short',
   'feed.card.liveBadge': 'Live',
   'feed.card.premiereBadge': 'Premiere',
@@ -502,6 +505,7 @@ export const dict = {
   'sidebar.view.favorites': 'Favorites',
   'sidebar.view.playlists': 'Playlists',
   'sidebar.view.ignored': 'Ignored',
+  'sidebar.view.history': 'History',
   'sidebar.channelsHeader': 'Channels',
   'sidebar.channelSortTitle': 'Sort channels',
   'sidebar.channelSort.favorites': 'Favorites',
@@ -632,5 +636,12 @@ export const dict = {
   'share.copy': 'Copy',
   'share.copied': 'Copied',
   'share.includeTimestamp': 'Include current timestamp ({time})',
-  'share.done': 'Done'
+  'share.done': 'Done',
+
+  // History (D-073) — every video Chronicle has ever played, local only.
+  'history.searchPlaceholder': 'Search your watch history…',
+  'history.empty': 'Nothing watched yet.',
+  'history.emptyFiltered': 'No matches in your watch history.',
+  'history.clearButton': 'Clear History',
+  'history.confirmClear': 'Click again to confirm'
 } as const

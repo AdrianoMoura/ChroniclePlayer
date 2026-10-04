@@ -484,7 +484,16 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   explicitly-unreviewed interface languages — Spanish, German, French, Italian,
   Japanese — alongside the existing human-reviewed English/Portuguese, D-054), a
   direct product-owner request not sourced from `tracker-current.md`, pending the
-  owner's own live confirmation. B-108, B-101 carried forward from 0.14.1, untouched.
+  owner's own live confirmation. Also candidate scope: D-073 (a local Watch History
+  screen — every video Chronicle has ever played, most recently watched first,
+  bucketed by watched date, with local-only search and per-video/bulk removal; new
+  `video_state.last_watched_at`, schema v19), raised by the owner in conversation,
+  confirmed working live after a live-feedback round (date grouping, search box
+  styling, remove/clear actions, two row-action buttons dropped). Same batch: B-134 (resume
+  playback position wasn't saving/restoring consistently — no checkpoint on a real
+  app quit, and the pause checkpoint trusted an unreliable one-shot event the same
+  way [[B-111]] already found elsewhere) Fixed. B-108, B-101 carried forward from
+  0.14.1, untouched.
 
 ## M0 — Walking skeleton
 

@@ -138,7 +138,7 @@ export function PlaylistDetailView({
           }
           break
         case 'm':
-          if (current) fullActions.toggleRead(current)
+          if (current) fullActions.toggleRead!(current)
           break
         case 'f':
           if (current) fullActions.toggleFavorite(current)

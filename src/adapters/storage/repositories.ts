@@ -6,6 +6,8 @@ import type {
   FeedPage,
   FeedRepository,
   FollowedChannel,
+  HistoryCursor,
+  HistoryPage,
   StateRepository
 } from '../../core/ports'
 import type { FeedEntry } from '../../core/feed'
@@ -420,6 +422,51 @@ export class SqliteFeedRepository implements FeedRepository {
       .all({ limit, ...(accountId !== undefined ? { accountId } : {}) }) as unknown as FeedRow[]
     return rows.map(toEntry)
   }
+
+  // D-073: every watched video (last_watched_at IS NOT NULL), most recently
+  // watched first — subscribed or not, unlike viewPredicate's feed views.
+  // query narrows to a local substring match on title/channel title. The raw
+  // row's own last_watched_at rides alongside each entry (HistoryEntry) —
+  // core/feed-service.ts needs it to bucket History by watched date, the
+  // same way the main feed buckets by publishedAt.
+  searchHistory(query: string, cursor: HistoryCursor | null, limit: number): HistoryPage {
+    const trimmed = query.trim()
+    const afterCursor = cursor
+      ? `AND (s.last_watched_at < :lw OR (s.last_watched_at = :lw AND v.video_id < :vid))`
+      : ''
+    const searchClause =
+      trimmed === ''
+        ? ''
+        : `AND (v.title LIKE :q ESCAPE '\\' OR c.title LIKE :q ESCAPE '\\')`
+    const rows = this.db
+      .prepare(
+        `${FEED_SELECT.replace('FROM videos v', ', s.last_watched_at AS last_watched_at FROM videos v')}
+         WHERE s.last_watched_at IS NOT NULL ${searchClause} ${afterCursor}
+         ORDER BY s.last_watched_at DESC, v.video_id DESC
+         LIMIT :limit`
+      )
+      .all({
+        limit,
+        ...(trimmed !== '' ? { q: `%${escapeLike(trimmed)}%` } : {}),
+        ...(cursor ? { lw: cursor.lastWatchedAt, vid: cursor.videoId } : {})
+      }) as unknown as (FeedRow & { last_watched_at: string })[]
+    const entries = rows.map((row) => ({ entry: toEntry(row), lastWatchedAt: row.last_watched_at }))
+    const last = rows.at(-1)
+    return {
+      entries,
+      nextCursor:
+        entries.length < limit || !last
+          ? null
+          : { lastWatchedAt: last.last_watched_at, videoId: last.video_id }
+    }
+  }
+}
+
+// D-073: escapes LIKE's own wildcards in free-text user input before it's
+// wrapped in `%...%` — otherwise a literal `%` or `_` typed into the search
+// box would be interpreted as a wildcard instead of a character to match.
+function escapeLike(raw: string): string {
+  return raw.replace(/[\\%_]/g, (ch) => `\\${ch}`)
 }
 
 export class SqliteStateRepository implements StateRepository {
@@ -477,9 +524,43 @@ export class SqliteStateRepository implements StateRepository {
     return this.apply(videoId, (state) => setResumePosition(state, seconds))
   }
 
+  // D-073: stamps last_watched_at to now, leaving every other column alone
+  // — a transition that returns its input unchanged still exercises the
+  // same upsert path (lazily creating the row for a video with no prior
+  // state), with `watchedAt` the only thing actually written.
+  markWatched(videoId: string): void {
+    const now = this.clock.now().toISOString()
+    this.apply(videoId, (state) => state, now)
+  }
+
+  // D-073: a direct UPDATE, not the apply() upsert above — COALESCE can
+  // only ever preserve-or-overwrite with a non-null value, never clear an
+  // existing one back to NULL.
+  clearWatched(videoId: string): void {
+    this.db
+      .prepare(`UPDATE video_state SET last_watched_at = NULL, updated_at = :now WHERE video_id = :id`)
+      .run({ id: videoId, now: this.clock.now().toISOString() })
+  }
+
+  clearAllWatched(): void {
+    this.db
+      .prepare(
+        `UPDATE video_state SET last_watched_at = NULL, updated_at = :now
+         WHERE last_watched_at IS NOT NULL`
+      )
+      .run({ now: this.clock.now().toISOString() })
+  }
+
   // Reads current state, applies a core transition, persists the result.
   // State rows are precious user data — only these transitions touch them.
-  private apply(videoId: string, transition: (state: VideoState) => VideoState): VideoState {
+  // watchedAt (D-073) is a separate concern from the transition itself —
+  // COALESCE keeps last_watched_at untouched on every ordinary call (null)
+  // and only stamps it when markWatched passes a real timestamp.
+  private apply(
+    videoId: string,
+    transition: (state: VideoState) => VideoState,
+    watchedAt: string | null = null
+  ): VideoState {
     const current = this.get(videoId)
     const next = transition(current)
     const now = this.clock.now().toISOString()
@@ -495,14 +576,15 @@ export class SqliteStateRepository implements StateRepository {
       .prepare(
         `INSERT INTO video_state
            (video_id, read_status, favorite, watch_later, watch_later_pos,
-            resume_position_seconds, status_changed_at, updated_at)
-         VALUES (:id, :status, :fav, :wl, :pos, :resume, :now, :now)
+            resume_position_seconds, last_watched_at, status_changed_at, updated_at)
+         VALUES (:id, :status, :fav, :wl, :pos, :resume, :watchedAt, :now, :now)
          ON CONFLICT(video_id) DO UPDATE SET
            read_status = :status,
            favorite = :fav,
            watch_later = :wl,
            watch_later_pos = :pos,
            resume_position_seconds = :resume,
+           last_watched_at = COALESCE(:watchedAt, last_watched_at),
            status_changed_at = CASE
              WHEN read_status <> :status THEN :now ELSE status_changed_at END,
            updated_at = :now`
@@ -514,6 +596,7 @@ export class SqliteStateRepository implements StateRepository {
         wl: next.watchLater ? 1 : 0,
         pos: position,
         resume: next.resumePositionSeconds,
+        watchedAt,
         now
       })
     return next

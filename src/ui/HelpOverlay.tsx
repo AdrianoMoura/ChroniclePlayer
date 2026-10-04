@@ -18,7 +18,7 @@ const FEED_SHORTCUTS: readonly [string, () => string][] = [
   ['M', () => t('help.action.markAllRead')],
   ['v', () => t('help.action.toggleLayout')],
   ['gg / G', () => t('help.action.topEnd')],
-  ['1…5', () => t('help.action.switchView')],
+  ['1…7', () => t('help.action.switchView')],
   ['r', () => t('help.action.reload')],
   ['/', () => t('help.action.filter')],
   ['c', () => t('help.action.findChannel')],

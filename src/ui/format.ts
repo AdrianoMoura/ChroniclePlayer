@@ -1,4 +1,21 @@
+import type { FeedBucketDto } from '../ipc/contract'
 import { t } from './i18n'
+
+// A function, not a module-level object — must re-resolve against the
+// active language on every call (D-054), same reason as Sidebar.tsx's
+// viewLabel. Shared by App.tsx's main feed and HistoryView.tsx (D-073).
+export function bucketLabel(bucket: FeedBucketDto): string {
+  switch (bucket) {
+    case 'today':
+      return t('app.bucket.today')
+    case 'yesterday':
+      return t('app.bucket.yesterday')
+    case 'this-week':
+      return t('app.bucket.thisWeek')
+    case 'earlier':
+      return t('app.bucket.earlier')
+  }
+}
 
 // feed.md §Feed item presentation: relative within 7 days, absolute date beyond.
 export function publishedLabel(publishedAt: string, now = Date.now()): string {

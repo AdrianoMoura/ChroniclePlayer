@@ -6,7 +6,7 @@ import {
   type FeedBucket,
   type FeedEntry
 } from './feed'
-import type { Clock, FeedCursor, FeedRepository } from './ports'
+import type { Clock, FeedCursor, FeedRepository, HistoryCursor } from './ports'
 import type { FeedView } from './views'
 
 export interface FeedItem {
@@ -89,5 +89,28 @@ export class FeedService {
   getNextWatchLater(currentVideoId: string, showShorts = true): FeedItem | null {
     const next = nextWatchLaterAfter(this.repository.listWatchLaterQueue(showShorts), currentVideoId)
     return next ? { entry: next, bucket: null } : null
+  }
+
+  // D-073: the History screen — bucketed by when each video was watched
+  // (last_watched_at), not when it was published, mirroring the main feed's
+  // own Today/Yesterday/This Week/Earlier grouping (feed.md §Grouping) on a
+  // different date axis. searchHistory's own ORDER BY is already
+  // last_watched_at DESC, so — same as getSlice's already-sorted page
+  // above — a bucket change is detected by just walking the page in order,
+  // no separate sort needed.
+  getHistory(
+    query: string,
+    cursor: HistoryCursor | null,
+    limit: number
+  ): { items: FeedItem[]; nextCursor: HistoryCursor | null } {
+    const now = this.clock.now()
+    const page = this.repository.searchHistory(query, cursor, limit)
+    return {
+      items: page.entries.map(({ entry, lastWatchedAt }) => ({
+        entry,
+        bucket: bucketOf(new Date(lastWatchedAt), now)
+      })),
+      nextCursor: page.nextCursor
+    }
   }
 }

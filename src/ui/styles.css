@@ -2942,6 +2942,23 @@ button.primary.danger {
   padding: 14px 0 10px;
 }
 
+/* D-073: History's own toolbar — unlike .playlists-toolbar (buttons only,
+   right-aligned), the search field grows to fill the row, with Clear
+   History pinned to the right. Lives directly in .feed-region (no wrapping
+   list element with its own horizontal padding, unlike .playlists-list), so
+   this carries the same 20px gutter .feed-scroll uses for the row list
+   below it, or the search box reads as misaligned against it. */
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 10px;
+}
+
+.history-toolbar .history-search {
+  flex: 1;
+}
+
 /* De-emphasized next to the primary "+ New Playlist" button — same padding/
    border-radius/border *width* (so the box heights match and the two align)
    but no visible border line, smaller font, muted color, since importing is

@@ -241,6 +241,45 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         onEnded()
       }
 
+      // B-134: a pause the embed initiates on its own (e.g. its native pause
+      // button, not Chronicle's own Space shortcut) has the exact same
+      // unreliable-onStateChange gap B-111 already found for "ended" — this
+      // checkpoint save used to live only in the onStateChange branch below,
+      // so that class of pause could silently skip persisting the resume
+      // position. Guarded the same way handleEnded is, so applyPlayerState
+      // (also used by the infoDelivery heartbeat) can call it on every tick
+      // while paused without writing on every single one.
+      let pauseHandled = false
+      function handlePaused(): void {
+        if (pauseHandled) return
+        pauseHandled = true
+        void window.chronicle.setResumePosition(
+          video.videoId,
+          resumeValueFor(currentTimeRef.current, video.durationSeconds)
+        )
+      }
+
+      // Shared by onStateChange's one-shot round trip and infoDelivery's
+      // steady heartbeat (B-111/B-134) — a state change the embed initiates
+      // on its own isn't guaranteed to produce an observed onStateChange
+      // event, so the heartbeat is this component's only reliable fallback
+      // for both the ended side effects and the paused checkpoint save.
+      // handleEnded/handlePaused's own guards keep each a one-shot per real
+      // transition regardless of which event notices it first.
+      function applyPlayerState(state: number): void {
+        playerStateRef.current = state
+        if (state === 0) {
+          handleEnded()
+        } else {
+          endedHandled = false
+        }
+        if (state === 2) {
+          handlePaused()
+        } else {
+          pauseHandled = false
+        }
+      }
+
       function onMessage(event: MessageEvent): void {
         if (event.origin !== PLAYER_ORIGIN || typeof event.data !== 'string') return
         let payload: { event?: string; info?: unknown }
@@ -250,12 +289,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           return
         }
         if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
-          playerStateRef.current = payload.info
-          if (payload.info === 0) {
-            handleEnded()
-          } else {
-            endedHandled = false
-          }
+          applyPlayerState(payload.info)
           // Quality only takes effect once playback actually starts (B-038) —
           // requesting it on ready alone isn't enough, YouTube can still pick
           // a bandwidth-heuristic default the moment the stream begins.
@@ -263,14 +297,6 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
             command('setPlaybackQuality', ['highres'])
             // Same reissue-on-start safety net as quality above (D-038).
             if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
-          }
-          // Paused: a natural checkpoint to persist how far the user got,
-          // without polling continuously while playing.
-          if (payload.info === 2) {
-            void window.chronicle.setResumePosition(
-              video.videoId,
-              resumeValueFor(currentTimeRef.current, video.durationSeconds)
-            )
           }
         }
         if (payload.event === 'onError' && typeof payload.info === 'number') {
@@ -285,24 +311,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         if (payload.event === 'infoDelivery') {
           const info = payload.info as { currentTime?: number; playerState?: number } | undefined
           if (typeof info?.currentTime === 'number') currentTimeRef.current = info.currentTime
-          // playerStateRef also updates from infoDelivery's steady heartbeat,
-          // not just the one-shot onStateChange event, since a state change
-          // the embed initiates on its own (e.g. clicking its native
-          // controls) isn't guaranteed to produce an observed onStateChange
-          // round trip (B-111). This doesn't touch the transition-only side
-          // effects above (resume checkpoint, quality/rate reissue), which
-          // must still fire exactly once per real transition, not once per
-          // heartbeat tick — except "ended", where this heartbeat is the
-          // primary detection path (handleEnded's own guard keeps it a
-          // one-shot regardless of which event notices the transition first).
-          if (typeof info?.playerState === 'number') {
-            playerStateRef.current = info.playerState
-            if (info.playerState === 0) {
-              handleEnded()
-            } else {
-              endedHandled = false
-            }
-          }
+          if (typeof info?.playerState === 'number') applyPlayerState(info.playerState)
         }
       }
       window.addEventListener('message', onMessage)
@@ -548,6 +557,24 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           resumeValueFor(currentTimeRef.current, durationSeconds)
         )
       }
+    }, [video.videoId, video.durationSeconds])
+
+    // B-134: the cleanup above only ever runs through React's own lifecycle
+    // (a video switch, or this component unmounting) — none of that fires
+    // when the whole app quits while a video is still playing (closing the
+    // main window for real, Cmd+Q, a tray Quit, an OS logout), so that
+    // checkpoint was silently lost. ExtractedPlayerWindow.tsx already covers
+    // exactly this for the pop-out window via the same `beforeunload`
+    // mechanism; this is the main window's missing counterpart.
+    useEffect(() => {
+      function onBeforeUnload(): void {
+        void window.chronicle.setResumePosition(
+          video.videoId,
+          resumeValueFor(currentTimeRef.current, video.durationSeconds)
+        )
+      }
+      window.addEventListener('beforeunload', onBeforeUnload)
+      return () => window.removeEventListener('beforeunload', onBeforeUnload)
     }, [video.videoId, video.durationSeconds])
 
     // Clean-embed parameters (playback.md §The "clean embed" mandate).

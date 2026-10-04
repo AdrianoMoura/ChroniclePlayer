@@ -224,6 +224,20 @@ Data handling for externally opened videos (Final):
   resume). Persistence cadence is checkpoint-based (pause/ended/switch-away), not a
   periodic tick, consistent with the app's "predictable, not continuously polling" style
   elsewhere (e.g. D-038's reissue-on-start pattern).
+- **Two reliability gaps fixed, [[B-134]], 2026-10-03.** (1) None of the three
+  checkpoints above fired when the whole app quit while a video was actively playing
+  (closing the main window for real, Cmd+Q, a tray Quit, an OS logout) — only React's own
+  lifecycle (a pause event, the ended transition, or the video-switch/unmount cleanup)
+  ever triggered them. Fixed with the same `window.addEventListener('beforeunload', ...)`
+  mechanism `ExtractedPlayerWindow.tsx` already used for the pop-out window, added to the
+  main window's `PlayerSurface.tsx` too. (2) The pause checkpoint only trusted the
+  one-shot `onStateChange` postMessage event, exposed to the exact same unreliable-event
+  gap B-111 already found and fixed for `playerStateRef`/the "ended" side effects (a state
+  transition the embed initiates on its own, e.g. its native pause button rather than
+  Chronicle's own Space shortcut, isn't guaranteed to produce an observed `onStateChange`
+  round trip). Fixed the same way B-111 was: the pause checkpoint now also fires off the
+  steady `infoDelivery` heartbeat, guarded (`handlePaused()`) to still save exactly once
+  per real transition rather than once per heartbeat tick while paused.
 
 ## Miniplayer — D-046 (Final, exercised 2026-07-15; revised same day after live testing)
 

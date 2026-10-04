@@ -42,6 +42,8 @@ import type {
   FeedCursorDto,
   FeedSliceDto,
   FeedVideoDto,
+  HistoryCursorDto,
+  HistoryPageDto,
   PlayerVideoDto,
   PlaylistDto,
   ReadStatusDto,
@@ -247,6 +249,24 @@ function parseCursor(value: unknown): FeedCursorDto | null {
     }
   }
   throw new Error('invalid feed cursor')
+}
+
+// D-073: the History screen's own cursor shape (last_watched_at, not
+// publishedAt) — same parsing convention as parseCursor above.
+function parseHistoryCursor(value: unknown): HistoryCursorDto | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'object') {
+    const cursor = value as Record<string, unknown>
+    if (typeof cursor['lastWatchedAt'] === 'string' && typeof cursor['videoId'] === 'string') {
+      return { lastWatchedAt: cursor['lastWatchedAt'], videoId: cursor['videoId'] }
+    }
+  }
+  throw new Error('invalid history cursor')
+}
+
+function parseSearchQuery(value: unknown): string {
+  if (typeof value === 'string' && value.length <= 200) return value
+  throw new Error('invalid query')
 }
 
 // D-013 cipher selection: (a) Electron safeStorage when a real OS keychain
@@ -878,6 +898,20 @@ async function boot(): Promise<void> {
       return item ? toVideoDto(item) : null
     }
   )
+  ipcMain.handle(
+    IpcChannel.searchHistory,
+    (_event, query: unknown, cursor: unknown, limit: unknown): HistoryPageDto => {
+      const page = feedService.getHistory(
+        parseSearchQuery(query),
+        parseHistoryCursor(cursor),
+        typeof limit === 'number' && limit > 0 && limit <= 200 ? limit : 50
+      )
+      return {
+        videos: page.items.map(toVideoDto),
+        nextCursor: page.nextCursor
+      }
+    }
+  )
 
   // Playlists (local-only, never synced to YouTube) — see decisions.md.
   function requirePlaylistSummary(playlistId: string): PlaylistSummary {
@@ -1384,6 +1418,17 @@ async function boot(): Promise<void> {
   ipcMain.handle(IpcChannel.setResumePosition, (_event, videoId: unknown, seconds: unknown) => {
     const value = typeof seconds === 'number' ? seconds : null
     return toStateDto(stateRepository.setResumePosition(parseVideoId(videoId), value))
+  })
+  ipcMain.handle(IpcChannel.markWatched, async (_event, videoId: unknown) => {
+    const id = parseVideoId(videoId)
+    await ensureVideoExists(id)
+    stateRepository.markWatched(id)
+  })
+  ipcMain.handle(IpcChannel.clearWatched, (_event, videoId: unknown) => {
+    stateRepository.clearWatched(parseVideoId(videoId))
+  })
+  ipcMain.handle(IpcChannel.clearAllWatched, () => {
+    stateRepository.clearAllWatched()
   })
   ipcMain.handle(IpcChannel.openInBrowser, (_event, videoId: unknown) =>
     shell.openExternal(`https://www.youtube.com/watch?v=${parseVideoId(videoId)}`)

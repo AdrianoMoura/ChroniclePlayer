@@ -107,9 +107,14 @@ function buildCardRows(
 
 export interface VideoActions {
   markRead: (video: FeedVideoDto) => void
-  toggleRead: (video: FeedVideoDto) => void
-  // Optional because a playlist's own video list omits it — a video was
-  // deliberately added there, the opposite intent from "hide this."
+  // Optional because the History screen's own video list omits it — a
+  // history row is already "watched" by definition, so toggling read/unread
+  // on it doesn't mean anything (D-073).
+  toggleRead?: (video: FeedVideoDto) => void
+  // Optional because a playlist's or History's own video list omits it — a
+  // video was deliberately added to a playlist (the opposite intent from
+  // "hide this"), and a history row already represents a watched video
+  // regardless of read status (D-073).
   ignore?: (video: FeedVideoDto) => void
   undo: (video: FeedVideoDto) => void
   toggleFavorite: (video: FeedVideoDto) => void
@@ -125,6 +130,10 @@ export interface VideoActions {
   // just this membership, never the video itself (distinct from `ignore`,
   // which is a global read-status change).
   removeFromPlaylist?: (video: FeedVideoDto) => void
+  // D-073: only provided inside the History screen's own video list —
+  // clears this video's last_watched_at (and removes the row), leaving
+  // readStatus/favorite/watchLater untouched.
+  removeFromHistory?: (video: FeedVideoDto) => void
 }
 
 interface FeedListProps {
@@ -487,6 +496,19 @@ function resolveGridColumn(
   return { videoIndex: row.items[col].videoIndex, rawEdge }
 }
 
+// Which copy the undo strip shows — a row only ever becomes undoable via
+// one specific action per screen (ignore everywhere `ignore` is provided;
+// removeFromPlaylist inside a playlist's own video list, which omits
+// `ignore` entirely; removeFromHistory inside History's own video list,
+// which keeps `ignore` but is the only screen that ever provides
+// removeFromHistory), so the actions object alone is enough to tell which
+// one just fired, without the undoable flag itself carrying that info.
+function undoCopyKind(actions: VideoActions): 'playlist' | 'history' | 'default' {
+  if (actions.ignore === undefined && actions.removeFromPlaylist !== undefined) return 'playlist'
+  if (actions.removeFromHistory !== undefined) return 'history'
+  return 'default'
+}
+
 export function VideoRow({
   video,
   selected,
@@ -503,17 +525,23 @@ export function VideoRow({
   onDragEndItem
 }: VideoRowProps) {
   if (undoable) {
-    // A playlist's own video list has no `ignore` action, so its rows are
-    // only ever undoable via removeFromPlaylist — reuse that same signal to
-    // pick the right copy (no "(u)" hint there; that shortcut only ever
-    // targets the ignore-undo above).
-    const isPlaylistRemoval = actions.ignore === undefined && actions.removeFromPlaylist !== undefined
+    const copyKind = undoCopyKind(actions)
+    const labelKey =
+      copyKind === 'playlist'
+        ? 'feed.card.undoLabelPlaylist'
+        : copyKind === 'history'
+          ? 'feed.card.undoLabelHistory'
+          : 'feed.card.undoLabel'
+    const buttonKey =
+      copyKind === 'playlist'
+        ? 'feed.card.undoButtonPlaylist'
+        : copyKind === 'history'
+          ? 'feed.card.undoButtonHistory'
+          : 'feed.card.undoButton'
     return (
       <div className={`row undo-strip${selected ? ' selected' : ''}`}>
-        <span>{t(isPlaylistRemoval ? 'feed.card.undoLabelPlaylist' : 'feed.card.undoLabel')}</span>
-        <button onClick={() => actions.undo(video)}>
-          {t(isPlaylistRemoval ? 'feed.card.undoButtonPlaylist' : 'feed.card.undoButton')}
-        </button>
+        <span>{t(labelKey)}</span>
+        <button onClick={() => actions.undo(video)}>{t(buttonKey)}</button>
       </div>
     )
   }
@@ -568,12 +596,22 @@ export function VideoRow({
         </span>
       </div>
       <div className="row-actions">
-        <button
-          title={t('feed.card.toggleReadTitle')}
-          onClick={(e) => stop(e, () => actions.toggleRead(video))}
-        >
-          ✓
-        </button>
+        {actions.removeFromHistory && (
+          <button
+            title={t('feed.card.removeFromHistoryTitle')}
+            onClick={(e) => stop(e, () => actions.removeFromHistory!(video))}
+          >
+            🗑
+          </button>
+        )}
+        {actions.toggleRead && (
+          <button
+            title={t('feed.card.toggleReadTitle')}
+            onClick={(e) => stop(e, () => actions.toggleRead!(video))}
+          >
+            ✓
+          </button>
+        )}
         {actions.ignore && (
           <button
             title={t('feed.card.ignoreTitle')}
@@ -655,13 +693,23 @@ export function VideoCard({
   onDragEndItem
 }: VideoCardProps) {
   if (undoable) {
-    const isPlaylistRemoval = actions.ignore === undefined && actions.removeFromPlaylist !== undefined
+    const copyKind = undoCopyKind(actions)
+    const labelKey =
+      copyKind === 'playlist'
+        ? 'feed.card.undoLabelPlaylist'
+        : copyKind === 'history'
+          ? 'feed.card.undoLabelHistory'
+          : 'feed.card.undoLabel'
+    const buttonKey =
+      copyKind === 'playlist'
+        ? 'feed.card.undoButtonPlaylist'
+        : copyKind === 'history'
+          ? 'feed.card.undoButtonHistory'
+          : 'feed.card.undoButton'
     return (
       <div className={`card undo-strip${selected ? ' selected' : ''}`}>
-        <span>{t(isPlaylistRemoval ? 'feed.card.undoLabelPlaylist' : 'feed.card.undoLabel')}</span>
-        <button onClick={() => actions.undo(video)}>
-          {t(isPlaylistRemoval ? 'feed.card.undoButtonPlaylist' : 'feed.card.undoButton')}
-        </button>
+        <span>{t(labelKey)}</span>
+        <button onClick={() => actions.undo(video)}>{t(buttonKey)}</button>
       </div>
     )
   }
@@ -709,12 +757,22 @@ export function VideoCard({
           <span className="duration card-duration">{formatDuration(video.durationSeconds)}</span>
         )}
         <div className="row-actions card-actions">
-          <button
-            title={t('feed.card.toggleReadTitle')}
-            onClick={(e) => stop(e, () => actions.toggleRead(video))}
-          >
-            ✓
-          </button>
+          {actions.removeFromHistory && (
+            <button
+              title={t('feed.card.removeFromHistoryTitle')}
+              onClick={(e) => stop(e, () => actions.removeFromHistory!(video))}
+            >
+              🗑
+            </button>
+          )}
+          {actions.toggleRead && (
+            <button
+              title={t('feed.card.toggleReadTitle')}
+              onClick={(e) => stop(e, () => actions.toggleRead!(video))}
+            >
+              ✓
+            </button>
+          )}
           {actions.ignore && (
             <button
               title={t('feed.card.ignoreTitle')}

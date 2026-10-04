@@ -25,6 +25,28 @@ export interface FeedPage {
   nextCursor: FeedCursor | null
 }
 
+// D-073: keyset cursor for the History screen — ordered by last_watched_at
+// (never publishedAt), so it needs its own cursor shape rather than reusing
+// FeedCursor.
+export interface HistoryCursor {
+  lastWatchedAt: string
+  videoId: string
+}
+
+// D-073: carries last_watched_at alongside the entry itself — FeedEntry has
+// no use for this field elsewhere, but the History screen's own date-bucket
+// grouping (mirroring the main feed's, just keyed on watched date instead of
+// publishedAt) needs it in core/feed-service.ts.
+export interface HistoryEntry {
+  entry: FeedEntry
+  lastWatchedAt: string
+}
+
+export interface HistoryPage {
+  entries: HistoryEntry[]
+  nextCursor: HistoryCursor | null
+}
+
 export interface FollowedChannel {
   channel: Channel
   // Freshest video (Shorts included unless the setting hides them).
@@ -92,6 +114,13 @@ export interface FeedRepository {
   // B-009: cross-references a channel id against local state (subscribed by
   // any connected account) — shows "Subscribed" instead of a live button.
   isSubscribed(channelId: string): boolean
+  // D-073: every video Chronicle has ever played, most recently watched
+  // first — subscribed or not (same account-agnostic membership as
+  // Favorites/Watch Later; D-029's universal opening already hydrates a
+  // non-subscribed video locally before this could ever see it). query,
+  // when non-empty, narrows to videos whose own title or channel title
+  // contains it (local substring match only, never a YouTube API call).
+  searchHistory(query: string, cursor: HistoryCursor | null, limit: number): HistoryPage
 }
 
 export interface StateRepository {
@@ -104,6 +133,19 @@ export interface StateRepository {
   // queued) are ignored rather than erroring.
   reorderWatchLater(videoIds: readonly string[]): void
   setResumePosition(videoId: string, seconds: number | null): VideoState
+  // D-073: stamps "last watched" to now. Called once per real player open
+  // (openVideo, App.tsx) — independent of readStatus, which can change for
+  // unrelated reasons (the `m` shortcut), and distinct from
+  // resume_position_seconds (progress within one watch, cleared on finish).
+  markWatched(videoId: string): void
+  // D-073: the History screen's own per-video "remove from history" action
+  // — clears last_watched_at only, leaving readStatus/favorite/watchLater
+  // untouched (removing a watch record isn't the same as un-reading it).
+  clearWatched(videoId: string): void
+  // D-073: "Clear History" — clears last_watched_at for every video at
+  // once. Deliberately unscoped by the screen's current search query (the
+  // owner's own ask was "limpar ele," not "limpar os resultados filtrados").
+  clearAllWatched(): void
 }
 
 // Catalog writes; M1 uses them for fixtures, M2 for real sync.

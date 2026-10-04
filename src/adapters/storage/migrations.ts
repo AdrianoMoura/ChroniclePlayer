@@ -243,6 +243,16 @@ const SCHEMA_V18 = `
 ALTER TABLE playlists ADD COLUMN source_playlist_id TEXT;
 `
 
+// v19 (D-073): when a video was last opened in the player, regardless of
+// read status — distinct from status_changed_at (which moves on an
+// unrelated `m` toggle) and from resume_position_seconds (within-one-watch
+// progress, cleared once finished). NULL = never watched. Drives the
+// History screen's ordering/membership.
+const SCHEMA_V19 = `
+ALTER TABLE video_state ADD COLUMN last_watched_at TEXT;
+CREATE INDEX idx_state_last_watched ON video_state (last_watched_at);
+`
+
 const migrations: readonly string[] = [
   SCHEMA_V1,
   SCHEMA_V2,
@@ -261,7 +271,8 @@ const migrations: readonly string[] = [
   SCHEMA_V15,
   SCHEMA_V16,
   SCHEMA_V17,
-  SCHEMA_V18
+  SCHEMA_V18,
+  SCHEMA_V19
 ]
 
 export function migrate(db: DatabaseSync): void {

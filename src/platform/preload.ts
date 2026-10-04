@@ -6,6 +6,7 @@ import {
   type CommentSortOrder,
   type FeedCursorDto,
   type FeedViewDto,
+  type HistoryCursorDto,
   type ReadStatusDto,
   type SettingsDto,
   type WindowControlDto,
@@ -40,6 +41,9 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.reorderWatchLater, videoIds),
   setResumePosition: (videoId: string, seconds: number | null) =>
     ipcRenderer.invoke(IpcChannel.setResumePosition, videoId, seconds),
+  markWatched: (videoId: string) => ipcRenderer.invoke(IpcChannel.markWatched, videoId),
+  clearWatched: (videoId: string) => ipcRenderer.invoke(IpcChannel.clearWatched, videoId),
+  clearAllWatched: () => ipcRenderer.invoke(IpcChannel.clearAllWatched),
   openInBrowser: (videoId: string) => ipcRenderer.invoke(IpcChannel.openInBrowser, videoId),
   openExternalUrl: (url: string) => ipcRenderer.invoke(IpcChannel.openExternalUrl, url),
   getVideo: (videoId: string) => ipcRenderer.invoke(IpcChannel.getVideo, videoId),
@@ -76,6 +80,8 @@ const api: ChronicleApi = {
     ipcRenderer.invoke(IpcChannel.getPriorityFeed, accountId ?? null),
   getNextWatchLater: (currentVideoId: string) =>
     ipcRenderer.invoke(IpcChannel.getNextWatchLater, currentVideoId),
+  searchHistory: (query: string, cursor: HistoryCursorDto | null, limit: number) =>
+    ipcRenderer.invoke(IpcChannel.searchHistory, query, cursor, limit),
   backfillChannelArchive: (channelId: string) =>
     ipcRenderer.invoke(IpcChannel.backfillChannelArchive, channelId),
   searchYouTube: (query: string, pageToken?: string | null, channelId?: string | null) =>
