@@ -480,38 +480,63 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   **minor** version, per the owner's own explicit direction (real new scope, not a
   bug-fix batch). Not yet live-tested by the owner. B-108, B-101 carried forward,
   untouched, now targeting **0.14.1**.
-- **0.14.2 — in progress.** Candidate scope: D-072 (five new AI-generated,
-  explicitly-unreviewed interface languages — Spanish, German, French, Italian,
-  Japanese — alongside the existing human-reviewed English/Portuguese, D-054), a
-  direct product-owner request not sourced from `tracker-current.md`, pending the
-  owner's own live confirmation. Also candidate scope: D-073 (a local Watch History
-  screen — every video Chronicle has ever played, most recently watched first,
-  bucketed by watched date, with local-only search and per-video/bulk removal; new
-  `video_state.last_watched_at`, schema v19), raised by the owner in conversation,
+- **0.14.1 — delivered, 2026-10-01.** Carried B-108, B-101 forward from 0.14.0,
+  unchanged. A single entry, [[B-133]] (Fixed — the mouse "back" side button, which
+  [[B-039]] had only wired up inside the full-view player, now steps back one level
+  anywhere Esc already does: the main feed's channel filter, the Playlists screen and
+  its own detail view, Settings, the shortcuts help overlay). No new `D-NNN` scope this
+  cycle. Shipped as a **patch** version (a pure bug-fix batch). See
+  `tracker-history/v0.14.1.md`. B-108, B-101 carried forward, untouched, now targeting
+  **0.14.2**.
+- **0.15.0 — delivered, 2026-10-04.** Carried B-108, B-101 forward from 0.14.1,
+  unchanged. Originally tracked toward a `0.14.2` patch (carrying only [[B-134]]), but
+  D-072 and D-073 together amounted to real new scope — shipped as a **minor** version
+  instead, skipping `0.14.2` entirely (same pattern as `0.11.0` skipping `0.10.3`,
+  `0.12.0` skipping `0.11.1`, and `0.13.0` skipping `0.12.1`). D-072 (five new
+  AI-generated, explicitly-unreviewed interface languages — Spanish, German, French,
+  Italian, Japanese — alongside the existing human-reviewed English/Portuguese, D-054),
+  a direct product-owner request not sourced from `tracker-current.md`. D-073 (a local
+  Watch History screen — every video Chronicle has ever played, most recently watched
+  first, bucketed by watched date, with local-only search and per-video/bulk removal;
+  new `video_state.last_watched_at`, schema v19), raised by the owner in conversation,
   confirmed working live after a live-feedback round (date grouping, search box
-  styling, remove/clear actions, two row-action buttons dropped). Same batch: B-134 (resume
-  playback position wasn't saving/restoring consistently — no checkpoint on a real
-  app quit, and the pause checkpoint trusted an unreliable one-shot event the same
-  way [[B-111]] already found elsewhere) Fixed. B-108, B-101 carried forward from
-  0.14.1, untouched.
-- **0.15.1 — in progress.** Candidate scope: D-074 (a currently-airing live or Premiere
-  now outranks every other video at the feed's actual fetch/pagination level, not just
-  an already-fetched page's display order; a Premiere also now follows the identical
-  upcoming/airing/ended ordering a genuine broadcast gets, reversing B-119's exclusion),
-  a direct product-owner request following a concrete symptom report (a subscribed
-  channel's livestream from the day before never showed on the main feed). Root cause
-  B-135: a livestream scheduled days ahead of actually airing keeps a stale
-  `publishedAt`, which D-053's display-only `effectiveDate` never reaches once it's
-  buried deep enough in the raw-`publishedAt`-keyed keyset cursor — confirmed against
-  the owner's own `chronicle.db` across 8+ affected channels. Checked via `npm run
-  typecheck && npm run lint && npm test` (305/305); not yet live-tested by the owner.
-  B-108, B-101 carried forward from 0.15.0, untouched.
-
-  **Note on this section's own staleness:** the entries above stop at "0.14.2 — in
-  progress," but `tracker-current.md` and `CLAUDE.md` both show 0.14.2 through 0.15.0
-  actually shipped (D-072/D-073/B-134 landed in `0.15.0`, not `0.14.2`) — this section
-  was never updated to match. Not backfilled here since reconstructing that history
-  accurately from scratch risks getting it wrong; flagging it rather than guessing.
+  styling, remove/clear actions, two row-action buttons dropped). Same batch: [[B-134]]
+  (Fixed — resume playback position wasn't saving/restoring consistently: no checkpoint
+  on a real app quit, and the pause checkpoint trusted an unreliable one-shot event the
+  same way [[B-111]] already found elsewhere). Also landed this cycle, alongside the
+  tracked scope: `.specs/code-guidelines.md`'s rules applied against the existing
+  source tree (a shared `useDialogDismiss` hook, `main.ts`'s IPC handlers split into
+  per-domain modules, `App.tsx`'s JSX split into four presentational components,
+  B-NNN/D-NNN references stripped from source comments), and an untracked adjustment
+  clamping the miniplayer's resizable width to the window's own size with its max
+  resize cap scaled to the monitor. See `decisions.md` D-072/D-073 and
+  `tracker-history/v0.15.0.md` (B-134 only). B-108, B-101 carried forward, untouched,
+  now targeting **0.15.1**.
+- **0.15.1 — delivered, 2026-10-04.** Carried B-108, B-101 forward from 0.15.0,
+  unchanged. Driven by D-074 (a currently-airing live or Premiere now outranks every
+  other video at the feed's actual fetch/pagination level, not just an
+  already-fetched page's display order — a new two-tier sort key baked into
+  `repositories.ts`'s `FEED_ORDER` and keyset cursor itself; a Premiere also now
+  follows the identical upcoming/airing/ended ordering a genuine broadcast gets,
+  reversing B-119's exclusion), raised after a concrete symptom report (a subscribed
+  channel's livestream from the day before never showed on the main feed). Root
+  cause, confirmed directly against the owner's own `chronicle.db`: [[B-135]] (a
+  livestream scheduled days ahead of actually airing keeps a stale `publishedAt`,
+  burying it hundreds of pages deep in the raw-`publishedAt`-keyed keyset cursor —
+  D-053's display-only `effectiveDate` never reaches a video that deep, since it only
+  re-sorts within whatever page was already fetched; confirmed systemic across 8+
+  affected channels). Found live-testing B-135's own build: [[B-136]] (a live/upcoming
+  video that disappears from YouTube entirely — deleted or privated — never got
+  corrected, since `videos.list` just omits it rather than erroring; D-074's new
+  top-priority tier turned this from an easy-to-miss stale badge into the single most
+  prominent row in the feed; confirmed against real data as 540 consecutive sync
+  cycles with zero update on one stuck row). Both Fixed, confirmed working live after
+  a relaunch. No separate `tracker-history/` entry beyond the batch file itself —
+  shipped as a **patch** version, per the owner's own explicit direction, even though
+  D-074 is real new scope (reversing B-119's prior exclusion), same pattern as several
+  earlier patches driven by a `D-NNN` (D-053 in `0.4.6`, D-063 in `0.10.2`, among
+  others). See `decisions.md` D-074 and `tracker-history/v0.15.1.md`. B-108, B-101
+  carried forward, untouched, now targeting **0.15.2**.
 
 ## M0 — Walking skeleton
 
