@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { parseYouTubeUrl } from '../ipc/youtube-url'
 import { t } from './i18n'
+import { useDialogDismiss } from './useDialogDismiss'
 
-// Ctrl+O (ui.md, D-029): open any pasted YouTube video URL in-app.
+// Ctrl+O (ui.md): open any pasted YouTube video URL in-app.
 interface UrlPromptProps {
   onOpenVideo: (videoId: string) => void
   onClose: () => void
@@ -11,6 +12,7 @@ interface UrlPromptProps {
 export function UrlPrompt({ onOpenVideo, onClose }: UrlPromptProps) {
   const [value, setValue] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
+  const dismiss = useDialogDismiss(onClose)
 
   function submit(): void {
     const link = parseYouTubeUrl(value)
@@ -20,7 +22,7 @@ export function UrlPrompt({ onOpenVideo, onClose }: UrlPromptProps) {
         onClose()
         break
       case 'shorts':
-        // D-028: Chronicle never plays Shorts; offer the browser instead.
+        // Chronicle never plays Shorts; offer the browser instead.
         setNotice(t('urlPrompt.notice.shorts'))
         void window.chronicle.openExternalUrl(value.trim())
         setTimeout(onClose, 1600)
@@ -38,18 +40,7 @@ export function UrlPrompt({ onOpenVideo, onClose }: UrlPromptProps) {
 
   return (
     <div className="overlay-backdrop" onClick={onClose}>
-      <div
-        className="overlay url-prompt"
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          // A dialog on top of the content owns Escape while it's open —
-          // never let it bubble to whatever's underneath. The input below
-          // already handles Escape/Enter itself; this is the safety net for
-          // anything else in the dialog that might have focus.
-          event.stopPropagation()
-          if (event.key === 'Escape') onClose()
-        }}
-      >
+      <div {...dismiss} className="overlay url-prompt" onClick={(event) => event.stopPropagation()}>
         <h2>{t('urlPrompt.title')}</h2>
         <input
           autoFocus

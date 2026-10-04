@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PLAYLIST_NAME_MAX_LENGTH, type PlaylistDto } from '../ipc/contract'
 import { t } from './i18n'
+import { useDialogDismiss } from './useDialogDismiss'
 
 interface AddToPlaylistDialogProps {
   videoId: string
@@ -28,20 +29,7 @@ export function AddToPlaylistDialog({
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  // Unlike UrlPrompt/CreatePlaylistDialog (an autoFocus text input naturally
-  // takes focus on open), this dialog has no such element — opened via a
-  // click or the `a` shortcut, focus would otherwise stay on whatever
-  // triggered it (a sibling of this dialog, not an ancestor), so a keydown
-  // handler on this container alone would never see it: the event bubbles
-  // from that other element's own ancestors instead, never passing through
-  // here. Focusing the container itself on mount (tabIndex={-1} makes a
-  // plain div programmatically focusable) fixes that at the source, for
-  // Escape and anything else typed before the user clicks something inside.
-  useEffect(() => {
-    containerRef.current?.focus()
-  }, [])
+  const dismiss = useDialogDismiss(onClose)
 
   useEffect(() => {
     setLoading(true)
@@ -87,19 +75,9 @@ export function AddToPlaylistDialog({
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div
-        ref={containerRef}
-        tabIndex={-1}
+        {...dismiss}
         className="overlay add-to-playlist"
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          // A dialog on top of the content owns Escape while it's open —
-          // never let it bubble to whatever's underneath (the full-view
-          // player's own Esc-to-close/dock map, the feed's own keydown
-          // handler), regardless of which element inside currently has
-          // focus (a checkbox, a button, nothing in particular).
-          event.stopPropagation()
-          if (event.key === 'Escape') onClose()
-        }}
       >
         <h2>{t('addToPlaylist.title')}</h2>
         <p className="add-to-playlist-video-title">{videoTitle}</p>
