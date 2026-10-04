@@ -5,8 +5,8 @@ import { AVAILABLE_LOCALES, t } from '../i18n'
 
 // The onboarding wizard (onboarding.md) — a flagship feature: every step
 // explains WHY, opens the exact Google page, copies any value the user must
-// paste, and validates where technically possible (D-014: checkboxes for
-// console steps 1–5, real validation at 6–7 with failure→step mapping).
+// paste, and validates where technically possible: checkboxes for console
+// steps 1–5, real validation at 6–7 with failure→step mapping.
 
 interface StepDefinition {
   id: WizardStepId
@@ -21,7 +21,7 @@ interface StepDefinition {
 
 // A function, not a module-level array — must re-resolve against whichever
 // language is active *right now*, not whatever `t()` returned once at
-// import time (D-054; same reasoning as Sidebar.tsx's viewLabel).
+// import time (same reasoning as Sidebar.tsx's viewLabel).
 function getConsoleSteps(): StepDefinition[] {
   return [
     {
@@ -102,8 +102,8 @@ function getConsoleSteps(): StepDefinition[] {
 }
 
 // No 'first-sync' step: connecting (Step 7) already triggers the first sync
-// in the backend, so a second, wizard-owned "start sync and wait" step was
-// both redundant and a source of its own bugs — see decisions.md D-044.
+// in the backend, so a second, wizard-owned "start sync and wait" step would
+// be redundant.
 export const STEP_SEQUENCE: WizardStepId[] = [
   'welcome',
   'project',
@@ -123,10 +123,10 @@ interface WizardProps {
   onDone: () => void
   // Present only for Settings re-entry (onboarding.md §Re-entry points).
   onExit?: () => void
-  // D-054: the wizard runs before Settings is reachable at all, so it needs
-  // its own language switcher rather than relying solely on system
-  // detection — same persisted setting (SettingsDto.language), just a
-  // second place to change it.
+  // The wizard runs before Settings is reachable at all, so it needs its
+  // own language switcher rather than relying solely on system detection —
+  // same persisted setting (SettingsDto.language), just a second place to
+  // change it.
   language: string
   onLanguageChange: (language: string) => void
 }
@@ -531,7 +531,7 @@ function ConnectStep({
       return
     }
     // Validation: one channels.list call proves the token works and the API
-    // is enabled; failures map back to the responsible step (D-014).
+    // is enabled; failures map back to the responsible step.
     const who = await window.chronicle.getConnectedChannel()
     if (who.ok) {
       setIdentity(who.value.title)

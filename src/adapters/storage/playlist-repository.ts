@@ -193,7 +193,7 @@ export class SqlitePlaylistRepository implements PlaylistRepository {
     return rows.map((row) => row.playlist_id)
   }
 
-  // D-059: this playlist's own membership as a Set — the Sync diff (and the
+  // This playlist's own membership as a Set — the Sync diff (and the
   // import path's own de-dupe) look up membership by id, not in feed order.
   listImportedVideoIds(playlistId: string): Set<string> {
     const rows = this.db

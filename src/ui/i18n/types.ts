@@ -4,7 +4,7 @@ import { dict as en } from './locales/en'
 // `string` (not en's own literal types) so a translation's dict can hold its
 // own different string per key. Other locales are Partial<Dict>, so a
 // contributor's translation can lag behind new keys without a type error —
-// t() falls back to English per-key (D-054).
+// t() falls back to English per-key.
 export type Dict = { [K in keyof typeof en]: string }
 export type MessageKey = keyof Dict
 
@@ -13,7 +13,7 @@ export interface LocaleMeta {
   code: string
   // Name shown in the Settings dropdown, in that language itself (not English).
   nativeName: string
-  // D-072: false for a locale that's an AI-generated first pass, never checked
+  // False for a locale that's an AI-generated first pass, never checked
   // by a native speaker — SettingsView shows a note when one is selected.
   reviewed: boolean
 }

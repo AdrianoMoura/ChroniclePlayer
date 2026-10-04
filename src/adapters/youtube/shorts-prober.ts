@@ -2,8 +2,8 @@ import { internal } from '../../core/errors'
 import type { ShortsProber } from '../../core/ports'
 import { request, type FetchFn } from '../http'
 
-// D-028 confirmation probe: HEAD youtube.com/shorts/{id}. Shorts answer 200;
-// regular videos redirect to /watch. Zero quota; the verdict is cached
+// Shorts confirmation probe: HEAD youtube.com/shorts/{id}. Shorts answer
+// 200; regular videos redirect to /watch. Zero quota; the verdict is cached
 // permanently per video (videos.is_short), so each video is probed once ever.
 export class HeadShortsProber implements ShortsProber {
   constructor(private readonly fetchFn: FetchFn) {}

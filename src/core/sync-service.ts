@@ -10,9 +10,9 @@ import type {
   VideoSource
 } from './ports'
 
-// The refresh path (architecture.md §Data flow, D-007 hybrid source):
+// The refresh path (architecture.md §Data flow, hybrid RSS+API source):
 // RSS discovers new videoIds for free → genuinely new ones are hydrated in
-// 50-id batches → Shorts candidates are confirmed and cached (D-028).
+// 50-id batches → Shorts candidates are confirmed and cached.
 // Failures are per-channel; a refresh is idempotent and resumable.
 
 export type SyncTrigger = 'launch' | 'manual' | 'timer'
@@ -23,8 +23,8 @@ export interface SyncProgress {
   total: number
 }
 
-// B-097: per-channel (or account-level, when channelId is null) failure
-// detail behind channelsFailed, so a failure banner has something to show.
+// Per-channel (or account-level, when channelId is null) failure detail
+// behind channelsFailed, so a failure banner has something to show.
 export interface SyncFailureDetail {
   channelId: string | null
   channelTitle: string | null
@@ -39,16 +39,17 @@ export interface SyncReport {
   channelsFailed: number
   failures: SyncFailureDetail[]
   videosNew: number
-  // Per-channel breakdown of videosNew, channels with ≥1 new video only (D-050).
-  // shortsCount is filled in after confirmShorts() settles this cycle's verdicts (D-052).
+  // Per-channel breakdown of videosNew, channels with ≥1 new video only.
+  // shortsCount is filled in after confirmShorts() settles this cycle's
+  // verdicts, so notification counts can exclude Shorts.
   newVideosByChannel: { channelId: string; channelTitle: string; count: number; shortsCount: number }[]
   quotaSpent: number
   outcome: 'ok' | 'partial' | 'failed' | 'quota'
-  // The subscription-list diff for this run (B-021: every sync re-lists —
-  // no gate, no separate manual action; new channels never wait).
+  // The subscription-list diff for this run — every sync re-lists, no
+  // gate, no separate manual action; new channels never wait.
   subscriptions: { added: number; removed: number } | null
   // True on an account's first-ever subscription sync — the composition
-  // root uses this to mark the backlog read after the report returns (B-020).
+  // root uses this to mark the backlog read after the report returns.
   firstSync: boolean
 }
 
@@ -59,14 +60,14 @@ function errorMessage(error: unknown): string {
 // youtube-api.md politeness bound — concurrency doesn't meaningfully affect
 // RSS failure rate, so a higher value only shortens first-sync discovery time.
 const RSS_CONCURRENCY = 12
-// Exported so main.ts's on-demand Shorts confirmation for a transient search/
-// channel-preview list (B-131) shares the exact same politeness bound rather
-// than drifting from it independently.
+// Exported so main.ts's on-demand Shorts confirmation for a transient
+// search/channel-preview list shares the exact same politeness bound
+// rather than drifting from it independently.
 export const SHORTS_CONCURRENCY = 8 // first sync probes ~1k candidates
 const HYDRATE_BATCH = 50 // videos.list: 1 unit per 50-id call
 const GAP_BACKFILL_MAX = 200 // feed.md §Backfill bound, per channel per cycle
 const META_SUBSCRIPTIONS_SYNCED_AT = 'subscriptions_synced_at'
-// B-002: bounds one on-demand archive-backfill call — at most this many
+// Bounds one on-demand archive-backfill call — at most this many
 // playlistItems.list pages (1 unit each) before giving up for this call,
 // so a single scroll-triggered fetch can't run away.
 const ARCHIVE_BACKFILL_PAGE_LIMIT = 4
@@ -99,9 +100,9 @@ interface RefreshContext {
 export class SyncService {
   constructor(private readonly deps: SyncDeps) {}
 
-  // channelId scopes the whole run to one channel (B-036) — subscription
-  // re-list is skipped, discovery and Shorts confirmation filter to it.
-  // accountId (B-003) selects whose subscriptions/tokens this run uses.
+  // channelId scopes the whole run to one channel — subscription re-list
+  // is skipped, discovery and Shorts confirmation filter to it. accountId
+  // selects whose subscriptions/tokens this run uses.
   async refresh(trigger: SyncTrigger, accountId: string, channelId?: string): Promise<SyncReport> {
     const { repo, clock, quota } = this.deps
     const startedAt = clock.now().toISOString()
@@ -111,7 +112,7 @@ export class SyncService {
     let channelsPolled = 0
     let videosNew = 0
     // Per-channel new-video counts, used by main-process notifications to
-    // resolve their channel scope (D-050).
+    // resolve their channel scope.
     const newVideosByChannel: SyncReport['newVideosByChannel'] = []
     let subscriptions: { added: number; removed: number } | null = null
     const failures: SyncFailureDetail[] = []
@@ -140,7 +141,7 @@ export class SyncService {
 
       const toHydrate: string[] = []
       // Kept alongside newVideosByChannel so shortsCount can be resolved
-      // once confirmShorts() settles this cycle's verdicts (D-052).
+      // once confirmShorts() settles this cycle's verdicts.
       const newIdsByChannel = new Map<string, string[]>()
       const results = await mapPool(channels, RSS_CONCURRENCY, async (channel) => {
         const newIds = await this.discoverChannel(channel, ctx)
@@ -180,7 +181,7 @@ export class SyncService {
       videosNew = newIds.length
       // On an account's first sync, every discovered video is marked read
       // instead of unread — applied per hydrated batch so a feed reload
-      // mid-sync never shows them unread (B-020, B-069, B-105).
+      // mid-sync never shows them unread.
       if (!ctx.quotaHit && newIds.length > 0) {
         try {
           for (let i = 0; i < newIds.length; i += HYDRATE_BATCH) {
@@ -210,7 +211,7 @@ export class SyncService {
 
       await this.refreshLiveStatus(channelId, ctx)
       await this.confirmShorts(channelId)
-      // D-052: Shorts verdicts are settled now — resolve each channel's
+      // Shorts verdicts are settled now — resolve each channel's
       // shortsCount for the notify-shorts filter (main.ts's maybeNotifyNewVideos).
       for (const entry of newVideosByChannel) {
         entry.shortsCount = this.deps.repo.countShorts(newIdsByChannel.get(entry.channelId) ?? [])
@@ -296,8 +297,8 @@ export class SyncService {
     return report
   }
 
-  // Re-lists subscriptions on every sync, no gate (B-021) — a few units per
-  // run (subscriptions.list, 1 unit per 50), cheap enough not to bother gating.
+  // Re-lists subscriptions on every sync, no gate — a few units per run
+  // (subscriptions.list, 1 unit per 50), cheap enough not to bother gating.
   private async syncSubscriptions(
     accountId: string
   ): Promise<{ added: number; removed: number }> {
@@ -359,7 +360,7 @@ export class SyncService {
 
     // Gap detection: any newly discovered video on a previously synced
     // channel triggers a check of the uploads playlist for older misses
-    // (feed.md §Backfill, B-051) — a mix of known and new entries in the RSS
+    // (feed.md §Backfill) — a mix of known and new entries in the RSS
     // window can still hide a real gap. backfillGap stops at the first page
     // it finds already known, so the common gap-free case costs one bounded
     // page fetch; GAP_BACKFILL_MAX caps the worst case.
@@ -382,7 +383,7 @@ export class SyncService {
     return newIds
   }
 
-  // B-002: user-initiated back-catalog fetch — paginates a channel's uploads
+  // User-initiated back-catalog fetch — paginates a channel's uploads
   // playlist from wherever the last call left off, hydrates whatever is
   // genuinely new, and stops once it finds something (or hits the page
   // bound). Resumable across calls, independent of routine sync's gap detection.
@@ -456,8 +457,8 @@ export class SyncService {
   }
 
   // liveContent is captured once at hydration time and never re-checked
-  // otherwise, so `upcoming`/`live` videos would get stuck forever (B-085,
-  // B-114) — re-hydrated here every cycle instead, at no extra quota cost
+  // otherwise, so `upcoming`/`live` videos would get stuck forever —
+  // re-hydrated here every cycle instead, at no extra quota cost
   // (videos.list is 1 unit per call regardless of id count). Failures just
   // leave a video stuck for one more cycle, retried next time.
   private async refreshLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
@@ -479,7 +480,7 @@ export class SyncService {
     }
   }
 
-  // D-028 pipeline: candidates are confirmed via HEAD probe, cached forever.
+  // Shorts confirmation pipeline: candidates are confirmed via HEAD probe, cached forever.
   // Probe failures leave is_short NULL — the video stays visible (candidates
   // are hidden only after confirmation) and is retried next cycle.
   private async confirmShorts(channelId?: string): Promise<void> {

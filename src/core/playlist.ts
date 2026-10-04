@@ -1,7 +1,7 @@
-// User-created, local-only playlists (see decisions.md). Distinct from a
-// YouTube playlist: never synced, never touches the API — a plain
-// user-ordered list of already-known videos (feed.md's D-029 "known
-// locally" rule applies the same way Watch Later's queue does).
+// User-created, local-only playlists. Distinct from a YouTube playlist:
+// never synced, never touches the API — a plain user-ordered list of
+// already-known videos, the same "known locally" rule Watch Later's queue
+// follows.
 
 import type { FeedEntry } from './feed'
 
@@ -11,9 +11,9 @@ export interface Playlist {
   description: string | null
   createdAt: string
   updatedAt: string
-  // D-059: the source YouTube playlist id if this was created via "Import
-  // from YouTube," null for an ordinary "Create Playlist" one. Gates the
-  // Sync action — never set after creation.
+  // The source YouTube playlist id if this was created via "Import from
+  // YouTube," null for an ordinary "Create Playlist" one. Gates the Sync
+  // action — never set after creation.
   sourcePlaylistId: string | null
 }
 
@@ -31,11 +31,11 @@ export interface PlaylistSummary extends Playlist {
 }
 
 // A playlist is also a user-ordered queue, similar to Watch Later's
-// (core/feed.ts's nextWatchLaterAfter, D-055) — but deliberately does NOT
-// wrap around: Watch Later is a rotation the user dips in and out of (D-057
-// added wraparound there on purpose), while a playlist is a curated,
-// ordered collection with a real end — reaching its last video suggests
-// nothing further, rather than looping back to the first.
+// (core/feed.ts's nextWatchLaterAfter) — but deliberately does NOT wrap
+// around: Watch Later is a rotation the user dips in and out of, while a
+// playlist is a curated, ordered collection with a real end — reaching its
+// last video suggests nothing further, rather than looping back to the
+// first.
 export function nextInPlaylist(
   videos: readonly FeedEntry[],
   currentVideoId: string

@@ -11,7 +11,7 @@ import {
 
 // The OAuth client (one Google Cloud project) is shared across every
 // connected account — only the refresh token and granted scopes are
-// per-account (B-003). 'default' is the single-account id.
+// per-account. 'default' is the single-account id.
 export const SECRET_KEYS = {
   oauthClient: 'default/oauth-client'
 } as const
@@ -24,8 +24,8 @@ export function accountSecretKeys(accountId: string): {
 } {
   return {
     refreshToken: `${accountId}/refresh-token`,
-    // D-032 incremental consent: the scope string Google actually granted,
-    // so hasWriteScope() never has to guess.
+    // The scope string Google actually granted, so hasWriteScope() never
+    // has to guess.
     grantedScopes: `${accountId}/granted-scopes`
   }
 }
@@ -64,7 +64,7 @@ export function readStoredCredentials(secrets: SecretStore): OAuthClientCredenti
 // Produces valid access tokens on demand; access tokens live in this
 // process's memory only, never on disk (authentication.md §Token lifecycle).
 // One instance per connected account — each mints from its own refresh
-// token, sharing only the OAuth client and quota (B-003).
+// token, sharing only the OAuth client and quota.
 export class GoogleAuthProvider implements AuthProvider {
   private cached: { token: string; expiresAtMs: number } | null = null
   private readonly keys: { refreshToken: string; grantedScopes: string }
@@ -99,7 +99,7 @@ export class GoogleAuthProvider implements AuthProvider {
 
 // The interactive connect flow: system browser + loopback + PKCE. One
 // instance per account; importClientSecret affects the shared OAuth client,
-// while connect/signOut/scope state stay per-account (B-003).
+// while connect/signOut/scope state stay per-account.
 export class AuthFlow {
   private readonly keys: { refreshToken: string; grantedScopes: string }
 
@@ -126,8 +126,8 @@ export class AuthFlow {
     return this.secrets.get(this.keys.refreshToken) !== null
   }
 
-  // True once the user has granted youtube.force-ssl (D-032) — checked
-  // before any write action (B-010 unsubscribe, and future like/comment).
+  // True once the user has granted youtube.force-ssl — checked before any
+  // write action (unsubscribe, like/comment).
   hasWriteScope(): boolean {
     const granted = this.secrets.get(this.keys.grantedScopes)
     return granted !== null && granted.includes(YOUTUBE_FORCE_SSL_SCOPE)
@@ -137,9 +137,9 @@ export class AuthFlow {
     await this.runFlow(YOUTUBE_READONLY_SCOPE, false)
   }
 
-  // Incremental authorization (D-032): re-runs the same system-browser +
-  // loopback handshake, merging the write scope onto whatever is already
-  // granted. Two clicks for an already-signed-in user.
+  // Incremental authorization: re-runs the same system-browser + loopback
+  // handshake, merging the write scope onto whatever is already granted.
+  // Two clicks for an already-signed-in user.
   async requestWriteScope(): Promise<void> {
     await this.runFlow(`${YOUTUBE_READONLY_SCOPE} ${YOUTUBE_FORCE_SSL_SCOPE}`, true)
   }

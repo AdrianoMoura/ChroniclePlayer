@@ -14,8 +14,8 @@ import { request, type FetchFn } from '../http'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
 
-// B-009/D-031: a free-text search result — video or channel, across all of
-// YouTube, not just subscribed channels.
+// A free-text search result — video or channel, across all of YouTube, not
+// just subscribed channels.
 export type SearchResult =
   | {
       kind: 'video'
@@ -27,8 +27,8 @@ export type SearchResult =
       thumbnailUrl: string | null
       durationSeconds: number | null
       // Always false here — this client has no ShortsProber (that's a
-      // sibling adapter). main.ts's confirmShorts() (B-131) overwrites this
-      // with the real, HEAD-confirmed value before it ever reaches the UI.
+      // sibling adapter). main.ts's confirmShorts() overwrites this with
+      // the real, HEAD-confirmed value before it ever reaches the UI.
       isShort: boolean
     }
   | {
@@ -39,8 +39,8 @@ export type SearchResult =
       subscriberCount: number | null
     }
 
-// B-006: one level of nesting only, matching YouTube's own comment model
-// (a reply cannot itself have replies).
+// One level of nesting only, matching YouTube's own comment model (a
+// reply cannot itself have replies).
 export interface Comment {
   commentId: string
   authorDisplayName: string
@@ -56,8 +56,8 @@ export interface Comment {
   likeCount: number
   // The Comments resource's own `viewerRating` field — riding free on the
   // same snippet part already fetched, no extra quota. YouTube's public API
-  // only exposes 'like'/'none' here, never 'dislike' (D-032: no comment-like
-  // *action* exists, but the viewer's own existing like state is readable).
+  // only exposes 'like'/'none' here, never 'dislike': no comment-dislike
+  // *action* exists, but the viewer's own existing like state is readable.
   viewerRating: 'like' | 'none'
   replies: Comment[]
 }
@@ -107,8 +107,7 @@ export class YouTubeApiClient implements SubscriptionSource {
   // channels.list mine=true — 1 unit. Used at wizard Step 7 to show the
   // connected identity and prove the API is enabled (onboarding.md), and to
   // resolve the viewer's own channel id for the comments panel's Edit
-  // affordance (D-064) — `id` rides free on the same response, previously
-  // discarded.
+  // affordance — `id` rides free on the same response, previously discarded.
   async getOwnChannel(): Promise<{ title: string; channelId: string } | null> {
     const page = await this.get('channels', { part: 'snippet', mine: 'true' }, 1)
     const item = page.items[0]
@@ -160,7 +159,7 @@ export class YouTubeApiClient implements SubscriptionSource {
   // videos.list batched — 1 unit per call (≤ 50 ids) regardless of how many
   // parts are requested — liveStreamingDetails and status ride along on the
   // same call at no extra quota cost, for actualEndTime and uploadStatus.
-  // The hydration half of the hybrid feed source (D-007).
+  // The hydration half of the hybrid feed source.
   async hydrate(videoIds: readonly string[]): Promise<HydratedVideo[]> {
     if (videoIds.length === 0) return []
     const page = await this.get(
@@ -184,7 +183,7 @@ export class YouTubeApiClient implements SubscriptionSource {
       // Present once the broadcast (or Premiere) has actually started.
       const rawStartTime = liveStreamingDetails?.['actualStartTime']
       const liveStartedAt = typeof rawStartTime === 'string' ? rawStartTime : null
-      // D-053: only present once the broadcast has actually ended.
+      // Only present once the broadcast has actually ended.
       const rawEndTime = liveStreamingDetails?.['actualEndTime']
       const liveEndedAt = typeof rawEndTime === 'string' ? rawEndTime : null
       // status.uploadStatus is 'processed' for a Premiere (already fully
@@ -214,8 +213,8 @@ export class YouTubeApiClient implements SubscriptionSource {
   }
 
   // subscriptions.delete — 50 units (youtube-api.md). User-initiated only
-  // (B-010, D-032) — never called from the background sync path. Requires
-  // the write scope (youtube.force-ssl) to already be granted.
+  // — never called from the background sync path. Requires the write scope
+  // (youtube.force-ssl) to already be granted.
   async unsubscribe(subscriptionId: string): Promise<void> {
     this.quota.add(50)
     const token = await this.auth.getAccessToken()
@@ -232,7 +231,7 @@ export class YouTubeApiClient implements SubscriptionSource {
   }
 
   // subscriptions.list mine=true forChannelId — 1 unit. Fallback lookup for
-  // channels subscribed before the subscription_id column existed (B-010).
+  // channels subscribed before the subscription_id column existed.
   async findSubscriptionId(channelId: string): Promise<string | null> {
     const page = await this.get(
       'subscriptions',
@@ -243,8 +242,8 @@ export class YouTubeApiClient implements SubscriptionSource {
     return typeof id === 'string' ? id : null
   }
 
-  // subscriptions.insert — 50 units. User-initiated only (B-009/D-030,
-  // incremental scope per D-032) — never called from sync/automation.
+  // subscriptions.insert — 50 units. User-initiated only, incremental
+  // write scope — never called from sync/automation.
   async subscribe(channelId: string): Promise<Channel> {
     this.quota.add(50)
     const token = await this.auth.getAccessToken()
@@ -264,12 +263,12 @@ export class YouTubeApiClient implements SubscriptionSource {
     }
   }
 
-  // search.list — 100 units/call (youtube-api.md, D-031). Explicit
-  // user-typed queries only — never called from sync/automation, never
-  // injected into the feed. D-071: an optional channelId scopes the same
-  // call to one channel's own uploads (type narrows to video-only, since a
-  // channel can't return itself as a channel result) — reused for a
-  // channel screen's own search, same 100-unit cost, same Enter-only gate.
+  // search.list — 100 units/call (youtube-api.md). Explicit user-typed
+  // queries only — never called from sync/automation, never injected into
+  // the feed. An optional channelId scopes the same call to one channel's
+  // own uploads (type narrows to video-only, since a channel can't return
+  // itself as a channel result) — reused for a channel screen's own
+  // search, same 100-unit cost, same Enter-only gate.
   async search(
     query: string,
     pageToken?: string,
@@ -326,9 +325,9 @@ export class YouTubeApiClient implements SubscriptionSource {
     })
 
     // Two small batched follow-ups (1 unit each, at most) — video duration
-    // (needed for both the duration badge and main.ts's Shorts confirmation,
-    // B-131) and channel subscriber count both need data search.list's
-    // snippet doesn't return.
+    // (needed for both the duration badge and main.ts's Shorts confirmation)
+    // and channel subscriber count both need data search.list's snippet
+    // doesn't return.
     const [durations, subscriberCounts] = await Promise.all([
       this.fetchVideoDurations(videoIds),
       this.fetchSubscriberCounts(channelIds)
@@ -377,7 +376,7 @@ export class YouTubeApiClient implements SubscriptionSource {
 
   // commentThreads.list — 1 unit/page regardless of `order` (same call, same
   // cost; sort is a query param, not a different endpoint). Public data; the
-  // readonly scope suffices, no write scope needed just to read (B-006).
+  // readonly scope suffices, no write scope needed just to read.
   async listComments(
     videoId: string,
     pageToken?: string,
@@ -401,7 +400,7 @@ export class YouTubeApiClient implements SubscriptionSource {
     }
   }
 
-  // commentThreads.insert — 50 units, write scope required (B-006/D-032).
+  // commentThreads.insert — 50 units, write scope required.
   async postComment(videoId: string, text: string): Promise<Comment> {
     this.quota.add(50)
     const token = await this.auth.getAccessToken()
@@ -435,7 +434,7 @@ export class YouTubeApiClient implements SubscriptionSource {
   // comments.update — 50 units, write scope required (same cost as every
   // other write here). Works on both a top-level comment id and a reply id
   // — both are `comments` resources. YouTube itself 403s if the id isn't
-  // one the authenticated user authored (D-064) — Chronicle never needs to
+  // one the authenticated user authored — Chronicle never needs to
   // re-derive that rule, only decide when to *show* the affordance.
   async updateComment(commentId: string, text: string): Promise<Comment> {
     this.quota.add(50)
@@ -450,11 +449,11 @@ export class YouTubeApiClient implements SubscriptionSource {
     return this.toReply(payload)
   }
 
-  // videos.rate — 50 units, write scope required (B-006/D-032). YouTube's
-  // public API has no equivalent endpoint to like a *comment* — only videos.
-  // D-068: 'dislike' is accepted the same as 'like' always was — the write
-  // itself never depended on YouTube's public dislike *count*, which is a
-  // separate, unrelated removal (only the aggregate number was hidden).
+  // videos.rate — 50 units, write scope required. YouTube's public API has
+  // no equivalent endpoint to like a *comment* — only videos. 'dislike' is
+  // accepted the same as 'like' — the write itself never depended on
+  // YouTube's public dislike *count*, which is a separate, unrelated
+  // removal (only the aggregate number was hidden).
   async rateVideo(videoId: string, rating: 'like' | 'dislike' | 'none'): Promise<void> {
     this.quota.add(50)
     const token = await this.auth.getAccessToken()
@@ -519,7 +518,7 @@ export class YouTubeApiClient implements SubscriptionSource {
   }
 
   // playlists.list, part=snippet, single id — 1 unit. The source playlist's
-  // own title/description when importing it into a local Playlist (D-059).
+  // own title/description when importing it into a local Playlist.
   async fetchPlaylistMeta(
     playlistId: string
   ): Promise<{ title: string; description: string | null } | null> {
@@ -536,8 +535,8 @@ export class YouTubeApiClient implements SubscriptionSource {
   // playlistItems.list — 1 unit per 50-item page. Gap detection and
   // on-demand archive backfill only (never a routine sync path). Also the
   // video-id-collection step of importing/syncing a YouTube playlist into a
-  // local Playlist (D-059) — this generic call works unmodified against any
-  // public playlist id, not just a channel's own uploads playlist.
+  // local Playlist — this generic call works unmodified against any public
+  // playlist id, not just a channel's own uploads playlist.
   async listUploads(
     playlistId: string,
     pageToken?: string

@@ -7,10 +7,10 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke'
 
 // Initial auth requests the readonly scope only; write actions request
-// youtube.force-ssl incrementally (D-032).
+// youtube.force-ssl incrementally.
 export const YOUTUBE_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
-// Covers subscribe/unsubscribe, rate, and comment (D-032) — requested only
-// the first time a write action is invoked.
+// Covers subscribe/unsubscribe, rate, and comment — requested only the
+// first time a write action is invoked.
 export const YOUTUBE_FORCE_SSL_SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl'
 
 export interface OAuthClientCredentials {
@@ -37,8 +37,8 @@ export class GoogleOAuth {
     state: string
     codeChallenge: string
     scope?: string
-    // Incremental consent (D-032): merges this grant with scopes already
-    // granted in a prior connection instead of replacing them.
+    // Incremental consent: merges this grant with scopes already granted
+    // in a prior connection instead of replacing them.
     includeGrantedScopes?: boolean
   }): string {
     const url = new URL(AUTH_ENDPOINT)
@@ -107,8 +107,9 @@ export class GoogleOAuth {
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
 
     if (!response.ok) {
-      // invalid_grant = refresh token revoked/expired (incl. the Testing-mode
-      // 7-day expiry, D-012) — a first-class product state, not a crash.
+      // invalid_grant = refresh token revoked/expired (incl. a Google OAuth
+      // app in Testing mode, which expires refresh tokens after 7 days) —
+      // a first-class product state, not a crash.
       if (payload['error'] === 'invalid_grant') throw authExpired()
       throw internal(`token endpoint error: ${String(payload['error'] ?? response.status)}`)
     }

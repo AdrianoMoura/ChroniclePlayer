@@ -3,8 +3,8 @@ import { ActionLabel } from './ActionLabel'
 import { t } from './i18n'
 import { ThumbDownIcon, ThumbUpIcon } from './icons'
 
-// D-068: like/dislike toggle buttons plus a proportion bar underneath, split
-// out from the rest of .player-actions so the bar/counts row has its own
+// Like/dislike toggle buttons plus a proportion bar underneath, split out
+// from the rest of .player-actions so the bar/counts row has its own
 // layout instead of squeezing into a flat button row. The real like count
 // (YouTube's own statistics.likeCount, never removed) always renders when
 // available; the dislike side is an opt-in third-party estimate

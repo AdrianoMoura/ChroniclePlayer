@@ -2,8 +2,8 @@ import type { ChannelSyncInfo, HydratedVideo, RssFeedResult, VideoSource } from 
 import type { YouTubeRssClient } from '../rss/rss-client'
 import type { YouTubeApiClient } from './api-client'
 
-// The hybrid VideoSource (D-007): RSS discovers for free, the API hydrates
-// in batches and serves gap/archive backfill.
+// The hybrid VideoSource: RSS discovers for free, the API hydrates in
+// batches and serves gap/archive backfill.
 export class HybridVideoSource implements VideoSource {
   constructor(
     private readonly rss: YouTubeRssClient,

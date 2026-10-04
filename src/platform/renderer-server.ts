@@ -4,16 +4,16 @@ import { extname, join, normalize, sep } from 'node:path'
 
 // A packaged build must serve the renderer over a real http:// origin, not
 // file:// (playback.md): the embedded YouTube player uses enablejsapi=1
-// for the postMessage widget protocol (D-006), and YouTube rejects that
-// handshake with "Error 153: Video player configuration error" when the
-// top frame's origin isn't one it can validate — file:// gives every load
-// its own opaque origin, which is exactly that case. Dev mode already
-// works because electron-vite serves the renderer from its own
-// http://localhost dev server; this gives the packaged build the same
-// kind of origin. The hostname specifically has to be `localhost`, not just
-// any loopback address — D-056's docked live chat iframe (`live_chat?...
-// &embed_domain=localhost`) needs the embedding page's own origin to match
-// that literal value, and YouTube checks it exactly.
+// for the postMessage widget protocol, and YouTube rejects that handshake
+// with "Error 153: Video player configuration error" when the top frame's
+// origin isn't one it can validate — file:// gives every load its own
+// opaque origin, which is exactly that case. Dev mode already works
+// because electron-vite serves the renderer from its own http://localhost
+// dev server; this gives the packaged build the same kind of origin. The
+// hostname specifically has to be `localhost`, not just any loopback
+// address — the docked live chat iframe (`live_chat?...&embed_domain=localhost`)
+// needs the embedding page's own origin to match that literal value, and
+// YouTube checks it exactly.
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

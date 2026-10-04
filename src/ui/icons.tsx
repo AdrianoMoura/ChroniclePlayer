@@ -21,7 +21,7 @@ export function BellIcon({ filled }: { filled: boolean }) {
   )
 }
 
-// D-068: Material Symbols' "thumb_up"/"thumb_down" glyphs — small, purely
+// Material Symbols' "thumb_up"/"thumb_down" glyphs — small, purely
 // decorative markers flanking the like/dislike counts, not interactive
 // controls (the actual toggle buttons stay text-label ActionButtons).
 export function ThumbUpIcon() {
