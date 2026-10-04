@@ -287,11 +287,22 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   whole app). [[B-108]] and [[B-101]] didn't make it in and carried their **Target**
   forward again. No new `D-NNN` scope this cycle. Shipped as a **patch** version (a pure
   bug-fix batch). Shipped 2026-10-01.
+- [`tracker-history/v0.15.0.md`](tracker-history/v0.15.0.md) — a single entry, [[B-134]]
+  (Fixed — resume playback position now saves on a real app quit, not just React's own
+  lifecycle events, and a pause the embed initiates on its own is no longer missed).
+  [[B-108]] and [[B-101]] didn't make it in and carried their **Target** forward again.
+  Shipped alongside D-072 (five new AI-translated, unreviewed interface languages) and
+  D-073 (a local Watch History view, confirmed working live) — full narrative for both
+  is in `decisions.md`, not this file. Originally tracked toward a `0.14.2` patch, but
+  D-072/D-073 amounted to real new scope — shipped as a **minor** version instead,
+  skipping `0.14.2` entirely (same pattern as `0.11.0` skipping `0.10.3`, `0.12.0`
+  skipping `0.11.1`, and `0.13.0` skipping `0.12.1`). Shipped 2026-10-04.
 
-**Current target: 0.14.2.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.15.1.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, or 0.14.1 either (see above — every one of those
-shipped driven by a direct product-owner decision or a different bug batch instead).
+0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, or 0.15.0 either (see above — every one
+of those shipped driven by a direct product-owner decision or a different bug batch
+instead).
 
 ## Entry template
 
@@ -319,8 +330,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.14.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, and 0.14.1 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.15.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, and 0.15.0 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -345,8 +356,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.14.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, and 0.14.1 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.15.1
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, and 0.15.0 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -442,40 +453,3 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
-
-### B-134 — Resume playback position doesn't save/restore consistently
-- **Type:** bug · **Severity:** major
-- **Status:** Fixed · **Reported:** 2026-10-03 · **Target:** 0.14.2
-- **Area:** player
-- **What happens:** the product owner reported that `resume_position_seconds` (D-044,
-  `playback.md` §Resume playback position) didn't reliably reflect where they actually
-  stopped watching — sometimes a reopened video resumed from an old or wrong position,
-  sometimes from the very start.
-- **Expected:** reopening a video always resumes from the last position actually
-  watched, per the existing spec (10s minimum, 30s end margin).
-- **Code refs:** `src/ui/PlayerSurface.tsx` (the three save checkpoints: pause, ended,
-  the video-switch/unmount cleanup effect), `src/ui/ExtractedPlayerWindow.tsx`
-  (`onBeforeUnload`, the precedent this fix mirrors).
-- **Resolved:** 2026-10-03 · **Commit:** (pending — see follow-up) · **Outcome:** Fixed
-- **Resolution:** found by reading the code, two distinct gaps, both fixed in
-  `PlayerSurface.tsx`:
-  1. **No save path on real app quit.** The three existing checkpoints only ever fired
-     from React's own lifecycle (a pause event, the ended transition, or the
-     video-switch/unmount cleanup) — none of them ran when the whole app quit while a
-     video was actively playing (closing the main window for real, Cmd+Q, a tray Quit, an
-     OS logout). Fixed by adding the same `window.addEventListener('beforeunload', ...)`
-     mechanism `ExtractedPlayerWindow.tsx` already used for the pop-out window — a new
-     effect in `PlayerSurface.tsx` that persists `resumeValueFor(currentTimeRef.current,
-     video.durationSeconds)` right before the main window's own renderer unloads.
-  2. **Save-on-pause only trusted the one-shot `onStateChange` event.** The checkpoint
-     write for a pause (`payload.info === 2`) lived solely in the `onStateChange` branch
-     of `PlayerSurface.tsx`'s message handler — exposed to the exact reliability gap
-     [[B-111]] already found and fixed for `playerStateRef`/the "ended" side effects (a
-     state transition the embed initiates on its own, e.g. its native pause button, isn't
-     guaranteed to produce an observed `onStateChange` round trip). Fixed by extracting a
-     shared `applyPlayerState(state)` helper, called from both `onStateChange` and the
-     `infoDelivery` heartbeat, with a `handlePaused()` guarded the same one-shot way
-     `handleEnded()` already was — so a pause now reliably persists the checkpoint
-     regardless of which event notices the transition first.
-  - Checked via `npm run typecheck && npm run lint && npm test` (298/298) plus a
-    production build; not yet live-tested by the owner, per [[no-live-app-verification]].
