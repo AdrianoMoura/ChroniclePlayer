@@ -520,13 +520,219 @@ so `filtered` only trusts it once confirmed current. Full narrative in `decision
 D-060 and `tracker-history/v0.10.0.md`. Shipped as a **minor** version, per the owner's
 own explicit direction (D-060 is real new scope, not a bug-fix batch).
 
+**D-061 (backup export/import, i.e. turning the existing one-way "Export data" into a
+real leave-with-everything/restore-elsewhere flow) was designed and confirmed live in
+conversation, with a full implementation plan approved** — but **remains unimplemented
+as of `0.15.0`**: no code written, no `data:import` channel, no restore step in the
+wizard. Resolved design (credentials never travel in the backup, D-013; an
+account-mismatch confirm dialog; merge-by-`statusChangedAt` conflict rules;
+`playlists`/`playlist_videos` finally included in the export, closing a gap that
+predates D-058/D-059) is on file in `decisions.md` D-061 and a saved plan at
+`/home/adriano/.claude/plans/idempotent-pondering-bear.md` for whenever it's actually
+built — don't assume it exists just because the design is settled.
+
+**`0.10.1` shipped 2026-08-07, the same day as `0.10.0`** — [[B-022]] (Fixed —
+delete-all-data now relaunches cleanly; the third fix attempt across many prior
+releases, an in-process `boot()` reboot in `src/platform/main.ts`, is the one that
+held, confirmed live by the owner as part of their own regular test routine). Shipped
+alongside D-062 (a comments "open in browser" ↗ button mirroring `ChannelHeader`'s
+existing icon-button pattern, plus a red ♥ indicator surfacing the viewer's own
+existing `viewerRating`, both free on fields `commentThreads.list` already fetched and
+previously discarded; a same-conversation live catch fixed the open-in-browser link
+leaving Chronicle's own copy still playing behind the new tab, same `onPause`-threading
+shape as B-121) rather than driven by this bug. Shipped as a **patch** version, per the
+owner's own explicit direction. See `tracker-history/v0.10.1.md`.
+
+**`0.10.2` shipped 2026-09-01, no bug-tracker batch of its own** — driven entirely by
+D-063 (a comments sort-order toggle, "Top comments" default vs. "Newest first," mapped
+directly onto `commentThreads.list`'s own `order` param, previously hardcoded to
+`relevance`; a small two-button segmented control, same "inline in the view, not
+Settings" precedent as D-037/D-060), a direct product-owner request rather than an item
+from `tracker-current.md` — same pattern as D-050–D-062. Confirmed working live by the
+owner. Shipped as a **patch** version, per the owner's own explicit direction.
+
+**`0.11.0` shipped 2026-09-04.** Originally tracked toward a `0.10.3` patch, but three
+decisions together amounted to real new scope: D-064 (an Edit action on the viewer's
+own comments/replies via `comments.update`, gated by comparing the comment's own
+`authorChannelId` — free on the existing `snippet` part — against the connected
+account's own channel id; a same-day live catch fixed the new Edit button sitting flush
+against the existing Reply button with no gap), D-065 (a Settings storage indicator —
+`chronicle.db` + WAL/SHM + the thumbnail cache + video count, via a new
+`getStorageInfo` IPC call, display-only), and D-066 (every long Settings explanatory
+paragraph shortened to one line plus a hover ⓘ via a new `InfoNote` component, reusing
+the topbar's existing tooltip pattern; em dashes dropped from Settings copy only, per
+the owner's own stated dislike — later widened project-wide by D-069). Shipped as a
+**minor** version instead, per the owner's own explicit direction, skipping `0.10.3`
+entirely (the same "batch grew past a patch" shape `0.3.0` set skipping `0.2.3`). Also
+closed the same cycle: [[B-130]] (Fixed — a removed/private YouTube video no longer
+misreports as "channel disabled embedding"; a neutral "can't be played here" overlay
+with an explicit "remove from library" action, needing a same-day round 2 once the
+owner's live test disproved the error-code distinction round 1 depended on). See
+`tracker-history/v0.11.0.md`.
+
+**`0.12.0` shipped 2026-09-06.** Originally tracked toward a `0.11.1` patch, but shipped
+as a **minor** version instead, per the owner's own explicit direction, skipping
+`0.11.1` entirely (same pattern as `0.3.0`/`0.11.0` above) — driven entirely by D-067 (a
+Share button on the full-view player's topbar: the video's canonical
+`youtube.com/watch?v=<id>` URL, a Copy button, and an off-by-default `&t=<seconds>s`
+timestamp checkbox off the live playback snapshot; opening the dialog pauses the video
+via the existing `onPause` prop and resumes on close via a new
+`PlayerSurfaceHandle.play()`. **Revised the same day, the owner's own request before
+any live testing:** none of the pause/resume/timestamp machinery makes sense for a live
+broadcast — there's no single "current position" of a stream everyone else is also
+watching live — so `openShare`/`closeShare` now skip all three for `liveContent ===
+'live'`), a direct product-owner request rather than an item from
+`tracker-current.md` — same pattern as D-050–D-066. Confirmed working live by the
+owner.
+
+**`0.13.0` shipped 2026-09-12.** Originally tracked toward a `0.12.1` patch, but D-068
+amounted to real new scope on its own — shipped as a **minor** version instead, per the
+owner's own explicit direction, skipping `0.12.1` entirely. D-068 (a like/dislike bar on
+the player screen): the real YouTube like count was free all along
+(`statistics.likeCount` was never removed, only the dislike aggregate; threaded onto
+`PlayerVideoDto.likeCount` off the existing `hydrate()` call, zero extra quota) but an
+opt-in dislike *estimate* needed Return YouTube Dislike (RYD), a free third-party
+service — **explicitly weighed against Local-first/Privacy-first first, in
+conversation, before any code**, since calling RYD means sending an opened video's id
+to a server that isn't YouTube. Resolved by making it opt-in and off by default
+(`SettingsDto.showDislikeEstimate`): with the setting off, Chronicle calls nothing but
+YouTube, exactly as before this decision. New `DislikeEstimateSource` core port,
+`adapters/ryd/ryd-client.ts` (contract-tested offline, same convention as every other
+adapter), an in-memory-only cache (per the owner's own explicit call — never written to
+disk), and attribution per RYD's own usage-rights policy. `rateVideo` gained a real
+Dislike button (the write path already round-tripped `'dislike'` as a value). UI pulled
+into its own `LikeDislikeBar.tsx` after several live-iterated rounds: the real like
+count and its own side of the bar never disappear because of a third-party outage; the
+dislike side degrades to a neutral placeholder split plus an ⓘ (clickable to Settings
+when "disabled," a plain hover when "error") rather than hiding anything. Same release:
+D-069 (widened D-066's em-dash ban from Settings copy to every user-facing string,
+wizard included — ~84 strings hand-rewritten across `en.ts`/`pt-BR.ts`, case by case;
+code comments and `.specs/*.md` keep their own em-dash-heavy style, deliberately not
+touched). Full narrative in `decisions.md` D-068/D-069.
+
+**`0.13.1` shipped 2026-09-15, no bug-tracker batch of its own** — a same-day amendment
+to D-068's RYD cache, raised directly by the owner (routinely leaves the app open for
+days, so a cache cleared only on restart could serve a stale count indefinitely): the
+cache is now time-bounded via the existing `Clock` port instead of app-lifetime — a
+successful lookup expires after 1 hour, a failed one after 5 minutes. Shipped as a
+**patch** version, per the owner's own explicit direction (a tuning amendment to
+existing scope, not a new feature).
+
+**`0.13.2` shipped 2026-09-22, no bug-tracker batch of its own** — driven entirely by
+D-070 (comment/reply author names in the comments panel now link to that user's own
+channel in-app, reusing the exact `onOpenChannel`/`navigateToChannel` navigation the
+video's own channel-title link already drives rather than opening a browser tab; no new
+data or IPC call, off the `authorChannelId` field D-064 already surfaces — renders as a
+`button.comment-author` when present, a plain `span` when YouTube doesn't return one,
+e.g. a deleted channel), a direct product-owner request rather than an item from
+`tracker-current.md` — same pattern as D-050–D-069. Shipped as a **patch** version, per
+the owner's own explicit direction.
+
+**`0.13.3` shipped 2026-09-26** — a normal bug-tracker batch, two entries both Fixed:
+[[B-131]] (a non-subscribed channel's video list, opened via a channel search result,
+gained real favorite/Watch Later/Add-to-Playlist/open-in-browser actions, HEAD-confirmed
+Shorts filtering matching the main feed's own D-028 pipeline, and date-bucket
+grouping — five same-session rounds plus one pre-existing bug the owner's own live test
+caught along the way) and [[B-132]] (a CSS spacing gap in the Add to Playlist dialog's
+empty state). No new `D-NNN` scope this cycle. Shipped as a **patch** version (a pure
+bug-fix batch). See `tracker-history/v0.13.3.md`.
+
+**`0.14.0` shipped 2026-09-28, no bug-tracker batch of its own** — driven entirely by
+D-071 (a channel screen's own search: the topbar `/` field now scopes to that channel's
+videos, subscribed or not, instead of all of YouTube whenever a channel screen is open;
+reuses D-031's `search.list` call unchanged except an added `channelId` param and `type`
+narrowed to video-only, same 100-unit cost, same Enter-only gate — raised after
+confirming the sidebar's local "Find channel" filter and D-031's own global search were
+each the wrong tool for "find a video within one channel I don't even follow"), a
+direct product-owner request rather than an item from `tracker-current.md` — same
+pattern as D-050–D-070. Fixed as part of the same change, not a separate bug:
+`closeSearch()` no longer clears `channelPreview`, which used to strand a non-subscribed
+channel's preview screen once its leftover search text was cleared. Shipped as a
+**minor** version, per the owner's own explicit direction (real new scope, not a
+bug-fix batch).
+
+**`0.14.1` shipped 2026-10-01** — a single entry, [[B-133]] (Fixed — the mouse "back"
+side button, which [[B-039]] had only wired up inside the full-view player, now steps
+back one level anywhere Esc already does: the main feed's channel filter, the
+Playlists screen and its own detail view, Settings, the shortcuts help overlay; a new
+`mouseup` listener alongside `App.tsx`'s existing keydown effect, gated the same way as
+keyboard input). No new `D-NNN` scope this cycle. Shipped as a **patch** version (a pure
+bug-fix batch). See `tracker-history/v0.14.1.md`.
+
+**`0.15.0` shipped 2026-10-04.** Originally tracked toward a `0.14.2` patch (carrying
+only [[B-134]]), but two decisions together amounted to real new scope — shipped as a
+**minor** version instead, skipping `0.14.2` entirely (same "batch grew past a patch"
+shape as `0.3.0`/`0.11.0`/`0.12.0`/`0.13.0` above). D-072 (five new interface languages —
+Spanish, German, French, Italian, Japanese — translated by AI and explicitly marked
+**unreviewed**: a new required `LocaleMeta.reviewed: boolean`, `true` only for the
+existing human-reviewed `en`/`pt-BR`; selecting an unreviewed locale shows the existing
+`InfoNote` pattern below the dropdown rather than a badge in the list itself, per the
+owner's own call to keep that list uncluttered). D-073 (a local Watch History view —
+every video Chronicle has ever played, most recently watched first, subscribed or not,
+reached from the feed/search/a channel preview/a description link alike; new
+`video_state.last_watched_at`, schema v19, stamped by a new `markWatched` piggybacking
+the existing `apply()` upsert rather than an append-only log; a new `HistoryView.tsx`
+sidebar screen appended as a 7th entry after Ignored specifically so it doesn't renumber
+the `1`-`6` digit shortcuts; local-only free-text search, deliberately separate from the
+topbar's real-YouTube `/` field; a "Clear History" button and per-video removal via the
+same inline-undo mechanism Playlists already uses. **Several live-feedback rounds the
+same session** — search-box gutter styling, date-bucket grouping added to match the
+main feed, remove/clear actions added, and two reports of "not working" that turned out
+to be a stale un-restarted Electron main process rather than a code bug, the same false-
+alarm class D-060 already hit. Confirmed working live by the owner). Also closed:
+[[B-134]] (Fixed — resume playback position now also saves on a real app quit, via the
+same `beforeunload` mechanism `ExtractedPlayerWindow.tsx` already used for the pop-out
+window, and the save-on-pause checkpoint now also reads off the `infoDelivery` heartbeat
+instead of trusting only the one-shot `onStateChange` event — the same reliability gap
+[[B-111]] already found and fixed elsewhere). Alongside the tracked scope, this cycle
+also landed `.specs/code-guidelines.md`'s own rules against the existing source tree
+(no behavior change): a shared `useDialogDismiss` hook replacing eight dialogs' own
+duplicated Escape-handling logic, `main.ts`'s IPC handlers split into per-domain
+modules, `App.tsx`'s JSX split into four presentational components, and every `B-NNN`/
+`D-NNN` reference stripped from source comments per this file's own "comments describe
+current state, not history" rule — plus one small untracked UI adjustment, raised
+directly by the owner: the miniplayer's resizable width is now clamped to the window's
+own size, with its max resize cap scaled to the monitor instead of a fixed pixel
+ceiling. Full narrative in `decisions.md` D-072/D-073 and `tracker-history/v0.15.0.md`
+(B-134 only).
+
+**`0.15.1` shipped 2026-10-04, the same day as `0.15.0`.** Driven by D-074 (a
+currently-airing live or Premiere now outranks every other video at the feed's actual
+fetch/pagination level, not just an already-fetched page's display order — a new
+two-tier sort key baked directly into `repositories.ts`'s `FEED_ORDER` and keyset
+cursor, `FeedCursor` gaining a `liveNow` field; a Premiere also now follows the
+identical upcoming/airing/ended ordering a genuine broadcast gets, reversing B-119's
+own exclusion), raised after a concrete symptom: a subscribed channel's livestream from
+the day before never showed on the main feed at all. Root cause, confirmed directly
+against the owner's own `chronicle.db` rather than guessed: [[B-135]] (a livestream
+scheduled on YouTube days ahead of actually airing keeps a stale `publishedAt` —
+`sync-repository.ts`'s `applyHydration` isn't write-once on that column — burying the
+video hundreds of pages deep in the raw-`publishedAt`-keyed keyset cursor; D-053's
+display-only `effectiveDate` (`core/feed.ts`) never reaches that deep, since it only
+re-sorts *within* whatever page was already fetched, not across the cursor itself — a
+much larger-magnitude case of the exact gap D-053's own narrative had already flagged
+and deliberately left open; confirmed systemic across 8+ affected channels, one with
+streams buried 500–1600 videos deep). Found live-testing B-135's own build: [[B-136]]
+(a live/upcoming video that disappears from YouTube entirely — deleted or privated —
+never got corrected, since `videos.list` just omits a gone id rather than erroring on
+it; D-074's new top-priority tier turned this from an easy-to-miss stale badge into the
+single most prominent row in the feed, confirmed against real data as 540 consecutive
+sync cycles with zero update on one stuck row). Both Fixed, confirmed working live
+after a relaunch. Shipped as a **patch** version, per the owner's own explicit
+direction, even though D-074 is real new scope that reverses a prior decision
+(B-119's own exclusion) — same pattern as several earlier patches driven by a `D-NNN`
+(D-053 in `0.4.6`, D-063 in `0.10.2`, among others). Full narrative in `decisions.md`
+D-074 and `tracker-history/v0.15.1.md`.
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
-`0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, `0.8.1`, and `0.10.0` have shipped and are
-archived in `tracker-history/` (`0.2.1` was a single one-off patch with no batch of its
-own — see `tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed)
-was originally tracked toward a `0.2.3` patch but grew into real new scope along the
+`0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, `0.8.1`, `0.10.0`, `0.10.1`, `0.11.0`,
+`0.13.3`, `0.14.1`, `0.15.0`, and `0.15.1` have shipped and are archived in
+`tracker-history/`
+(`0.2.1` was a single one-off patch with no batch of its own — see
+`tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
+originally tracked toward a `0.2.3` patch but grew into real new scope along the
 way — D-048 removed a whole failure-handling subsystem (channels no longer get
 permanently marked "unavailable" off a single transient RSS 404), a
 previously-documented-but-never-built per-channel RSS retry-with-backoff was actually
@@ -536,20 +742,29 @@ systemic failure) — so it shipped as a **minor** bump instead, skipping `0.2.3
 entirely. `0.4.0` (D-050), `0.4.6` (D-053), `0.5.0`'s driving decision (D-054),
 `0.6.0`'s driving decision (D-055, above), `0.7.0`'s driving decision (D-056, above),
 `0.8.0`'s driving decisions (D-057 and D-058, above), `0.9.0`'s driving decision
-(D-059, above), and `0.10.0`'s driving decision (D-060, above) all shipped real new
-scope alongside at most one unrelated closed bug — `0.4.0`, `0.4.6`, `0.6.0`, `0.8.0`,
-and `0.9.0` have no `tracker-history/` file at all; `0.5.0`, `0.7.0`, and `0.10.0` each
-have one, but only because a single bug (B-086, B-124, and B-129 respectively) happened
-to close out during the same cycle, not because any of the three batches drove its own
-version bump. `0.4.1` (the B-108 revert) shipped as a **patch** instead — a revert, not
-new scope. `0.4.2` (D-051) and `0.4.4` (D-052) also shipped as **patches**, per the
-owner's own explicit direction, even though each lands a new Settings toggle rather
-than being a pure bug-fix batch. `0.4.3` (B-111), `0.4.5`, `0.4.7`, `0.4.8`, and `0.8.1`
-(all above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
-describes. `tracker-current.md` now targets **0.10.1**, carrying [[B-108]], [[B-022]],
-[[B-101]] forward untouched — none of the three made it into 0.5.0, 0.6.0, 0.7.0,
-0.8.0, 0.8.1, 0.9.0, or 0.10.0 either (B-086, the fourth item carried since 0.3.0,
-closed as Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't
-always minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved
-for batches that land real new scope, but the owner's own explicit call on a given
-release always wins. See `.specs/roadmap.md` §Release status for the summary.
+(D-059, above), `0.10.0`'s driving decision (D-060, above), `0.10.2`'s driving decision
+(D-063, above), `0.12.0`'s driving decision (D-067, above), and `0.13.2`'s driving
+decision (D-070, above) all shipped real new scope alongside at most one unrelated
+closed bug, or none — `0.4.0`, `0.4.6`, `0.6.0`, `0.8.0`, `0.9.0`, `0.10.2`, `0.12.0`,
+and `0.13.2` have no `tracker-history/` file at all; `0.5.0`, `0.7.0`, `0.10.0`, and
+`0.15.0` each have one, but only because a single bug (B-086, B-124, B-129, and B-134
+respectively) happened to close out during the same cycle, not because any of those
+releases' driving decisions needed the version bump. `0.4.1` (the B-108 revert) shipped
+as a **patch** instead — a revert, not new scope. `0.4.2` (D-051), `0.4.4` (D-052),
+`0.13.1` (D-068's RYD cache amendment), and `0.15.1` (D-074, reversing B-119's prior
+exclusion while also fixing B-135/B-136) also shipped as **patches**, per the owner's
+own explicit direction, even though each lands real behavior change (or, for `0.15.1`,
+reverses an earlier decision outright) rather than being a pure bug-fix batch. `0.4.3`
+(B-111), `0.4.5`, `0.4.7`, `0.4.8`, `0.8.1`, `0.13.3`, and `0.14.1` (all above) are the
+normal case this file's "pure bug-fix batch ships as a patch" rule describes. `0.11.0`
+(D-064/D-065/D-066), `0.13.0` (D-068/D-069), and `0.15.0` (D-072/D-073) each shipped as
+**minor** versions after outgrowing an originally smaller planned patch number
+(`0.10.3`, `0.12.1`, and `0.14.2` respectively, all skipped entirely) — the same pattern
+`0.3.0` set skipping `0.2.3`. `tracker-current.md` now targets **0.15.2**, carrying
+[[B-108]] and [[B-101]] forward untouched — neither made it into any release from
+`0.5.0` through `0.15.1` (B-022, the third item carried since `0.3.0`, closed Fixed in
+`0.10.1` above; B-086, the fourth, closed Won't fix in `0.5.0` — see
+`tracker-history/v0.5.0.md`). Version bumps aren't always minor — a pure bug-fix
+batch ships as a patch release, a minor bump is reserved for batches that land real new
+scope, but the owner's own explicit call on a given release always wins. See
+`.specs/roadmap.md` §Release status for the summary.
