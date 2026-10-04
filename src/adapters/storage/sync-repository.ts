@@ -21,7 +21,7 @@ export class SqliteSyncRepository implements SyncRepository {
   constructor(private readonly db: DatabaseSync) {}
 
   // channels' facts (title, uploads playlist, RSS state) are account-agnostic
-  // and shared across every account that follows it (B-003) — only the
+  // and shared across every account that follows it — only the
   // account_channels join says whether *this* account currently subscribes.
   listSubscribedChannels(accountId: string, channelId?: string): ChannelSyncInfo[] {
     const rows = (
@@ -58,8 +58,8 @@ export class SqliteSyncRepository implements SyncRepository {
   // Diff-apply the fresh list for one account: removed channels are marked
   // unsubscribed (for that account only) but videos and states are retained
   // (youtube-api.md §Subscription import). Channel facts (title/thumbnail)
-  // are upserted independently of any account — B-003: shared/deduped when
-  // more than one account follows the same channel.
+  // are upserted independently of any account — shared/deduped when more
+  // than one account follows the same channel.
   applySubscriptions(
     accountId: string,
     channels: readonly Channel[],
@@ -116,11 +116,12 @@ export class SqliteSyncRepository implements SyncRepository {
     }
   }
 
-  // B-010: local half of user-initiated unsubscribe — the real
-  // subscriptions.delete call happens in the platform layer before this runs.
-  // Same soft-delete as applySubscriptions' diff removal: videos/state stay.
-  // B-009: single-channel subscribe (user-initiated, via search/discovery) —
-  // the same upsert shape as applySubscriptions' bulk diff-apply, for one row.
+  // Local half of user-initiated unsubscribe — the real subscriptions.delete
+  // call happens in the platform layer before this runs. Same soft-delete
+  // as applySubscriptions' diff removal: videos/state stay.
+  // Also used for single-channel subscribe (user-initiated, via
+  // search/discovery) — the same upsert shape as applySubscriptions' bulk
+  // diff-apply, for one row.
   upsertSubscribedChannel(accountId: string, channel: Channel, now: string): void {
     this.db
       .prepare(
@@ -154,14 +155,14 @@ export class SqliteSyncRepository implements SyncRepository {
   }
 
   // Channel fact, account-agnostic — set once, read by every account that
-  // follows the channel (B-003).
+  // follows the channel.
   setUploadsPlaylist(channelId: string, playlistId: string): void {
     this.db
       .prepare(`UPDATE channels SET uploads_playlist = ? WHERE channel_id = ?`)
       .run(playlistId, channelId)
   }
 
-  // B-003: which connected account(s) currently subscribe to this channel —
+  // Which connected account(s) currently subscribe to this channel —
   // usually one, but two accounts can both follow the same channel.
   listAccountIdsForChannel(channelId: string): string[] {
     const rows = this.db
@@ -170,7 +171,7 @@ export class SqliteSyncRepository implements SyncRepository {
     return rows.map((row) => row.account_id)
   }
 
-  // B-003: connected Google accounts, oldest first.
+  // Connected Google accounts, oldest first.
   listAccounts(): { accountId: string; label: string; addedAt: string }[] {
     const rows = this.db
       .prepare(`SELECT account_id, label, added_at FROM accounts ORDER BY added_at ASC`)
@@ -188,7 +189,7 @@ export class SqliteSyncRepository implements SyncRepository {
   }
 
   // ON DELETE CASCADE drops this account's account_channels rows too;
-  // channels/videos/video_state (shared, or account-agnostic per D-003) are
+  // channels/videos/video_state (shared, account-agnostic entities) are
   // untouched — only membership disappears.
   removeAccount(accountId: string): void {
     this.db.prepare(`DELETE FROM accounts WHERE account_id = ?`).run(accountId)
@@ -289,9 +290,9 @@ export class SqliteSyncRepository implements SyncRepository {
     for (const id of videoIds) insert.run({ id, now })
   }
 
-  // D-029: an externally opened video gets a bare channel-facts row (no
+  // An externally opened video gets a bare channel-facts row (no
   // account_channels membership at all — that absence, not a flag, is what
-  // keeps it out of every feed view, B-003) and a fully hydrated video row.
+  // keeps it out of every feed view) and a fully hydrated video row.
   upsertExternalVideo(video: HydratedVideo, now: string): void {
     this.db
       .prepare(
@@ -357,8 +358,8 @@ export class SqliteSyncRepository implements SyncRepository {
       .run(pageToken, exhausted ? 1 : 0, accountId, channelId)
   }
 
-  // D-028 candidates: short-duration videos whose verdict is still unknown.
-  // channelId scopes to a single channel (B-036).
+  // Shorts-probe candidates: short-duration videos whose verdict is still
+  // unknown. channelId scopes to a single channel.
   shortCandidates(channelId?: string): string[] {
     const rows = (
       channelId === undefined
@@ -405,7 +406,7 @@ export class SqliteSyncRepository implements SyncRepository {
     return rows.map((row) => row.video_id)
   }
 
-  // B-114: the 'live' counterpart to upcomingVideoIds above.
+  // The 'live' counterpart to upcomingVideoIds above.
   liveVideoIds(channelId?: string): string[] {
     const rows = (
       channelId === undefined
@@ -457,8 +458,8 @@ export class SqliteSyncRepository implements SyncRepository {
       updatedAt: string
     }[]
   } {
-    // subscribed = followed by at least one connected account (B-003) —
-    // export summarizes "do you currently follow this," not per-account detail.
+    // subscribed = followed by at least one connected account — export
+    // summarizes "do you currently follow this," not per-account detail.
     const channels = (
       this.db
         .prepare(

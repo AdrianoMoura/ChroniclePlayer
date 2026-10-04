@@ -23,8 +23,8 @@ export interface FeedSlice {
   caughtUp: boolean
 }
 
-export const FEED_PAGE_SIZE = 50 // D-027 default page
-export const PRIORITY_FEED_LIMIT = 20 // B-042, D-039
+export const FEED_PAGE_SIZE = 50 // default page size for keyset pagination
+export const PRIORITY_FEED_LIMIT = 20 // cap on the favorited-channels priority feed
 
 // The read path (architecture.md): repository → grouping → read-model.
 // Items come flat, each carrying its bucket; presentation renders a header
@@ -40,8 +40,8 @@ export class FeedService {
     cursor: FeedCursor | null,
     limit = FEED_PAGE_SIZE,
     channelId?: string,
-    showShorts = true, // B-028
-    accountId?: string // B-003: undefined = combined feed across all accounts
+    showShorts = true, // false excludes is_short videos
+    accountId?: string // undefined = combined feed across all accounts
   ): FeedSlice {
     const now = this.clock.now()
     const items =
@@ -53,8 +53,8 @@ export class FeedService {
       ? null
       : this.repository.listPage(view, cursor, limit, channelId, showShorts, accountId)
 
-    // D-053: reorders this page's rows for display only — the cursor (D-027)
-    // stays keyed on raw publishedAt, since a keyset cursor can't use "now".
+    // Reorders this page's rows for display only — the keyset cursor stays
+    // keyed on raw publishedAt, since a keyset cursor can't use "now".
     const sortedEntries = [...(page?.entries ?? [])].sort(
       (a, b) => effectiveDate(b.video, now).getTime() - effectiveDate(a.video, now).getTime()
     )
@@ -76,22 +76,22 @@ export class FeedService {
   }
 
   // Unread videos from favorited channels — bucket-less, like the
-  // watch-later queue, since it sits above the chronological grouping (B-042).
+  // watch-later queue, since it sits above the chronological grouping.
   getPriorityVideos(showShorts = true, accountId?: string): FeedItem[] {
     return this.repository
       .listPriorityVideos(PRIORITY_FEED_LIMIT, showShorts, accountId)
       .map((entry) => ({ entry, bucket: null }))
   }
 
-  // The player's "up next" card on video end (D-055): a suggestion from the
-  // user's own Watch Later queue, never algorithmic, never automatic —
-  // opening it is always a deliberate click. See `nextWatchLaterAfter`.
+  // The player's "up next" card on video end: a suggestion from the user's
+  // own Watch Later queue, never algorithmic, never automatic — opening it
+  // is always a deliberate click. See `nextWatchLaterAfter`.
   getNextWatchLater(currentVideoId: string, showShorts = true): FeedItem | null {
     const next = nextWatchLaterAfter(this.repository.listWatchLaterQueue(showShorts), currentVideoId)
     return next ? { entry: next, bucket: null } : null
   }
 
-  // D-073: the History screen — bucketed by when each video was watched
+  // the History screen — bucketed by when each video was watched
   // (last_watched_at), not when it was published, mirroring the main feed's
   // own Today/Yesterday/This Week/Earlier grouping (feed.md §Grouping) on a
   // different date axis. searchHistory's own ORDER BY is already

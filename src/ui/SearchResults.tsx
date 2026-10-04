@@ -11,11 +11,11 @@ import { t } from './i18n'
 type VideoResult = Extract<SearchResultDto, { kind: 'video' }>
 type ChannelResult = Extract<SearchResultDto, { kind: 'channel' }>
 
-// B-131: favorite/Watch Later/Add to Playlist/open-in-browser for a video
-// result — free-text search or a non-subscribed channel's preview. No
-// ignore here (unlike the main feed's own VideoActions) — same call as
-// B-128's for a playlist's own rows: ignoring a video from a channel the
-// user doesn't even follow reads as a non-action, not "hide this".
+// Favorite/Watch Later/Add to Playlist/open-in-browser for a video result —
+// free-text search or a non-subscribed channel's preview. No ignore here
+// (unlike the main feed's own VideoActions): ignoring a video from a
+// channel the user doesn't even follow reads as a non-action, not "hide
+// this" — same reasoning applies to a playlist's own rows.
 export interface SearchVideoActions {
   toggleFavorite: (result: VideoResult) => void
   toggleWatchLater: (result: VideoResult) => void

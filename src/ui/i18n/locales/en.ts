@@ -1,6 +1,6 @@
 import type { LocaleMeta } from '../types'
 
-// B-017/D-054: every UI string lives here, keyed by component/section. This
+// Every UI string lives here, keyed by component/section. This
 // is the source-of-truth dict — every other locale is a Partial<Dict> of the
 // same keys, so a translation can lag behind new keys without breaking the
 // build; t() falls back to English per missing key. `{name}` placeholders
@@ -392,7 +392,7 @@ export const dict = {
   'app.topbar.channelFallback': 'Channel',
   'app.topbar.markAllRead': 'Mark all as read (M)',
   'app.topbar.searchYouTubePlaceholder': 'Search',
-  // D-071: same field, shown only while a channel screen is open.
+  // Same field, shown only while a channel screen is open.
   'app.topbar.searchChannelPlaceholder': 'Search this channel',
   'app.topbar.clearFilterTitle': 'Clear',
   'app.topbar.itemSizeTitle': 'Item size: {size}',
@@ -406,7 +406,7 @@ export const dict = {
 
   // App — status text
   // "Identifying," not "filtering" — Shorts are shown, badged, not excluded
-  // (see feed.md §Shorts / D-035); this phase only confirms which already-
+  // (see feed.md §Shorts); this phase only confirms which already-
   // visible videos get the badge.
   'app.status.filteringShorts': 'identifying Shorts ({checked} of {total} checked)…',
   'app.status.checkingChannels': 'checking {checked} of {total} channels…',
@@ -416,7 +416,7 @@ export const dict = {
   'app.status.unreadCount': '{count} unread',
   // Tooltip copy behind the (i) icon shown next to the status text while a
   // sync is running — one line, in plain language, explaining what that
-  // phase is actually doing (B-105).
+  // phase is actually doing.
   'app.status.checkingChannelsInfo':
     "Checking each subscribed channel's uploads for videos published since the last sync.",
   'app.status.filteringShortsInfo':
@@ -476,7 +476,7 @@ export const dict = {
   'player.action.addToPlaylist': 'Add to Playlist (a)',
   'player.action.like': 'Like (l)',
   'player.action.liked': 'Liked (l)',
-  // D-068: no keyboard shortcut, deliberately, to avoid an accidental dislike.
+  // No keyboard shortcut, deliberately, to avoid an accidental dislike.
   'player.action.dislike': 'Dislike',
   'player.action.disliked': 'Disliked',
   'player.dislikeEstimate.disabledHint':
@@ -518,7 +518,7 @@ export const dict = {
   'sidebar.noChannels': 'This account isn’t following any channels yet.',
   'sidebar.settingsLabel': 'Settings',
 
-  // Sidebar — Accounts (B-003)
+  // Sidebar — Accounts
   'sidebar.accountsHeader': 'Accounts',
   'sidebar.accountDisconnected': 'Reconnect needed',
   'sidebar.addAccount': '+ Add account',
@@ -536,13 +536,13 @@ export const dict = {
   'sidebar.channelMenu.notify': 'Notify me about new videos from this channel',
   'sidebar.channelMenu.unnotify': 'Stop notifying me about this channel',
 
-  // YouTube search (B-009)
+  // YouTube search
   'search.empty': 'No results.',
   'search.searching': 'Searching all of YouTube…',
-  // D-071: a channel-scoped search (see search.searching above for the
+  // A channel-scoped search (see search.searching above for the
   // unscoped case).
   'search.searchingChannel': 'Searching this channel…',
-  // B-131: distinct from search.searching above — this is a specific
+  // Distinct from search.searching above — this is a specific
   // channel's own uploads loading, not a YouTube-wide search.
   'search.channelLoading': 'Loading channel…',
   'search.subscribeButton': 'Subscribe',
@@ -550,7 +550,7 @@ export const dict = {
   'search.videoChannelPrefix': 'on',
   'search.loadingMore': 'Loading more results…',
 
-  // Comments (B-006)
+  // Comments
   'comments.show': 'Show comments (c)',
   'comments.hide': 'Hide comments (c)',
   'comments.loading': 'Loading comments…',
@@ -570,7 +570,7 @@ export const dict = {
   'comments.saveButton': 'Save',
   'comments.cancelButton': 'Cancel',
 
-  // Add another account (B-003) — no Google-console walkthrough, unlike
+  // Add another account — no Google-console walkthrough, unlike
   // the first-run wizard: the OAuth client is already set up and shared.
   'addAccount.title': 'Add another Google account',
   'addAccount.instructions':
@@ -593,7 +593,7 @@ export const dict = {
   'playlists.dialog.create': 'Create',
   'playlists.dialog.cancel': 'Cancel',
 
-  // Import a YouTube playlist (D-059) — a one-time snapshot, never an
+  // Import a YouTube playlist — a one-time snapshot, never an
   // ongoing sync (see playlists.sync.* below for that).
   'playlists.importButton': 'Import from YouTube',
   'playlists.dialog.importTitle': 'Import a YouTube playlist',
@@ -609,7 +609,7 @@ export const dict = {
   'playlists.dialog.importLog.stillWorking': 'Still working: this can take a while for a large playlist…',
   'playlists.dialog.importLog.done': 'Done: imported {imported} of {total} videos.',
 
-  // Sync an imported playlist (D-059) — add-only, pulls in videos the
+  // Sync an imported playlist — add-only, pulls in videos the
   // source added since the import; never removes/reorders/renames anything.
   'playlists.sync.upToDate': 'Up to date',
   'playlists.sync.checkButton': 'Sync',
@@ -638,7 +638,7 @@ export const dict = {
   'share.includeTimestamp': 'Include current timestamp ({time})',
   'share.done': 'Done',
 
-  // History (D-073) — every video Chronicle has ever played, local only.
+  // History — every video Chronicle has ever played, local only.
   'history.searchPlaceholder': 'Search your watch history…',
   'history.empty': 'Nothing watched yet.',
   'history.emptyFiltered': 'No matches in your watch history.',

@@ -10,9 +10,9 @@ import {
 import type { PlayerVideoDto, VideoStateDto } from '../ipc/contract'
 import { t } from './i18n'
 
-// The live iframe + its postMessage widget protocol (playback.md, D-006).
+// The live iframe + its postMessage widget protocol (playback.md).
 // Stays mounted (and therefore never restarts the video) across the
-// full-view ↔ miniplayer transition (B-045).
+// full-view ↔ miniplayer transition.
 //
 // This renders at one single, fixed position in the tree (App.tsx) and is
 // *never* reparented into PlayerDetails or MiniPlayerBar — moving an
@@ -40,7 +40,7 @@ function resumeValueFor(currentTime: number, durationSeconds: number | null): nu
   return Math.floor(currentTime)
 }
 
-// 'unavailable' (B-130): the embed can't play this video — owner-disabled
+// 'unavailable': the embed can't play this video — owner-disabled
 // embedding (101/150) and a removed/private video (100, documented but not
 // observed live-testing this: YouTube's real embed returned 150 for a
 // confirmed-private video, not 100) turned out to be indistinguishable by
@@ -52,7 +52,7 @@ type Surface = 'playing' | 'unavailable'
 
 export interface PlayerSurfaceHandle {
   // There's no way to move this iframe's DOM node into a different
-  // BrowserWindow's renderer process, so extracting (B-045) hands off a
+  // BrowserWindow's renderer process, so extracting hands off a
   // snapshot (position + playing/paused) to a fresh instance there instead —
   // this reads that snapshot at the moment of extraction.
   getPlaybackSnapshot: () => { currentTimeSeconds: number; playing: boolean }
@@ -67,10 +67,10 @@ export interface PlayerSurfaceHandle {
   // docks consistently. See `closeOrDock` for why this is deliberately
   // lenient rather than a strict `=== 1` (playing) check.
   isStillGoing: () => boolean
-  // Closing the window to the tray with SettingsDto.popOutOnClose off (D-051)
+  // Closing the window to the tray with SettingsDto.popOutOnClose off
   // pauses whatever's playing instead of popping it into the extract window.
   pause: () => void
-  // D-067: resumes playback paused for the Share dialog once it closes.
+  // Resumes playback paused for the Share dialog once it closes.
   play: () => void
   // Jumps to a specific position — used by a comment's linkified timestamp
   // (e.g. "12:34"). Also resumes playback if paused, matching YouTube's own
@@ -103,10 +103,10 @@ interface PlayerSurfaceProps {
   onToggleComments: () => void
   onAddToPlaylist: () => void
   onExtract: () => void
-  // B-130: the 'unavailable' overlay's explicit remove action.
+  // The 'unavailable' overlay's explicit remove action.
   onRemoveUnavailable: () => void
   onStatePatched: (videoId: string, state: VideoStateDto) => void
-  // D-055: fires once per real ended transition — App.tsx uses it to look up
+  // Fires once per real ended transition — App.tsx uses it to look up
   // an "up next" Watch Later suggestion. Never drives auto-advance itself.
   onEnded: () => void
 }
@@ -228,8 +228,8 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
     useEffect(() => {
       // Reaching "ended" is always embed-initiated — Chronicle never issues a
       // command to stop a video, YouTube's own player just decides it's
-      // done — so, per B-111, the one-shot onStateChange round trip for it
-      // isn't guaranteed to arrive. Guards firing the ended side effects
+      // done — so the one-shot onStateChange round trip for it isn't
+      // guaranteed to arrive. Guards firing the ended side effects
       // (resume-checkpoint clear, the up-next lookup) more than once per
       // real transition, since the infoDelivery heartbeat below also drives
       // this and ticks continuously while state stays at 0.
@@ -241,14 +241,14 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         onEnded()
       }
 
-      // B-134: a pause the embed initiates on its own (e.g. its native pause
-      // button, not Chronicle's own Space shortcut) has the exact same
-      // unreliable-onStateChange gap B-111 already found for "ended" — this
-      // checkpoint save used to live only in the onStateChange branch below,
-      // so that class of pause could silently skip persisting the resume
-      // position. Guarded the same way handleEnded is, so applyPlayerState
-      // (also used by the infoDelivery heartbeat) can call it on every tick
-      // while paused without writing on every single one.
+      // A pause the embed initiates on its own (e.g. its native pause
+      // button, not Chronicle's own Space shortcut) has the same
+      // unreliable-onStateChange gap as "ended" below — this checkpoint
+      // save used to live only in the onStateChange branch, so that class
+      // of pause could silently skip persisting the resume position.
+      // Guarded the same way handleEnded is, so applyPlayerState (also used
+      // by the infoDelivery heartbeat) can call it on every tick while
+      // paused without writing on every single one.
       let pauseHandled = false
       function handlePaused(): void {
         if (pauseHandled) return
@@ -260,12 +260,12 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       }
 
       // Shared by onStateChange's one-shot round trip and infoDelivery's
-      // steady heartbeat (B-111/B-134) — a state change the embed initiates
-      // on its own isn't guaranteed to produce an observed onStateChange
-      // event, so the heartbeat is this component's only reliable fallback
-      // for both the ended side effects and the paused checkpoint save.
-      // handleEnded/handlePaused's own guards keep each a one-shot per real
-      // transition regardless of which event notices it first.
+      // steady heartbeat — a state change the embed initiates on its own
+      // isn't guaranteed to produce an observed onStateChange event, so the
+      // heartbeat is this component's only reliable fallback for both the
+      // ended side effects and the paused checkpoint save. handleEnded/
+      // handlePaused's own guards keep each a one-shot per real transition
+      // regardless of which event notices it first.
       function applyPlayerState(state: number): void {
         playerStateRef.current = state
         if (state === 0) {
@@ -290,20 +290,19 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
         }
         if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
           applyPlayerState(payload.info)
-          // Quality only takes effect once playback actually starts (B-038) —
+          // Quality only takes effect once playback actually starts —
           // requesting it on ready alone isn't enough, YouTube can still pick
           // a bandwidth-heuristic default the moment the stream begins.
           if (payload.info === 1) {
             command('setPlaybackQuality', ['highres'])
-            // Same reissue-on-start safety net as quality above (D-038).
+            // Same reissue-on-start safety net as quality above.
             if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
           }
         }
         if (payload.event === 'onError' && typeof payload.info === 'number') {
           // 100 = video not found/removed/private; 101/150 = owner disabled
-          // embedding (playback.md) — collapsed into one surface (B-130),
-          // since live testing showed a private video can itself come back
-          // as 150, not 100.
+          // embedding (playback.md) — collapsed into one surface, since a
+          // private video can itself come back as 150, not 100.
           if (payload.info === 100 || payload.info === 101 || payload.info === 150) {
             setSurface('unavailable')
           }
@@ -325,11 +324,11 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       )
       // Request the highest quality up front too, so it's already set once
       // playback starts (the onStateChange re-issue above is the fallback
-      // for when YouTube resets it as the stream begins) (B-038).
+      // for when YouTube resets it as the stream begins).
       command('setPlaybackQuality', ['highres'])
       // Default playback speed, set from Settings. Applied here and
       // re-issued on actual playback start (above), since YouTube can reset
-      // it once the stream begins (D-038).
+      // it once the stream begins.
       if (defaultPlaybackRate !== 1) command('setPlaybackRate', [defaultPlaybackRate])
     }, [command, defaultPlaybackRate])
 
@@ -340,7 +339,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       void window.chronicle.openInBrowser(video.videoId)
     }
 
-    // "Is it still going" for the dock-vs-close decision (B-045) — deliberately
+    // "Is it still going" for the dock-vs-close decision — deliberately
     // lenient (true unless we have positive evidence otherwise: explicitly
     // ended (0) or paused (2)) rather than a strict `=== 1` (playing) check,
     // since the autoplay-initiated onStateChange round trip isn't guaranteed
@@ -387,7 +386,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           // A comment timestamp is typically clicked from way down in the
           // (scrolled) comments section, below the video itself — jump the
           // scroll container (`.player-view`) back to the top so the
-          // now-seeked video is actually back on screen (B-113).
+          // now-seeked video is actually back on screen.
           alignTarget?.closest<HTMLElement>('.player-view')?.scrollTo({ top: 0, behavior: 'smooth' })
         }
       }),
@@ -450,7 +449,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
           // m/w/i/f mirror the feed's own single-key bindings for the video
           // currently open (these already had a mouse path in PlayerDetails'
           // action bar). Chronicle has no fullscreen shortcut, so `f` is free
-          // to reuse here (B-089).
+          // to reuse here.
           case 'm':
             void window.chronicle
               .setReadStatus(video.videoId, state.readStatus === 'read' ? 'unread' : 'read')
@@ -529,7 +528,7 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
 
     // The mouse "back" side button (XButton1, event.button === 3) exits the
     // player, same as Esc/the visible Back button — mirrors browser
-    // history-back (B-039). Full-view only, same reasoning as the keyboard map.
+    // history-back. Full-view only, same reasoning as the keyboard map.
     useEffect(() => {
       if (!active) return
       function onMouseUp(event: MouseEvent): void {
@@ -559,8 +558,8 @@ export const PlayerSurface = forwardRef<PlayerSurfaceHandle, PlayerSurfaceProps>
       }
     }, [video.videoId, video.durationSeconds])
 
-    // B-134: the cleanup above only ever runs through React's own lifecycle
-    // (a video switch, or this component unmounting) — none of that fires
+    // The cleanup above only ever runs through React's own lifecycle (a
+    // video switch, or this component unmounting) — none of that fires
     // when the whole app quits while a video is still playing (closing the
     // main window for real, Cmd+Q, a tray Quit, an OS logout), so that
     // checkpoint was silently lost. ExtractedPlayerWindow.tsx already covers

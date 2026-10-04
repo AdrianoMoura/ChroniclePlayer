@@ -92,7 +92,7 @@ export function seedDevFixtures(
     let ageHours = random() * cadenceHours
     let serial = 0
 
-    // Two years of archive gives "Earlier" real depth to scroll (D-027).
+    // Two years of archive gives "Earlier" real depth to scroll with keyset pagination.
     while (ageHours < 24 * 730) {
       const videoId = `fx-${String(index).padStart(2, '0')}-${String(serial).padStart(4, '0')}`
       const publishedAt = new Date(now.getTime() - ageHours * 3_600_000).toISOString()

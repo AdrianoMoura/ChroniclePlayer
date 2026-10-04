@@ -19,7 +19,7 @@ export type FeedRow =
 
 // A display row is what actually gets virtualized: in list layout it's
 // FeedRow unchanged; in grid layout, consecutive video rows within a bucket
-// are chunked into a single "card-row" of N columns (B-007).
+// are chunked into a single "card-row" of N columns.
 type DisplayRow =
   | { kind: 'header'; key: string; label: string }
   | { kind: 'video'; key: string; video: FeedVideoDto; videoIndex: number }
@@ -64,7 +64,7 @@ function liveBadgeLabel(state: LiveBadgeState): string {
 // grid distributes space.
 const GRID_GAP = 16
 // Card target width; actual column count is derived from container width so
-// the grid reflows instead of overflowing (D-037). Both grow with itemSize.
+// the grid reflows instead of overflowing. Both grow with itemSize.
 // `height` is the card's rendered height *at exactly `minWidth` wide* (thumb
 // + padding + gap + two-line title + meta line at that size's own
 // font-size). Columns render at `1fr` and stretch past `minWidth`, and the
@@ -109,12 +109,12 @@ export interface VideoActions {
   markRead: (video: FeedVideoDto) => void
   // Optional because the History screen's own video list omits it — a
   // history row is already "watched" by definition, so toggling read/unread
-  // on it doesn't mean anything (D-073).
+  // on it doesn't mean anything.
   toggleRead?: (video: FeedVideoDto) => void
   // Optional because a playlist's or History's own video list omits it — a
   // video was deliberately added to a playlist (the opposite intent from
   // "hide this"), and a history row already represents a watched video
-  // regardless of read status (D-073).
+  // regardless of read status.
   ignore?: (video: FeedVideoDto) => void
   undo: (video: FeedVideoDto) => void
   toggleFavorite: (video: FeedVideoDto) => void
@@ -130,7 +130,7 @@ export interface VideoActions {
   // just this membership, never the video itself (distinct from `ignore`,
   // which is a global read-status change).
   removeFromPlaylist?: (video: FeedVideoDto) => void
-  // D-073: only provided inside the History screen's own video list —
+  // only provided inside the History screen's own video list —
   // clears this video's last_watched_at (and removes the row), leaving
   // readStatus/favorite/watchLater untouched.
   removeFromHistory?: (video: FeedVideoDto) => void
@@ -251,8 +251,8 @@ export function FeedList({
 
   const items = virtualizer.getVirtualItems()
 
-  // Continuous scroll (D-027): approaching the end of loaded rows pages the
-  // local archive. The backend decides whether more exists.
+  // Continuous scroll: approaching the end of loaded rows pages the local
+  // archive. The backend decides whether more exists.
   const lastIndex = items.at(-1)?.index ?? -1
   useEffect(() => {
     if (lastIndex >= 0 && lastIndex >= displayRows.length - Math.max(2, Math.ceil(10 / columns)))
@@ -262,7 +262,7 @@ export function FeedList({
   // The check above only ever fires from a scroll position — a narrow
   // channel filter, a large item size, or a wide/short window can all
   // produce a page of results short enough that the container never
-  // actually overflows, silently stranding pagination (B-107). If there's
+  // actually overflows, silently stranding pagination. If there's
   // no scrollable overflow after the current results render, trigger it
   // directly; `onNearEnd` (`loadMore`) already no-ops when there's nothing
   // more to fetch, so this can't loop.
@@ -675,8 +675,8 @@ function stop(event: MouseEvent, action: () => void): void {
 
 type VideoCardProps = VideoRowProps
 
-// Grid variant of VideoRow (B-007): same data and actions, thumbnail-first
-// card layout instead of a text-first row.
+// Grid variant of VideoRow: same data and actions, thumbnail-first card
+// layout instead of a text-first row.
 export function VideoCard({
   video,
   selected,

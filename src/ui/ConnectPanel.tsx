@@ -9,9 +9,9 @@ interface ConnectPanelProps {
   onConnect: () => void
 }
 
-// Teaches the own-credentials model (D-001) and walks the two local steps:
-// import client_secret.json, then authorize in the browser. Full
-// instructions live in docs/setup.md.
+// Teaches the own-credentials model and walks the two local steps: import
+// client_secret.json, then authorize in the browser. Full instructions live
+// in docs/setup.md.
 export function ConnectPanel({ auth, connecting, onImportSecret, onConnect }: ConnectPanelProps) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [readError, setReadError] = useState<string | null>(null)

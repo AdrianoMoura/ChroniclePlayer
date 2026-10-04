@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { formatDuration } from './format'
 import { t } from './i18n'
+import { useDialogDismiss } from './useDialogDismiss'
 
 interface ShareDialogProps {
   videoId: string
@@ -11,9 +12,9 @@ interface ShareDialogProps {
   onClose: () => void
 }
 
-// D-067: reachable from the full-view player's topbar, next to the extract
-// button. For a non-live video, opening this dialog already paused it (the
-// caller's job, same rationale as B-121's open-in-browser pause) — this
+// Reachable from the full-view player's topbar, next to the extract button.
+// For a non-live video, opening this dialog already paused it (the
+// caller's job, same rationale as the open-in-browser pause) — this
 // component only builds the link and copies it.
 export function ShareDialog({
   videoId,
@@ -23,14 +24,7 @@ export function ShareDialog({
 }: ShareDialogProps) {
   const [includeTimestamp, setIncludeTimestamp] = useState(false)
   const [copied, setCopied] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  // Same fix as AddToPlaylistDialog: opened via a plain click with no
-  // autoFocus input inside, so Escape needs the container itself focused to
-  // ever reach this dialog's own keydown handler.
-  useEffect(() => {
-    containerRef.current?.focus()
-  }, [])
+  const dismiss = useDialogDismiss(onClose)
 
   const url =
     includeTimestamp && currentTimeSeconds !== null
@@ -44,14 +38,9 @@ export function ShareDialog({
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div
-        ref={containerRef}
-        tabIndex={-1}
+        {...dismiss}
         className="overlay share-dialog"
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation()
-          if (event.key === 'Escape') onClose()
-        }}
       >
         <h2>{t('share.title')}</h2>
         <p className="share-video-title">{videoTitle}</p>

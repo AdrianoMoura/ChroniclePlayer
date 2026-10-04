@@ -2,7 +2,7 @@ import type { Dict, LocaleMeta, MessageKey } from './types'
 
 export type { MessageKey, LocaleMeta }
 
-// D-054: locale dictionaries are discovered at build time from this
+// Locale dictionaries are discovered at build time from this
 // directory — contributing a translation is just adding
 // `src/ui/i18n/locales/<code>.ts` (meta + a Partial<Dict> of translated
 // keys) in a PR; it appears in the Settings language dropdown automatically,

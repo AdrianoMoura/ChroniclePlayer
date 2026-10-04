@@ -20,47 +20,31 @@ import type {
   VideoStateDto,
   WizardStateDto
 } from '../ipc/contract'
-import { AddAccount } from './AddAccount'
-import { AddToPlaylistDialog } from './AddToPlaylistDialog'
 import { ChannelHeader } from './ChannelHeader'
 import { ConnectPanel } from './ConnectPanel'
-import {
-  FeedList,
-  GRID_CARD_SIZES,
-  ITEM_SIZES,
-  VideoCard,
-  VideoRow,
-  type FeedRow,
-  type VideoActions
-} from './FeedList'
+import { type FeedRow, type VideoActions } from './FeedList'
 import { bucketLabel, formatClockTime, quotaResetLocalTime } from './format'
-import { HelpOverlay } from './HelpOverlay'
-import { setLocale, t } from './i18n'
-import { MiniPlayerBar } from './MiniPlayerBar'
-import { PlayerDetails, type PlayerDetailsHandle } from './PlayerDetails'
-import { PlayerSurface, type PlayerSurfaceHandle } from './PlayerSurface'
+import { GlobalDialogs } from './GlobalDialogs'
 import { HistoryView } from './HistoryView'
+import { setLocale, t } from './i18n'
+import { MainFeedPanel } from './MainFeedPanel'
+import { type PlayerDetailsHandle } from './PlayerDetails'
+import { PlayerScreen } from './PlayerScreen'
+import { type PlayerSurfaceHandle } from './PlayerSurface'
 import { PlaylistDetailView } from './PlaylistDetailView'
 import { PlaylistsView } from './PlaylistsView'
 import { SettingsView } from './SettingsView'
-import {
-  SearchChannelCard,
-  SearchChannelRow,
-  SearchVideoCard,
-  SearchVideoRow,
-  type SearchVideoActions
-} from './SearchResults'
-import { NAV_ORDER, Sidebar, viewLabel } from './Sidebar'
-import { UpNextCard } from './UpNextCard'
-import { UrlPrompt } from './UrlPrompt'
+import { type SearchVideoActions } from './SearchResults'
+import { NAV_ORDER, Sidebar } from './Sidebar'
+import { Topbar } from './Topbar'
 import { useWriteScopeGate } from './useWriteScopeGate'
 import { STEP_SEQUENCE, Wizard } from './onboarding/Wizard'
 import type { WizardStepId } from './onboarding/assets'
 
 const UNDO_WINDOW_MS = 5000
-const HISTORY_PAGE_SIZE = 50 // D-073, mirrors FEED_PAGE_SIZE (core/feed-service.ts)
+const HISTORY_PAGE_SIZE = 50 // mirrors FEED_PAGE_SIZE (core/feed-service.ts)
 
-// B-097: the banner itself stays a one-line count; per-channel detail is an
+// The banner itself stays a one-line count; per-channel detail is an
 // on-demand disclosure rather than always-rendered clutter.
 function BannerBar({
   banner,
@@ -124,9 +108,9 @@ function BannerBar({
 interface Banner {
   text: string
   action?: { label: string; run: () => void }
-  // B-097: raw per-channel error detail behind a partial-refresh banner,
-  // shown on demand via an info toggle instead of cluttering the one-line
-  // count that's already there.
+  // Raw per-channel error detail behind a partial-refresh banner, shown on
+  // demand via an info toggle instead of cluttering the one-line count
+  // that's already there.
   failureDetails?: SyncFailureDetailDto[]
 }
 
@@ -134,7 +118,7 @@ export function App() {
   const writeScopeGate = useWriteScopeGate()
   const [view, setView] = useState<FeedViewDto>('all')
   const [channelFilter, setChannelFilter] = useState<string | null>(null)
-  // B-003: a second, independent filter dimension alongside channelFilter —
+  // A second, independent filter dimension alongside channelFilter —
   // undefined/null means the combined feed across every connected account.
   const [accountFilter, setAccountFilter] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<AccountDto[]>([])
@@ -177,7 +161,7 @@ export function App() {
   // above — playlist rows never show the ignore action at all, so a video
   // can only ever be undoable one way or the other.
   const [playlistUndoable, setPlaylistUndoable] = useState<ReadonlySet<string>>(new Set())
-  // Same shape, separately scoped, for "remove from history" (D-073) — a
+  // Same shape, separately scoped, for "remove from history" — a
   // video is never undoable via both playlist-removal and history-removal
   // at once, but each still needs its own set to avoid cross-screen bleed.
   const [historyUndoable, setHistoryUndoable] = useState<ReadonlySet<string>>(new Set())
@@ -185,16 +169,16 @@ export function App() {
   const [banner, setBanner] = useState<Banner | null>(null)
   const [failureDetailsOpen, setFailureDetailsOpen] = useState(false)
   const [channels, setChannels] = useState<ChannelDto[]>([])
-  // B-042: unread videos from favorited channels — bucket-less priority
-  // section shown above the chronological feed (main views only, D-039).
+  // Unread videos from favorited channels — bucket-less priority section
+  // shown above the chronological feed (main views only).
   const [priorityVideos, setPriorityVideos] = useState<FeedVideoDto[]>([])
-  // B-009/D-031: search is inert until the user presses Enter — never
-  // fired on keystroke (search.list costs 100 units/call).
+  // Search is inert until the user presses Enter — never fired on keystroke
+  // (search.list costs 100 units/call).
   const [searchResults, setSearchResults] = useState<SearchResultDto[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  // D-071: set whenever a search is fired while a channel screen is open —
-  // scopes that search (and its pagination) to that channel's own videos,
+  // Set whenever a search is fired while a channel screen is open — scopes
+  // that search (and its pagination) to that channel's own videos,
   // subscribed or not. Null for the ordinary all-of-YouTube search.
   const [searchChannelId, setSearchChannelId] = useState<string | null>(null)
   const [searchNextPageToken, setSearchNextPageToken] = useState<string | null>(null)
@@ -220,23 +204,23 @@ export function App() {
   } | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [playerStack, setPlayerStack] = useState<PlayerVideoDto[]>([])
-  // B-045: docked to a corner instead of full view — the video keeps
-  // playing (PlayerSurface stays mounted regardless) while the feed
-  // underneath becomes interactive again.
+  // Docked to a corner instead of full view — the video keeps playing
+  // (PlayerSurface stays mounted regardless) while the feed underneath
+  // becomes interactive again.
   const [miniplayer, setMiniplayer] = useState(false)
   const [fullSlot, setFullSlot] = useState<HTMLDivElement | null>(null)
   const [miniSlot, setMiniSlot] = useState<HTMLDivElement | null>(null)
-  // D-055: the player's "up next" card — a Watch Later suggestion shown once
-  // the current video ends. Cleared whenever the video changes or the card
-  // is dismissed/opened; never drives playback itself.
+  // The player's "up next" card — a Watch Later suggestion shown once the
+  // current video ends. Cleared whenever the video changes or the card is
+  // dismissed/opened; never drives playback itself.
   const [upNext, setUpNext] = useState<FeedVideoDto | null>(null)
   // Set only when upNext came from a playlist's own screen rather than the
   // Watch Later queue — drives the card's "Next in {name}" label variant.
   const [upNextPlaylistName, setUpNextPlaylistName] = useState<string | null>(null)
-  // D-056: the live-chat panel's surface. Lives here, not in PlayerDetails,
-  // because restoring the docked column when the extracted popup closes
-  // needs to cross-reference miniplayer/current-video state this component
-  // already owns.
+  // The live-chat panel's surface. Lives here, not in PlayerDetails, because
+  // restoring the docked column when the extracted popup closes needs to
+  // cross-reference miniplayer/current-video state this component already
+  // owns.
   const [chatSurface, setChatSurface] = useState<'closed' | 'column' | 'extracted'>('closed')
   const playerSurfaceRef = useRef<PlayerSurfaceHandle>(null)
   const playerDetailsRef = useRef<PlayerDetailsHandle>(null)
@@ -244,7 +228,7 @@ export function App() {
   // Any "hard" navigation away from the player (sidebar clicks, submitting a
   // search, switching accounts) collapses the stack down to just the
   // current (top) video and docks it if still going, otherwise clears the
-  // stack (B-045). Safe to call with no player open: isStillGoing() reads
+  // stack. Safe to call with no player open: isStillGoing() reads
   // false via the `?? false` fallback. Declared early since
   // runSearch/selectAccount/etc. reference it.
   const leavePlayerForNavigation = useCallback(() => {
@@ -268,7 +252,7 @@ export function App() {
   const [playlistFilter, setPlaylistFilter] = useState<string | null>(null)
   const [currentPlaylist, setCurrentPlaylist] = useState<PlaylistDto | null>(null)
   const [playlistVideos, setPlaylistVideos] = useState<FeedVideoDto[]>([])
-  // D-073: the History screen. Flat and infinite-scrolled (unlike the fully-
+  // the History screen. Flat and infinite-scrolled (unlike the fully-
   // loaded playlist video lists above) since it only ever grows across the
   // app's whole lifetime — same keyset-pagination shape as the main feed,
   // just on its own last_watched_at-based cursor.
@@ -281,19 +265,19 @@ export function App() {
   // The video whose "Add to Playlist" button was clicked — reachable from
   // every video card/row everywhere (feed, channel, watch later, player), so
   // this dialog is global rather than owned by any one screen.
-  // B-131: narrowed to what AddToPlaylistDialog actually reads (not the full
+  // Narrowed to what AddToPlaylistDialog actually reads (not the full
   // FeedVideoDto) so a search/channel-preview row's SearchVideoResultDto can
   // open this dialog too, with no cast — both shapes satisfy this.
   const [addToPlaylistVideo, setAddToPlaylistVideo] = useState<{
     videoId: string
     title: string
   } | null>(null)
-  // B-010: topbar Unsubscribe arms on first click, fires on the second
-  // (mirrors Settings' delete-all confirmation), auto-disarms after 6s.
+  // Topbar Unsubscribe arms on first click, fires on the second (mirrors
+  // Settings' delete-all confirmation), auto-disarms after 6s.
   const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
   const confirmUnsubscribeTimer = useRef<number | null>(null)
-  // B-037: default expanded; entering the player auto-collapses it (more
-  // room for the video) and leaving restores whatever the user had before.
+  // Default expanded; entering the player auto-collapses it (more room for
+  // the video) and leaving restores whatever the user had before.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settings, setSettings] = useState<SettingsDto>({
     language: 'system',
@@ -318,8 +302,8 @@ export function App() {
     showDislikeEstimate: false
   })
   const [appVersion, setAppVersion] = useState('')
-  // D-068: which Settings row (if any) to scroll to and flash once the
-  // Settings screen mounts — set right before switching screens, consumed
+  // Which Settings row (if any) to scroll to and flash once the Settings
+  // screen mounts — set right before switching screens, consumed
   // (and cleared) by SettingsView on mount so it never re-fires on a later,
   // unrelated visit to Settings.
   const [settingsHighlight, setSettingsHighlight] = useState<string | null>(null)
@@ -349,9 +333,9 @@ export function App() {
     playlistName: string
     videoIds: string[]
   } | null>(null)
-  // B-112: true while the always-on-top extract window is open — openVideo
-  // reads this to decide whether a newly selected video should load into
-  // that window instead of the main window's own player.
+  // True while the always-on-top extract window is open — openVideo reads
+  // this to decide whether a newly selected video should load into that
+  // window instead of the main window's own player.
   const extractWindowOpenRef = useRef(false)
   const sidebarBeforePlayerRef = useRef<boolean | null>(null)
   const backfillingRef = useRef(false)
@@ -369,7 +353,7 @@ export function App() {
   // latest value without resubscribing on every video/refresh-cycle change.
   const feedEmptyRef = useRef(true)
   const emptyFeedLoadTriggeredRef = useRef(false)
-  // D-056: mirrors of miniplayer/currentPlayerVideo's id, kept in sync by the
+  // Mirrors of miniplayer/currentPlayerVideo's id, kept in sync by the
   // effects below purely so the onEvent listener (a stable subscription, not
   // resubscribed per render) can read their latest values when the chat
   // popup closes, without needing them in its own dependency array.
@@ -387,8 +371,8 @@ export function App() {
     currentPlayerVideoIdRef.current = currentPlayerVideo?.videoId ?? null
   }, [currentPlayerVideo])
 
-  // D-056: chat always starts closed — no persisted preference, the user
-  // opens it fresh for whichever video is currently playing. Keyed on the
+  // Chat always starts closed — no persisted preference, the user opens it
+  // fresh for whichever video is currently playing. Keyed on the
   // video's id, not just "a video is open," so switching videos while chat
   // is open (docked or extracted) also resets it.
   useEffect(() => {
@@ -418,7 +402,7 @@ export function App() {
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed((collapsed) => !collapsed), [])
 
-  // B-045: only the full-view layout wants the sidebar out of the way —
+  // Only the full-view layout wants the sidebar out of the way —
   // docked-to-a-corner mode is "back to browsing the feed," sidebar included.
   useEffect(() => {
     const fullView = playerOpen && !miniplayer
@@ -433,16 +417,16 @@ export function App() {
     }
   }, [playerOpen, miniplayer])
 
-  // Fetches feed meta and reconciles `refreshing` against backend truth
-  // (B-023): a renderer that missed a terminal sync event — mounting mid-run,
-  // or one that slipped through — self-heals here instead of spinning
-  // forever until a manual reload.
+  // Fetches feed meta and reconciles `refreshing` against backend truth: a
+  // renderer that missed a terminal sync event — mounting mid-run, or one
+  // that slipped through — self-heals here instead of spinning forever
+  // until a manual reload.
   const syncMeta = useCallback(() => {
     void window.chronicle.getFeedMeta(accountRef.current).then((next) => {
       setMeta(next)
       setRefreshing(next.refreshing)
     })
-    // B-042: the priority section only makes sense in the main feed
+    // The priority section only makes sense in the main feed
     // ('all'/'unread', unfiltered) — cleared everywhere else.
     if (
       channelRef.current === null &&
@@ -521,7 +505,7 @@ export function App() {
     }
   }, [screen, playlistFilter, loadPlaylists, loadPlaylistDetail])
 
-  // D-073: same generation-guard shape as loadView/loadMore below — a query
+  // same generation-guard shape as loadView/loadMore below — a query
   // change or screen re-entry can start a new fetch before a previous one
   // resolves, and a stale response must never clobber newer results.
   const loadHistory = useCallback((query: string) => {
@@ -565,8 +549,8 @@ export function App() {
     loadChannels()
   }, [accountFilter, loadChannels])
 
-  // B-009: search results are a transient overlay over the current
-  // view/channel — navigating away always drops them.
+  // Search results are a transient overlay over the current view/channel —
+  // navigating away always drops them.
   useEffect(() => {
     setSearchResults(null)
   }, [view, channelFilter, accountFilter])
@@ -604,8 +588,8 @@ export function App() {
       setLocale(next.language)
       setSettings(next)
       void window.chronicle.setSettings(next)
-      // B-028: showShorts is applied server-side (it affects counts, not
-      // just display), so flipping it needs a re-fetch — unlike the other
+      // showShorts is applied server-side (it affects counts, not just
+      // display), so flipping it needs a re-fetch — unlike the other
       // settings here, which only change how the renderer draws local data.
       if (shortsChanged) {
         loadView()
@@ -650,7 +634,7 @@ export function App() {
   }, [])
 
   const doRefresh = useCallback(() => {
-    // B-036: a channel-filtered view refreshes only that channel. B-003: an
+    // A channel-filtered view refreshes only that channel. An
     // account-filtered view refreshes only that account.
     void window.chronicle.refreshFeed(channelFilter, accountFilter).then((result) => {
       if (result.ok || result.errorKind === 'busy') return
@@ -667,7 +651,7 @@ export function App() {
     })
   }, [connect, channelFilter, accountFilter])
 
-  // Bulk unread → read over the current scope (B-020, D-010 semantics).
+  // Bulk unread → read over the current scope.
   const markAllRead = useCallback(() => {
     void window.chronicle.markAllRead(channelFilter, accountFilter).then(() => {
       loadView()
@@ -675,8 +659,8 @@ export function App() {
     })
   }, [channelFilter, accountFilter, loadView, loadChannels])
 
-  // B-010: real subscriptions.delete plus the local soft-delete — may open
-  // the system browser once for incremental write-scope consent (D-032).
+  // Real subscriptions.delete plus the local soft-delete — may open the
+  // system browser once for incremental write-scope consent.
   const unsubscribeChannel = useCallback(
     (channelId: string) => {
       void writeScopeGate
@@ -708,11 +692,10 @@ export function App() {
     [channelFilter, connect, loadChannels, loadView, writeScopeGate]
   )
 
-  // B-009/D-031: explicit user action only — never fired on keystroke.
-  // D-071: while a channel screen is open, the same field scopes the search
-  // to that channel's own videos instead of all of YouTube — one field, one
-  // predictable behavior per context, same as D-031's own single-behavior
-  // precedent.
+  // Explicit user action only — never fired on keystroke. While a channel
+  // screen is open, the same field scopes the search to that channel's own
+  // videos instead of all of YouTube — one field, one predictable behavior
+  // per context.
   const runSearch = useCallback(
     (query: string) => {
       const q = query.trim()
@@ -753,10 +736,10 @@ export function App() {
   // always leaves search, even when the destination happens to already
   // match the current view/channel/account — state setters alone don't
   // fire the "navigation changed" effect on a same-value no-op click.
-  // D-071: leaves channelPreview alone — it's a sibling of channelFilter,
-  // not of search (see its own state comment); nulling it here used to
-  // strand a non-subscribed channel's preview the moment its leftover
-  // search text was cleared with no scoped search ever having replaced it.
+  // Leaves channelPreview alone — it's a sibling of channelFilter, not of
+  // search (see its own state comment); nulling it here would strand a
+  // non-subscribed channel's preview the moment its leftover search text is
+  // cleared with no scoped search ever having replaced it.
   const closeSearch = useCallback(() => {
     setFilter('')
     setSearchResults(null)
@@ -780,7 +763,7 @@ export function App() {
   // Search results only page via the `.search-results` container's own
   // onScroll handler — a small result count, small grid item size, or tall
   // window can mean the first page never actually overflows, so that
-  // handler never fires and pagination silently stalls (B-107).
+  // handler never fires and pagination silently stalls.
   // `loadMoreSearchResults` already no-ops without a `searchNextPageToken`/
   // while loading, so this can't loop.
   useEffect(() => {
@@ -794,8 +777,8 @@ export function App() {
     loadMoreSearchResults
   ])
 
-  // D-030: the other half of B-010's unsubscribe — subscribes on YouTube,
-  // may open the system browser once for incremental write-scope consent.
+  // The other half of unsubscribe — subscribes on YouTube, may open the
+  // system browser once for incremental write-scope consent.
   const subscribeToChannel = useCallback(
     (channelId: string) => {
       void writeScopeGate
@@ -883,14 +866,14 @@ export function App() {
   }, [])
 
   // Same "no overflow, so the onScroll near-end check never fires" gap as
-  // search results above (B-107), for the channel-preview list (browsing a
+  // search results above, for the channel-preview list (browsing a
   // not-yet-subscribed channel's uploads from a search result).
   useEffect(() => {
     const el = channelPreviewRef.current
     if (el && el.clientHeight > 0 && el.scrollHeight <= el.clientHeight) loadMoreChannelPreview()
   }, [channelPreview, settings.itemSize, settings.layout, loadMoreChannelPreview])
 
-  // B-042: local-only priority marker — never touches YouTube.
+  // Local-only priority marker — never touches YouTube.
   const toggleChannelFavorite = useCallback(
     (channelId: string) => {
       void window.chronicle.toggleChannelFavorite(channelId).then(() => {
@@ -901,7 +884,7 @@ export function App() {
     [loadChannels, syncMeta]
   )
 
-  // D-050: local-only "Custom" notification-scope membership — never touches
+  // Local-only "Custom" notification-scope membership — never touches
   // YouTube, same shape as toggleChannelFavorite above.
   const toggleChannelNotify = useCallback(
     (channelId: string) => {
@@ -912,8 +895,8 @@ export function App() {
     [loadChannels]
   )
 
-  // B-003: selecting an account is a second, independent filter dimension —
-  // same mechanics as selecting a channel (clears on reselect).
+  // Selecting an account is a second, independent filter dimension — same
+  // mechanics as selecting a channel (clears on reselect).
   const selectAccount = useCallback(
     (accountId: string | null) => {
       closeSearch()
@@ -985,7 +968,7 @@ export function App() {
       // PlayerDetails stays mounted (just hidden) across the miniplayer
       // toggle, so playerStack entries need updating too, or its local
       // `state` (read/favorite/watch-later) flickers back to whatever it
-      // was when the video was first opened (B-045).
+      // was when the video was first opened.
       setPlayerStack((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
@@ -996,15 +979,15 @@ export function App() {
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
       // Same staleness reason, for the History screen's own separate fetch
-      // (B-125-127's precedent) — e.g. favoriting a video from inside
-      // History must update its icon immediately, not just on next visit.
+      // — e.g. favoriting a video from inside History must update its icon
+      // immediately, not just on next visit.
       setHistoryVideos((current) =>
         current.map((video) => (video.videoId === videoId ? { ...video, state } : video))
       )
-      // B-131: the two transient search lists (free-text results, a
-      // non-subscribed channel's preview) carry the same three state fields
-      // flattened rather than nested under `state` — same staleness reason
-      // as playlistVideos above.
+      // The two transient search lists (free-text results, a non-subscribed
+      // channel's preview) carry the same three state fields flattened
+      // rather than nested under `state` — same staleness reason as
+      // playlistVideos above.
       const flat = { favorite: state.favorite, watchLater: state.watchLater, readStatus: state.readStatus }
       setSearchResults((current) =>
         current === null
@@ -1046,7 +1029,7 @@ export function App() {
           return
         }
         let state = await window.chronicle.setReadStatus(videoId, 'read')
-        // D-073: stamps this open into the History screen's own timeline.
+        // stamps this open into the History screen's own timeline.
         // Fire-and-forget like setResumePosition's own checkpoints — nothing
         // in this screen's state depends on the result.
         void window.chronicle.markWatched(videoId)
@@ -1059,7 +1042,7 @@ export function App() {
         patch(videoId, state)
         // The extract window being open means the user already signaled
         // they want playback separate from the main window — send a newly
-        // picked video there instead of (also) starting it here (B-112).
+        // picked video there instead of (also) starting it here.
         // startMini is excluded since it's only ever true for the
         // extract-window-closed restore path ('player:restoreFromExtract'
         // below), which must land in the main window's miniplayer.
@@ -1074,8 +1057,8 @@ export function App() {
         const entry = { ...result.value, state }
         setPlayerStack((stack) => (mode === 'replace' ? [entry] : [...stack, entry]))
         // Normally starts in full view, even if a previous video was docked
-        // — startMini is only for the extract-window-closed path (B-045),
-        // which hands a video back to the miniplayer, not the full view.
+        // — startMini is only for the extract-window-closed path, which
+        // hands a video back to the miniplayer, not the full view.
         setMiniplayer(startMini)
       })
     },
@@ -1087,7 +1070,7 @@ export function App() {
       const video = filteredList[videoIndexInFiltered]
       if (!video) return
       // Watch Later rows carry queue context for the explicit "Next in
-      // queue" button (D-021: no auto-advance).
+      // queue" button — no auto-advance.
       queueRef.current =
         viewRef.current === 'watch-later'
           ? { ids: filteredList.map((v) => v.videoId), index: videoIndexInFiltered }
@@ -1097,7 +1080,7 @@ export function App() {
       // 'replace', not the default 'push' — opening a video from the feed is
       // a fresh browsing action, not "diving deeper" from within a video's
       // own description (which is what 'push', the queue-stack model, is
-      // for) (B-045).
+      // for).
       openVideo(video.videoId, 'replace')
     },
     [openVideo]
@@ -1106,8 +1089,8 @@ export function App() {
   // Mirrors openFromFeed's own shape, for a playlist's own detail screen
   // (PlaylistDetailView) instead of the main feed — sets playlistContextRef
   // so handleVideoEnded can offer a "Next in {name}" suggestion once this
-  // video ends (D-055-style, but scoped to one playlist instead of Watch
-  // Later's global queue).
+  // video ends, scoped to one playlist instead of Watch Later's global
+  // queue.
   const openFromPlaylistDetail = useCallback(
     (videoIndex: number) => {
       const video = playlistVideos[videoIndex]
@@ -1123,7 +1106,7 @@ export function App() {
     [playlistVideos, currentPlaylist, openVideo]
   )
 
-  // D-073: mirrors openFromFeed's own shape for the History screen — no
+  // mirrors openFromFeed's own shape for the History screen — no
   // queue, no playlist context (History isn't a curated collection to offer
   // an "up next" suggestion from, just a chronological log).
   const openFromHistory = useCallback(
@@ -1154,8 +1137,8 @@ export function App() {
     [playlistFilter]
   )
 
-  // D-059: the actual sync IPC call is made by PlaylistDetailView itself
-  // (it owns the button's own syncing/error state) — this just reconciles
+  // The actual sync IPC call is made by PlaylistDetailView itself (it owns
+  // the button's own syncing/error state) — this just reconciles
   // the result into the state this component owns, same shape as
   // renameCurrentPlaylist's callback, plus re-fetching playlistVideos since
   // sync appends new videos to the tail.
@@ -1246,7 +1229,7 @@ export function App() {
     })
   }, [])
 
-  // D-073: same inline-undo shape as removeVideoFromCurrentPlaylist above —
+  // same inline-undo shape as removeVideoFromCurrentPlaylist above —
   // persists immediately (clears last_watched_at), keeps the row on screen
   // as an undo strip until UNDO_WINDOW_MS actually drops it from
   // historyVideos. Simpler than the playlist case: no server-side order to
@@ -1278,7 +1261,7 @@ export function App() {
     [clearHistoryUndo]
   )
 
-  // D-073: "Clear History" — unscoped by the screen's current search query
+  // "Clear History" — unscoped by the screen's current search query
   // (clears everything, not just what's currently filtered/visible).
   const clearAllHistory = useCallback(() => {
     void window.chronicle.clearAllWatched().then(() => {
@@ -1317,7 +1300,7 @@ export function App() {
     setUpNextPlaylistName(null)
   }, [])
 
-  // B-130: the player's "video unavailable" overlay's explicit remove
+  // The player's "video unavailable" overlay's explicit remove
   // action (never automatic — a transient error isn't proof the video is
   // really gone). Drops it from every local list that might still show it,
   // then leaves the player the same way Esc/Back would.
@@ -1341,10 +1324,10 @@ export function App() {
   // Hands off a playback snapshot to a brand-new always-on-top window
   // rather than moving the live iframe there (impossible across renderer
   // processes) — then fully closes the in-app player, since the video now
-  // lives in that window instead (B-045). `auto` (D-051) marks an
-  // extraction triggered by closing the window to the tray rather than the
-  // user pressing `p` — see extractPlayer's own doc comment for what that
-  // changes about the extract window's close behavior.
+  // lives in that window instead. `auto` marks an extraction triggered by
+  // closing the window to the tray rather than the user pressing `p` — see
+  // extractPlayer's own doc comment for what that changes about the
+  // extract window's close behavior.
   const extractToWindowInternal = useCallback(
     (auto: boolean) => {
       const video = playerStack.at(-1)
@@ -1377,8 +1360,8 @@ export function App() {
 
   // The main window just closed to the tray (backgroundMode on) — without
   // this, a still-playing video would keep running silently behind the
-  // tray icon with no easy way to stop it (D-051). popOutOnClose true
-  // (default) pops it into the always-on-top extract window instead, same
+  // tray icon with no easy way to stop it. popOutOnClose true (default)
+  // pops it into the always-on-top extract window instead, same
   // as `p`; false just pauses it. No-op if nothing was playing.
   const handleClosedToTray = useCallback(() => {
     if (!(playerSurfaceRef.current?.isStillGoing() ?? false)) return
@@ -1415,8 +1398,7 @@ export function App() {
     requestAnimationFrame(() => filterInputRef.current?.focus())
   }, [])
 
-  // Shared by the feed's own `?`/Escape handling and the player's (B-102:
-  // the player had no `?` case at all, so it never reached setHelpOpen).
+  // Shared by the feed's own `?`/Escape handling and the player's.
   const toggleHelp = useCallback(() => setHelpOpen((open) => !open), [])
 
   // Shared by the sidebar's Playlists nav button and its keyboard shortcut
@@ -1442,7 +1424,7 @@ export function App() {
     openVideo(queue.ids[queue.index], 'replace')
   }, [openVideo])
 
-  // D-055: on video end, look up a suggestion by the video's own id (not
+  // On video end, look up a suggestion by the video's own id (not
   // navigation context, unlike nextInQueue above) — works whether or not the
   // video that just ended was itself opened from the queue/playlist. A
   // playlist context (set by openFromPlaylistDetail) takes priority over the
@@ -1518,7 +1500,7 @@ export function App() {
           // noise (retried automatically next cycle), not worth a banner —
           // only a *systemic* failure surfaces: every polled channel failing
           // at once, on a poll wide enough that random per-channel noise
-          // couldn't plausibly explain it (D-048).
+          // couldn't plausibly explain it.
           if (event.report.outcome === 'failed' && event.report.channelsPolled > 1) {
             setFailureDetailsOpen(false)
             setBanner({
@@ -1528,7 +1510,7 @@ export function App() {
           }
           break
         case 'refresh:failed':
-          // B-023: always pair refresh:started with a terminal event, or the
+          // Always pair refresh:started with a terminal event, or the
           // spinner runs forever with no recovery short of a manual reload.
           setRefreshing(false)
           setProgress(null)
@@ -1562,8 +1544,8 @@ export function App() {
           openVideo(event.videoId, 'replace', true)
           break
         case 'player:extractWindowClosed':
-          // B-112: fires on every close, including the auto (D-051) path
-          // where restoreFromExtract above never fires — this is the only
+          // Fires on every close, including the auto-extract path where
+          // restoreFromExtract above never fires — this is the only
           // signal that always resets the "extract is open" tracking.
           extractWindowOpenRef.current = false
           break
@@ -1630,8 +1612,8 @@ export function App() {
           videoId: lastVideo.videoId
         }
       : null
-    // The page cap (youtube-api.md: "bounded at 4 pages/call, resumable",
-    // B-002) is a per-call pacing device, not a give-up point — a channel
+    // The page cap (youtube-api.md: "bounded at 4 pages/call, resumable")
+    // is a per-call pacing device, not a give-up point — a channel
     // whose next uploads-playlist stretch is entirely already-known videos
     // comes back `{ videosNew: 0, exhausted: false }` with a resume token
     // saved server-side. Nothing else re-triggers FeedList's onNearEnd
@@ -1841,14 +1823,14 @@ export function App() {
     [setStatus, ignoreVideo, undoIgnore, patch, currentPlayerVideo]
   )
 
-  // B-131: favorite/Watch Later/Add to Playlist/open-in-browser for the two
+  // favorite/Watch Later/Add to Playlist/open-in-browser for the two
   // transient search lists (free-text results, a non-subscribed channel's
   // preview) — no ignore here, see SearchVideoActions' own comment. Unlike
   // `actions` above, these videos may have no local `videos` row yet — the
-  // backend hydrates + upserts one on demand (ensureVideoExists, D-029's
-  // same on-open pattern) before applying a state change, which costs a
-  // real network call and can fail (offline, quota, video removed since
-  // listed).
+  // backend hydrates + upserts one on demand (ensureVideoExists, the same
+  // on-open pattern used when opening any external video) before applying
+  // a state change, which costs a real network call and can fail (offline,
+  // quota, video removed since listed).
   const searchVideoActions = useMemo<SearchVideoActions>(() => {
     const onFailure = (error: unknown): void => {
       setBanner({
@@ -1873,7 +1855,7 @@ export function App() {
       // addToPlaylist action).
       addToPlaylist: (result) => setAddToPlaylistVideo({ videoId: result.videoId, title: result.title }),
       openInBrowser: (result) => {
-        // Same B-121 rule as the normal feed's own openInBrowser: don't let
+        // Same rule as the normal feed's own openInBrowser: don't let
         // Chronicle's copy keep playing behind the real YouTube tab.
         if (currentPlayerVideo?.videoId === result.videoId) playerSurfaceRef.current?.pause()
         void window.chronicle.openInBrowser(result.videoId)
@@ -1889,15 +1871,14 @@ export function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      // Ctrl+O works everywhere (D-029 open-by-URL).
+      // Ctrl+O works everywhere (open-by-URL).
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
         event.preventDefault()
         setUrlPromptOpen(true)
         return
       }
-      // B-045: docked mode hands global keys back to normal feed navigation
-      // — only the full-view layout (PlayerSurface's own keydown map) owns
-      // them.
+      // Docked mode hands global keys back to normal feed navigation — only
+      // the full-view layout (PlayerSurface's own keydown map) owns them.
       if ((playerOpen && !miniplayer) || urlPromptOpen) return
       if (screen === 'settings') {
         if (event.key === 'Escape') setScreen('feed')
@@ -1964,7 +1945,7 @@ export function App() {
           case 'v':
             changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
             break
-          // Mirrors the main feed's own B-105 miniplayer shortcuts — the
+          // Mirrors the main feed's own miniplayer shortcuts — the
           // Playlists screen keeps the exact same docked-miniplayer
           // behavior as every other view, so these need to be reachable
           // here too, not just from the main switch further down (which
@@ -2066,7 +2047,7 @@ export function App() {
           channelQueryRef.current?.focus()
           break
         case 's':
-          // B-043: sidebar collapse/expand (B-037) had no keyboard path at all.
+          // Sidebar collapse/expand had no keyboard path at all.
           toggleSidebar()
           break
         case '?':
@@ -2081,8 +2062,8 @@ export function App() {
         case 'v':
           changeSettings({ ...settings, layout: settings.layout === 'grid' ? 'list' : 'grid' })
           break
-        // B-105: the docked miniplayer's own maximize/close buttons
-        // (MiniPlayerBar) had no keyboard path — only reachable while
+        // The docked miniplayer's own maximize/close buttons (MiniPlayerBar)
+        // had no keyboard path — only reachable while
         // `miniplayer` is actually docked (`playerOpen && miniplayer`),
         // same guard MiniPlayerBar's own rendering uses. `e` mirrors the
         // corner box's "⤢ expand" button; `x` mirrors its "✕ close" button.
@@ -2182,8 +2163,8 @@ export function App() {
 
   const showConnectPanel = auth !== null && auth.state !== 'connected' && videos.length === 0
 
-  // Scoped to the current view/channel (B-020) — only offered where "unread"
-  // is a meaningful concept and there is something to clear.
+  // Scoped to the current view/channel — only offered where "unread" is a
+  // meaningful concept and there is something to clear.
   const currentUnreadCount =
     channelFilter !== null
       ? (channels.find((c) => c.channelId === channelFilter)?.unreadCount ?? 0)
@@ -2240,7 +2221,7 @@ export function App() {
     : meta.caughtUp
       ? `${t('app.status.caughtUp')}${meta.lastRefreshAt ? t('app.status.lastRefreshSuffix', { time: formatClockTime(meta.lastRefreshAt) }) : ''}`
       : t('app.status.unreadCount', { count: currentUnreadCount })
-  // B-105: a hover tooltip on the (i) icon next to the status text explains
+  // A hover tooltip on the (i) icon next to the status text explains
   // what each sync phase actually does — only shown while a sync is running,
   // since the caught-up/unread-count states are self-explanatory.
   const statusInfoTitle = refreshing
@@ -2294,8 +2275,8 @@ export function App() {
             closeSearch()
             leavePlayerForNavigation()
             setScreen('settings')
-            // B-015: refetch so the granted-scope line reflects any write
-            // action (comment/like/subscribe/unsubscribe) taken since mount.
+            // Refetch so the granted-scope line reflects any write action
+            // (comment/like/subscribe/unsubscribe) taken since mount.
             void window.chronicle.getAuthStatus().then(setAuth)
           }}
           onOpenPlaylists={openPlaylistsScreen}
@@ -2349,139 +2330,36 @@ export function App() {
           </>
         ) : (
           <>
-            {screen === 'playlists' || screen === 'history' ? (
-              <header className="topbar">
-                <span className="topbar-view">
-                  {t(screen === 'playlists' ? 'sidebar.view.playlists' : 'sidebar.view.history')}
-                </span>
-                <span className="topbar-spacer" />
-                <input
-                  className="size-slider"
-                  type="range"
-                  min={0}
-                  max={ITEM_SIZES.length - 1}
-                  step={1}
-                  value={ITEM_SIZES.indexOf(settings.itemSize)}
-                  title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
-                  onChange={(event) =>
-                    changeSettings({ ...settings, itemSize: ITEM_SIZES[Number(event.target.value)] })
-                  }
-                />
-                <button
-                  className="layout-toggle"
-                  title={
-                    settings.layout === 'grid'
-                      ? t('app.topbar.switchToListView')
-                      : t('app.topbar.switchToGridView')
-                  }
-                  onClick={() =>
-                    changeSettings({
-                      ...settings,
-                      layout: settings.layout === 'grid' ? 'list' : 'grid'
-                    })
-                  }
-                >
-                  {settings.layout === 'grid' ? '☰' : '⊞'}
-                </button>
-              </header>
-            ) : (
-              <header className="topbar">
-                <button className="refresh" title={t('app.topbar.refreshTitle')} onClick={doRefresh}>
-                  <span className={`refresh-icon${refreshing ? ' spinning' : ''}`}>⟳</span>
-                </button>
-                <span className="topbar-view">
-                  {viewLabel(view)}
-                  {accountFilter !== null && (
-                    <span className="topbar-account-suffix">
-                      {' · '}
-                      {accounts.find((a) => a.accountId === accountFilter)?.label ??
-                        t('app.topbar.channelFallback')}
-                    </span>
-                  )}
-                </span>
-                <span className="status">
-                  {statusText}
-                  {statusInfoTitle !== null && (
-                    <span className="status-info" title={statusInfoTitle}>
-                      ⓘ
-                    </span>
-                  )}
-                </span>
-                {showMarkAllRead && (
-                  <button className="mark-all-read" onClick={markAllRead}>
-                    {t('app.topbar.markAllRead')}
-                  </button>
-                )}
-                <div className="field-wrap">
-                  <input
-                    ref={filterInputRef}
-                    className="filter"
-                    placeholder={t(
-                      channelFilter !== null
-                        ? 'app.topbar.searchChannelPlaceholder'
-                        : 'app.topbar.searchYouTubePlaceholder'
-                    )}
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') runSearch(filter)
-                    }}
-                  />
-                  {filter !== '' && (
-                    <button
-                      className="field-clear"
-                      title={t('app.topbar.clearFilterTitle')}
-                      onClick={() => {
-                        closeSearch()
-                        filterInputRef.current?.focus()
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-                {(!playerOpen || miniplayer) && (
-                  <input
-                    className="size-slider"
-                    type="range"
-                    min={0}
-                    max={ITEM_SIZES.length - 1}
-                    step={1}
-                    value={ITEM_SIZES.indexOf(settings.itemSize)}
-                    title={t('app.topbar.itemSizeTitle', { size: settings.itemSize })}
-                    onChange={(event) =>
-                      changeSettings({
-                        ...settings,
-                        itemSize: ITEM_SIZES[Number(event.target.value)]
-                      })
-                    }
-                  />
-                )}
-                {(!playerOpen || miniplayer) && (
-                  <button
-                    className="layout-toggle"
-                    title={
-                      settings.layout === 'grid'
-                        ? t('app.topbar.switchToListView')
-                        : t('app.topbar.switchToGridView')
-                    }
-                    onClick={() =>
-                      changeSettings({
-                        ...settings,
-                        layout: settings.layout === 'grid' ? 'list' : 'grid'
-                      })
-                    }
-                  >
-                    {settings.layout === 'grid' ? '☰' : '⊞'}
-                  </button>
-                )}
-              </header>
-            )}
+            <Topbar
+              screen={screen}
+              settings={settings}
+              onSettingsChange={changeSettings}
+              view={view}
+              accountFilter={accountFilter}
+              accounts={accounts}
+              channelFilter={channelFilter}
+              refreshing={refreshing}
+              onRefresh={doRefresh}
+              statusText={statusText}
+              statusInfoTitle={statusInfoTitle}
+              showMarkAllRead={showMarkAllRead}
+              onMarkAllRead={markAllRead}
+              filter={filter}
+              onFilterChange={setFilter}
+              onRunSearch={() => runSearch(filter)}
+              onClearFilter={() => {
+                closeSearch()
+                filterInputRef.current?.focus()
+              }}
+              filterInputRef={filterInputRef}
+              playerOpen={playerOpen}
+              miniplayer={miniplayer}
+            />
 
             {screen === 'feed' &&
               (!playerOpen || miniplayer) &&
               channelFilter !== null &&
-              // D-071: a channel-scoped search keeps the header (back/
+              // A channel-scoped search keeps the header (back/
               // unsubscribe/favorite context) visible — only an unscoped,
               // all-of-YouTube search result set replaces it entirely.
               (searchResults === null || searchChannelId === channelFilter) &&
@@ -2600,371 +2478,119 @@ export function App() {
                   onConnect={connect}
                 />
               ) : (
-                <>
-                {newVideosPill !== null && (
-                  <button className="new-videos-pill" onClick={() => loadView()}>
-                    {t('app.banner.newVideos', {
-                      count: newVideosPill,
-                      plural: newVideosPill > 1 ? 's' : ''
-                    })}
-                  </button>
-                )}
-                {searchResults !== null ? (
-                  <div
-                    ref={searchResultsRef}
-                    className={`search-results size-${settings.itemSize}`}
-                    onScroll={(event) => {
-                      const el = event.currentTarget
-                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300)
-                        loadMoreSearchResults()
-                    }}
-                  >
-                    {searching && (
-                      <div className="empty">
-                        {t(searchChannelId !== null ? 'search.searchingChannel' : 'search.searching')}
-                      </div>
-                    )}
-                    {!searching && searchResults.length === 0 && (
-                      <div className="empty">{t('search.empty')}</div>
-                    )}
-                    {(() => {
-                      const visible = searchResults.filter(
-                        (result) =>
-                          result.kind !== 'video' || settings.showShorts || !result.isShort
-                      )
-                      if (settings.layout === 'grid') {
-                        return (
-                          <div
-                            className="grid-row"
-                            style={{
-                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                            }}
-                          >
-                            {visible.map((result) =>
-                              result.kind === 'video' ? (
-                                <SearchVideoCard
-                                  key={result.videoId}
-                                  result={result}
-                                  onOpen={() => openVideo(result.videoId, 'replace')}
-                                  actions={searchVideoActions}
-                                />
-                              ) : (
-                                <SearchChannelCard
-                                  key={result.channelId}
-                                  result={result}
-                                  onOpen={() =>
-                                    openChannelPreview(
-                                      result.channelId,
-                                      result.title,
-                                      result.thumbnailUrl
-                                    )
-                                  }
-                                  onSubscribe={() => subscribeToChannel(result.channelId)}
-                                />
-                              )
-                            )}
-                          </div>
-                        )
-                      }
-                      // This list has no other keyboard path (unlike the main
-                      // FeedList, which has global j/k/Enter navigation) — each
-                      // row/card is individually focusable.
-                      return visible.map((result) =>
-                        result.kind === 'video' ? (
-                          <SearchVideoRow
-                            key={result.videoId}
-                            result={result}
-                            onOpen={() => openVideo(result.videoId, 'replace')}
-                            actions={searchVideoActions}
-                          />
-                        ) : (
-                          <SearchChannelRow
-                            key={result.channelId}
-                            result={result}
-                            onOpen={() =>
-                              openChannelPreview(
-                                result.channelId,
-                                result.title,
-                                result.thumbnailUrl
-                              )
-                            }
-                            onSubscribe={() => subscribeToChannel(result.channelId)}
-                          />
-                        )
-                      )
-                    })()}
-                    {searchLoadingMore && (
-                      <div className="feed-loading-more">{t('search.loadingMore')}</div>
-                    )}
-                  </div>
-                ) : channelPreview !== null && channelPreview.channelId === channelFilter ? (
-                  <div
-                    ref={channelPreviewRef}
-                    className={`search-results size-${settings.itemSize}`}
-                    onScroll={(event) => {
-                      const el = event.currentTarget
-                      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300)
-                        loadMoreChannelPreview()
-                    }}
-                  >
-                    {channelPreview.loading && <div className="empty">{t('search.channelLoading')}</div>}
-                    {!channelPreview.loading && channelPreview.videos.length === 0 && (
-                      <div className="empty">{t('search.empty')}</div>
-                    )}
-                    {(() => {
-                      const visible = channelPreview.videos.filter(
-                        (video) => settings.showShorts || !video.isShort
-                      )
-                      // B-131: chronologically ordered (unlike free-text
-                      // search results), so consecutive same-bucket runs can
-                      // just be grouped in place — no re-sort needed.
-                      const groups: { bucket: FeedBucketDto | null; videos: SearchVideoResultDto[] }[] = []
-                      for (const video of visible) {
-                        const last = groups.at(-1)
-                        if (last && last.bucket === video.bucket) last.videos.push(video)
-                        else groups.push({ bucket: video.bucket, videos: [video] })
-                      }
-                      return groups.map((group, groupIndex) => (
-                        <div key={group.bucket ?? `g-${groupIndex}`}>
-                          {group.bucket !== null && (
-                            <h2 className="group-header">{bucketLabel(group.bucket)}</h2>
-                          )}
-                          {settings.layout === 'grid' ? (
-                            <div
-                              className="grid-row"
-                              style={{
-                                gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                              }}
-                            >
-                              {group.videos.map((video) => (
-                                <SearchVideoCard
-                                  key={video.videoId}
-                                  result={video}
-                                  onOpen={() => openVideo(video.videoId, 'replace')}
-                                  actions={searchVideoActions}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            group.videos.map((video) => (
-                              <SearchVideoRow
-                                key={video.videoId}
-                                result={video}
-                                onOpen={() => openVideo(video.videoId, 'replace')}
-                                actions={searchVideoActions}
-                              />
-                            ))
-                          )}
-                        </div>
-                      ))
-                    })()}
-                    {channelPreview.loadingMore && (
-                      <div className="feed-loading-more">{t('search.loadingMore')}</div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {priorityVideos.length > 0 && (
-                      <div className={`priority-section size-${settings.itemSize}`}>
-                        <h2 className="group-header">{t('app.bucket.favoriteChannels')}</h2>
-                        {settings.layout === 'grid' ? (
-                          <div
-                            className="grid-row"
-                            style={{
-                              gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_CARD_SIZES[settings.itemSize].minWidth}px, 1fr))`
-                            }}
-                          >
-                            {priorityVideos.map((video) => (
-                              <VideoCard
-                                key={video.videoId}
-                                video={video}
-                                selected={false}
-                                undoable={undoable.has(video.videoId)}
-                                actions={actions}
-                                onOpen={() => openVideo(video.videoId, 'replace')}
-                                onOpenChannel={() =>
-                                  navigateToChannel(video.channelId, video.channelTitle)
-                                }
-                                showViewCounts={settings.showViewCounts}
-                                focusable
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          priorityVideos.map((video) => (
-                            <VideoRow
-                              key={video.videoId}
-                              video={video}
-                              selected={false}
-                              undoable={undoable.has(video.videoId)}
-                              actions={actions}
-                              onOpen={() => openVideo(video.videoId, 'replace')}
-                              onOpenChannel={() =>
-                                navigateToChannel(video.channelId, video.channelTitle)
-                              }
-                              showViewCounts={settings.showViewCounts}
-                              focusable
-                            />
-                          ))
-                        )}
-                      </div>
-                    )}
-                    {filtered.length === 0 ? (
-                      <div className="empty">
-                        {filter ? t('app.feed.emptyFiltered') : t('app.feed.emptyNoVideos')}
-                      </div>
-                    ) : (
-                      <FeedList
-                        key={`${view}|${channelFilter ?? ''}|${accountFilter ?? ''}`}
-                        rows={rows}
-                        cursorVideoIndex={effectiveCursor}
-                        undoable={undoable}
-                        actions={actions}
-                        onOpen={(videoIndex) => {
-                          setCursorIdx(videoIndex)
-                          openFromFeed(videoIndex, filtered)
-                        }}
-                        onOpenChannel={(channelId) => {
-                          const title =
-                            filtered.find((v) => v.channelId === channelId)?.channelTitle ?? ''
-                          navigateToChannel(channelId, title)
-                        }}
-                        onNearEnd={loadMore}
-                        onAtTopChange={(atTop) => {
-                          atTopRef.current = atTop
-                        }}
-                        itemSize={settings.itemSize}
-                        layout={settings.layout}
-                        showViewCounts={settings.showViewCounts}
-                        loadingMore={loadingMore}
-                        reorderable={view === 'watch-later'}
-                        onReorder={reorderWatchLater}
-                      />
-                    )}
-                  </>
-                )}
-                </>
+                <MainFeedPanel
+                  settings={settings}
+                  newVideosPill={newVideosPill}
+                  onShowNewVideos={() => loadView()}
+                  searchResults={searchResults}
+                  searchResultsRef={searchResultsRef}
+                  searching={searching}
+                  searchChannelId={searchChannelId}
+                  searchLoadingMore={searchLoadingMore}
+                  onLoadMoreSearchResults={loadMoreSearchResults}
+                  searchVideoActions={searchVideoActions}
+                  onOpenVideo={(videoId) => openVideo(videoId, 'replace')}
+                  onOpenChannelPreview={openChannelPreview}
+                  onSubscribeToChannel={subscribeToChannel}
+                  channelPreview={channelPreview}
+                  channelFilter={channelFilter}
+                  channelPreviewRef={channelPreviewRef}
+                  onLoadMoreChannelPreview={loadMoreChannelPreview}
+                  priorityVideos={priorityVideos}
+                  undoable={undoable}
+                  actions={actions}
+                  onNavigateToChannel={navigateToChannel}
+                  filtered={filtered}
+                  filter={filter}
+                  view={view}
+                  accountFilter={accountFilter}
+                  rows={rows}
+                  effectiveCursor={effectiveCursor}
+                  onOpenFromFeed={openFromFeed}
+                  onCursorChange={setCursorIdx}
+                  onLoadMore={loadMore}
+                  onAtTopChange={(atTop) => {
+                    atTopRef.current = atTop
+                  }}
+                  loadingMore={loadingMore}
+                  onReorderWatchLater={reorderWatchLater}
+                />
               )}
               {playerOpen && currentPlayerVideo && (
-                  <>
-                    <PlayerSurface
-                      ref={playerSurfaceRef}
-                      video={currentPlayerVideo}
-                      state={currentPlayerVideo.state}
-                      stackDepth={playerStack.length}
-                      hasQueueNext={hasQueueNext}
-                      defaultPlaybackRate={settings.defaultPlaybackRate}
-                      active={!miniplayer}
-                      alignTarget={miniplayer ? miniSlot : fullSlot}
-                      helpOpen={helpOpen}
-                      onNextInQueue={nextInQueue}
-                      onClose={closePlayer}
-                      onDock={dockPlayer}
-                      onFocusSearch={focusSearch}
-                      onToggleHelp={toggleHelp}
-                      onToggleLike={() => playerDetailsRef.current?.toggleLike()}
-                      onToggleSubscribe={() => playerDetailsRef.current?.toggleSubscribe()}
-                      onToggleComments={() => playerDetailsRef.current?.toggleComments()}
-                      onAddToPlaylist={() => playerDetailsRef.current?.openAddToPlaylist()}
-                      onExtract={extractToWindow}
-                      onRemoveUnavailable={() => removeUnavailableVideo(currentPlayerVideo.videoId)}
-                      onStatePatched={patch}
-                      onEnded={() => handleVideoEnded(currentPlayerVideo.videoId)}
-                    />
-                    {upNext && !miniplayer && (
-                      <UpNextCard
-                        video={upNext}
-                        label={
-                          upNextPlaylistName !== null
-                            ? t('player.upNext.labelPlaylist', { name: upNextPlaylistName })
-                            : t('player.upNext.label')
-                        }
-                        onOpen={openUpNext}
-                        onDismiss={() => {
-                          setUpNext(null)
-                          setUpNextPlaylistName(null)
-                        }}
-                      />
-                    )}
-                    <PlayerDetails
-                      ref={playerDetailsRef}
-                      video={currentPlayerVideo}
-                      state={currentPlayerVideo.state}
-                      stackDepth={playerStack.length}
-                      hidden={miniplayer}
-                      slotRef={setFullSlot}
-                      chatSurface={chatSurface}
-                      onToggleChat={toggleChat}
-                      onExtractChat={extractChat}
-                      onClose={() => playerSurfaceRef.current?.requestClose()}
-                      onExtract={extractToWindow}
-                      onGetCurrentTimeSeconds={() =>
-                        playerSurfaceRef.current?.getPlaybackSnapshot()?.currentTimeSeconds ?? 0
-                      }
-                      onResumePlayback={() => playerSurfaceRef.current?.play()}
-                      onOpenVideo={(videoId) => openVideo(videoId)}
-                      onOpenChannel={navigateToChannel}
-                      onStatePatched={patch}
-                      onSeekTo={(seconds) => playerSurfaceRef.current?.seekTo(seconds)}
-                      onPause={() => playerSurfaceRef.current?.pause()}
-                      onOpenSettings={() => {
-                        setSettingsHighlight('showDislikeEstimate')
-                        setScreen('settings')
-                      }}
-                    />
-                    <MiniPlayerBar
-                      video={currentPlayerVideo}
-                      hidden={!miniplayer}
-                      width={settings.miniplayerWidth}
-                      slotRef={setMiniSlot}
-                      onMaximize={() => setMiniplayer(false)}
-                      onClose={closePlayer}
-                      onExtract={extractToWindow}
-                      onResizeEnd={(width) =>
-                        changeSettings({ ...settings, miniplayerWidth: width })
-                      }
-                    />
-                  </>
-                )}
-              </div>
+                <PlayerScreen
+                  video={currentPlayerVideo}
+                  playerSurfaceRef={playerSurfaceRef}
+                  playerDetailsRef={playerDetailsRef}
+                  stackDepth={playerStack.length}
+                  hasQueueNext={hasQueueNext}
+                  defaultPlaybackRate={settings.defaultPlaybackRate}
+                  miniplayer={miniplayer}
+                  fullSlot={fullSlot}
+                  miniSlot={miniSlot}
+                  onFullSlotRef={setFullSlot}
+                  onMiniSlotRef={setMiniSlot}
+                  helpOpen={helpOpen}
+                  onNextInQueue={nextInQueue}
+                  onClose={closePlayer}
+                  onDock={dockPlayer}
+                  onMaximize={() => setMiniplayer(false)}
+                  onFocusSearch={focusSearch}
+                  onToggleHelp={toggleHelp}
+                  onExtract={extractToWindow}
+                  onRemoveUnavailable={() => removeUnavailableVideo(currentPlayerVideo.videoId)}
+                  onStatePatched={patch}
+                  onEnded={() => handleVideoEnded(currentPlayerVideo.videoId)}
+                  upNext={upNext}
+                  upNextPlaylistName={upNextPlaylistName}
+                  onOpenUpNext={openUpNext}
+                  onDismissUpNext={() => {
+                    setUpNext(null)
+                    setUpNextPlaylistName(null)
+                  }}
+                  chatSurface={chatSurface}
+                  onToggleChat={toggleChat}
+                  onExtractChat={extractChat}
+                  onOpenVideo={(videoId) => openVideo(videoId)}
+                  onOpenChannel={navigateToChannel}
+                  onOpenSettings={() => {
+                    setSettingsHighlight('showDislikeEstimate')
+                    setScreen('settings')
+                  }}
+                  miniplayerWidth={settings.miniplayerWidth}
+                  onResizeMiniplayer={(width) => changeSettings({ ...settings, miniplayerWidth: width })}
+                />
+              )}
+            </div>
           </>
         )}
       </main>
-      {helpOpen && <HelpOverlay onClose={() => setHelpOpen(false)} />}
-      {writeScopeGate.dialog}
-      {addAccountOpen && (
-        <AddAccount
-          onCancel={() => setAddAccountOpen(false)}
-          onConnected={() => {
-            setAddAccountOpen(false)
-            loadChannels()
-          }}
-        />
-      )}
-      {urlPromptOpen && (
-        <UrlPrompt
-          onOpenVideo={(videoId) => {
-            queueRef.current = null
-            playlistContextRef.current = null
-            openVideo(videoId, 'replace')
-          }}
-          onClose={() => setUrlPromptOpen(false)}
-        />
-      )}
-      {addToPlaylistVideo && (
-        <AddToPlaylistDialog
-          videoId={addToPlaylistVideo.videoId}
-          videoTitle={addToPlaylistVideo.title}
-          onClose={() => setAddToPlaylistVideo(null)}
-          onPlaylistsChanged={() => {
-            // The dialog can add/remove/create playlists while this
-            // playlist's own detail screen happens to be open behind it —
-            // keep its header stats and video list in sync rather than
-            // waiting for the next unrelated reload.
-            if (playlistFilter !== null) loadPlaylistDetail(playlistFilter)
-          }}
-        />
-      )}
+      <GlobalDialogs
+        helpOpen={helpOpen}
+        onCloseHelp={() => setHelpOpen(false)}
+        writeScopeDialog={writeScopeGate.dialog}
+        addAccountOpen={addAccountOpen}
+        onCancelAddAccount={() => setAddAccountOpen(false)}
+        onAddAccountConnected={() => {
+          setAddAccountOpen(false)
+          loadChannels()
+        }}
+        urlPromptOpen={urlPromptOpen}
+        onOpenVideoFromUrlPrompt={(videoId) => {
+          queueRef.current = null
+          playlistContextRef.current = null
+          openVideo(videoId, 'replace')
+        }}
+        onCloseUrlPrompt={() => setUrlPromptOpen(false)}
+        addToPlaylistVideo={addToPlaylistVideo}
+        onCloseAddToPlaylist={() => setAddToPlaylistVideo(null)}
+        onAddToPlaylistChanged={() => {
+          // The dialog can add/remove/create playlists while this
+          // playlist's own detail screen happens to be open behind it —
+          // keep its header stats and video list in sync rather than
+          // waiting for the next unrelated reload.
+          if (playlistFilter !== null) loadPlaylistDetail(playlistFilter)
+        }}
+      />
     </div>
   )
 }

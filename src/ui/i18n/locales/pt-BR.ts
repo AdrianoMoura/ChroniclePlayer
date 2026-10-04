@@ -1,6 +1,6 @@
 import type { Dict, LocaleMeta } from '../types'
 
-// D-054: community-contributed translation, kept as a Partial<Dict> so it
+// Community-contributed translation, kept as a Partial<Dict> so it
 // can lag behind new English keys without breaking the build — t() falls
 // back to English for any key missing here. `{name}` placeholders must stay
 // exactly as in en.ts; only the surrounding text is translated.
@@ -513,7 +513,7 @@ export const dict: Partial<Dict> = {
   'sidebar.noChannels': 'Esta conta ainda não segue nenhum canal.',
   'sidebar.settingsLabel': 'Configurações',
 
-  // Sidebar — Accounts (B-003)
+  // Sidebar — Accounts
   'sidebar.accountsHeader': 'Contas',
   'sidebar.accountDisconnected': 'Reconexão necessária',
   'sidebar.addAccount': '+ Adicionar conta',
@@ -531,7 +531,7 @@ export const dict: Partial<Dict> = {
   'sidebar.channelMenu.notify': 'Me notificar sobre novos vídeos deste canal',
   'sidebar.channelMenu.unnotify': 'Parar de me notificar sobre este canal',
 
-  // YouTube search (B-009)
+  // YouTube search
   'search.empty': 'Nenhum resultado.',
   'search.searching': 'Buscando em todo o YouTube…',
   'search.searchingChannel': 'Buscando neste canal…',
@@ -541,7 +541,7 @@ export const dict: Partial<Dict> = {
   'search.videoChannelPrefix': 'em',
   'search.loadingMore': 'Carregando mais resultados…',
 
-  // Comments (B-006)
+  // Comments
   'comments.show': 'Mostrar comentários (c)',
   'comments.hide': 'Ocultar comentários (c)',
   'comments.loading': 'Carregando comentários…',
@@ -561,7 +561,7 @@ export const dict: Partial<Dict> = {
   'comments.saveButton': 'Salvar',
   'comments.cancelButton': 'Cancelar',
 
-  // Add another account (B-003)
+  // Add another account
   'addAccount.title': 'Adicionar outra conta do Google',
   'addAccount.instructions':
     'Adicione o e-mail da nova conta como usuário de teste no seu projeto existente do Google Cloud (o mesmo da sua primeira configuração) e depois conecte-a abaixo.',
@@ -583,7 +583,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.create': 'Criar',
   'playlists.dialog.cancel': 'Cancelar',
 
-  // Importar uma playlist do YouTube (D-059) — um snapshot único, nunca uma
+  // Importar uma playlist do YouTube — um snapshot único, nunca uma
   // sincronização contínua (ver playlists.sync.* abaixo para isso).
   'playlists.importButton': 'Importar do YouTube',
   'playlists.dialog.importTitle': 'Importar uma playlist do YouTube',
@@ -600,7 +600,7 @@ export const dict: Partial<Dict> = {
   'playlists.dialog.importLog.stillWorking': 'Ainda trabalhando: pode demorar um pouco para playlists grandes…',
   'playlists.dialog.importLog.done': 'Concluído: {imported} de {total} vídeos importados.',
 
-  // Sincronizar uma playlist importada (D-059) — só adiciona, traz os
+  // Sincronizar uma playlist importada — só adiciona, traz os
   // vídeos que a origem ganhou desde a importação; nunca remove, reordena
   // ou renomeia nada.
   'playlists.sync.upToDate': 'Atualizada',
@@ -630,7 +630,7 @@ export const dict: Partial<Dict> = {
   'share.includeTimestamp': 'Incluir o momento atual ({time})',
   'share.done': 'Concluído',
 
-  // Histórico (D-073) — todo vídeo que o Chronicle já reproduziu, só local.
+  // Histórico — todo vídeo que o Chronicle já reproduziu, só local.
   'history.searchPlaceholder': 'Buscar no seu histórico…',
   'history.empty': 'Nada assistido ainda.',
   'history.emptyFiltered': 'Nenhum resultado no seu histórico.',

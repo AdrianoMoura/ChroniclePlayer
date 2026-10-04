@@ -1,6 +1,6 @@
-// Video state model per D-010 (feed.md §Video state model): one read-status
-// enum plus orthogonal flags. These states are Chronicle-only and never sync
-// to YouTube (D-003).
+// Video state model (feed.md §Video state model): one read-status enum plus
+// orthogonal flags. These states are Chronicle-only and never sync to
+// YouTube.
 
 export type ReadStatus = 'unread' | 'read' | 'ignored'
 

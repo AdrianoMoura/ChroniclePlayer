@@ -28,7 +28,7 @@ interface HistoryViewProps {
   playerFullView: boolean
 }
 
-// D-073: every video Chronicle has ever played, most recently watched first
+// Every video Chronicle has ever played, most recently watched first
 // — subscribed or not, reached from the feed, search, a channel preview, or
 // a description link alike (any path through App.tsx's openVideo). Not a
 // FeedView (no read/unread bucket concept fits "I watched this"), so this
@@ -83,10 +83,10 @@ export function HistoryView({
   }, [videos])
 
   // Drops toggleRead/ignore entirely (not just hides their row buttons) —
-  // the same reasoning B-128 already applied to a playlist's own rows: a
-  // history entry is, by definition, already "watched," so toggling its
-  // read status or hiding it from the main feed doesn't read as a
-  // meaningful action here, per the owner's own call.
+  // same reasoning as a playlist's own rows: a history entry is, by
+  // definition, already "watched," so toggling its read status or hiding
+  // it from the main feed doesn't read as a meaningful action here, per
+  // the owner's own call.
   const fullActions: VideoActions = useMemo(
     () => ({
       ...actions,
@@ -203,9 +203,9 @@ export function HistoryView({
         <FeedList
           // A search query change replaces `videos` wholesale (loadHistory),
           // same "different dataset, not an incremental append" shape
-          // App.tsx's own FeedList key guards against — B-129's root cause
-          // was tanstack-virtual reusing a previous dataset's cached header/
-          // row measurements when row count happened to coincide.
+          // App.tsx's own FeedList key guards against — tanstack-virtual
+          // can otherwise reuse a previous dataset's cached header/row
+          // measurements when row count happens to coincide.
           key={query}
           rows={rows}
           cursorVideoIndex={effectiveCursor}

@@ -38,7 +38,7 @@ interface CommentsSectionProps {
   // in any comment or reply can seek the player.
   onSeekTo: (seconds: number) => void
   // Threaded down to every CommentItem/ReplyItem's own open-in-browser
-  // button — same B-121 rule as the player's own open-in-browser action:
+  // button — same rule as the player's own open-in-browser action:
   // opening the real YouTube tab shouldn't leave this copy also playing.
   onPause: () => void
   // Threaded down to every CommentItem/ReplyItem's author name — the same
@@ -58,11 +58,11 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
     const [newComment, setNewComment] = useState('')
     const [posting, setPosting] = useState(false)
     // Mirrors YouTube's own "Top comments"/"Newest first" toggle — same
-    // quota cost either way (D-063), so it's a plain sort, not a gate.
+    // quota cost either way, so it's a plain sort, not a gate.
     const [sortOrder, setSortOrder] = useState<CommentSortOrder>('relevance')
-    // D-064: resolved once per panel open (1 unit, same call the wizard
-    // already makes) to decide which comments show an Edit action — never
-    // re-fetched on reopen, same lifetime as `comments` itself below.
+    // Resolved once per panel open (1 unit, same call the wizard already
+    // makes) to decide which comments show an Edit action — never re-fetched
+    // on reopen, same lifetime as `comments` itself below.
     const [ownChannelId, setOwnChannelId] = useState<string | null>(null)
 
     function load(order: CommentSortOrder): void {
@@ -509,8 +509,8 @@ function CommentText({
 }
 
 // Shared by CommentItem and ReplyItem — a top-level comment and a reply are
-// both `comments` resources as far as `comments.update` is concerned (D-064),
-// so editing either one is the exact same form and save call.
+// both `comments` resources as far as `comments.update` is concerned, so
+// editing either one is the exact same form and save call.
 function CommentEditForm({
   commentId,
   initialText,

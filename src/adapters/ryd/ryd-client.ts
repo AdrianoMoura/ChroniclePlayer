@@ -1,7 +1,7 @@
 import type { Clock, DislikeEstimateSource } from '../../core/ports'
 import { request, type FetchFn } from '../http'
 
-// D-068: Return YouTube Dislike (returnyoutubedislike.com) — free, keyless,
+// Return YouTube Dislike (returnyoutubedislike.com) — free, keyless,
 // third-party estimate for the dislike count YouTube's own API no longer
 // exposes. Usage policy (returnyoutubedislike.com/docs/usage-rights): third-
 // party use is explicitly permitted, requires attribution (satisfied in

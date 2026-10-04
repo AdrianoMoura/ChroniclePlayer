@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { ResultDto } from '../ipc/contract'
 import { t } from './i18n'
+import { useDialogDismiss } from './useDialogDismiss'
 
 // Wraps a write action (like/subscribe/comment) so a missing incremental
 // write-scope grant surfaces as an in-app dialog explaining what's about to
@@ -9,15 +10,7 @@ import { t } from './i18n'
 // as 'cancelled'.
 export function useWriteScopeGate() {
   const [pending, setPending] = useState<{ onDecide: (proceed: boolean) => void } | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  // No text input here to naturally take focus on open — without this, the
-  // dialog's own keydown handler (Escape) would never actually receive it
-  // (see AddToPlaylistDialog's own copy of this comment for the full
-  // reasoning).
-  useEffect(() => {
-    if (pending !== null) containerRef.current?.focus()
-  }, [pending])
+  const dismiss = useDialogDismiss(() => pending?.onDecide(false), pending !== null)
 
   const run = useCallback(<T,>(
     action: () => Promise<ResultDto<T>>,
@@ -53,17 +46,9 @@ export function useWriteScopeGate() {
     pending !== null ? (
       <div className="overlay-backdrop" onClick={() => pending.onDecide(false)}>
         <div
-          ref={containerRef}
-          tabIndex={-1}
+          {...dismiss}
           className="overlay write-scope-dialog"
           onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => {
-            // A dialog on top of the content owns Escape while it's open —
-            // never let it bubble to whatever's underneath (the player's own
-            // Esc-to-close/dock map, the feed's own keydown handler).
-            event.stopPropagation()
-            if (event.key === 'Escape') pending.onDecide(false)
-          }}
         >
           <p>{t('app.writeScopeDialog.body')}</p>
           <div className="write-scope-dialog-actions">

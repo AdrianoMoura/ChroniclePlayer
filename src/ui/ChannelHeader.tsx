@@ -25,7 +25,7 @@ function thumbSrc(url: string): string {
 
 // A compact channel screen header — avatar, banner, subscriber count,
 // Unsubscribe/Open-in-browser. A slim strip rather than YouTube's full-height
-// banner, so content fills the available screen (D-004).
+// banner, so content fills the available screen.
 export function ChannelHeader({
   channel,
   subscribed,

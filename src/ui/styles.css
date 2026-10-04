@@ -2942,7 +2942,7 @@ button.primary.danger {
   padding: 14px 0 10px;
 }
 
-/* D-073: History's own toolbar — unlike .playlists-toolbar (buttons only,
+/* History's own toolbar — unlike .playlists-toolbar (buttons only,
    right-aligned), the search field grows to fill the row, with Clear
    History pinned to the right. Lives directly in .feed-region (no wrapping
    list element with its own horizontal padding, unlike .playlists-list), so

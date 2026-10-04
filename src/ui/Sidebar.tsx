@@ -76,7 +76,7 @@ function ContextMenu({
 // concept) at position 4, per the product owner's own placement. Keyboard
 // digit shortcuts (App.tsx) index into this same array, so its order is the
 // single source of truth for both the rendered list and `1`-`7`. History
-// (D-073, also its own screen — every watched video has no read/unread
+// (also its own screen — every watched video has no read/unread
 // concept either) is appended last rather than interleaved, so it doesn't
 // renumber the six digit shortcuts people already have memorized.
 export type NavEntry = { kind: 'view'; view: FeedViewDto } | { kind: 'playlists' } | { kind: 'history' }
@@ -94,7 +94,7 @@ export const NAV_ORDER: readonly NavEntry[] = [
 // A function, not a module-level object — the label must resolve against
 // whichever language is active *right now*. A plain object here would bake
 // in whatever `t()` returned at import time (before Settings' language
-// setting even loads) and never update again on a language switch (D-054).
+// setting even loads) and never update again on a language switch.
 export function viewLabel(view: FeedViewDto): string {
   switch (view) {
     case 'all':
@@ -110,10 +110,10 @@ export function viewLabel(view: FeedViewDto): string {
   }
 }
 
-// D-060: sidebar-only display preference, not persisted to settings.json —
-// every fresh app launch starts back on 'favorites' by design (the product
-// owner's own framing: it always *starts* on Favorites), unlike D-037's
-// layout/item-size which do persist.
+// Sidebar-only display preference, not persisted to settings.json — every
+// fresh app launch starts back on 'favorites' by design (it always
+// *starts* on Favorites), unlike the feed's own layout/item-size which do
+// persist.
 export type ChannelSortMode = 'favorites' | 'recent' | 'name' | 'unread'
 
 export const CHANNEL_SORT_MODES: readonly ChannelSortMode[] = [

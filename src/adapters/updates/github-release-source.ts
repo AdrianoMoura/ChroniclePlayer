@@ -1,8 +1,8 @@
 import type { UpdateRelease, UpdateSource } from '../../core/ports'
 import { request, type FetchFn } from '../http'
 
-// D-026: an unauthenticated GET against GitHub's public Releases API — the
-// same privacy guarantee a hand-rolled signed manifest would give (no
+// An unauthenticated GET against GitHub's public Releases API — the same
+// privacy guarantee a hand-rolled signed manifest would give (no
 // identifiers, no telemetry) with nothing extra to sign or publish, since
 // `tag_name` already *is* the version. Never throws — an update check is
 // never critical to the app working.

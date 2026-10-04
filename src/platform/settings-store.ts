@@ -7,36 +7,35 @@ import { MINIPLAYER_MAX_WIDTH, MINIPLAYER_MIN_WIDTH, PLAYBACK_RATES } from '../i
 // user-edited config.
 
 export interface AppSettings {
-  // D-054. 'system' resolves to the OS locale at runtime (ui/i18n); any
-  // other value is a locale code (e.g. 'pt-BR'). Not validated against the
-  // set of shipped locales here — that's a renderer concern (ui/i18n falls
-  // back to English for an unrecognized code), keeping this layer decoupled
-  // from which translations happen to exist.
+  // 'system' resolves to the OS locale at runtime (ui/i18n); any other value
+  // is a locale code (e.g. 'pt-BR'). Not validated against the set of
+  // shipped locales here — that's a renderer concern (ui/i18n falls back to
+  // English for an unrecognized code), keeping this layer decoupled from
+  // which translations happen to exist.
   language: string
   theme: 'system' | 'dark' | 'light'
-  // File-explorer-style item size, shared by list rows and grid cards; six
-  // steps (D-037).
+  // File-explorer-style item size, shared by list rows and grid cards.
   itemSize: 'xs' | 'small' | 'medium' | 'large' | 'xl' | 'xxl'
   // List rows vs. a thumbnail grid, same data either way.
   layout: 'list' | 'grid'
-  // Background refresh interval (D-016). 0 = manual only.
+  // Background refresh interval. 0 = manual only.
   refreshMinutes: number
   showViewCounts: boolean
   // Shown by default, tagged with a badge.
   showShorts: boolean
-  // The player loads already set to this speed instead of always 1x (D-038).
+  // The player loads already set to this speed instead of always 1x.
   defaultPlaybackRate: number
   // Background check against GitHub's public Releases API. Notice only —
-  // never auto-downloads/installs (D-026).
+  // never auto-downloads/installs.
   checkForUpdates: boolean
   // The docked miniplayer's width, drag-resized from its own corner handle
   // (MiniPlayerBar) and persisted rather than reset every launch.
   miniplayerWidth: number
-  // Three independent toggles, all default off — none gates any other
-  // (D-050). autoStart launches on OS login; backgroundMode keeps the app
-  // alive in the tray after the window closes (extends *when* a sync can
-  // happen, not whether notifications are allowed); notifyNewVideos fires an
-  // OS notification from any sync while the process is running at all (open
+  // Three independent toggles, all default off — none gates any other.
+  // autoStart launches on OS login; backgroundMode keeps the app alive in
+  // the tray after the window closes (extends *when* a sync can happen, not
+  // whether notifications are allowed); notifyNewVideos fires an OS
+  // notification from any sync while the process is running at all (open
   // window or tray-resident).
   autoStart: boolean
   backgroundMode: boolean
@@ -53,7 +52,7 @@ export interface AppSettings {
   // A Short hidden from the feed (showShorts off) never notifies regardless
   // of this flag — it only decides whether Shorts that *are* shown in the
   // feed also trigger a notification. Default true; shown in Settings only
-  // while showShorts is also on (D-052).
+  // while showShorts is also on.
   notifyShorts: boolean
   // Convenience: favoriting/unfavoriting a channel also sets its notify flag
   // to match, unless the user has manually changed it since. A one-shot
@@ -62,17 +61,17 @@ export interface AppSettings {
   // Only meaningful when backgroundMode is on. True (default) pops the video
   // into the always-on-top extract window on window close (same as `p`), so
   // closing *that* window is what actually stops it; false pauses the video
-  // on close instead of popping it out (D-051).
+  // on close instead of popping it out.
   popOutOnClose: boolean
   // Default off. True: opening a video currently in the Watch Later queue
   // removes it from the queue right away, same effect as manually untoggling
   // it.
   watchLaterAutoRemove: boolean
-  // D-068. Default off — the one deliberate exception to "Chronicle only
-  // talks to YouTube": on, the player calls returnyoutubedislike.com (a
-  // free, keyless third-party service) for every video opened, revealing its
-  // videoId to a server that isn't YouTube. The real like count is shown
-  // either way, since it still comes from YouTube's own API.
+  // Default off — the one deliberate exception to "Chronicle only talks to
+  // YouTube": on, the player calls returnyoutubedislike.com (a free, keyless
+  // third-party service) for every video opened, revealing its videoId to a
+  // server that isn't YouTube. The real like count is shown either way,
+  // since it still comes from YouTube's own API.
   showDislikeEstimate: boolean
 }
 
