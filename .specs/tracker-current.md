@@ -452,9 +452,11 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+## Resolved
+
 ### B-135 — A livestream whose broadcast was scheduled days in advance never surfaces in the feed
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-10-04 · **Target:** 0.15.1
+- **Status:** Fixed · **Reported:** 2026-10-04 · **Target:** 0.15.1
 - **Area:** feed, sync
 - **What happens:** the owner noticed a subscribed channel (Veim dos Game) had done a
   live stream the day before — visible on that channel's own screen — but it never
@@ -527,13 +529,15 @@ Resolved entries add:
   [decisions-history/D-074.md](decisions-history/D-074.md). Checked via `npm run
   typecheck && npm run lint && npm test` (305/305, including 5 new regression tests in
   `repositories.test.ts` reproducing this exact burial scenario, and 3 existing B-119
-  tests updated for the reversed Premiere behavior). **Not yet committed** (pending the
-  owner's review) and **not yet live-tested** — stays In progress rather than Fixed until
-  both happen. Related: [[D-053]], [[D-027]], [[D-074]].
+  tests updated for the reversed Premiere behavior). Related: [[D-053]], [[D-027]],
+  [[D-074]].
+- **Resolved:** 2026-10-04 · **Commit:** 8071ca3 · **Outcome:** Fixed
+- **Resolution:** two-tier sort key (D-074) shipped as described above. Confirmed
+  working live by the owner after a relaunch.
 
 ### B-136 — A live/upcoming video that disappears from YouTube entirely stays stuck forever, now dominating the feed's top (D-074 fallout)
 - **Type:** bug · **Severity:** major
-- **Status:** In progress · **Reported:** 2026-10-04 · **Target:** 0.15.1
+- **Status:** Fixed · **Reported:** 2026-10-04 · **Target:** 0.15.1
 - **Area:** sync, feed
 - **What happens:** the owner noticed, live-testing D-074's build, that several
   livestreams that had already ended "a good while ago" sat pinned at the very top of
@@ -578,10 +582,11 @@ Resolved entries add:
 - **Notes:** checked via `npm run typecheck && npm run lint && npm test` (308/308,
   including 2 new `sync-service.test.ts` cases simulating a video missing from
   `hydrate()`'s response, and 1 new `sync-repository.test.ts` contract test against
-  real SQLite). **Not yet committed** and **not yet live-verified** — the real
-  `chronicle.db`'s 5 already-stuck rows still need either a real sync cycle to run
-  against this fixed code (backend changes need a full relaunch, not just a hot-reload)
-  or a one-off manual correction to clear immediately; neither has been done yet,
-  pending the owner's call. Related: [[D-074]], [[B-135]].
+  real SQLite). Related: [[D-074]], [[B-135]].
+- **Resolved:** 2026-10-04 · **Commit:** 8071ca3 · **Outcome:** Fixed
+- **Resolution:** `clearLiveStatus` shipped as described above. The owner relaunched the
+  app to validate (backend changes need a real relaunch, not just a hot-reload) and
+  confirmed moving forward with the commit; the 5 already-stuck rows in the owner's real
+  `chronicle.db` self-correct on their next sync cycle against this code, no manual
+  database edit was made.
 
-## Resolved
