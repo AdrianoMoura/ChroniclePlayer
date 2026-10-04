@@ -58,6 +58,7 @@ requirements in code comments, PR descriptions, or ad-hoc conversations — refe
 | `.specs/features.md` | MVP feature specs + future feature sketches |
 | `.specs/roadmap.md` | Milestones and sequencing |
 | `.specs/decisions.md` | Decision log (ADR-style): Final / Pending / Assumptions |
+| `.specs/code-guidelines.md` | Operational source-code rules found by review: file size, reuse, comments, test coverage |
 
 ## Documentation rules
 
