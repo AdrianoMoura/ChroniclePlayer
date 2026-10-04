@@ -480,20 +480,38 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   **minor** version, per the owner's own explicit direction (real new scope, not a
   bug-fix batch). Not yet live-tested by the owner. B-108, B-101 carried forward,
   untouched, now targeting **0.14.1**.
-- **0.14.2 — in progress.** Candidate scope: D-072 (five new AI-generated,
-  explicitly-unreviewed interface languages — Spanish, German, French, Italian,
-  Japanese — alongside the existing human-reviewed English/Portuguese, D-054), a
-  direct product-owner request not sourced from `tracker-current.md`, pending the
-  owner's own live confirmation. Also candidate scope: D-073 (a local Watch History
-  screen — every video Chronicle has ever played, most recently watched first,
-  bucketed by watched date, with local-only search and per-video/bulk removal; new
-  `video_state.last_watched_at`, schema v19), raised by the owner in conversation,
+- **0.14.1 — delivered, 2026-10-01.** Carried B-108, B-101 forward from 0.14.0,
+  unchanged. A single entry, [[B-133]] (Fixed — the mouse "back" side button, which
+  [[B-039]] had only wired up inside the full-view player, now steps back one level
+  anywhere Esc already does: the main feed's channel filter, the Playlists screen and
+  its own detail view, Settings, the shortcuts help overlay). No new `D-NNN` scope this
+  cycle. Shipped as a **patch** version (a pure bug-fix batch). See
+  `tracker-history/v0.14.1.md`. B-108, B-101 carried forward, untouched, now targeting
+  **0.14.2**.
+- **0.15.0 — delivered, 2026-10-04.** Carried B-108, B-101 forward from 0.14.1,
+  unchanged. Originally tracked toward a `0.14.2` patch (carrying only [[B-134]]), but
+  D-072 and D-073 together amounted to real new scope — shipped as a **minor** version
+  instead, skipping `0.14.2` entirely (same pattern as `0.11.0` skipping `0.10.3`,
+  `0.12.0` skipping `0.11.1`, and `0.13.0` skipping `0.12.1`). D-072 (five new
+  AI-generated, explicitly-unreviewed interface languages — Spanish, German, French,
+  Italian, Japanese — alongside the existing human-reviewed English/Portuguese, D-054),
+  a direct product-owner request not sourced from `tracker-current.md`. D-073 (a local
+  Watch History screen — every video Chronicle has ever played, most recently watched
+  first, bucketed by watched date, with local-only search and per-video/bulk removal;
+  new `video_state.last_watched_at`, schema v19), raised by the owner in conversation,
   confirmed working live after a live-feedback round (date grouping, search box
-  styling, remove/clear actions, two row-action buttons dropped). Same batch: B-134 (resume
-  playback position wasn't saving/restoring consistently — no checkpoint on a real
-  app quit, and the pause checkpoint trusted an unreliable one-shot event the same
-  way [[B-111]] already found elsewhere) Fixed. B-108, B-101 carried forward from
-  0.14.1, untouched.
+  styling, remove/clear actions, two row-action buttons dropped). Same batch: [[B-134]]
+  (Fixed — resume playback position wasn't saving/restoring consistently: no checkpoint
+  on a real app quit, and the pause checkpoint trusted an unreliable one-shot event the
+  same way [[B-111]] already found elsewhere). Also landed this cycle, alongside the
+  tracked scope: `.specs/code-guidelines.md`'s rules applied against the existing
+  source tree (a shared `useDialogDismiss` hook, `main.ts`'s IPC handlers split into
+  per-domain modules, `App.tsx`'s JSX split into four presentational components,
+  B-NNN/D-NNN references stripped from source comments), and an untracked adjustment
+  clamping the miniplayer's resizable width to the window's own size with its max
+  resize cap scaled to the monitor. See `decisions.md` D-072/D-073 and
+  `tracker-history/v0.15.0.md` (B-134 only). B-108, B-101 carried forward, untouched,
+  now targeting **0.15.1**.
 
 ## M0 — Walking skeleton
 
