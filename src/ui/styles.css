@@ -1644,6 +1644,11 @@ button.primary:disabled {
   right: 16px;
   z-index: 20;
   display: flex;
+  /* The persisted/dragged width (MiniPlayerBar's inline `style`) can exceed
+     a since-shrunk window — clamp visually so the box never pushes past the
+     left edge, without touching the stored setting itself (it grows back to
+     the full persisted width once the window does). */
+  max-width: calc(100vw - 32px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
