@@ -506,6 +506,12 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   the owner's own `chronicle.db` across 8+ affected channels. Checked via `npm run
   typecheck && npm run lint && npm test` (305/305); not yet live-tested by the owner.
   B-108, B-101 carried forward from 0.15.0, untouched.
+- **0.15.2 — in progress.** Candidate scope: D-075 (below a 1200px window width, the
+  sidebar overlays the feed instead of pushing it, and starts collapsed by default), a
+  direct product-owner request not sourced from `tracker-current.md`, same pattern as
+  D-050–D-074. Checked via `npm run typecheck && npm run lint && npm test` (308/308)
+  plus a production build; not yet live-tested by the owner. B-108, B-101 carried
+  forward from 0.15.1, untouched.
 
   **Note on this section's own staleness:** the entries above stop at "0.14.2 — in
   progress," but `tracker-current.md` and `CLAUDE.md` both show 0.14.2 through 0.15.0

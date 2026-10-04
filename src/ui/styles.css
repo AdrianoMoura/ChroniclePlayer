@@ -221,6 +221,38 @@ input:focus-visible,
   padding-left: 52px;
 }
 
+/* D-075: below the window-width breakpoint App.tsx tracks as `isNarrowWidth`,
+   an open sidebar floats above the feed instead of pushing it — taken out of
+   flex flow and anchored to `.app` (which `position: relative` already makes
+   a positioning context), so `.feed` naturally fills the full width
+   underneath with no layout changes of its own. `position: absolute`
+   against `.app`, not `fixed` against the viewport: `.app` itself starts
+   below the custom titlebar (B-014, 34px, its own `-webkit-app-region:
+   drag`), exactly like `.sidebar-expand`'s existing floating hamburger
+   below. `fixed` was tried first and anchored to the viewport instead,
+   rendering the sidebar's own hamburger 34px higher than the collapsed
+   state's one (misaligned) and inside the titlebar's drag region, where a
+   click starts an OS window-drag instead of registering as a button press.
+   An explicit opaque background is needed here (unlike the push-mode
+   sidebar, which only ever has the same-color page behind it) since the
+   feed now renders behind it in the same stacking area. */
+.app.sidebar-narrow:not(.sidebar-collapsed) .sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  background: var(--bg);
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 25;
+}
+
 .view {
   display: flex;
   align-items: center;

@@ -43,6 +43,10 @@ import type { WizardStepId } from './onboarding/assets'
 
 const UNDO_WINDOW_MS = 5000
 const HISTORY_PAGE_SIZE = 50 // mirrors FEED_PAGE_SIZE (core/feed-service.ts)
+// D-075: below this window width, the sidebar overlays the feed (floating,
+// starts collapsed) instead of pushing it — a desktop-first layout that
+// still gives up gracefully on a narrow/small-monitor window.
+const SIDEBAR_OVERLAY_BREAKPOINT = 1200
 
 // The banner itself stays a one-line count; per-channel detail is an
 // on-demand disclosure rather than always-rendered clutter.
@@ -277,8 +281,21 @@ export function App() {
   const [confirmingUnsubscribe, setConfirmingUnsubscribe] = useState(false)
   const confirmUnsubscribeTimer = useRef<number | null>(null)
   // Default expanded; entering the player auto-collapses it (more room for
-  // the video) and leaving restores whatever the user had before.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  // the video) and leaving restores whatever the user had before. D-075:
+  // except on a narrow window at launch, where it starts collapsed instead
+  // (see `isNarrowWidth` below) since an open sidebar would overlay most of
+  // the feed there.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.innerWidth < SIDEBAR_OVERLAY_BREAKPOINT
+  )
+  // D-075: tracks whether the window is currently narrow enough for the
+  // sidebar to overlay the feed instead of pushing it. Resize-driven, not a
+  // CSS media query, so the same threshold also governs the "starts
+  // collapsed" and "auto-close on narrow-overlay navigation" behavior below.
+  const [isNarrowWidth, setIsNarrowWidth] = useState(
+    () => window.innerWidth < SIDEBAR_OVERLAY_BREAKPOINT
+  )
+  const wasNarrowWidthRef = useRef(isNarrowWidth)
   const [settings, setSettings] = useState<SettingsDto>({
     language: 'system',
     theme: 'system',
@@ -401,6 +418,31 @@ export function App() {
   }, [currentPlayerVideo])
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed((collapsed) => !collapsed), [])
+
+  // D-075: re-derives `isNarrowWidth` as the window is resized, and
+  // auto-collapses the sidebar the moment it *becomes* narrow (crossing
+  // into overlay territory while the sidebar happened to be open would
+  // otherwise float a push-mode-sized panel over most of the feed). Growing
+  // back past the breakpoint never force-reopens it — same as today's
+  // manual collapse, the user's own choice stands either way.
+  useEffect(() => {
+    function onResize(): void {
+      const narrow = window.innerWidth < SIDEBAR_OVERLAY_BREAKPOINT
+      if (narrow && !wasNarrowWidthRef.current) setSidebarCollapsed(true)
+      wasNarrowWidthRef.current = narrow
+      setIsNarrowWidth(narrow)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // D-075: on a narrow window, the sidebar floats over the feed rather than
+  // pushing it, so selecting a destination from it should close it the same
+  // way a mobile/overlay nav drawer would — otherwise it keeps covering the
+  // screen it was just used to navigate to.
+  const closeNarrowOverlay = useCallback(() => {
+    if (isNarrowWidth) setSidebarCollapsed(true)
+  }, [isNarrowWidth])
 
   // Only the full-view layout wants the sidebar out of the way —
   // docked-to-a-corner mode is "back to browsing the feed," sidebar included.
@@ -2234,7 +2276,9 @@ export function App() {
     : null
 
   return (
-    <div className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+    <div
+      className={`app${sidebarCollapsed ? ' sidebar-collapsed' : ''}${isNarrowWidth ? ' sidebar-narrow' : ''}`}
+    >
       {sidebarCollapsed ? (
         <button
           className="sidebar-expand"
@@ -2244,56 +2288,74 @@ export function App() {
           ☰
         </button>
       ) : (
-        <Sidebar
-          view={view}
-          unreadCount={meta.unreadCount}
-          watchLaterCount={meta.watchLaterCount}
-          channels={channels}
-          channelFilter={channelFilter}
-          channelQueryRef={channelQueryRef}
-          settingsOpen={screen === 'settings'}
-          playlistsOpen={screen === 'playlists'}
-          historyOpen={screen === 'history'}
-          onSelectView={(next) => {
-            closeSearch()
-            leavePlayerForNavigation()
-            setScreen('feed')
-            setChannelFilter(null)
-            setView(next)
-          }}
-          onSelectChannel={(channelId) => {
-            closeSearch()
-            leavePlayerForNavigation()
-            setScreen('feed')
-            // A channel is a different scope entirely from the five views —
-            // carrying over Unread/Watch Later/Favorites/Ignored made the
-            // channel screen look broken (usually nothing in that
-            // intersection).
-            setView('all')
-            setChannelFilter(channelId)
-          }}
-          onOpenSettings={() => {
-            closeSearch()
-            leavePlayerForNavigation()
-            setScreen('settings')
-            // Refetch so the granted-scope line reflects any write action
-            // (comment/like/subscribe/unsubscribe) taken since mount.
-            void window.chronicle.getAuthStatus().then(setAuth)
-          }}
-          onOpenPlaylists={openPlaylistsScreen}
-          onOpenHistory={openHistoryScreen}
-          onToggleCollapse={toggleSidebar}
-          onUnsubscribe={unsubscribeChannel}
-          onToggleFavorite={toggleChannelFavorite}
-          onToggleNotify={toggleChannelNotify}
-          showNotifyControl={settings.notifyNewVideos && settings.notifyScope === 'selected'}
-          accounts={accounts}
-          accountFilter={accountFilter}
-          onSelectAccount={selectAccount}
-          onAddAccount={() => setAddAccountOpen(true)}
-          onRemoveAccount={removeAccount}
-          onSyncAccountNow={syncAccountNow}
-        />
+        <>
+          {/* D-075: below the overlay breakpoint the sidebar floats above the
+              feed, so a click anywhere outside it closes it, same as any
+              other modal overlay in the app. */}
+          {isNarrowWidth && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
+          <Sidebar
+            view={view}
+            unreadCount={meta.unreadCount}
+            watchLaterCount={meta.watchLaterCount}
+            channels={channels}
+            channelFilter={channelFilter}
+            channelQueryRef={channelQueryRef}
+            settingsOpen={screen === 'settings'}
+            playlistsOpen={screen === 'playlists'}
+            historyOpen={screen === 'history'}
+            onSelectView={(next) => {
+              closeNarrowOverlay()
+              closeSearch()
+              leavePlayerForNavigation()
+              setScreen('feed')
+              setChannelFilter(null)
+              setView(next)
+            }}
+            onSelectChannel={(channelId) => {
+              closeNarrowOverlay()
+              closeSearch()
+              leavePlayerForNavigation()
+              setScreen('feed')
+              // A channel is a different scope entirely from the five views —
+              // carrying over Unread/Watch Later/Favorites/Ignored made the
+              // channel screen look broken (usually nothing in that
+              // intersection).
+              setView('all')
+              setChannelFilter(channelId)
+            }}
+            onOpenSettings={() => {
+              closeNarrowOverlay()
+              closeSearch()
+              leavePlayerForNavigation()
+              setScreen('settings')
+              // Refetch so the granted-scope line reflects any write action
+              // (comment/like/subscribe/unsubscribe) taken since mount.
+              void window.chronicle.getAuthStatus().then(setAuth)
+            }}
+            onOpenPlaylists={() => {
+              closeNarrowOverlay()
+              openPlaylistsScreen()
+            }}
+            onOpenHistory={() => {
+              closeNarrowOverlay()
+              openHistoryScreen()
+            }}
+            onToggleCollapse={toggleSidebar}
+            onUnsubscribe={unsubscribeChannel}
+            onToggleFavorite={toggleChannelFavorite}
+            onToggleNotify={toggleChannelNotify}
+            showNotifyControl={settings.notifyNewVideos && settings.notifyScope === 'selected'}
+            accounts={accounts}
+            accountFilter={accountFilter}
+            onSelectAccount={(accountId) => {
+              closeNarrowOverlay()
+              selectAccount(accountId)
+            }}
+            onAddAccount={() => setAddAccountOpen(true)}
+            onRemoveAccount={removeAccount}
+            onSyncAccountNow={syncAccountNow}
+          />
+        </>
       )}
       <main className={`feed ${screen === 'feed' ? view : screen}`}>
         {screen === 'settings' ? (

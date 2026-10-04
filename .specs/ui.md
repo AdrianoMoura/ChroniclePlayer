@@ -41,7 +41,14 @@ Three-region desktop layout:
   2026-07-12: connected accounts, each with a `…` menu for Sync now/Remove, click =
   filter the combined feed to that account, "+ Add account" opens a short reminder+
   Connect flow — no Google-console walkthrough, since additional accounts reuse the
-  first account's OAuth client), then Settings. Collapsible to icons.
+  first account's OAuth client), then Settings. Collapsible (`s`, B-037) —
+  fully hides rather than shrinking to an icon rail, leaving a small floating
+  hamburger to reopen it. **D-075:** below a 1200px window width, the sidebar
+  starts collapsed by default and, once opened, floats over the feed (a
+  dismissible backdrop, closes itself on navigating) instead of pushing it —
+  a narrow/small-monitor window has no room to spare for a pushed-open panel.
+  Above that width, it behaves exactly as described above: it pushes the feed
+  and stays open until the user collapses it.
 - **Feed**: the grouped chronological list (`feed.md`). List rows are the default —
   calmer, rank information (title first) over imagery — but **D-037** adds an optional
   thumbnail grid, since a masonry/grid view is a layout preference, not an engagement
