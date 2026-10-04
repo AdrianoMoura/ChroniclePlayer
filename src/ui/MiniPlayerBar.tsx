@@ -48,13 +48,20 @@ export function MiniPlayerBar({
   function startResize(event: React.MouseEvent): void {
     event.preventDefault()
     dragStartRef.current = { x: event.clientX, width }
+    // 80% of the current monitor's own resolution (window.screen, the
+    // display the window sits on — distinct from window.innerWidth, the
+    // app window's own size) rather than a fixed pixel ceiling, so the
+    // miniplayer can actually grow large on an ultrawide/4K screen. Read
+    // once per drag, not per move — the box can't jump monitors mid-drag.
+    const screenMax = Math.round(window.screen.width * 0.8)
+    const maxWidth = Math.min(MINIPLAYER_MAX_WIDTH, screenMax)
     function onMouseMove(moveEvent: MouseEvent): void {
       const start = dragStartRef.current
       if (start === null) return
       // Right edge is anchored (bottom/right, styles.css) — dragging the
       // left-edge handle *left* must grow the box, hence start.x - clientX.
       const next = Math.min(
-        MINIPLAYER_MAX_WIDTH,
+        maxWidth,
         Math.max(MINIPLAYER_MIN_WIDTH, start.width + (start.x - moveEvent.clientX))
       )
       setDragWidth(next)
