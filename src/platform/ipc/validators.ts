@@ -66,12 +66,14 @@ export function parseCursor(value: unknown): FeedCursorDto | null {
   if (typeof value === 'object') {
     const cursor = value as Record<string, unknown>
     if (
-      typeof cursor['publishedAt'] === 'string' &&
+      typeof cursor['liveNow'] === 'boolean' &&
+      typeof cursor['effectiveDate'] === 'string' &&
       typeof cursor['channelTitle'] === 'string' &&
       typeof cursor['videoId'] === 'string'
     ) {
       return {
-        publishedAt: cursor['publishedAt'],
+        liveNow: cursor['liveNow'],
+        effectiveDate: cursor['effectiveDate'],
         channelTitle: cursor['channelTitle'],
         videoId: cursor['videoId']
       }

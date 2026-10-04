@@ -452,4 +452,136 @@ Resolved entries add:
   any next attempt should start from this entry's root-cause notes rather than resuming
   from round 2's approach.
 
+### B-135 — A livestream whose broadcast was scheduled days in advance never surfaces in the feed
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-10-04 · **Target:** 0.15.1
+- **Area:** feed, sync
+- **What happens:** the owner noticed a subscribed channel (Veim dos Game) had done a
+  live stream the day before — visible on that channel's own screen — but it never
+  appeared on the main feed/Home at all. Investigated directly against the owner's own
+  `chronicle.db` (no app changes made). Confirmed: the video (`p0VcxyQP74I`,
+  "LIVE DO VÉIO - MUITA COISA NOVA E BOA PARA O VELHO MEGÃO!") has `published_at =
+  2026-09-30T17:51:24Z` but `live_started_at = 2026-10-03T22:59:00Z` /
+  `live_ended_at = 2026-10-04T02:56:44Z` — the broadcast was created/scheduled on YouTube
+  three days before it actually went live. D-053's `effectiveDate()` (`core/feed.ts`)
+  would correctly place it at the top of Today once fetched — but `repositories.ts`'s
+  keyset pagination (`FEED_ORDER`, `ORDER BY v.published_at DESC`) fetches pages in raw
+  `published_at` order, and `FeedService.getSlice()` only re-sorts by `effectiveDate`
+  *within* whatever page was already fetched (confirmed in code, `feed-service.ts`). At
+  the time this video aired, 327 other videos from the owner's subscribed channels had a
+  later raw `published_at`, so it sits on roughly page 7 of the feed (`FEED_PAGE_SIZE =
+  50`) — never reached by normal scrolling, and even if reached, would render a
+  duplicate/out-of-order "Today" header in the middle of older content rather than at
+  the top.
+- **Scope — confirmed systemic, not a one-off:** queried the whole local DB for every
+  video where `live_started_at` is more than ~12h after `published_at`, among subscribed
+  channels. At least 8 channels are affected (Veim dos Game, Canal do Pirulla, Dan, FIAP,
+  Loop Infinito, Sorta Stupid, Renan Santos | VOTE 14, ACF). Severity varies by how many
+  other channels post in between: "Dan" alone has streams buried 500–1600 videos deep in
+  raw order (effectively never reachable); the reported Veim dos Game video was 327 deep.
+  This is a different, much larger-magnitude case of the same gap D-053 already flagged
+  and deliberately left open ("never touches the keyset pagination cursor, since a
+  keyset cursor can't be built on a value like `now`") — D-053's own narrative only
+  anticipated an hours-scale divergence (a stream crossing midnight), not a days-scale
+  one from advance scheduling.
+- **Root cause confirmed via subagent code trace:** `published_at` is NOT write-once —
+  `sync-repository.ts`'s `applyHydration` unconditionally overwrites it every hydration
+  cycle from the YouTube Data API's `snippet.publishedAt` (`api-client.ts`). That field
+  itself is the stale value for a scheduled broadcast — it reflects when the broadcast
+  resource was *created*, not `liveStreamingDetails.scheduledStartTime` or
+  `actualStartTime`, and YouTube never updates it once set. Chronicle never reads
+  `scheduledStartTime` at all. This falsifies `feed.md` §Ordering's own flagged
+  "Assumption, still unverified: RSS `published` reflects [when the video became
+  publicly available]" — for a livestream, it does not; it reflects scheduling/creation
+  time, sometimes days early. No existing code path corrects `published_at` once the
+  real air date is known (unlike `live_ended_at`/`is_premiere`, which D-053 made sticky
+  via `COALESCE`/`CASE` specifically for this kind of divergence).
+- **Also checked while investigating (ruled out, not a bug):** a stale-looking channel,
+  "República Coisa de Nerd" (`last_synced_at` frozen at 2026-09-17, 17 days behind every
+  other channel) turned out to be `subscribed = 0` in `account_channels` — the owner
+  unsubscribed from it around that date, so it correctly stopped being polled. Sync log
+  outcomes (`ok`/`partial`/`failed` over the last ~1000 cycles) show the normal per-cycle
+  RSS noise pattern D-048/D-049 already accept as expected, not a new failure mode.
+- **Expected:** a livestream (or any video) sorts and surfaces by when it actually
+  happened, not by a stale scheduling timestamp — reachable on the first feed load, not
+  buried hundreds of pages deep.
+- **Code refs:** `src/adapters/storage/repositories.ts` (`FEED_ORDER`, `listPage`'s
+  keyset cursor), `src/core/feed-service.ts` (`getSlice`, page-local sort only),
+  `src/core/feed.ts` (`effectiveDate`, `compareFeedOrder`), `src/adapters/storage/
+  sync-repository.ts` (`applyHydration`'s unconditional `published_at` overwrite),
+  `src/adapters/youtube/api-client.ts` (`snippet.publishedAt` read, `scheduledStartTime`
+  never read).
+- **Notes:** discussed live with the owner across three design rounds (none of the three
+  original options above was picked as-is): the owner first confirmed the upcoming →
+  airing → ended staging was already the intended model, then caught a real gap in a
+  "just order by `live_started_at`" approach — a live that's *currently* airing needs to
+  outrank everything regardless of date, not just sort by when it started — and finally
+  insisted Premiere follow the identical treatment in every stage, reversing B-119's
+  exclusion. Implemented as **D-074**: a two-tier sort key (a stable `live_content =
+  'live'` boolean tier, then the existing effective-date tiebreak) baked directly into
+  `repositories.ts`'s `FEED_ORDER` and keyset cursor (`FeedCursor` gained a `liveNow`
+  field) — no new column, reusing `live_started_at`/`live_ended_at`, which were already
+  persisted. `sync-repository.ts`'s `applyHydration` no longer blocks `live_ended_at`
+  from being captured for a Premiere. Full narrative, including the
+  mid-conversation design revisions: `decisions.md` D-074 /
+  [decisions-history/D-074.md](decisions-history/D-074.md). Checked via `npm run
+  typecheck && npm run lint && npm test` (305/305, including 5 new regression tests in
+  `repositories.test.ts` reproducing this exact burial scenario, and 3 existing B-119
+  tests updated for the reversed Premiere behavior). **Not yet committed** (pending the
+  owner's review) and **not yet live-tested** — stays In progress rather than Fixed until
+  both happen. Related: [[D-053]], [[D-027]], [[D-074]].
+
+### B-136 — A live/upcoming video that disappears from YouTube entirely stays stuck forever, now dominating the feed's top (D-074 fallout)
+- **Type:** bug · **Severity:** major
+- **Status:** In progress · **Reported:** 2026-10-04 · **Target:** 0.15.1
+- **Area:** sync, feed
+- **What happens:** the owner noticed, live-testing D-074's build, that several
+  livestreams that had already ended "a good while ago" sat pinned at the very top of
+  the feed, still showing as "Live." Confirmed directly against the owner's real
+  `chronicle.db`: 5 videos (3 from "Partido Missão," 2 from "ACF," plus 2 more from an
+  already-unsubscribed channel) have `live_content = 'live'` with `live_started_at`
+  anywhere from 21h to 664h (~28 days) in the past and `live_ended_at` never set. The
+  owner independently checked one on YouTube directly: **the video no longer exists
+  there at all.**
+- **Root cause, confirmed against the data (not guessed):** `refreshLiveStatus`
+  (`sync-service.ts`) re-hydrates every `upcoming`/`live` video every sync cycle — but
+  `api-client.ts`'s `hydrate()` just does `page.items.map(...)` over whatever
+  `videos.list` returns, with no check for a requested id that didn't come back.
+  YouTube's `videos.list` deterministically omits an id it can't serve (deleted,
+  privated, or otherwise gone) rather than erroring the batch — unlike a transient
+  single-poll RSS 404 (D-048), this is a reliable, repeatable signal. `applyHydration`
+  only ever touches rows for ids actually present in its input array, so a vanished
+  video's row is simply never touched again — frozen at whatever `live_content` it had
+  the last time it was still reachable. Quantified: the oldest stuck video's
+  `hydrated_at` predates **540 consecutive sync cycles** (every one `outcome: 'ok'`,
+  no quota exhaustion) with zero updates — if YouTube were instead just reporting
+  `liveBroadcastContent: 'live'` forever on a real, still-existing video,
+  `hydrated_at` would refresh every cycle regardless; the fact that it's frozen
+  confirms the row stopped being returned at all, not that it's genuinely still live.
+- **Why D-074 made this so much worse:** before D-074, a stuck `live_content = 'live'`
+  row only affected its own badge and its position among videos sharing its (possibly
+  very old) `publishedAt` — easy to miss, buried wherever its stale date put it. D-074's
+  new top-priority tier (`live_content = 'live'` outranks every date comparison) now
+  promotes *any* row with that flag straight to the very top of the feed, with no upper
+  bound on how long it can have been wrong — turning an easy-to-miss stale badge into
+  the single most prominent thing in the feed, indefinitely.
+- **Fix:** `refreshLiveStatus` now diffs each hydrate() batch's requested ids against
+  the ids actually returned; anything missing goes through a new
+  `SyncRepository.clearLiveStatus(videoIds)` (`UPDATE videos SET live_content = 'none'
+  WHERE video_id IN (...)`), reverting it to ordering by its own `publishedAt` like any
+  other video — `live_ended_at` is deliberately left untouched (`null`) rather than
+  fabricating a guessed end time nobody actually knows. Covers both `live` and
+  `upcoming` (a canceled/deleted scheduled stream has the exact same gap).
+- **Code refs:** `src/core/sync-service.ts` (`refreshLiveStatus`), `src/adapters/storage/
+  sync-repository.ts` (`clearLiveStatus`), `src/core/ports.ts` (`SyncRepository.
+  clearLiveStatus`), `src/adapters/youtube/api-client.ts` (`hydrate`).
+- **Notes:** checked via `npm run typecheck && npm run lint && npm test` (308/308,
+  including 2 new `sync-service.test.ts` cases simulating a video missing from
+  `hydrate()`'s response, and 1 new `sync-repository.test.ts` contract test against
+  real SQLite). **Not yet committed** and **not yet live-verified** — the real
+  `chronicle.db`'s 5 already-stuck rows still need either a real sync cycle to run
+  against this fixed code (backend changes need a full relaunch, not just a hot-reload)
+  or a one-off manual correction to clear immediately; neither has been done yet,
+  pending the owner's call. Related: [[D-074]], [[B-135]].
+
 ## Resolved

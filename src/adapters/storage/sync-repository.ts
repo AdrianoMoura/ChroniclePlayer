@@ -233,18 +233,18 @@ export class SqliteSyncRepository implements SyncRepository {
   // videos that never passed through RSS.
   applyHydration(videos: readonly HydratedVideo[], now: string): void {
     // live_ended_at and is_premiere are both sticky via COALESCE/CASE — once
-    // set, a later cycle that reports nothing never clears them. is_premiere
-    // also gates live_ended_at so a Premiere never gets the livestream-wrap
-    // sort. `is_premiere` on the right of that CASE reads the pre-update row
-    // (SQLite evaluates an UPDATE's SET expressions against the old row).
+    // set, a later cycle that reports nothing never clears them. A Premiere
+    // gets live_ended_at the same way a genuine broadcast does (feed.md:
+    // Premiere and live share the exact same upcoming/airing/ended sort
+    // treatment) — the only thing is_premiere still gates is which badge
+    // shows while liveContent === 'live' (FeedList.tsx), not sort order.
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
           live_content, is_premiere, live_started_at, live_ended_at, thumbnail_url, view_count,
           hydrated_at, fetched_at)
        VALUES (:id, :channelId, :title, :description, :publishedAt, :duration, :live,
-         :isPremiereNow, :liveStartedAt,
-         CASE WHEN :isPremiereNow = 1 THEN NULL ELSE :liveEndedAt END,
+         :isPremiereNow, :liveStartedAt, :liveEndedAt,
          :thumb, :views, :now, :now)
        ON CONFLICT(video_id) DO UPDATE SET
          title = :title,
@@ -254,10 +254,7 @@ export class SqliteSyncRepository implements SyncRepository {
          live_content = :live,
          is_premiere = CASE WHEN :isPremiereNow = 1 THEN 1 ELSE is_premiere END,
          live_started_at = :liveStartedAt,
-         live_ended_at = CASE
-           WHEN is_premiere = 1 OR :isPremiereNow = 1 THEN live_ended_at
-           ELSE COALESCE(:liveEndedAt, live_ended_at)
-         END,
+         live_ended_at = COALESCE(:liveEndedAt, live_ended_at),
          thumbnail_url = COALESCE(:thumb, thumbnail_url),
          view_count = :views,
          hydrated_at = :now`
@@ -416,6 +413,16 @@ export class SqliteSyncRepository implements SyncRepository {
           )
     ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
     return rows.map((row) => row.video_id)
+  }
+
+  clearLiveStatus(videoIds: readonly string[]): void {
+    for (let i = 0; i < videoIds.length; i += 500) {
+      const chunk = videoIds.slice(i, i + 500)
+      const placeholders = chunk.map(() => '?').join(',')
+      this.db
+        .prepare(`UPDATE videos SET live_content = 'none' WHERE video_id IN (${placeholders})`)
+        .run(...chunk)
+    }
   }
 
   recordSync(entry: SyncLogEntry): void {

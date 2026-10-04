@@ -470,8 +470,20 @@ export class SyncService {
     if (ids.length === 0) return
     try {
       for (let i = 0; i < ids.length; i += HYDRATE_BATCH) {
-        const hydrated = await this.deps.videoSource.hydrate(ids.slice(i, i + HYDRATE_BATCH))
+        const batch = ids.slice(i, i + HYDRATE_BATCH)
+        const hydrated = await this.deps.videoSource.hydrate(batch)
         this.deps.repo.applyHydration(hydrated, this.deps.clock.now().toISOString())
+        // videos.list deterministically omits an id it can't return (deleted,
+        // privated, or otherwise gone — not a flaky single-poll RSS 404,
+        // D-048) rather than erroring the batch. Left alone, that row would
+        // stay stuck at 'upcoming'/'live' forever — B-136, surfaced by
+        // D-074 promoting a stuck 'live' row straight to the top of the feed
+        // regardless of age. clearLiveStatus reverts it to 'none' so it
+        // falls back to ordering by its own publishedAt like any other
+        // video, instead of fabricating a liveEndedAt no one actually knows.
+        const returned = new Set(hydrated.map((v) => v.videoId))
+        const missing = batch.filter((id) => !returned.has(id))
+        if (missing.length > 0) this.deps.repo.clearLiveStatus(missing)
       }
     } catch (error) {
       if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true

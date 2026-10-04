@@ -195,7 +195,7 @@ describe('groupFeed', () => {
     expect(groups.map((g) => g.bucket)).toEqual(['today'])
   })
 
-  it('a Premiere airing days ago stays in its original bucket, never floats to today like a real broadcast would (B-119)', () => {
+  it('a Premiere airing now floats to today just like a real broadcast would, regardless of its original publishedAt', () => {
     const groups = groupFeed(
       [
         entry('older-upload', new Date(2026, 6, 8, 10)),
@@ -208,10 +208,10 @@ describe('groupFeed', () => {
       ],
       NOW
     )
-    expect(groups.map((g) => g.bucket)).toEqual(['today', 'earlier'])
-    expect(groups.find((g) => g.bucket === 'earlier')?.entries.map((e) => e.video.videoId)).toEqual([
+    expect(groups.map((g) => g.bucket)).toEqual(['today'])
+    expect(groups.find((g) => g.bucket === 'today')?.entries.map((e) => e.video.videoId)).toContain(
       'airing-premiere'
-    ])
+    )
   })
 })
 
@@ -267,22 +267,28 @@ describe('effectiveDate', () => {
     ).toEqual(new Date(2026, 6, 5, 9))
   })
 
-  it('is publishedAt while a Premiere is airing, not "now" (B-119)', () => {
+  it('is "now" while a Premiere is airing, exactly like a genuine broadcast', () => {
     expect(
       effectiveDate(
         base({ liveContent: 'live', liveStartedAt: null, liveEndedAt: null, isPremiere: true }),
         NOW
       )
-    ).toEqual(new Date(2026, 6, 5, 9))
+    ).toEqual(NOW)
   })
 
-  it('is publishedAt for a finished Premiere, not liveEndedAt (which is never captured for one)', () => {
+  it('is liveEndedAt once a Premiere finishes airing, exactly like a genuine broadcast', () => {
+    const endedAt = new Date(2026, 6, 6, 10)
     expect(
       effectiveDate(
-        base({ liveContent: 'none', liveStartedAt: null, liveEndedAt: null, isPremiere: true }),
+        base({
+          liveContent: 'none',
+          liveStartedAt: null,
+          liveEndedAt: endedAt.toISOString(),
+          isPremiere: true
+        }),
         NOW
       )
-    ).toEqual(new Date(2026, 6, 5, 9))
+    ).toEqual(endedAt)
   })
 })
 

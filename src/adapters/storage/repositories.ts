@@ -107,12 +107,23 @@ function viewPredicate(view: FeedView, accountId?: string): string {
   }
 }
 
-// Keyset pagination fetch order — plain publishedAt, not core's
-// effectiveDate-based compareFeedOrder: a keyset cursor can't be built on a
-// value like "now" that changes between calls. FeedService.getSlice
-// re-sorts each fetched page by effectiveDate for display without changing
-// which rows a page contains.
-const FEED_ORDER = `ORDER BY v.published_at DESC, c.title ASC, v.video_id ASC`
+// Two-tier sort key behind FEED_ORDER and its keyset cursor, mirroring
+// core/feed.ts's effectiveDate — except a keyset cursor can't be built on a
+// value like "now" that changes between calls, so the "currently airing"
+// tier is a stable boolean (live_content alone; it reverts to 'none' once a
+// broadcast or Premiere ends, same mechanism for both) rather than literally
+// pinning to the current instant. A live/Premiere that's airing right now
+// always outranks every other video regardless of date (feed.md §Ordering);
+// within a tier, ties break on the effective date (liveEndedAt, clamped to
+// never precede publishedAt per B-120, else publishedAt itself).
+const LIVE_NOW_EXPR = `(CASE WHEN v.live_content = 'live' THEN 1 ELSE 0 END)`
+const EFFECTIVE_DATE_EXPR = `(CASE WHEN v.live_ended_at IS NOT NULL THEN MAX(v.live_ended_at, v.published_at) ELSE v.published_at END)`
+
+// FeedService.getSlice re-sorts each fetched page by core/feed.ts's own
+// effectiveDate (which does pin a live video to the literal current instant)
+// for display — this only needs to get a page's rows in the right
+// neighborhood, not pixel-perfect order within it.
+const FEED_ORDER = `ORDER BY ${LIVE_NOW_EXPR} DESC, ${EFFECTIVE_DATE_EXPR} DESC, c.title ASC, v.video_id ASC`
 
 export interface FeedRow {
   video_id: string
@@ -132,6 +143,21 @@ export interface FeedRow {
   favorite: number | bigint
   watch_later: number | bigint
   resume_position_seconds: number | bigint | null
+}
+
+// Mirrors LIVE_NOW_EXPR/EFFECTIVE_DATE_EXPR in JS, for building the next
+// page's cursor from the last row already mapped to a Video — ISO-8601
+// strings compare lexicographically the same as chronologically, so string
+// comparison here agrees with SQLite's own TEXT comparison in those
+// expressions.
+function cursorSortKey(video: Video): { liveNow: boolean; effectiveDate: string } {
+  return {
+    liveNow: video.liveContent === 'live',
+    effectiveDate:
+      video.liveEndedAt !== null && video.liveEndedAt > video.publishedAt
+        ? video.liveEndedAt
+        : video.publishedAt
+  }
 }
 
 export function toEntry(row: FeedRow): FeedEntry {
@@ -174,15 +200,23 @@ export class SqliteFeedRepository implements FeedRepository {
   ): FeedPage {
     const afterCursor = cursor
       ? `AND (
-           v.published_at < :pub
-           OR (v.published_at = :pub AND (c.title > :ct
+           ${LIVE_NOW_EXPR} < :liveNow
+           OR (${LIVE_NOW_EXPR} = :liveNow AND ${EFFECTIVE_DATE_EXPR} < :eff)
+           OR (${LIVE_NOW_EXPR} = :liveNow AND ${EFFECTIVE_DATE_EXPR} = :eff AND (c.title > :ct
            OR (c.title = :ct AND v.video_id > :vid)))
          )`
       : ''
     const byChannel = channelId !== undefined ? `AND v.channel_id = :channelId` : ''
     const params: Record<string, SQLInputValue> = {
       limit,
-      ...(cursor ? { pub: cursor.publishedAt, ct: cursor.channelTitle, vid: cursor.videoId } : {}),
+      ...(cursor
+        ? {
+            liveNow: cursor.liveNow ? 1 : 0,
+            eff: cursor.effectiveDate,
+            ct: cursor.channelTitle,
+            vid: cursor.videoId
+          }
+        : {}),
       ...(channelId !== undefined ? { channelId } : {}),
       ...(accountId !== undefined ? { accountId } : {})
     }
@@ -204,7 +238,7 @@ export class SqliteFeedRepository implements FeedRepository {
         entries.length < limit || !last
           ? null
           : {
-              publishedAt: last.video.publishedAt,
+              ...cursorSortKey(last.video),
               channelTitle: last.channelTitle,
               videoId: last.video.videoId
             }

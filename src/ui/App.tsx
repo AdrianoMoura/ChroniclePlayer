@@ -23,7 +23,7 @@ import type {
 import { ChannelHeader } from './ChannelHeader'
 import { ConnectPanel } from './ConnectPanel'
 import { type FeedRow, type VideoActions } from './FeedList'
-import { bucketLabel, formatClockTime, quotaResetLocalTime } from './format'
+import { bucketLabel, effectiveDateIso, formatClockTime, quotaResetLocalTime } from './format'
 import { GlobalDialogs } from './GlobalDialogs'
 import { HistoryView } from './HistoryView'
 import { setLocale, t } from './i18n'
@@ -1607,7 +1607,8 @@ export function App() {
     const lastVideo = videos.at(-1)
     const cursorToRetry: FeedCursorDto | null = lastVideo
       ? {
-          publishedAt: lastVideo.publishedAt,
+          liveNow: lastVideo.liveContent === 'live',
+          effectiveDate: effectiveDateIso(lastVideo),
           channelTitle: lastVideo.channelTitle,
           videoId: lastVideo.videoId
         }

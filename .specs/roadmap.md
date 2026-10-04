@@ -494,6 +494,24 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   app quit, and the pause checkpoint trusted an unreliable one-shot event the same
   way [[B-111]] already found elsewhere) Fixed. B-108, B-101 carried forward from
   0.14.1, untouched.
+- **0.15.1 — in progress.** Candidate scope: D-074 (a currently-airing live or Premiere
+  now outranks every other video at the feed's actual fetch/pagination level, not just
+  an already-fetched page's display order; a Premiere also now follows the identical
+  upcoming/airing/ended ordering a genuine broadcast gets, reversing B-119's exclusion),
+  a direct product-owner request following a concrete symptom report (a subscribed
+  channel's livestream from the day before never showed on the main feed). Root cause
+  B-135: a livestream scheduled days ahead of actually airing keeps a stale
+  `publishedAt`, which D-053's display-only `effectiveDate` never reaches once it's
+  buried deep enough in the raw-`publishedAt`-keyed keyset cursor — confirmed against
+  the owner's own `chronicle.db` across 8+ affected channels. Checked via `npm run
+  typecheck && npm run lint && npm test` (305/305); not yet live-tested by the owner.
+  B-108, B-101 carried forward from 0.15.0, untouched.
+
+  **Note on this section's own staleness:** the entries above stop at "0.14.2 — in
+  progress," but `tracker-current.md` and `CLAUDE.md` both show 0.14.2 through 0.15.0
+  actually shipped (D-072/D-073/B-134 landed in `0.15.0`, not `0.14.2`) — this section
+  was never updated to match. Not backfilled here since reconstructing that history
+  accurately from scratch risks getting it wrong; flagging it rather than guessing.
 
 ## M0 — Walking skeleton
 

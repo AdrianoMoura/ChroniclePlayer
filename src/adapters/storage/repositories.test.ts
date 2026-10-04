@@ -54,7 +54,8 @@ function addVideo(
   videoId: string,
   publishedAt: string,
   channelId = 'UCa',
-  liveContent: 'none' | 'live' | 'upcoming' = 'none'
+  liveContent: 'none' | 'live' | 'upcoming' = 'none',
+  live: { liveStartedAt?: string | null; liveEndedAt?: string | null; isPremiere?: boolean } = {}
 ): void {
   catalog.upsertVideo(
     {
@@ -67,12 +68,26 @@ function addVideo(
       viewCount: null,
       isShort: false,
       liveContent,
-      liveStartedAt: null,
-      liveEndedAt: null,
-      isPremiere: false
+      liveStartedAt: live.liveStartedAt ?? null,
+      liveEndedAt: live.liveEndedAt ?? null,
+      isPremiere: live.isPremiere ?? false
     },
     fixedClock.now().toISOString()
   )
+  // SqliteCatalogRepository.upsertVideo (above) is the narrow production
+  // path (title/publishedAt/duration/thumbnail only) — it never touches the
+  // live-broadcast columns, so they're set directly here for fixtures that
+  // need them, the same way applyHydration (sync-repository.ts) would.
+  db.prepare(
+    `UPDATE videos SET live_content = :liveContent, live_started_at = :liveStartedAt,
+       live_ended_at = :liveEndedAt, is_premiere = :isPremiere WHERE video_id = :videoId`
+  ).run({
+    videoId,
+    liveContent,
+    liveStartedAt: live.liveStartedAt ?? null,
+    liveEndedAt: live.liveEndedAt ?? null,
+    isPremiere: live.isPremiere ? 1 : 0
+  })
 }
 
 describe('migrations', () => {
@@ -359,6 +374,59 @@ describe('SqliteFeedRepository', () => {
   it('returns a null cursor on the final page', () => {
     addVideo('only', '2026-07-08T10:00:00Z')
     expect(feed.listPage('all', null, 50).nextCursor).toBeNull()
+  })
+
+  it('a currently-airing live video outranks everything regardless of publishedAt (B-135)', () => {
+    // publishedAt is days before the fixed clock's "now" — mirrors a
+    // broadcast scheduled on YouTube long before it actually went live.
+    addVideo('stale-live', '2026-06-28T10:00:00Z', 'UCa', 'live')
+    addVideo('just-published', '2026-07-08T14:00:00Z', 'UCb')
+    const page = feed.listPage('all', null, 50)
+    expect(page.entries.map((e) => e.video.videoId)).toEqual(['stale-live', 'just-published'])
+  })
+
+  it('a currently-airing live video reaches page 1 even buried deep by raw publishedAt (B-135)', () => {
+    addVideo('stale-live', '2026-06-28T10:00:00Z', 'UCa', 'live')
+    // Bury it under more than one page's worth of newer, unrelated videos.
+    for (let i = 0; i < 5; i++) {
+      addVideo(`newer-${i}`, `2026-07-0${i + 1}T10:00:00Z`, 'UCb')
+    }
+    const firstPage = feed.listPage('all', null, 2)
+    expect(firstPage.entries.map((e) => e.video.videoId)).toContain('stale-live')
+    expect(firstPage.entries[0]?.video.videoId).toBe('stale-live')
+  })
+
+  it('a Premiere airing now outranks everything exactly like a genuine broadcast (B-135)', () => {
+    addVideo('stale-premiere', '2026-06-28T10:00:00Z', 'UCa', 'live', { isPremiere: true })
+    addVideo('just-published', '2026-07-08T14:00:00Z', 'UCb')
+    const page = feed.listPage('all', null, 50)
+    expect(page.entries.map((e) => e.video.videoId)).toEqual(['stale-premiere', 'just-published'])
+  })
+
+  it('an ended broadcast sorts/paginates by liveEndedAt, not its stale original publishedAt (B-135)', () => {
+    addVideo('ended-stream', '2026-06-28T10:00:00Z', 'UCa', 'none', {
+      liveEndedAt: '2026-07-08T13:00:00Z'
+    })
+    addVideo('older-upload', '2026-07-01T10:00:00Z', 'UCb')
+    const page = feed.listPage('all', null, 50)
+    expect(page.entries.map((e) => e.video.videoId)).toEqual(['ended-stream', 'older-upload'])
+  })
+
+  it('keyset pagination never skips or duplicates rows across the live/ended tier and the date tier (B-135)', () => {
+    addVideo('live-now', '2026-06-20T10:00:00Z', 'UCa', 'live')
+    addVideo('ended', '2026-06-21T10:00:00Z', 'UCa', 'none', { liveEndedAt: '2026-07-08T12:00:00Z' })
+    addVideo('normal-new', '2026-07-08T11:00:00Z', 'UCb')
+    addVideo('normal-old', '2026-07-01T10:00:00Z', 'UCa')
+
+    const seen: string[] = []
+    let cursor = null
+    for (;;) {
+      const page = feed.listPage('all', cursor, 2)
+      seen.push(...page.entries.map((e) => e.video.videoId))
+      if (!page.nextCursor) break
+      cursor = page.nextCursor
+    }
+    expect(seen).toEqual(['live-now', 'ended', 'normal-new', 'normal-old'])
   })
 
   it('lists followed channels freshest-first with unread counts (B-008)', () => {

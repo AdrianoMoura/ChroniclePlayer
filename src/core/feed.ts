@@ -47,15 +47,14 @@ function compareFeedOrder(a: FeedEntry, b: FeedEntry, now: Date): number {
 }
 
 // The single timestamp driving both bucket and sort order — publishedAt
-// normally; `now` while genuinely live (always sorts atop
-// "today"); liveEndedAt once ended (so a stream crossing midnight lands
-// under the day it wrapped, not the day it started). Bucket and sort must
-// share this one value, or an entry could sort into one bucket while its
-// header renders in another.
+// normally; `now` while genuinely live or a Premiere is actively airing
+// (both always sort atop "today" — a Premiere behaves identically to a real
+// broadcast for as long as its liveContent stays 'live'); liveEndedAt once
+// ended (so a stream crossing midnight lands under the day it wrapped, not
+// the day it started). Bucket and sort must share this one value, or an
+// entry could sort into one bucket while its header renders in another.
 export function effectiveDate(video: Video, now: Date): Date {
-  // A Premiere always sorts like a plain video (publishedAt), never "now" —
-  // it's a watch-along of an already-recorded video, not an open broadcast.
-  if (video.liveContent === 'live' && !video.isPremiere) return now
+  if (video.liveContent === 'live') return now
   if (video.liveEndedAt) {
     // liveEndedAt isn't always after publishedAt (some channels publish a
     // VOD's listing well after the stream actually ended) — never let it

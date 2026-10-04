@@ -36,18 +36,17 @@ export interface FeedVideoDto {
   // shown while liveContent === 'live' (ui/format.ts) instead of the
   // otherwise-useless "0 min ago" a live video's own effectiveDate gives.
   liveStartedAt: string | null
-  // liveStreamingDetails.actualEndTime, present once a broadcast has ended,
-  // even if Chronicle never observed the video while it was actually live
-  // (e.g. discovered later via gap-backfill), since YouTube keeps it as
-  // permanent video metadata. Drives ended-broadcast sort/bucket order
-  // (core/feed.ts) — not read by any feed badge. Never set for a Premiere.
+  // liveStreamingDetails.actualEndTime, present once a broadcast or Premiere
+  // has ended, even if Chronicle never observed the video while it was
+  // actually airing (e.g. discovered later via gap-backfill), since YouTube
+  // keeps it as permanent video metadata. Drives ended-broadcast sort/bucket
+  // order (core/feed.ts) for both — not read by any feed badge.
   liveEndedAt: string | null
   // Sticky — true once this was ever seen airing as a Premiere
   // (status.uploadStatus === 'processed' while liveContent === 'live').
   // Picks the red "Premiere" vs "Live" badge while liveContent === 'live';
-  // afterward keeps a finished Premiere sorting like a plain video
-  // (publishedAt) instead of an ended broadcast's wrap-time sort
-  // (FeedList.tsx, core/feed.ts).
+  // sort/bucket order otherwise treats it identically to a genuine broadcast
+  // (core/feed.ts).
   isPremiere: boolean
   state: VideoStateDto
   // Assigned by core; null in the watch-later queue (ordered by position).
@@ -57,7 +56,8 @@ export interface FeedVideoDto {
 }
 
 export interface FeedCursorDto {
-  publishedAt: string
+  liveNow: boolean
+  effectiveDate: string
   channelTitle: string
   videoId: string
 }

@@ -24,10 +24,11 @@ Later) or, once opened at all, through History (D-073).
 - Videos are ordered by **`publishedAt` descending**. Nothing else ever influences order:
   no engagement data, no per-user weighting, no pinning by Chronicle.
 - `publishedAt` is YouTube's publish timestamp. For premieres/scheduled videos the
-  effective date is when the video became publicly available (**Assumption, still
-  unverified:** RSS `published` reflects this; if premieres appear early with future
-  dates, they sort to the top rather than being hidden, until a hide-premieres Future
-  feature exists). **Partially addressed 2026-07-12 (`bugs.md` B-048):** `liveContent`
+  effective date is when the video became publicly available (**disproven 2026-10-04,
+  B-135/D-074:** for a livestream scheduled days ahead of actually airing, `publishedAt`
+  stays pinned to the scheduling/creation time rather than tracking the real air date —
+  confirmed against real data across 8+ channels; see below for how this is now handled).
+  **Partially addressed 2026-07-12 (`bugs.md` B-048):** `liveContent`
   (`snippet.liveBroadcastContent`, captured at hydration but previously dropped before
   reaching the feed) is now threaded through to a "Live"/"Upcoming" badge on the video
   row/card — so a premiere or active livestream is at least visually distinguishable from
@@ -73,18 +74,30 @@ Later) or, once opened at all, through History (D-073).
   20:00, ended 02:00), shows under the date it actually wrapped and sorted by that moment,
   not buried under the date/position its original `publishedAt` would have put it in. This
   is why an hours-old livestream no longer sinks below videos published since it started,
-  both while still live and, worse, right after it ends. Never affects keyset pagination
-  (D-027) — the underlying page fetch stays keyed on plain `publishedAt` (a keyset cursor
-  can't be built on a value like `now` that changes between calls); `effectiveDate` only
-  reorders/re-buckets an already-fetched page for display.
-  - **A Premiere is exempt from all of the above, in every state (B-119, 2026-07-19):**
-    `effectiveDate` is always `publishedAt` for one — never `now` while it's airing, never
-    `liveEndedAt` once it's done (which is never captured for one in the first place). A
-    Premiere is a synchronized watch-along of an already-recorded video, not an open-ended
-    broadcast, so unlike a real livestream it sorts and buckets exactly like a normal
-    upload throughout, never floating to the top of Today just for being "live" right now.
-
+  both while still live and, worse, right after it ends.
+  - **A Premiere follows this identically, in every state (D-074, 2026-10-04, reversing
+    B-119's exclusion):** `effectiveDate` is `now` while airing and `liveEndedAt` once
+    done, exactly like a genuine broadcast — `is_premiere` only gates which badge shows
+    while airing ("Live" vs. "Premiere," below), not sort/bucket order.
   - **Watch Later is exempt** — its own explicit position ordering (below) is untouched.
+- **A currently-airing live or Premiere also outranks everything at the feed's actual
+  fetch/pagination level, not just in an already-fetched page's display order (D-074,
+  2026-10-04):** D-053 deliberately left keyset pagination (D-027) keyed on plain
+  `publishedAt`, reasoning a keyset cursor can't be built on a value like `now` that
+  changes between calls — true, but this meant a video whose `publishedAt` is stale
+  relative to when it actually aired (a livestream scheduled days ahead on YouTube, B-135)
+  could sit hundreds of pages deep in the raw fetch order and never be reached at all,
+  regardless of how `effectiveDate` would have placed it once fetched. Fixed with a
+  two-tier sort key baked into `repositories.ts`'s `FEED_ORDER` and keyset cursor itself
+  (`FeedCursor` gained a `liveNow` field): tier 1 is the stable boolean `live_content =
+  'live'` (true for both a live broadcast and an airing Premiere) — it doesn't depend on
+  "now" continuously changing, only on a real, infrequent transition (the broadcast
+  starting or ending), so it's safe to use directly in `ORDER BY`/the cursor's `WHERE`
+  comparison, unlike `effectiveDate`'s literal `now` pin; tier 2 is the same effective-date
+  tiebreak as above. `FeedService.getSlice()`'s own page-local re-sort by `effectiveDate`
+  is unchanged and still pins a live video to the exact current instant for display — the
+  fetch-level tier only needs to land it in the right neighborhood, not pixel-perfect
+  order within a page.
 
 ## Grouping (Final in shape; boundary details below)
 

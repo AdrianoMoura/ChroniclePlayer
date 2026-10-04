@@ -41,6 +41,7 @@ class FakeRepo implements SyncRepository {
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
   markedRead: string[] = []
+  cleared: string[] = []
 
   // Single implicit account — SyncService just threads accountId through to
   // the repo; real per-account isolation is a SQL-layer concern, tested in
@@ -120,6 +121,9 @@ class FakeRepo implements SyncRepository {
     if (channelId === undefined) return this.live
     return this.live.filter((id) => this.liveChannel.get(id) === channelId)
   }
+  clearLiveStatus(videoIds: readonly string[]): void {
+    this.cleared.push(...videoIds)
+  }
   recordSync(entry: SyncLogEntry): void {
     this.logs.push(entry)
   }
@@ -159,6 +163,9 @@ interface SourceBehavior {
   hydrateError?: () => never
   quota?: QuotaCounter
   publishedAt?: Record<string, string> // videoId -> hydrate()'s publishedAt, default '2026-07-11T10:00:00Z'
+  // Simulates videos.list silently omitting an id from its response (deleted/
+  // privated/gone) rather than erroring the whole batch — B-136.
+  missingIds?: string[]
 }
 
 function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrateCalls: string[][] } {
@@ -175,22 +182,24 @@ function fakeVideoSource(behavior: SourceBehavior = {}): VideoSource & { hydrate
       behavior.quota?.add(1)
       hydrateCalls.push([...ids])
       return Promise.resolve(
-        ids.map((videoId) => ({
-          videoId,
-          channelId: 'UCa',
-          channelTitle: 'Alpha',
-          title: `t-${videoId}`,
-          publishedAt: behavior.publishedAt?.[videoId] ?? '2026-07-11T10:00:00Z',
-          durationSeconds: 600,
-          liveContent: 'none' as const,
-          liveStartedAt: null,
-          liveEndedAt: null,
-          isPremiere: false,
-          thumbnailUrl: null,
-          description: null,
-          viewCount: 1000,
-          likeCount: null
-        }))
+        ids
+          .filter((videoId) => !behavior.missingIds?.includes(videoId))
+          .map((videoId) => ({
+            videoId,
+            channelId: 'UCa',
+            channelTitle: 'Alpha',
+            title: `t-${videoId}`,
+            publishedAt: behavior.publishedAt?.[videoId] ?? '2026-07-11T10:00:00Z',
+            durationSeconds: 600,
+            liveContent: 'none' as const,
+            liveStartedAt: null,
+            liveEndedAt: null,
+            isPremiere: false,
+            thumbnailUrl: null,
+            description: null,
+            viewCount: 1000,
+            likeCount: null
+          }))
       )
     },
     listUploads: (playlistId, pageToken) => {
@@ -444,6 +453,27 @@ describe('SyncService.refresh', () => {
     await service(repo, source).refresh('timer', 'acc1')
     expect(source.hydrateCalls.flat()).toContain('stream-1')
     expect(repo.hydrated).toContain('stream-1')
+  })
+
+  it('clears live_content for a live video that no longer comes back from videos.list at all (B-136)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    repo.live = ['gone-stream', 'still-live']
+    const source = fakeVideoSource({ missingIds: ['gone-stream'] })
+    await service(repo, source).refresh('timer', 'acc1')
+    expect(source.hydrateCalls.flat()).toContain('gone-stream')
+    expect(repo.cleared).toEqual(['gone-stream'])
+    expect(repo.hydrated).toContain('still-live')
+    expect(repo.hydrated).not.toContain('gone-stream')
+  })
+
+  it('clears live_content for an upcoming video that no longer comes back from videos.list at all (B-136)', async () => {
+    const repo = new FakeRepo()
+    repo.addChannel('UCa')
+    repo.upcoming = ['canceled-premiere']
+    const source = fakeVideoSource({ missingIds: ['canceled-premiere'] })
+    await service(repo, source).refresh('timer', 'acc1')
+    expect(repo.cleared).toEqual(['canceled-premiere'])
   })
 
   it('skips the live/upcoming re-check entirely when nothing is flagged either way', async () => {

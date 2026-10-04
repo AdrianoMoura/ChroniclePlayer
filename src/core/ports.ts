@@ -11,11 +11,14 @@ export interface Clock {
   now(): Date
 }
 
-// Keyset cursor for continuous scroll over the local archive. The triple
-// mirrors the feed ordering exactly (published desc, channel title,
-// videoId) so pages never skip or duplicate tied rows.
+// Keyset cursor for continuous scroll over the local archive. Mirrors the
+// feed ordering exactly — liveNow (a currently-airing live or Premiere
+// outranks everything, feed.md §Ordering) first, then effectiveDate
+// (liveEndedAt once known, else publishedAt), then channel title, then
+// videoId — so pages never skip or duplicate tied rows.
 export interface FeedCursor {
-  publishedAt: string
+  liveNow: boolean
+  effectiveDate: string
   channelTitle: string
   videoId: string
 }
@@ -378,6 +381,14 @@ export interface SyncRepository {
   // (duration_seconds stuck at 0) until re-queried. channelId scopes to a
   // single channel.
   liveVideoIds(channelId?: string): string[]
+  // A video that was 'live'/'upcoming' but no longer comes back at all from
+  // videos.list (deleted, privated, or otherwise gone — distinct from a
+  // genuine transient RSS failure, D-048: videos.list deterministically
+  // omits an inaccessible id rather than erroring) stops claiming the feed's
+  // "currently airing" tier (D-074) — reverts to 'none', falling back to
+  // ordering by its own publishedAt like any other video. live_ended_at is
+  // left untouched (null) rather than guessing a fabricated end time.
+  clearLiveStatus(videoIds: readonly string[]): void
   recordSync(entry: SyncLogEntry): void
   lastSyncStartedAt(): string | null
   getMeta(key: string): string | null

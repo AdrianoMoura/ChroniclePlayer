@@ -41,10 +41,23 @@ export function startedLabel(startedAt: string, now = Date.now()): string {
   return t('format.startedOn', { date: new Date(startedAt).toLocaleDateString() })
 }
 
-// Labels a feed row by the same instant core/feed.ts's effectiveDate uses to
-// bucket it (ui/ can't import core/ directly, per architecture.md, so this
-// narrow rule is mirrored rather than shared) — except while a video is
-// actually airing, when startedLabel is more useful than "0 min ago".
+// Mirrors core/feed.ts's own effectiveDate for a video that isn't currently
+// airing (ui/ can't import core/ directly, per architecture.md, so this
+// narrow rule is mirrored rather than shared) — ended sorts by liveEndedAt
+// (clamped to never precede publishedAt, B-120), else publishedAt itself.
+// Also behind the feed's own keyset cursor (repositories.ts's
+// EFFECTIVE_DATE_EXPR) when the UI has to build one by hand (App.tsx's
+// archive-backfill resume).
+export function effectiveDateIso(video: { publishedAt: string; liveEndedAt: string | null }): string {
+  const publishedAt = Date.parse(video.publishedAt)
+  const effectiveAt =
+    video.liveEndedAt !== null ? Math.max(Date.parse(video.liveEndedAt), publishedAt) : publishedAt
+  return new Date(effectiveAt).toISOString()
+}
+
+// Labels a feed row by the same instant effectiveDateIso/core/feed.ts's
+// effectiveDate uses to bucket it — except while a video is actually
+// airing, when startedLabel is more useful than "0 min ago".
 export function feedItemLabel(
   video: {
     publishedAt: string
@@ -57,10 +70,7 @@ export function feedItemLabel(
   if (video.liveContent === 'live') {
     return startedLabel(video.liveStartedAt ?? video.publishedAt, now)
   }
-  const publishedAt = Date.parse(video.publishedAt)
-  const effectiveAt =
-    video.liveEndedAt !== null ? Math.max(Date.parse(video.liveEndedAt), publishedAt) : publishedAt
-  return publishedLabel(new Date(effectiveAt).toISOString(), now)
+  return publishedLabel(effectiveDateIso(video), now)
 }
 
 export function formatClockTime(iso: string): string {

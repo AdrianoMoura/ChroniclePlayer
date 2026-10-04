@@ -287,7 +287,7 @@ describe('discovery and hydration', () => {
     expect(video?.isPremiere).toBe(true)
   })
 
-  it('a finished Premiere never gets liveEndedAt set (B-119) — it settles back into a plain video', () => {
+  it('a finished Premiere gets liveEndedAt set, exactly like a genuine broadcast', () => {
     sync.applyHydration(
       [{ ...hydratedVideo('prem-1', 0), liveContent: 'live', isPremiere: true }],
       NOW
@@ -304,11 +304,11 @@ describe('discovery and hydration', () => {
       NOW
     )
     const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'prem-1')?.video
-    expect(video?.liveEndedAt).toBeNull()
+    expect(video?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
     expect(video?.isPremiere).toBe(true)
   })
 
-  it('a genuine broadcast still gets liveEndedAt set (B-119 regression guard)', () => {
+  it('a genuine broadcast still gets liveEndedAt set', () => {
     sync.applyHydration(
       [{ ...hydratedVideo('stream-2', 0), liveContent: 'live', isPremiere: false }],
       NOW
@@ -327,6 +327,22 @@ describe('discovery and hydration', () => {
     const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-2')?.video
     expect(video?.liveEndedAt).toBe('2026-07-11T13:30:00Z')
     expect(video?.isPremiere).toBe(false)
+  })
+
+  it('clearLiveStatus reverts a stuck live/upcoming video to none (B-136)', () => {
+    sync.applyHydration(
+      [
+        { ...hydratedVideo('gone-1', 0), liveContent: 'live' },
+        { ...hydratedVideo('gone-2', 0), liveContent: 'upcoming' },
+        { ...hydratedVideo('still-live', 0), liveContent: 'live' }
+      ],
+      NOW
+    )
+    sync.clearLiveStatus(['gone-1', 'gone-2'])
+    const videos = feed.listPage('all', null, 10).entries
+    expect(videos.find((e) => e.video.videoId === 'gone-1')?.video.liveContent).toBe('none')
+    expect(videos.find((e) => e.video.videoId === 'gone-2')?.video.liveContent).toBe('none')
+    expect(videos.find((e) => e.video.videoId === 'still-live')?.video.liveContent).toBe('live')
   })
 
   it('knownVideoIds handles more ids than one SQL parameter batch', () => {
