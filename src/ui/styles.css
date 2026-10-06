@@ -1679,8 +1679,11 @@ button.primary:disabled {
   /* The persisted/dragged width (MiniPlayerBar's inline `style`) can exceed
      a since-shrunk window — clamp visually so the box never pushes past the
      left edge, without touching the stored setting itself (it grows back to
-     the full persisted width once the window does). */
-  max-width: calc(100vw - 32px);
+     the full persisted width once the window does). The second term caps
+     the same width by its own 16:9 stage-slot height plus the title bar
+     (~40px) and border (2px), so a wide box never grows taller than the
+     window either — 74px = 32px top/bottom margin + that ~42px chrome. */
+  max-width: min(calc(100vw - 32px), calc((100vh - 74px) * 16 / 9));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;

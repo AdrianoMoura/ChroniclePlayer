@@ -229,10 +229,10 @@ export const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
 export const MINIPLAYER_MIN_WIDTH = 220
 // A sanity ceiling for settings.json validation only (settings-store.ts runs
 // in the main process and stays Electron-free/offline-testable, so it can't
-// ask the OS how big the user's monitor actually is). The real drag-resize
-// ceiling is screen-relative (80% of window.screen.width, MiniPlayerBar.tsx)
-// — this just has to stay comfortably above that for the widest real
-// monitors (a 5120px-wide super-ultrawide's 80% is 4096).
+// ask the OS how big the user's window actually is). The real drag-resize
+// ceiling is the window's own current size (MiniPlayerBar.tsx, uninformed
+// by this constant except as a generous backstop) — this just has to stay
+// comfortably above any real window.
 export const MINIPLAYER_MAX_WIDTH = 4096
 
 // Mirrors platform settings.json (human-editable; local-data.md).

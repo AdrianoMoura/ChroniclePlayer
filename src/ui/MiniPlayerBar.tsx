@@ -44,17 +44,25 @@ export function MiniPlayerBar({
   // only updates once the drag ends and the parent's setting is saved.
   const [dragWidth, setDragWidth] = useState<number | null>(null)
   const dragStartRef = useRef<{ x: number; width: number } | null>(null)
+  const barRef = useRef<HTMLDivElement | null>(null)
 
   function startResize(event: React.MouseEvent): void {
     event.preventDefault()
     dragStartRef.current = { x: event.clientX, width }
-    // 80% of the current monitor's own resolution (window.screen, the
-    // display the window sits on — distinct from window.innerWidth, the
-    // app window's own size) rather than a fixed pixel ceiling, so the
-    // miniplayer can actually grow large on an ultrawide/4K screen. Read
-    // once per drag, not per move — the box can't jump monitors mid-drag.
-    const screenMax = Math.round(window.screen.width * 0.8)
-    const maxWidth = Math.min(MINIPLAYER_MAX_WIDTH, screenMax)
+    // Grow freely up to the window's own current size, in whichever
+    // dimension the box would hit first — width directly, height via the
+    // stage slot's fixed 16:9 ratio plus the title bar and border beneath
+    // it. Deliberately window.innerWidth/innerHeight, not window.screen
+    // (the display's own resolution): the latter reads smaller than the
+    // window itself on at least one real Wayland setup, which made this
+    // stop short of the window's real edge for no visible reason. Mirrors
+    // the CSS passive clamp in styles.css exactly, so dragging can't keep
+    // going past where the box would visually stop anyway. Read once per
+    // drag, not per move.
+    const chromeHeight = (barRef.current?.offsetHeight ?? 40) + 2
+    const widthMax = window.innerWidth - 32
+    const heightMax = window.innerHeight - 32 - chromeHeight
+    const maxWidth = Math.min(MINIPLAYER_MAX_WIDTH, widthMax, Math.round((heightMax * 16) / 9))
     function onMouseMove(moveEvent: MouseEvent): void {
       const start = dragStartRef.current
       if (start === null) return
@@ -104,7 +112,7 @@ export function MiniPlayerBar({
             if (event.key === 'Enter' || event.key === ' ') onMaximize()
           }}
         />
-        <div className="miniplayer-bar">
+        <div className="miniplayer-bar" ref={barRef}>
           <span className="miniplayer-title" title={video.title}>
             {video.title}
           </span>
