@@ -495,3 +495,28 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
+
+### B-137 — Thumbnail for an ended live broadcast/Premiere 404s forever
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-10-06 · **Target:** 0.15.4
+- **Area:** storage
+- **What happens:** a video that was a livestream or Premiere keeps showing no
+  thumbnail in the feed, even long after the broadcast ended — confirmed with two real
+  rows in the owner's own `chronicle.db` (a "helicóptero vs dragão" live and an
+  "Editando a parte 2..." video), both with `thumbnail_url` still pointing at
+  YouTube's `..._live.jpg` variant.
+- **Expected:** the thumbnail loads normally once the broadcast has ended.
+- **Code refs:** `src/platform/thumbnail-cache.ts` (`ThumbnailCache.get`).
+- **Root cause:** YouTube only serves the `_live` thumbnail variant (e.g.
+  `mqdefault_live.jpg`) while a broadcast is live/upcoming; once it ends, that exact
+  URL 404s on the CDN forever, even though the regular-named image is still there.
+  `refreshLiveStatus` (`core/sync-service.ts`) stops re-hydrating a video once it
+  drops out of `liveVideoIds`/`upcomingVideoIds`, so a `thumbnail_url` captured with
+  the `_live` suffix right before/as the broadcast ended was never replaced — no
+  amount of retrying the same stored URL could ever succeed.
+- **Resolved:** 2026-10-06 · **Outcome:** Fixed
+- **Resolution:** `ThumbnailCache.get` now falls back to the non-`_live` filename once
+  if the stored URL 404s, rather than caching a dead link no retry could fix. Doesn't
+  touch sync/hydration at all, so it also repairs rows the app already has stored with
+  a stale `_live` URL, with no DB migration needed. New test coverage in
+  `thumbnail-cache.test.ts` (none existed before).

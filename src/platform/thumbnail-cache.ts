@@ -42,14 +42,29 @@ export class ThumbnailCache {
     }
 
     try {
-      const response = await this.fetchFn(sourceUrl)
-      if (!response.ok) return null
-      const body = Buffer.from(await response.arrayBuffer())
+      const body = await this.fetchBody(sourceUrl)
+      if (body === null) return null
       await writeFile(file, body)
       return body
     } catch {
       return null // offline: rows render without thumbnails, layout unchanged
     }
+  }
+
+  // A "_live" thumbnail (e.g. mqdefault_live.jpg) only exists on YouTube's
+  // CDN while the broadcast is actually live or upcoming; once it ends,
+  // that exact URL 404s forever, even though the regular-named image is
+  // still there. Falls back to that name once, rather than caching a dead
+  // link no retry could ever fix.
+  private async fetchBody(sourceUrl: string): Promise<Buffer | null> {
+    const response = await this.fetchFn(sourceUrl)
+    if (response.ok) return Buffer.from(await response.arrayBuffer())
+
+    const fallbackUrl = sourceUrl.replace(/_live(\.\w+)$/, '$1')
+    if (fallbackUrl === sourceUrl) return null
+    const fallbackResponse = await this.fetchFn(fallbackUrl)
+    if (!fallbackResponse.ok) return null
+    return Buffer.from(await fallbackResponse.arrayBuffer())
   }
 
   // Oldest-first eviction until under the cap. Called at startup; cheap
