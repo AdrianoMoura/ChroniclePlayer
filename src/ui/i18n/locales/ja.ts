@@ -151,7 +151,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube は2021年に公開の低評価数を廃止しましたが、高評価数はいずれにせよ実数のままです。',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'デフォルトではオフです。これをオンにすると、推定値を取得するために各動画の id が returnyoutubedislike.com（YouTube ではない無料のサードパーティサービス）に送信されます。それ以外のあなたに関する情報は送信されません。',
+    'デフォルトではオフです。これをオンにすると、推定値を取得するために各動画の id が returnyoutubedislike.com（YouTube ではない無料のサードパーティサービス）に送信され、さらに自分の高評価・低評価も投票として送り返されるため、読み取っているのと同じデータを提供することになります。また、Googleアカウントとは無関係のランダムで匿名のIDが保存され、高評価・低評価・評価の削除を行うたびに使われます。',
   'settings.playback.showDislikeEstimateAttribution': '低評価数の推定値の提供元:',
   'settings.appearance.heading': '外観',
   'settings.appearance.theme': 'テーマ',

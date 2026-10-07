@@ -151,7 +151,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube ha rimosso il conteggio pubblico dei "non mi piace" nel 2021; il conteggio dei "mi piace" è comunque ancora reale.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'Disattivato per impostazione predefinita. Attivarlo invia l’id di ogni video a returnyoutubedislike.com (un servizio di terze parti gratuito, non YouTube) per ottenere una stima. Non viene inviata nessun’altra informazione su di te.',
+    "Disattivato per impostazione predefinita. Attivarlo invia l'id di ogni video a returnyoutubedislike.com (un servizio di terze parti gratuito, non YouTube) per ottenere una stima, e rimanda anche il tuo stesso mi piace/non mi piace come voto, così contribuisci con lo stesso dato che stai leggendo. Viene anche salvato un id casuale e pseudonimo, non collegato al tuo account Google, usato ogni volta che metti mi piace, non mi piace o rimuovi una valutazione.",
   'settings.playback.showDislikeEstimateAttribution': 'Stime dei "non mi piace" fornite da',
   'settings.appearance.heading': 'Aspetto',
   'settings.appearance.theme': 'Tema',

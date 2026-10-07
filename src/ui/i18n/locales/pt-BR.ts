@@ -149,7 +149,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'O YouTube removeu a contagem pública de não curtidas em 2021; o número de curtidas continua real de qualquer forma.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'Desligado por padrão. Ativar isso envia o id de cada vídeo para o returnyoutubedislike.com (um serviço gratuito de terceiro, não o YouTube) para buscar uma estimativa. Nenhuma outra informação sua é enviada.',
+    'Desligado por padrão. Ativar isso envia o id de cada vídeo para o returnyoutubedislike.com (um serviço gratuito de terceiro, não o YouTube) para buscar uma estimativa, e também envia sua própria curtida/não curtida de volta como um voto, então você contribui com o mesmo dado que está lendo. Também cria e guarda um id aleatório e pseudônimo, sem relação com sua conta Google, usado toda vez que você curte, não curte ou remove uma avaliação.',
   'settings.playback.showDislikeEstimateAttribution': 'Estimativas de não curtidas fornecidas por',
   'settings.appearance.heading': 'Aparência',
   'settings.appearance.theme': 'Tema',

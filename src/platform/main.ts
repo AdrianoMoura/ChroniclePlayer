@@ -379,8 +379,11 @@ async function boot(): Promise<void> {
   const quota = new QuotaCounter()
   const updateSource = new GithubReleaseSource(fetch)
   // Account-independent — not part of any account's YouTube auth stack, and
-  // its in-memory cache is intentionally process-lifetime only.
-  const rydClient = new RydClient(fetch, clock)
+  // its in-memory dislike-count cache is intentionally process-lifetime
+  // only. The pseudonymous vote-contribution user id (D-076) is persisted
+  // via the same secret store as OAuth tokens, but under its own
+  // account-independent key.
+  const rydClient = new RydClient(fetch, clock, secrets)
   // Account-independent, like rydClient above — a HEAD probe by videoId
   // needs no auth. Shared between every account's SyncService and the
   // on-demand confirmation below so there's only ever one.

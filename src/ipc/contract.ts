@@ -285,6 +285,11 @@ export interface SettingsDto {
   // free, keyless, third-party service) for every video opened, revealing
   // its videoId to a server that isn't YouTube. Off by default; the player's
   // like/dislike bar still shows the real like count either way.
+  // D-076: also governs contribution, not just reading. Turning this on
+  // both fetches RYD's dislike estimate AND mirrors every like/dislike/
+  // remove-rating action back to RYD as a vote — no separate toggle for
+  // "read but never give back," since that one-sided use is the exact
+  // free-rider problem this feature exists to avoid.
   showDislikeEstimate: boolean
 }
 
@@ -755,7 +760,9 @@ export interface ChronicleApi {
   // videos.rate (50 units, write scope). No public API exists to like a
   // *comment* — only videos. 'dislike' works the same as 'like' always
   // did — the write was never affected by YouTube hiding the public
-  // dislike *count*.
+  // dislike *count*. When SettingsDto.showDislikeEstimate is also on
+  // (D-076), also mirrors the vote to RYD, best-effort — a failed RYD
+  // contribution never affects this call's own result.
   rateVideo(videoId: string, rating: VideoRatingDto): Promise<ResultDto<void>>
   // videos.getRating (1 unit, readonly scope) — the user's own existing rating.
   getVideoRating(videoId: string): Promise<ResultDto<VideoRatingDto>>

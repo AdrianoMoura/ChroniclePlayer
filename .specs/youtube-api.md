@@ -201,3 +201,33 @@ hour, a failed one for five minutes, so a multi-day session (the product owner r
 leaves the app running for days) doesn't serve a week-old count, and a transient RYD
 outage doesn't stay "stuck" past a few minutes. See `decisions.md` D-068 for the full
 rationale and the player UI it drives.
+
+## Contributing votes to RYD — D-076 (Final)
+
+Gated by the same `SettingsDto.showDislikeEstimate` toggle as the read-only estimate
+above — there's no separate "read but never give back" mode, since that one-sided use
+is the exact free-rider problem this feature exists to avoid. Off, Chronicle's RYD
+traffic is exactly what it was before this decision existed: zero calls. On, every
+`rateVideo` write (like/dislike/remove rating) also submits that same vote to RYD,
+mirroring the real YouTube write rather than replacing or gating it — a failed RYD
+contribution never affects the YouTube write's own result.
+
+Contributing needs a real handshake, not a bare `GET`: RYD requires a persistent
+pseudonymous per-install user id (not derived from or linked to the Google account),
+minted once via a proof-of-work puzzle (`GET`/`POST /puzzle/registration` — a
+hashcash-style SHA-512 challenge, solved by brute-forcing a counter until the hash's
+leading zero bits clear a server-given difficulty), then used for the vote itself
+(`POST /interact/vote` returns another such puzzle, solved and submitted via
+`POST /interact/confirmVote` to actually cast it). This protocol isn't part of RYD's
+public Swagger docs — it was found by reading the official browser extension's own
+open-source code (`Anarios/return-youtube-dislike`, `Extensions/common/vote-client.js`)
+directly, not guessed. Unlike the read-side dislike-count cache (in-memory only, D-068),
+the pseudonymous user id IS persisted — via the same `SecretStore` OAuth tokens already
+use (D-013), under its own account-independent key — since re-registering on every app
+restart would make the same person show up as a different "voter" every session, worse
+for RYD's own anti-abuse accounting than a stable identity.
+
+See `decisions.md` D-076 for the full rationale, including why this needed weighing
+against the philosophy separately from D-068, and why an initial separate opt-in
+toggle was merged into `showDislikeEstimate` itself after the product owner flagged
+it as unfair (reading the estimate for free with contribution off by default).

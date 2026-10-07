@@ -152,7 +152,7 @@ export const dict = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube removed the public dislike count in 2021; the like count is still real either way.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    "Off by default. Turning this on sends every video's id to returnyoutubedislike.com (a free, third-party service, not YouTube) to fetch an estimate. Nothing else about you is sent.",
+    "Off by default. Turning this on sends every video's id to returnyoutubedislike.com (a free, third-party service, not YouTube) to fetch an estimate, and also mirrors your own like/dislike back to it as a vote, so you're giving back the same data you're reading. It also persists a random, pseudonymous id, not tied to your Google account, used every time you like, dislike, or remove a rating.",
   'settings.playback.showDislikeEstimateAttribution': 'Dislike estimates provided by',
   'settings.appearance.heading': 'Appearance',
   'settings.appearance.theme': 'Theme',

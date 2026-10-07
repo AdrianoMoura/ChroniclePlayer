@@ -146,6 +146,10 @@ export function registerCommentsHandlers(ctx: BootContext): void {
           }
         }
         await ctx.apiClient.rateVideo(id, rating)
+        if (ctx.getSettings().showDislikeEstimate) {
+          const value = rating === 'like' ? 1 : rating === 'dislike' ? -1 : 0
+          void ctx.rydClient.submitVote(id, value)
+        }
         return { ok: true, value: undefined }
       } catch (error) {
         if (isDomainError(error, 'auth-expired')) {

@@ -537,12 +537,37 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   earlier patches driven by a `D-NNN` (D-053 in `0.4.6`, D-063 in `0.10.2`, among
   others). See `decisions.md` D-074 and `tracker-history/v0.15.1.md`. B-108, B-101
   carried forward, untouched, now targeting **0.15.2**.
-- **0.15.2 — in progress.** Candidate scope: D-075 (below a 1200px window width, the
-  sidebar overlays the feed instead of pushing it, and starts collapsed by default), a
+- **0.15.2 — delivered, 2026-10-04.** Carried B-108, B-101 forward from 0.15.1,
+  unchanged. Driven by D-075 (below a 1200px window width, the sidebar overlays the
+  feed instead of pushing it, and starts collapsed by default — including a
+  same-session live catch, the overlay sidebar's own hamburger button sitting inside
+  the custom titlebar's drag region), a direct product-owner request not sourced from
+  `tracker-current.md`, same pattern as D-050–D-074. Checked via `npm run typecheck &&
+  npm run lint && npm test` (308/308) plus a production build. Confirmed working live
+  by the owner. Shipped as a **patch** version (a single contained UI/layout behavior
+  change, no new Settings toggle or screen — same sizing as D-053 in `0.4.6`/D-063 in
+  `0.10.2`). B-108, B-101 carried forward, untouched, now targeting **0.15.3**.
+- **0.15.3 — delivered, 2026-10-06.** Carried B-108, B-101 forward from 0.15.2,
+  unchanged. No bug-tracker batch, no new `D-NNN` scope — a direct product-owner
+  request capping the miniplayer's drag-resize height the same way `0.15.2`'s own
+  immediate predecessor had already capped its width, needing a same-session round 2
+  once the owner's live test found `window.screen` reading smaller than the window's
+  real `innerWidth`/`innerHeight` on their Wayland/niri setup; fixed by driving both
+  ceilings off `innerWidth`/`innerHeight` directly. Shipped as a **patch** version (a
+  contained bug fix, no new scope). B-108, B-101 carried forward, untouched, now
+  targeting **0.15.4**.
+- **0.15.4 — in progress.** Candidate scope: D-076 (contributing the user's own
+  like/dislike votes to Return YouTube Dislike, not just reading its estimate), a
   direct product-owner request not sourced from `tracker-current.md`, same pattern as
-  D-050–D-074. Checked via `npm run typecheck && npm run lint && npm test` (308/308)
-  plus a production build. Confirmed working live by the owner. B-108, B-101 carried
-  forward from 0.15.1, untouched.
+  D-050–D-075. Gated by the existing `showDislikeEstimate` toggle itself, not a
+  separate opt-in — an initial separate toggle was merged into it the same session
+  after the owner flagged it as unfair (reading the estimate for free while
+  contribution defaults off); `DislikeEstimateSource.submitVote()` replicates RYD's own
+  registration/proof-of-work/voting handshake, reverse-engineered from the official
+  browser extension's open-source code since RYD's API is undocumented beyond Swagger.
+  Checked via `npm run typecheck && npm run lint && npm test`. Not yet live-tested by
+  the owner. B-108, B-101 carried forward from
+  0.15.3, untouched.
 
 ## M0 — Walking skeleton
 

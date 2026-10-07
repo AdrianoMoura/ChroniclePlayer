@@ -151,7 +151,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube eliminó el contador público de "no me gusta" en 2021; el contador de "me gusta" sigue siendo real en cualquier caso.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'Desactivado de forma predeterminada. Activar esto envía el id de cada vídeo a returnyoutubedislike.com (un servicio gratuito de terceros, no de YouTube) para obtener una estimación. No se envía ninguna otra información sobre ti.',
+    'Desactivado de forma predeterminada. Activar esto envía el id de cada vídeo a returnyoutubedislike.com (un servicio gratuito de terceros, no de YouTube) para obtener una estimación, y también envía tu propio me gusta o no me gusta de vuelta como voto, para que contribuyas con el mismo dato que estás leyendo. También guarda un id aleatorio y seudónimo, sin relación con tu cuenta de Google, usado cada vez que das me gusta, no me gusta o quitas una valoración.',
   'settings.playback.showDislikeEstimateAttribution': 'Estimaciones de "no me gusta" proporcionadas por',
   'settings.appearance.heading': 'Apariencia',
   'settings.appearance.theme': 'Tema',

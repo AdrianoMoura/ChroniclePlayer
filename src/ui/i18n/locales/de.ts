@@ -151,7 +151,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube hat die öffentliche „Gefällt mir nicht“-Zählung 2021 entfernt; die „Gefällt mir“-Zählung ist weiterhin real.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'Standardmäßig deaktiviert. Das Aktivieren sendet die ID jedes Videos an returnyoutubedislike.com (einen kostenlosen Drittanbieterdienst, nicht YouTube), um eine Schätzung abzurufen. Es werden keine weiteren Informationen über dich gesendet.',
+    'Standardmäßig deaktiviert. Das Aktivieren sendet die ID jedes Videos an returnyoutubedislike.com (einen kostenlosen Drittanbieterdienst, nicht YouTube), um eine Schätzung abzurufen, und sendet außerdem dein eigenes „Gefällt mir“/„Gefällt mir nicht“ als Bewertung zurück, sodass du dieselben Daten beiträgst, die du liest. Außerdem wird eine zufällige, pseudonyme ID gespeichert, ohne Verbindung zu deinem Google-Konto, verwendet bei jeder Bewertung, Abwertung oder Entfernung einer Bewertung.',
   'settings.playback.showDislikeEstimateAttribution': 'Schätzungen zu „Gefällt mir nicht“ bereitgestellt von',
   'settings.appearance.heading': 'Erscheinungsbild',
   'settings.appearance.theme': 'Design',

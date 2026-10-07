@@ -71,7 +71,12 @@ export interface AppSettings {
   // YouTube": on, the player calls returnyoutubedislike.com (a free, keyless
   // third-party service) for every video opened, revealing its videoId to a
   // server that isn't YouTube. The real like count is shown either way,
-  // since it still comes from YouTube's own API.
+  // since it still comes from YouTube's own API. Also governs contribution
+  // (D-076): on, every like/dislike/remove-rating action also mirrors that
+  // vote back to RYD's own pool, best-effort, never blocking or failing the
+  // real YouTube write — no separate toggle for reading RYD's estimate
+  // without ever giving a vote back, since that's the exact free-rider
+  // problem this feature exists to avoid.
   showDislikeEstimate: boolean
 }
 

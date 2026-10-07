@@ -267,6 +267,15 @@ export interface DislikeEstimateSource {
   // 404, malformed body) — never throws, since the caller always has a
   // fallback (the official like count alone, still shown).
   fetchDislikeCount(videoId: string): Promise<number | null>
+  // D-076: contributes the user's own like/dislike/neutral rating to RYD's
+  // pool, mirroring it to the real YouTube write (rateVideo). Gated by the
+  // same SettingsDto.showDislikeEstimate toggle as fetchDislikeCount, by
+  // design — reading RYD's estimate without ever giving a vote back is the
+  // free-rider problem this feature exists to avoid, so there's no
+  // separate "read-only" mode. Best-effort: never throws, resolves
+  // regardless of outcome, since a failed RYD contribution must never
+  // affect the real YouTube rating.
+  submitVote(videoId: string, value: -1 | 0 | 1): Promise<void>
 }
 
 // An unauthenticated check against a public release feed — no identifiers

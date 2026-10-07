@@ -151,7 +151,7 @@ export const dict: Partial<Dict> = {
   'settings.playback.showDislikeEstimateNote':
     'YouTube a supprimé le compteur public de « je n’aime pas » en 2021 ; le compteur de « j’aime » reste réel dans tous les cas.',
   'settings.playback.showDislikeEstimateNoteDetail':
-    'Désactivé par défaut. L’activer envoie l’identifiant de chaque vidéo à returnyoutubedislike.com (un service tiers gratuit, pas YouTube) pour obtenir une estimation. Aucune autre information vous concernant n’est envoyée.',
+    'Désactivé par défaut. L’activer envoie l’identifiant de chaque vidéo à returnyoutubedislike.com (un service tiers gratuit, pas YouTube) pour obtenir une estimation, et renvoie aussi votre propre « j’aime »/« je n’aime pas » comme vote, pour que vous contribuiez les mêmes données que vous lisez. Cela enregistre aussi un identifiant aléatoire et pseudonyme, sans lien avec votre compte Google, utilisé chaque fois que vous aimez, n’aimez pas ou retirez une évaluation.',
   'settings.playback.showDislikeEstimateAttribution': 'Estimations des « je n’aime pas » fournies par',
   'settings.appearance.heading': 'Apparence',
   'settings.appearance.theme': 'Thème',
