@@ -556,7 +556,7 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   ceilings off `innerWidth`/`innerHeight` directly. Shipped as a **patch** version (a
   contained bug fix, no new scope). B-108, B-101 carried forward, untouched, now
   targeting **0.15.4**.
-- **0.15.4 — in progress.** Candidate scope: D-076 (contributing the user's own
+- **0.16.0 — delivered, 2026-10-06.** Driven by D-076 (contributing the user's own
   like/dislike votes to Return YouTube Dislike, not just reading its estimate), a
   direct product-owner request not sourced from `tracker-current.md`, same pattern as
   D-050–D-075. Gated by the existing `showDislikeEstimate` toggle itself, not a
@@ -566,8 +566,20 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   registration/proof-of-work/voting handshake, reverse-engineered from the official
   browser extension's open-source code since RYD's API is undocumented beyond Swagger.
   Checked via `npm run typecheck && npm run lint && npm test`. Not yet live-tested by
-  the owner. B-108, B-101 carried forward from
-  0.15.3, untouched.
+  the owner (RYD's own anti-abuse mechanisms are deliberately undocumented, so a real
+  registration/vote round-trip against the live service is unverified). Also closed:
+  [[B-137]] (Fixed — a thumbnail for an ended live/Premiere 404s forever, since
+  YouTube's `_live` variant stops resolving once the broadcast ends; fixed with a
+  one-time `hqdefault` fallback) and [[B-138]] (Fixed — a freshly-uploaded video's
+  thumbnail was blocked outright because YouTube also serves thumbnails from numbered
+  CDN hosts, `i1`–`i4.ytimg.com`, which the allowlist only accepted as the bare
+  `i.ytimg.com`; broadened the same session once a second real example surfaced).
+  Originally tracked toward a `0.15.4` patch, but D-076 amounted to real new scope on
+  its own — shipped as a **minor** version instead, per the owner's own explicit
+  direction, skipping `0.15.4` entirely (same pattern as `0.11.0` skipping `0.10.3`,
+  `0.12.0` skipping `0.11.1`, `0.13.0` skipping `0.12.1`, and `0.15.0` skipping
+  `0.14.2`). See `decisions.md` D-076 and `tracker-history/v0.16.0.md`. B-108, B-101
+  carried forward, untouched, now targeting **0.16.1**.
 
 ## M0 — Walking skeleton
 
