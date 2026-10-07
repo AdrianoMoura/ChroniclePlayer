@@ -515,8 +515,33 @@ Resolved entries add:
   the `_live` suffix right before/as the broadcast ended was never replaced — no
   amount of retrying the same stored URL could ever succeed.
 - **Resolved:** 2026-10-06 · **Outcome:** Fixed
-- **Resolution:** `ThumbnailCache.get` now falls back to the non-`_live` filename once
-  if the stored URL 404s, rather than caching a dead link no retry could fix. Doesn't
-  touch sync/hydration at all, so it also repairs rows the app already has stored with
-  a stale `_live` URL, with no DB migration needed. New test coverage in
-  `thumbnail-cache.test.ts` (none existed before).
+- **Resolution:** `ThumbnailCache.get` falls back once to `hqdefault` (the one size
+  YouTube reliably generates for any video) if the stored URL 404s, rather than
+  caching a dead link no retry could fix. Doesn't touch sync/hydration at all, so it
+  also repairs rows the app already has stored with a stale `_live` URL, with no DB
+  migration needed. Broadened same-day into a same-shaped fallback covering
+  [[B-138]] below once live-testing surfaced a second, unrelated cause behind the
+  same symptom. New test coverage in `thumbnail-cache.test.ts` (none existed before).
+
+### B-138 — Thumbnail blocked for a numbered ytimg CDN host (i1-i4.ytimg.com)
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-10-06 · **Target:** 0.15.4
+- **Area:** storage
+- **What happens:** a freshly-uploaded video's thumbnail shows the browser's broken-
+  image icon in the feed — confirmed live with two real rows in the owner's own
+  `chronicle.db`: a Kim Kataguiri video and a Dan channel video
+  ("HELICÓPTERO VS ENDER DRAGON! #minecraft"), both uploaded hours before being
+  reported.
+- **Expected:** the thumbnail loads normally.
+- **Code refs:** `src/platform/thumbnail-cache.ts` (`ALLOWED_HOSTS`/`isAllowedHost`).
+- **Root cause:** YouTube serves video thumbnails from a numbered pool of CDN hosts
+  (`i1.ytimg.com`–`i4.ytimg.com`), not only the bare `i.ytimg.com` — confirmed by
+  fetching the owner's own stored URLs directly (`i3`/`i4` both returned real images).
+  `ThumbnailCache`'s host allowlist only had the bare hostname, so a thumbnail served
+  from a numbered host was rejected outright, before any network request was ever
+  attempted.
+- **Resolved:** 2026-10-06 · **Outcome:** Fixed
+- **Resolution:** the allowlist check now also accepts `i\d*.ytimg.com` via pattern
+  match, alongside the existing exact-match channel-avatar hosts. Verified against
+  the owner's own real, currently-broken URLs (not just mocked tests) before
+  considering this resolved. New test coverage in `thumbnail-cache.test.ts`.
