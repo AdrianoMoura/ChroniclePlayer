@@ -351,11 +351,22 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   gates reading its estimate) — full narrative is in `decisions.md`, not this file.
   Shipped as a **minor** version, per the owner's own explicit direction (D-076 is real
   new scope, not a bug-fix batch). Shipped 2026-10-06.
+- [`tracker-history/v0.16.1.md`](tracker-history/v0.16.1.md) — one entry, Fixed:
+  [[B-139]] (the live chat toggle stayed hidden on a video still flagged `upcoming`
+  even after the broadcast had actually gone live, since `getVideo`'s re-hydrate
+  discarded the fresh live-status fields instead of persisting them). [[B-108]] and
+  [[B-101]] didn't make it in and carried their **Target** forward again. Shipped
+  alongside D-077 (a dedicated 60-second background check that re-hydrates whatever's
+  currently `upcoming`/`live` and pushes corrections into an already-open player and
+  the feed, no reopen or 30-min sync needed) — full narrative in `decisions.md`, not a
+  dedicated tracker-history note of its own. Shipped as a **patch** version, per the
+  owner's own explicit direction, even though D-077 is real new scope (same pattern as
+  D-053 in `0.4.6`, D-063 in `0.10.2`, D-074 in `0.15.1`). Shipped 2026-10-14.
 
-**Current target: 0.16.1.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.16.2.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, or 0.16.0
-either (see above — every one of those shipped driven by a direct product-owner
+0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, or
+0.16.1 either (see above — every one of those shipped driven by a direct product-owner
 decision or a different bug batch instead).
 
 ## Entry template
@@ -384,8 +395,8 @@ Resolved entries add:
 ## Open
 
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.16.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, and 0.16.0 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.16.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, and 0.16.1 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -410,8 +421,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.16.1
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, and 0.16.0 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.16.2
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, and 0.16.1 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
@@ -507,27 +518,3 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
-
-### B-139 — Chat panel stays hidden on an "Upcoming" video that has actually gone live
-- **Type:** bug · **Severity:** minor
-- **Status:** Fixed · **Reported:** 2026-10-14 · **Target:** 0.16.1
-- **Area:** player
-- **What happens:** opening (or reopening) a video Chronicle still has flagged `upcoming`
-  shows no live chat toggle (D-056 gates it on `liveContent === 'live'`) even once the
-  broadcast has actually started on YouTube's own site — confirmed by the owner, chat
-  was already active there. Reopening the video, or forcing a sync, corrected it —
-  pointing at stale cached data rather than a design gap.
-- **Expected:** opening/reopening an upcoming video that has actually started shows the
-  live chat toggle immediately, without needing a manual sync.
-- **Code refs:** `src/platform/ipc/video-state-handlers.ts` (`getVideo`'s local-video
-  branch), `src/ui/PlayerDetails.tsx` (the chat toggle's gate).
-- **Resolved:** 2026-10-14 · **Outcome:** Fixed
-- **Resolution:** `getVideo`'s local-video branch already re-hydrates the video on every
-  open (B-092's existing full-description fetch) but discarded the fresh
-  `liveContent`/`liveStartedAt`/`liveEndedAt`, returning the stale DB row instead. Now
-  uses the fresh hydrate's values and persists them via `syncRepository.applyHydration`
-  — the same call the external-video branch already made for the identical reason, so
-  the feed's own badge for the video stays in sync too, not just the player. Landed
-  alongside [[D-077]], which covers the harder case this alone doesn't: a player left
-  open through the whole transition, or a feed row just sitting on screen, never
-  reopened.

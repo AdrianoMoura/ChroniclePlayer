@@ -580,6 +580,23 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `0.12.0` skipping `0.11.1`, `0.13.0` skipping `0.12.1`, and `0.15.0` skipping
   `0.14.2`). See `decisions.md` D-076 and `tracker-history/v0.16.0.md`. B-108, B-101
   carried forward, untouched, now targeting **0.16.1**.
+- **0.16.1 — delivered, 2026-10-14.** Driven by D-077 (a dedicated 60-second
+  background check that re-hydrates whatever's currently `upcoming`/`live`, pushing
+  corrections into an already-open player and the feed via a new `liveStatus:updated`
+  event, so neither needs the 30-minute sync or a reopen to catch up), raised by the
+  owner noticing a scheduled Premiere/livestream that had already gone live on
+  YouTube's own site still read "Upcoming" in Chronicle until a manual sync. Also
+  closed: [[B-139]] (Fixed — the live chat toggle stayed hidden on a video still
+  flagged `upcoming` even after the broadcast had actually started, since `getVideo`'s
+  local-video branch already re-hydrated the video on every open but discarded the
+  fresh live-status fields instead of persisting them — fixed using the same
+  `syncRepository.applyHydration` call the external-video branch already made). Checked
+  via `npm run typecheck && npm run lint && npm test` (324/324). Not yet live-tested by
+  the owner. Shipped as a **patch** version, per the owner's own explicit direction,
+  even though D-077 is real new scope (same pattern as D-053 in `0.4.6`, D-063 in
+  `0.10.2`, D-074 in `0.15.1`). See `decisions.md` D-077 and
+  `tracker-history/v0.16.1.md`. B-108, B-101 carried forward, untouched, now targeting
+  **0.16.2**.
 
 ## M0 — Walking skeleton
 
