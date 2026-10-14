@@ -3,6 +3,7 @@ import { isDomainError } from './errors'
 import type {
   ChannelSyncInfo,
   Clock,
+  HydratedVideo,
   QuotaCounter,
   ShortsProber,
   SubscriptionSource,
@@ -463,33 +464,48 @@ export class SyncService {
   // leave a video stuck for one more cycle, retried next time.
   private async refreshLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
     if (ctx.quotaHit) return
-    const ids = [
-      ...this.deps.repo.upcomingVideoIds(channelId),
-      ...this.deps.repo.liveVideoIds(channelId)
-    ]
-    if (ids.length === 0) return
     try {
-      for (let i = 0; i < ids.length; i += HYDRATE_BATCH) {
-        const batch = ids.slice(i, i + HYDRATE_BATCH)
-        const hydrated = await this.deps.videoSource.hydrate(batch)
-        this.deps.repo.applyHydration(hydrated, this.deps.clock.now().toISOString())
-        // videos.list deterministically omits an id it can't return (deleted,
-        // privated, or otherwise gone — not a flaky single-poll RSS 404,
-        // D-048) rather than erroring the batch. Left alone, that row would
-        // stay stuck at 'upcoming'/'live' forever — B-136, surfaced by
-        // D-074 promoting a stuck 'live' row straight to the top of the feed
-        // regardless of age. clearLiveStatus reverts it to 'none' so it
-        // falls back to ordering by its own publishedAt like any other
-        // video, instead of fabricating a liveEndedAt no one actually knows.
-        const returned = new Set(hydrated.map((v) => v.videoId))
-        const missing = batch.filter((id) => !returned.has(id))
-        if (missing.length > 0) this.deps.repo.clearLiveStatus(missing)
-      }
+      await this.refreshLiveStatusOnly(channelId)
     } catch (error) {
       if (isDomainError(error, 'quota-exceeded')) ctx.quotaHit = true
       else if (isDomainError(error, 'auth-expired')) throw error
       // Other failures: leave these stuck at `upcoming`/`live`, retried next cycle.
     }
+  }
+
+  // Standalone counterpart to the above, with no subscription re-list or RSS
+  // discovery attached — just the cheap upcoming/live re-hydrate, callable on
+  // its own. main.ts runs this on a much shorter dedicated interval than the
+  // full refresh() cycle, since an 'upcoming' video that's actually gone live
+  // (or an ended broadcast) is otherwise stuck until the next full sync —
+  // visible as a stale feed badge or a player missing its chat panel (D-056
+  // gates it on liveContent === 'live'). Returns whatever was actually
+  // re-hydrated so the caller can push just those changes to the UI.
+  async refreshLiveStatusOnly(channelId?: string): Promise<HydratedVideo[]> {
+    const ids = [
+      ...this.deps.repo.upcomingVideoIds(channelId),
+      ...this.deps.repo.liveVideoIds(channelId)
+    ]
+    if (ids.length === 0) return []
+    const updated: HydratedVideo[] = []
+    for (let i = 0; i < ids.length; i += HYDRATE_BATCH) {
+      const batch = ids.slice(i, i + HYDRATE_BATCH)
+      const hydrated = await this.deps.videoSource.hydrate(batch)
+      this.deps.repo.applyHydration(hydrated, this.deps.clock.now().toISOString())
+      updated.push(...hydrated)
+      // videos.list deterministically omits an id it can't return (deleted,
+      // privated, or otherwise gone — not a flaky single-poll RSS 404,
+      // D-048) rather than erroring the batch. Left alone, that row would
+      // stay stuck at 'upcoming'/'live' forever — B-136, surfaced by
+      // D-074 promoting a stuck 'live' row straight to the top of the feed
+      // regardless of age. clearLiveStatus reverts it to 'none' so it
+      // falls back to ordering by its own publishedAt like any other
+      // video, instead of fabricating a liveEndedAt no one actually knows.
+      const returned = new Set(hydrated.map((v) => v.videoId))
+      const missing = batch.filter((id) => !returned.has(id))
+      if (missing.length > 0) this.deps.repo.clearLiveStatus(missing)
+    }
+    return updated
   }
 
   // Shorts confirmation pipeline: candidates are confirmed via HEAD probe, cached forever.

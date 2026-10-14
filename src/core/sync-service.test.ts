@@ -719,6 +719,43 @@ describe('SyncService.refresh', () => {
   })
 })
 
+describe('SyncService.refreshLiveStatusOnly', () => {
+  it('returns [] and makes no call at all when nothing is upcoming/live', async () => {
+    const repo = new FakeRepo()
+    const source = fakeVideoSource()
+    const updated = await service(repo, source).refreshLiveStatusOnly()
+    expect(updated).toEqual([])
+    expect(source.hydrateCalls).toEqual([])
+  })
+
+  it('re-hydrates and persists upcoming/live videos without a full refresh (subscriptions/RSS untouched)', async () => {
+    const repo = new FakeRepo()
+    repo.upcoming = ['premiere-1']
+    repo.live = ['stream-1']
+    const source = fakeVideoSource()
+    const updated = await service(repo, source).refreshLiveStatusOnly()
+    expect(updated.map((v) => v.videoId).sort()).toEqual(['premiere-1', 'stream-1'])
+    expect(repo.hydrated).toEqual(expect.arrayContaining(['premiere-1', 'stream-1']))
+    expect(repo.appliedSubscriptions).toEqual([]) // no subscription re-list
+  })
+
+  it('clears live status for an id videos.list no longer returns (same B-136 behavior standalone)', async () => {
+    const repo = new FakeRepo()
+    repo.live = ['gone-stream']
+    const source = fakeVideoSource({ missingIds: ['gone-stream'] })
+    const updated = await service(repo, source).refreshLiveStatusOnly()
+    expect(updated).toEqual([])
+    expect(repo.cleared).toEqual(['gone-stream'])
+  })
+
+  it('propagates a hydrate failure (e.g. quota-exceeded) to the caller, unlike the wrapped refresh() path', async () => {
+    const repo = new FakeRepo()
+    repo.upcoming = ['premiere-1']
+    const source = fakeVideoSource({ hydrateError: () => { throw quotaExceeded() } })
+    await expect(service(repo, source).refreshLiveStatusOnly()).rejects.toThrow()
+  })
+})
+
 describe('SyncService.backfillArchive (B-002)', () => {
   it('pages the uploads playlist, hydrates new videos, and reports exhaustion', async () => {
     const repo = new FakeRepo()

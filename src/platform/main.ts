@@ -21,7 +21,7 @@ import { RydClient } from '../adapters/ryd/ryd-client'
 import { FeedService } from '../core/feed-service'
 import { startOfToday } from '../core/feed'
 import { isDomainError } from '../core/errors'
-import { QuotaCounter, type Clock } from '../core/ports'
+import { QuotaCounter, type Clock, type HydratedVideo } from '../core/ports'
 import { isNewerVersion } from '../core/version'
 import type { SyncReport, SyncTrigger } from '../core/sync-service'
 import type { AccountDto, AuthStatusDto, ChronicleEventDto, ResultDto, StorageInfoDto, SyncReportDto, WizardStateDto } from '../ipc/contract'
@@ -299,6 +299,7 @@ let closeRendererServer: (() => void) | null = null
 // times boot() has run.
 let timer: ReturnType<typeof setInterval> | null = null
 let updateTimer: ReturnType<typeof setInterval> | null = null
+let liveStatusTimer: ReturnType<typeof setInterval> | null = null
 // Tray-resident mode. mainWindow is tracked so the tray's "Open" item
 // and a notification click can re-show it instead of only spawning a fresh
 // one; isQuitting distinguishes a real quit (let the window close) from the
@@ -739,6 +740,45 @@ async function boot(): Promise<void> {
   }
   applyRefreshTimer()
 
+  // Dedicated, much shorter interval than the main refresh timer above —
+  // 'upcoming'/'live' videos go stale within minutes (a premiere actually
+  // starting), unlike an ordinary upload, where the 30-min default the
+  // rationale behind D-016 ("shouldn't feel live") still applies. Scoped to
+  // just that tiny subset via SyncService.refreshLiveStatusOnly, so this
+  // stays cheap even on its own fast cycle (youtube-api.md). Gated the same
+  // way as the main refresh timer — off entirely in manual-only mode.
+  const LIVE_STATUS_INTERVAL_MS = 60_000
+  async function checkLiveStatus(): Promise<void> {
+    const updated: HydratedVideo[] = []
+    for (const stack of accountStacks.values()) {
+      if (!stack.authFlow.hasRefreshToken()) continue
+      try {
+        updated.push(...(await stack.syncService.refreshLiveStatusOnly()))
+      } catch {
+        // Quota/auth/network failures: skip silently, retried next tick —
+        // same posture as a single failed channel in the main refresh.
+      }
+    }
+    if (updated.length === 0) return
+    broadcast({
+      type: 'liveStatus:updated',
+      videos: updated.map((video) => ({
+        videoId: video.videoId,
+        liveContent: video.liveContent,
+        liveStartedAt: video.liveStartedAt,
+        liveEndedAt: video.liveEndedAt
+      }))
+    })
+  }
+  function applyLiveStatusTimer(): void {
+    if (liveStatusTimer !== null) clearInterval(liveStatusTimer)
+    liveStatusTimer = null
+    if (settings.refreshMinutes > 0) {
+      liveStatusTimer = setInterval(() => void checkLiveStatus(), LIVE_STATUS_INTERVAL_MS)
+    }
+  }
+  applyLiveStatusTimer()
+
   // Notice-only background check against GitHub's public Releases API — a
   // startup check plus a slow (24h) interval.
   const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000
@@ -873,6 +913,7 @@ async function boot(): Promise<void> {
     settings = normalizeSettings(raw)
     saveSettings(settingsFile, settings)
     applyRefreshTimer()
+    applyLiveStatusTimer()
     applyUpdateCheckTimer()
     applyAutoStart()
     applyBackgroundMode()
@@ -989,6 +1030,10 @@ async function boot(): Promise<void> {
       clearInterval(updateTimer)
       updateTimer = null
     }
+    if (liveStatusTimer !== null) {
+      clearInterval(liveStatusTimer)
+      liveStatusTimer = null
+    }
     // The tray's click callbacks close over this boot() generation's
     // runRefresh/settings — destroyed here and freshly recreated by the new
     // generation's applyBackgroundMode() rather than left pointing at
@@ -1081,6 +1126,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   if (timer !== null) clearInterval(timer)
   if (updateTimer !== null) clearInterval(updateTimer)
+  if (liveStatusTimer !== null) clearInterval(liveStatusTimer)
   destroyTray()
   closeRendererServer?.()
   db?.close()

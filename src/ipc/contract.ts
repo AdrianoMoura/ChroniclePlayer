@@ -432,6 +432,21 @@ export type ChronicleEventDto =
   // just-close split above, but unconditional (no `auto` flag — the chat
   // popup is never auto-opened, so there's nothing to distinguish).
   | { type: 'chat:extractWindowClosed'; videoId: string }
+  // A dedicated, much-shorter-interval check (main.ts) re-hydrates whatever
+  // is currently 'upcoming'/'live' — same cheap call SyncService.refresh()
+  // itself already makes every cycle (youtube-api.md), just more often,
+  // since those statuses go stale fast while an ordinary upload doesn't.
+  // Only fires when something actually changed. Lets an open player and the
+  // feed badge both self-correct (e.g. a scheduled premiere actually going
+  // live) without the user needing to reopen the video or force a sync.
+  | { type: 'liveStatus:updated'; videos: LiveStatusUpdateDto[] }
+
+export interface LiveStatusUpdateDto {
+  videoId: string
+  liveContent: 'none' | 'live' | 'upcoming'
+  liveStartedAt: string | null
+  liveEndedAt: string | null
+}
 
 export const IpcChannel = {
   getFeed: 'feed:get',

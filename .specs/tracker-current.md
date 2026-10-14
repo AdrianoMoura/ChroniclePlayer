@@ -507,3 +507,27 @@ Resolved entries add:
   from round 2's approach.
 
 ## Resolved
+
+### B-139 — Chat panel stays hidden on an "Upcoming" video that has actually gone live
+- **Type:** bug · **Severity:** minor
+- **Status:** Fixed · **Reported:** 2026-10-14 · **Target:** 0.16.1
+- **Area:** player
+- **What happens:** opening (or reopening) a video Chronicle still has flagged `upcoming`
+  shows no live chat toggle (D-056 gates it on `liveContent === 'live'`) even once the
+  broadcast has actually started on YouTube's own site — confirmed by the owner, chat
+  was already active there. Reopening the video, or forcing a sync, corrected it —
+  pointing at stale cached data rather than a design gap.
+- **Expected:** opening/reopening an upcoming video that has actually started shows the
+  live chat toggle immediately, without needing a manual sync.
+- **Code refs:** `src/platform/ipc/video-state-handlers.ts` (`getVideo`'s local-video
+  branch), `src/ui/PlayerDetails.tsx` (the chat toggle's gate).
+- **Resolved:** 2026-10-14 · **Outcome:** Fixed
+- **Resolution:** `getVideo`'s local-video branch already re-hydrates the video on every
+  open (B-092's existing full-description fetch) but discarded the fresh
+  `liveContent`/`liveStartedAt`/`liveEndedAt`, returning the stale DB row instead. Now
+  uses the fresh hydrate's values and persists them via `syncRepository.applyHydration`
+  — the same call the external-video branch already made for the identical reason, so
+  the feed's own badge for the video stays in sync too, not just the player. Landed
+  alongside [[D-077]], which covers the harder case this alone doesn't: a player left
+  open through the whole transition, or a feed row just sitting on screen, never
+  reopened.

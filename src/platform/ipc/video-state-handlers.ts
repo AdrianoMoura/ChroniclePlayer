@@ -66,14 +66,27 @@ export function registerVideoStateHandlers(ctx: BootContext): void {
         // persisted (like description, kept fresh per open), null on
         // the same failure path that leaves description at its stored copy.
         let likeCount: number | null = null
+        // liveContent/liveStartedAt/liveEndedAt default to the stored (possibly
+        // stale — see sync-service.ts's refreshLiveStatus) values, and are
+        // overwritten below only on a successful hydrate.
+        let liveContent = entry.video.liveContent
+        let liveStartedAt = entry.video.liveStartedAt
+        let liveEndedAt = entry.video.liveEndedAt
         try {
           const [fresh] = await ctx.apiClient.hydrate([id])
           if (fresh !== undefined) {
             description = fresh.description
             likeCount = fresh.likeCount
+            liveContent = fresh.liveContent
+            liveStartedAt = fresh.liveStartedAt
+            liveEndedAt = fresh.liveEndedAt
+            // Persisted too, not just returned to this caller — otherwise the
+            // feed's own badge for this video stays on the stale value until
+            // the next sync cycle, disagreeing with what the player just showed.
+            ctx.syncRepository.applyHydration([fresh], ctx.clock.now().toISOString())
           }
         } catch {
-          // Keep the stored (possibly truncated) description; likeCount stays null.
+          // Keep the stored (possibly truncated/stale) description/live status; likeCount stays null.
         }
         return {
           ok: true,
@@ -86,9 +99,9 @@ export function registerVideoStateHandlers(ctx: BootContext): void {
             durationSeconds: entry.video.durationSeconds,
             thumbnailUrl: entry.video.thumbnailUrl,
             description,
-            liveContent: entry.video.liveContent,
-            liveStartedAt: entry.video.liveStartedAt,
-            liveEndedAt: entry.video.liveEndedAt,
+            liveContent,
+            liveStartedAt,
+            liveEndedAt,
             state: toStateDto(entry.state),
             isSubscribed: ctx.feedRepository.isSubscribed(entry.video.channelId),
             likeCount

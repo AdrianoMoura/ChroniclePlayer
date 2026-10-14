@@ -10,6 +10,7 @@ import type {
   FeedVideoDto,
   FeedViewDto,
   HistoryCursorDto,
+  LiveStatusUpdateDto,
   PlayerVideoDto,
   PlaylistDto,
   ReadStatusDto,
@@ -1060,6 +1061,41 @@ export function App() {
     [syncMeta, loadChannels]
   )
 
+  // Pushed by the backend's own dedicated upcoming/live re-check (main.ts,
+  // much shorter interval than the full sync timer — see liveStatus:updated).
+  // Only touches the same four video lists `patch()` above does that actually
+  // carry liveContent (search results/channel preview don't) — an open
+  // player picks up the chat toggle (D-056 gates it on liveContent === 'live')
+  // and the feed badge corrects itself, neither needing a reopen or a
+  // manually forced sync.
+  const patchLiveStatus = useCallback((updates: LiveStatusUpdateDto[]) => {
+    const byId = new Map(updates.map((update) => [update.videoId, update]))
+    setVideos((current) =>
+      current.map((video) => {
+        const update = byId.get(video.videoId)
+        return update ? { ...video, ...update } : video
+      })
+    )
+    setPlaylistVideos((current) =>
+      current.map((video) => {
+        const update = byId.get(video.videoId)
+        return update ? { ...video, ...update } : video
+      })
+    )
+    setHistoryVideos((current) =>
+      current.map((video) => {
+        const update = byId.get(video.videoId)
+        return update ? { ...video, ...update } : video
+      })
+    )
+    setPlayerStack((current) =>
+      current.map((video) => {
+        const update = byId.get(video.videoId)
+        return update ? { ...video, ...update } : video
+      })
+    )
+  }, [])
+
   // Opening the player marks the video read immediately (playback.md).
   const openVideo = useCallback(
     (videoId: string, mode: 'push' | 'replace' = 'push', startMini = false) => {
@@ -1602,9 +1638,12 @@ export function App() {
               : 'closed'
           })
           break
+        case 'liveStatus:updated':
+          patchLiveStatus(event.videos)
+          break
       }
     })
-  }, [loadView, loadChannels, connect, syncMeta, openVideo, handleClosedToTray])
+  }, [loadView, loadChannels, connect, syncMeta, openVideo, handleClosedToTray, patchLiveStatus])
 
   const loadMore = useCallback(() => {
     if (loadingRef.current) return
