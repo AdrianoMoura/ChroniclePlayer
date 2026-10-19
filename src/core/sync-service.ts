@@ -457,11 +457,12 @@ export class SyncService {
     return collected.slice(0, GAP_BACKFILL_MAX)
   }
 
-  // liveContent is captured once at hydration time and never re-checked
-  // otherwise, so `upcoming`/`live` videos would get stuck forever —
-  // re-hydrated here every cycle instead, at no extra quota cost
-  // (videos.list is 1 unit per call regardless of id count). Failures just
-  // leave a video stuck for one more cycle, retried next time.
+  // liveContent (and, for a bit longer, duration_seconds) is captured once
+  // at hydration time and never re-checked otherwise, so `upcoming`/`live`
+  // videos — and a just-ended one still stuck at 0 duration — would get
+  // stuck forever. Re-hydrated here every cycle instead, at no extra quota
+  // cost (videos.list is 1 unit per call regardless of id count). Failures
+  // just leave a video stuck for one more cycle, retried next time.
   private async refreshLiveStatus(channelId: string | undefined, ctx: RefreshContext): Promise<void> {
     if (ctx.quotaHit) return
     try {
@@ -484,7 +485,11 @@ export class SyncService {
   async refreshLiveStatusOnly(channelId?: string): Promise<HydratedVideo[]> {
     const ids = [
       ...this.deps.repo.upcomingVideoIds(channelId),
-      ...this.deps.repo.liveVideoIds(channelId)
+      ...this.deps.repo.liveVideoIds(channelId),
+      // An ended broadcast still stuck at duration_seconds = 0 (B-140) rides
+      // along in the same cheap re-hydrate — it's the only remaining path
+      // that can ever correct it, since it's no longer 'upcoming'/'live'.
+      ...this.deps.repo.endedZeroDurationVideoIds(channelId)
     ]
     if (ids.length === 0) return []
     const updated: HydratedVideo[] = []
@@ -501,6 +506,8 @@ export class SyncService {
       // regardless of age. clearLiveStatus reverts it to 'none' so it
       // falls back to ordering by its own publishedAt like any other
       // video, instead of fabricating a liveEndedAt no one actually knows.
+      // A missing ended-zero-duration id is already 'none' — a no-op here,
+      // just stops it from being retried forever if it's gone from the API.
       const returned = new Set(hydrated.map((v) => v.videoId))
       const missing = batch.filter((id) => !returned.has(id))
       if (missing.length > 0) this.deps.repo.clearLiveStatus(missing)

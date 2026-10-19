@@ -236,6 +236,36 @@ describe('discovery and hydration', () => {
     expect(ended?.durationSeconds).toBe(5400)
   })
 
+  it('duration_seconds is sticky-positive: a later 0 never clobbers an already-known real duration (B-140)', () => {
+    sync.applyHydration([{ ...hydratedVideo('stream-3', 5400), liveContent: 'none' }], NOW)
+    // YouTube briefly reporting 0 again for the same id (shouldn't normally
+    // happen once a real duration is known, but must not regress it).
+    sync.applyHydration([{ ...hydratedVideo('stream-3', 0), liveContent: 'none' }], NOW)
+    const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-3')?.video
+    expect(video?.durationSeconds).toBe(5400)
+  })
+
+  it('endedZeroDurationVideoIds finds a just-ended broadcast still stuck at 0, and clears once the real duration lands (B-140)', () => {
+    sync.applyHydration([{ ...hydratedVideo('stream-4', 0), liveContent: 'live' }], NOW)
+    expect(sync.endedZeroDurationVideoIds()).toEqual([])
+    // Broadcast ends, but YouTube's own duration recalculation lags behind —
+    // still reports 0 in the very same cycle that flips liveContent to 'none'.
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-4', 0), liveContent: 'none', liveEndedAt: '2026-07-11T13:30:00Z' }],
+      NOW
+    )
+    expect(sync.endedZeroDurationVideoIds()).toEqual(['stream-4'])
+    // A later re-hydrate (e.g. the next refreshLiveStatusOnly cycle) finally
+    // reports the real duration — it should drop out of the set for good.
+    sync.applyHydration(
+      [{ ...hydratedVideo('stream-4', 5400), liveContent: 'none', liveEndedAt: '2026-07-11T13:30:00Z' }],
+      NOW
+    )
+    expect(sync.endedZeroDurationVideoIds()).toEqual([])
+    const video = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-4')?.video
+    expect(video?.durationSeconds).toBe(5400)
+  })
+
   it('captures liveEndedAt once a broadcast ends, and keeps it sticky through later re-hydrations (D-053)', () => {
     sync.applyHydration([{ ...hydratedVideo('stream-1', 0), liveContent: 'live' }], NOW)
     let ended = feed.listPage('all', null, 10).entries.find((e) => e.video.videoId === 'stream-1')?.video

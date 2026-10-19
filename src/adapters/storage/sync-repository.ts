@@ -238,6 +238,11 @@ export class SqliteSyncRepository implements SyncRepository {
     // Premiere and live share the exact same upcoming/airing/ended sort
     // treatment) — the only thing is_premiere still gates is which badge
     // shows while liveContent === 'live' (FeedList.tsx), not sort order.
+    // duration_seconds is sticky-positive the same way: a genuinely live
+    // video is correctly 0 until it ends, but YouTube can still report 0 for
+    // a few cycles after the broadcast content flips to 'none' (duration
+    // recalculation lags the end of the stream) — never let that 0 clobber
+    // an already-known real duration (B-140).
     const upsert = this.db.prepare(
       `INSERT INTO videos
          (video_id, channel_id, title, description, published_at, duration_seconds,
@@ -250,7 +255,7 @@ export class SqliteSyncRepository implements SyncRepository {
          title = :title,
          description = :description,
          published_at = :publishedAt,
-         duration_seconds = :duration,
+         duration_seconds = CASE WHEN :duration > 0 THEN :duration ELSE duration_seconds END,
          live_content = :live,
          is_premiere = CASE WHEN :isPremiereNow = 1 THEN 1 ELSE is_premiere END,
          live_started_at = :liveStartedAt,
@@ -411,6 +416,22 @@ export class SqliteSyncRepository implements SyncRepository {
         : this.db.prepare(
             `SELECT video_id FROM videos WHERE live_content = 'live' AND channel_id = ?`
           )
+    ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
+    return rows.map((row) => row.video_id)
+  }
+
+  // A broadcast that just ended but whose duration is still stuck at 0 —
+  // YouTube's own contentDetails.duration can lag a few cycles behind the
+  // liveBroadcastContent flip to 'none' (B-140). Once live_content leaves
+  // 'live'/'upcoming' nothing else re-hydrates a video, so this is its last
+  // remaining path to ever pick up the real duration; it naturally drops out
+  // of this set as soon as a re-hydrate reports a positive duration.
+  endedZeroDurationVideoIds(channelId?: string): string[] {
+    const where = `live_content = 'none' AND duration_seconds = 0 AND live_ended_at IS NOT NULL`
+    const rows = (
+      channelId === undefined
+        ? this.db.prepare(`SELECT video_id FROM videos WHERE ${where}`)
+        : this.db.prepare(`SELECT video_id FROM videos WHERE ${where} AND channel_id = ?`)
     ).all(...(channelId === undefined ? [] : [channelId])) as unknown as { video_id: string }[]
     return rows.map((row) => row.video_id)
   }

@@ -37,6 +37,8 @@ class FakeRepo implements SyncRepository {
   upcomingChannel = new Map<string, string>() // videoId -> channelId, for scoped upcomingVideoIds tests
   live: string[] = []
   liveChannel = new Map<string, string>() // videoId -> channelId, for scoped liveVideoIds tests
+  endedZeroDuration: string[] = []
+  endedZeroDurationChannel = new Map<string, string>() // videoId -> channelId, for scoped endedZeroDurationVideoIds tests
   uploadsSet = new Map<string, string>()
   appliedSubscriptions: Channel[][] = []
   backfillState = new Map<string, { pageToken: string | null; exhausted: boolean }>()
@@ -120,6 +122,10 @@ class FakeRepo implements SyncRepository {
   liveVideoIds(channelId?: string): string[] {
     if (channelId === undefined) return this.live
     return this.live.filter((id) => this.liveChannel.get(id) === channelId)
+  }
+  endedZeroDurationVideoIds(channelId?: string): string[] {
+    if (channelId === undefined) return this.endedZeroDuration
+    return this.endedZeroDuration.filter((id) => this.endedZeroDurationChannel.get(id) === channelId)
   }
   clearLiveStatus(videoIds: readonly string[]): void {
     this.cleared.push(...videoIds)
@@ -737,6 +743,15 @@ describe('SyncService.refreshLiveStatusOnly', () => {
     expect(updated.map((v) => v.videoId).sort()).toEqual(['premiere-1', 'stream-1'])
     expect(repo.hydrated).toEqual(expect.arrayContaining(['premiere-1', 'stream-1']))
     expect(repo.appliedSubscriptions).toEqual([]) // no subscription re-list
+  })
+
+  it('also re-hydrates an ended broadcast still stuck at 0 duration (B-140)', async () => {
+    const repo = new FakeRepo()
+    repo.endedZeroDuration = ['stream-ended']
+    const source = fakeVideoSource()
+    const updated = await service(repo, source).refreshLiveStatusOnly()
+    expect(updated.map((v) => v.videoId)).toEqual(['stream-ended'])
+    expect(repo.hydrated).toEqual(['stream-ended'])
   })
 
   it('clears live status for an id videos.list no longer returns (same B-136 behavior standalone)', async () => {

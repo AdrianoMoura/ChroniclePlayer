@@ -390,6 +390,13 @@ export interface SyncRepository {
   // (duration_seconds stuck at 0) until re-queried. channelId scopes to a
   // single channel.
   liveVideoIds(channelId?: string): string[]
+  // A third gap: a broadcast that already ended but whose duration is still
+  // 0 because YouTube's own contentDetails.duration lagged the
+  // liveBroadcastContent flip to 'none' (B-140) — once live_content leaves
+  // 'live'/'upcoming' nothing else re-hydrates a video, so this is its only
+  // remaining path to ever pick up the real duration. channelId scopes to a
+  // single channel.
+  endedZeroDurationVideoIds(channelId?: string): string[]
   // A video that was 'live'/'upcoming' but no longer comes back at all from
   // videos.list (deleted, privated, or otherwise gone — distinct from a
   // genuine transient RSS failure, D-048: videos.list deterministically
