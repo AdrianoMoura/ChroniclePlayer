@@ -362,12 +362,20 @@ Closed-out batches live one per release in **[`tracker-history/`](tracker-histor
   dedicated tracker-history note of its own. Shipped as a **patch** version, per the
   owner's own explicit direction, even though D-077 is real new scope (same pattern as
   D-053 in `0.4.6`, D-063 in `0.10.2`, D-074 in `0.15.1`). Shipped 2026-10-14.
+- [`tracker-history/v0.16.2.md`](tracker-history/v0.16.2.md) — a single entry, Fixed:
+  [[B-140]] (an ended livestream/Premiere could get permanently stuck showing `0:00` in
+  the feed — `duration_seconds` had no sticky protection against a later `0`, and
+  nothing ever re-hydrated a video once it left `live`/`upcoming`; fixed by making
+  `duration_seconds` sticky-positive and folding a new `endedZeroDurationVideoIds()`
+  into the existing D-077 60-second re-hydrate pool). [[B-108]] and [[B-101]] didn't
+  make it in and carried their **Target** forward again. No new `D-NNN` scope this
+  cycle. Shipped as a **patch** version (a pure bug-fix batch). Shipped 2026-10-18.
 
-**Current target: 0.16.2.** Carries [[B-108]] and [[B-101]] forward — neither made it
+**Current target: 0.16.3.** Carries [[B-108]] and [[B-101]] forward — neither made it
 into 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0,
-0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, or
-0.16.1 either (see above — every one of those shipped driven by a direct product-owner
-decision or a different bug batch instead).
+0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0,
+0.16.1, or 0.16.2 either (see above — every one of those shipped driven by a direct
+product-owner decision or a different bug batch instead).
 
 ## Entry template
 
@@ -394,57 +402,9 @@ Resolved entries add:
 
 ## Open
 
-### B-140 — A live that ended shows 0:00 duration in the feed
-- **Type:** bug · **Severity:** minor
-- **Status:** In progress · **Reported:** 2026-10-17 · **Target:** 0.16.2
-- **Area:** sync | feed
-- **What happens:** once a livestream/Premiere ends and settles into a normal video,
-  `FeedList`'s duration badge (gated on `liveContent !== 'live'`, so it only ever shows
-  once the broadcast is over) sometimes shows `0:00` instead of the real runtime.
-- **Expected:** an ended broadcast shows its actual duration, same as any other video.
-- **Code refs:** `src/adapters/storage/sync-repository.ts` (`applyHydration`,
-  `refreshLiveStatusOnly`, `liveVideoIds`/`upcomingVideoIds`/`clearLiveStatus`),
-  `src/core/sync-service.ts` (`refreshLiveStatusOnly`), `src/ui/FeedList.tsx` (the
-  duration badge's `liveContent !== 'live'` guard).
-- **Root cause:** `duration_seconds` is `0` by design while a broadcast is genuinely
-  live (`core/ports.ts`'s own comment on `liveVideoIds`) — that part is fine.
-  `refreshLiveStatusOnly` is the only thing that re-hydrates an already-known
-  live/upcoming video (every 60s, D-077), and the instant YouTube reports
-  `liveBroadcastContent` as `'none'`, `applyHydration` writes `live_content = 'none'`
-  **unconditionally** (not sticky, unlike `live_ended_at`/`is_premiere`) — and that same
-  row drops out of `liveVideoIds()`/`upcomingVideoIds()` forever, so nothing ever
-  re-hydrates it again. If YouTube's own `contentDetails.duration` hasn't finished
-  recalculating for the final VOD yet at that exact poll (a real processing lag on
-  YouTube's side), the `0` from the still-live poll gets written one last time and then
-  frozen permanently — `duration_seconds` has no sticky/`COALESCE` protection the way
-  `live_ended_at` does, and there's no re-hydration path left to ever correct it.
-- **Notes:** two independent gaps, probably both need closing: (1) `applyHydration`
-  should stop letting a `0` overwrite an already-known positive duration (mirror the
-  `live_ended_at`/`is_premiere` sticky pattern); (2) a video that just dropped to
-  `live_content = 'none'` still carrying `duration_seconds = 0` needs at least one more
-  chance to be re-hydrated (it currently has none) — e.g. folding
-  "`live_content = 'none' AND duration_seconds = 0 AND live_ended_at IS NOT NULL`" into
-  `refreshLiveStatusOnly`'s id set, same cheap-requery shape D-077/B-136 already use.
-  No `D-NNN`/spec coverage of this exists yet (confirmed: D-053/D-074/B-119/B-135/B-136
-  all touch sort order or `live_ended_at`, never `duration_seconds`).
-- **Implemented (2026-10-18), pending owner review/commit:** both gaps closed. (1)
-  `applyHydration`'s `duration_seconds` assignment is now
-  `CASE WHEN :duration > 0 THEN :duration ELSE duration_seconds END` — a later `0`
-  never regresses an already-known real duration. (2) new
-  `SyncRepository.endedZeroDurationVideoIds(channelId?)` (SQL above) is folded into
-  `refreshLiveStatusOnly`'s existing id set (`src/core/sync-service.ts`), so a just-ended
-  broadcast still stuck at 0 keeps getting the same free 60s re-hydrate (D-077) until the
-  real duration lands — it drops out of the set on its own once that happens. No schema
-  change, no new quota cost (same batched `videos.list` call). Unit-tested offline in
-  `sync-repository.test.ts` (sticky-positive duration; `endedZeroDurationVideoIds`
-  finding/clearing) and `sync-service.test.ts` (the id rides along in
-  `refreshLiveStatusOnly`'s pool). `npm run typecheck && npm run lint && npm test`
-  all green (327/327). Not yet live-verified (per [[no-live-app-verification]]) — needs
-  the owner's own live test on a real ended broadcast before this moves to Fixed.
-
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
-- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.16.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, and 0.16.1 all shipped without this)
+- **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.16.3
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, 0.16.1, and 0.16.2 all shipped without this)
 - **Area:** player
 - **What happens:** [[B-089]] removed Chronicle's own `f` fullscreen shortcut rather
   than keep fighting the embed over which element goes fullscreen — fullscreen is now
@@ -469,8 +429,8 @@ Resolved entries add:
 
 ### B-108 — Mouse-wheel scroll doesn't work on the full-view player screen while hovering the embedded video
 - **Type:** bug · **Severity:** minor
-- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.16.2
-  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, and 0.16.1 all shipped without this; the
+- **Status:** Open · **Reported:** 2026-07-16 · **Target:** 0.16.3
+  (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, 0.16.1, and 0.16.2 all shipped without this; the
   scroll-catcher attempted in 0.4.1 was reverted — see below)
 - **Area:** player
 - **What happens:** on the full-view player screen, scrolling the mouse wheel while the
