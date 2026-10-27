@@ -26,6 +26,13 @@ export type SearchResult =
       publishedAt: string
       thumbnailUrl: string | null
       durationSeconds: number | null
+      // Same meaning as HydratedVideo's own fields (below) — liveContent
+      // comes free from search.list's own snippet; the other three ride on
+      // the same duration follow-up call, same precedent as hydrate().
+      liveContent: 'none' | 'live' | 'upcoming'
+      liveStartedAt: string | null
+      liveEndedAt: string | null
+      isPremiere: boolean
       // Always false here — this client has no ShortsProber (that's a
       // sibling adapter). main.ts's confirmShorts() overwrites this with
       // the real, HEAD-confirmed value before it ever reaches the UI.
@@ -294,6 +301,8 @@ export class YouTubeApiClient implements SubscriptionSource {
       if (id['kind'] === 'youtube#video') {
         const videoId = String(id['videoId'])
         videoIds.push(videoId)
+        const live = snippet['liveBroadcastContent']
+        const liveContent = live === 'live' || live === 'upcoming' ? live : 'none'
         return [
           {
             kind: 'video',
@@ -304,6 +313,10 @@ export class YouTubeApiClient implements SubscriptionSource {
             publishedAt: String(snippet['publishedAt']),
             thumbnailUrl: thumbnailUrl(snippet['thumbnails']),
             durationSeconds: null,
+            liveContent,
+            liveStartedAt: null,
+            liveEndedAt: null,
+            isPremiere: false,
             isShort: false
           }
         ]
@@ -325,34 +338,75 @@ export class YouTubeApiClient implements SubscriptionSource {
     })
 
     // Two small batched follow-ups (1 unit each, at most) — video duration
-    // (needed for both the duration badge and main.ts's Shorts confirmation)
-    // and channel subscriber count both need data search.list's snippet
-    // doesn't return.
-    const [durations, subscriberCounts] = await Promise.all([
-      this.fetchVideoDurations(videoIds),
+    // plus live/Premiere status (needed for the duration/live badges and
+    // main.ts's Shorts confirmation) and channel subscriber count both need
+    // data search.list's snippet doesn't return.
+    const [videoDetails, subscriberCounts] = await Promise.all([
+      this.fetchVideoDetails(videoIds),
       this.fetchSubscriberCounts(channelIds)
     ])
     const results = rough.map((result) => {
       if (result.kind === 'video') {
-        return { ...result, durationSeconds: durations.get(result.videoId) ?? null }
+        const details = videoDetails.get(result.videoId)
+        return {
+          ...result,
+          durationSeconds: details?.durationSeconds ?? null,
+          liveStartedAt: details?.liveStartedAt ?? null,
+          liveEndedAt: details?.liveEndedAt ?? null,
+          // 'processed' is normal for nearly any finished video, so this
+          // must stay false outside liveContent === 'live' (same rule as
+          // hydrate()'s own isPremiere).
+          isPremiere: result.liveContent === 'live' && (details?.uploadStatusProcessed ?? false)
+        }
       }
       return { ...result, subscriberCount: subscriberCounts.get(result.channelId) ?? null }
     })
     return { results, nextPageToken: page.nextPageToken ?? null }
   }
 
-  private async fetchVideoDurations(videoIds: readonly string[]): Promise<Map<string, number>> {
-    const result = new Map<string, number>()
+  // 1 unit per call regardless of parts requested (same precedent as
+  // hydrate()) — liveStreamingDetails/status ride along for free alongside
+  // the duration lookup this call already made.
+  private async fetchVideoDetails(videoIds: readonly string[]): Promise<
+    Map<
+      string,
+      {
+        durationSeconds: number
+        liveStartedAt: string | null
+        liveEndedAt: string | null
+        uploadStatusProcessed: boolean
+      }
+    >
+  > {
+    const result = new Map<
+      string,
+      {
+        durationSeconds: number
+        liveStartedAt: string | null
+        liveEndedAt: string | null
+        uploadStatusProcessed: boolean
+      }
+    >()
     if (videoIds.length === 0) return result
     const page = await this.get(
       'videos',
-      { part: 'contentDetails', id: videoIds.join(','), maxResults: '50' },
+      { part: 'contentDetails,liveStreamingDetails,status', id: videoIds.join(','), maxResults: '50' },
       1
     )
     for (const item of page.items) {
       const details = item['contentDetails'] as Record<string, unknown> | undefined
       const duration = details?.['duration']
-      if (typeof duration === 'string') result.set(String(item['id']), parseIsoDuration(duration))
+      if (typeof duration !== 'string') continue
+      const liveStreamingDetails = item['liveStreamingDetails'] as Record<string, unknown> | undefined
+      const rawStartTime = liveStreamingDetails?.['actualStartTime']
+      const rawEndTime = liveStreamingDetails?.['actualEndTime']
+      const status = item['status'] as Record<string, unknown> | undefined
+      result.set(String(item['id']), {
+        durationSeconds: parseIsoDuration(duration),
+        liveStartedAt: typeof rawStartTime === 'string' ? rawStartTime : null,
+        liveEndedAt: typeof rawEndTime === 'string' ? rawEndTime : null,
+        uploadStatusProcessed: status?.['uploadStatus'] === 'processed'
+      })
     }
     return result
   }

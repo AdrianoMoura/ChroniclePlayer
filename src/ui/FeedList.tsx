@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedVideoDto } from '../ipc/contract'
-import { feedItemLabel, formatDuration, formatViews } from './format'
+import { feedItemLabel, formatDuration, formatViews, liveBadgeLabel, liveBadgeState } from './format'
 import { t } from './i18n'
 
 export type FeedRow =
@@ -40,25 +40,10 @@ const ROW_HEIGHTS: Record<ItemSize, number> = {
 }
 const HEADER_HEIGHT = 38
 
-// liveContent alone doesn't distinguish "airing now" from "broadcast has
-// since ended" — it reverts to 'none' once a stream wraps, same as a normal
-// upload, so no badge shows for the ended case. An ended broadcast still
-// sorts and buckets by when it wrapped rather than its original publishedAt
-// (core/feed.ts, liveEndedAt); its duration is the only card-level hint it
-// was ever live.
-type LiveBadgeState = 'live' | 'premiere' | 'upcoming'
-
-function liveBadgeState(video: FeedVideoDto): LiveBadgeState | null {
-  if (video.liveContent === 'live') return video.isPremiere ? 'premiere' : 'live'
-  if (video.liveContent === 'upcoming') return 'upcoming'
-  return null
-}
-
-function liveBadgeLabel(state: LiveBadgeState): string {
-  if (state === 'upcoming') return t('feed.card.upcomingBadge')
-  if (state === 'premiere') return t('feed.card.premiereBadge')
-  return t('feed.card.liveBadge')
-}
+// An ended broadcast still sorts and buckets by when it wrapped rather than
+// its original publishedAt (core/feed.ts, liveEndedAt); its duration is the
+// only card-level hint it was ever live. liveBadgeState/liveBadgeLabel live
+// in format.ts, shared with SearchResults.tsx.
 // Must mirror `.grid-row`'s `gap` in styles.css — used below to derive the
 // actual per-card width from the container width, in sync with how the CSS
 // grid distributes space.

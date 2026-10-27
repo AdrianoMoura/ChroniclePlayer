@@ -402,6 +402,41 @@ Resolved entries add:
 
 ## Open
 
+### B-141 — Search results and a non-subscribed channel's video listing show a live/upcoming/Premiere video as a plain "0:00" video instead of a Live/Premiere/Upcoming badge
+- **Type:** bug · **Severity:** minor
+- **Status:** Open · **Reported:** 2026-10-26 · **Target:** 0.16.3
+- **Area:** feed
+- **What happens:** the main synced feed (`FeedList.tsx`) shows a currently-airing or
+  upcoming broadcast with the same Live/Premiere/Upcoming badge treatment [[B-114]]/
+  [[B-115]]/[[B-119]]/[[B-122]] already built, and hides the (meaningless) duration
+  while it's live. Free-text search results (`/` topbar) and a not-yet-subscribed
+  channel's own video listing ([[B-131]]) never show that badge at all — a live or
+  upcoming video just reads as a normal video with a "0:00" duration, since
+  YouTube only reports a real `contentDetails.duration` once a broadcast ends.
+- **Expected:** both lists use the same Live/Premiere/Upcoming badge and
+  duration-suppression rule the main feed already has.
+- **Code refs:**
+  - `src/ipc/contract.ts` — `SearchVideoResultDto` has no `liveContent`/
+    `liveStartedAt`/`liveEndedAt`/`isPremiere` fields at all (unlike `FeedVideoDto`).
+  - `src/adapters/youtube/api-client.ts` — `search()`'s `SearchResult` video variant
+    doesn't carry these fields either; its own duration follow-up
+    (`fetchVideoDurations`) only requests `part=contentDetails`, so a live/upcoming
+    result's `durationSeconds` comes back `0`. `search.list`'s own `snippet` already
+    includes `liveBroadcastContent` for free (unused today); `isPremiere`/
+    `liveStartedAt`/`liveEndedAt` would need the same follow-up call widened to
+    `liveStreamingDetails,status` — still 1 unit, same precedent as `hydrate()`.
+  - `src/platform/ipc/channel-handlers.ts` — `getChannelVideos` already receives
+    `video.liveContent`/`liveStartedAt`/`liveEndedAt`/`isPremiere` from `hydrate()`
+    (used only to compute `bucket`) but discards them when building the returned
+    `SearchVideoResultDto`; the data is already there for this path, no new API call
+    needed.
+  - `src/ui/SearchResults.tsx` — `SearchVideoRow`/`SearchVideoCard` always render
+    `durationSeconds` and have no badge logic; `FeedList.tsx`'s `liveBadgeState`/
+    `liveBadgeLabel` would need to move somewhere shared (e.g. `format.ts`) so both
+    renderers use the same rule instead of drifting.
+- **Notes:** same badge/duration rule as the main feed, just missing from two other
+  video-listing surfaces — not a new design question.
+
 ### B-101 — Investigate proxying fullscreen into the embed via the widget protocol
 - **Type:** adjustment · **Status:** Open · **Reported:** 2026-07-15 · **Target:** 0.16.3
   (carried over — 0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.4.2, 0.4.3, 0.4.4, 0.4.5, 0.4.6, 0.4.7, 0.4.8, 0.5.0, 0.6.0, 0.7.0, 0.8.0, 0.8.1, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 0.12.0, 0.13.0, 0.13.1, 0.13.2, 0.13.3, 0.14.0, 0.14.1, 0.15.0, 0.15.1, 0.15.2, 0.15.3, 0.16.0, 0.16.1, and 0.16.2 all shipped without this)

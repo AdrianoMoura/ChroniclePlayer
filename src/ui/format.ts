@@ -123,6 +123,28 @@ export function formatPlaylistDuration(totalSeconds: number): string {
   return `${hours}:${String(minutes).padStart(2, '0')}`
 }
 
+// Shared by the main feed (FeedList.tsx) and search/channel-preview results
+// (SearchResults.tsx) so the Live/Premiere/Upcoming badge rule never drifts
+// between the two. liveContent alone doesn't distinguish "airing now" from
+// "broadcast has since ended" — it reverts to 'none' once a stream wraps,
+// same as a normal upload, so no badge shows for the ended case.
+export type LiveBadgeState = 'live' | 'premiere' | 'upcoming'
+
+export function liveBadgeState(video: {
+  liveContent: 'none' | 'live' | 'upcoming'
+  isPremiere: boolean
+}): LiveBadgeState | null {
+  if (video.liveContent === 'live') return video.isPremiere ? 'premiere' : 'live'
+  if (video.liveContent === 'upcoming') return 'upcoming'
+  return null
+}
+
+export function liveBadgeLabel(state: LiveBadgeState): string {
+  if (state === 'upcoming') return t('feed.card.upcomingBadge')
+  if (state === 'premiere') return t('feed.card.premiereBadge')
+  return t('feed.card.liveBadge')
+}
+
 export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)

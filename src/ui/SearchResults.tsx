@@ -1,6 +1,6 @@
 import type { KeyboardEvent, MouseEvent } from 'react'
 import type { SearchResultDto } from '../ipc/contract'
-import { formatDuration, formatSubscriberCount } from './format'
+import { formatDuration, formatSubscriberCount, liveBadgeLabel, liveBadgeState } from './format'
 import { t } from './i18n'
 
 // Search results reuse the feed's item-size/layout conventions (row vs.
@@ -95,6 +95,7 @@ export function SearchVideoRow({
   actions?: SearchVideoActions
 }) {
   const dimmed = result.readStatus !== 'unread'
+  const liveBadge = liveBadgeState(result)
   return (
     <div className={`row search-result-row${dimmed ? ' dimmed' : ''}`} {...useActivate(onOpen)}>
       {result.thumbnailUrl !== null ? (
@@ -116,7 +117,10 @@ export function SearchVideoRow({
         <VideoActionButtons result={result} actions={actions} className="row-actions" />
       )}
       {result.isShort && <span className="short-badge">{t('feed.card.shortBadge')}</span>}
-      {result.durationSeconds !== null && (
+      {liveBadge !== null && (
+        <span className={`live-badge live-badge-${liveBadge}`}>{liveBadgeLabel(liveBadge)}</span>
+      )}
+      {result.durationSeconds !== null && result.liveContent !== 'live' && (
         <span className="duration">{formatDuration(result.durationSeconds)}</span>
       )}
     </div>
@@ -133,6 +137,7 @@ export function SearchVideoCard({
   actions?: SearchVideoActions
 }) {
   const dimmed = result.readStatus !== 'unread'
+  const liveBadge = liveBadgeState(result)
   return (
     <div className={`card search-result-card${dimmed ? ' dimmed' : ''}`} {...useActivate(onOpen)}>
       <div className="card-thumb-wrap">
@@ -144,7 +149,12 @@ export function SearchVideoCard({
         {result.isShort && (
           <span className="short-badge card-short-badge">{t('feed.card.shortBadge')}</span>
         )}
-        {result.durationSeconds !== null && (
+        {liveBadge !== null && (
+          <span className={`live-badge card-live-badge live-badge-${liveBadge}`}>
+            {liveBadgeLabel(liveBadge)}
+          </span>
+        )}
+        {result.durationSeconds !== null && result.liveContent !== 'live' && (
           <span className="duration card-duration">{formatDuration(result.durationSeconds)}</span>
         )}
         {actions !== undefined && (

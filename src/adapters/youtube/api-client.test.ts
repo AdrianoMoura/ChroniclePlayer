@@ -423,6 +423,10 @@ describe('YouTubeApiClient', () => {
         publishedAt: '2026-07-10T08:00:00Z',
         thumbnailUrl: null,
         durationSeconds: 30,
+        liveContent: 'none',
+        liveStartedAt: null,
+        liveEndedAt: null,
+        isPremiere: false,
         // Always false from this adapter — B-131's confirmation runs
         // downstream in main.ts, not here.
         isShort: false
@@ -483,11 +487,77 @@ describe('YouTubeApiClient', () => {
         publishedAt: '2026-07-10T08:00:00Z',
         thumbnailUrl: null,
         durationSeconds: 30,
+        liveContent: 'none',
+        liveStartedAt: null,
+        liveEndedAt: null,
+        isPremiere: false,
         isShort: false
       }
     ])
     expect(nextPageToken).toBeNull()
     expect(quota.spent).toBe(101)
+  })
+
+  // B-141: a live/Premiere result used to come back as a plain video with a
+  // bogus 0:00 duration, since YouTube only reports a real duration once a
+  // broadcast ends — this is what SearchResults.tsx now needs to show the
+  // same Live/Premiere badge the main feed already has.
+  it('search surfaces live status and a Premiere flag on a currently-airing result', async () => {
+    const quota = new QuotaCounter()
+    const fetchFn: FetchFn = (url) => {
+      const parsed = new URL(String(url))
+      if (parsed.pathname.endsWith('/search')) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            nextPageToken: null,
+            items: [
+              {
+                id: { kind: 'youtube#video', videoId: 'v1' },
+                snippet: {
+                  title: 'Cat stream',
+                  channelId: 'UCcat',
+                  channelTitle: 'Cats Inc',
+                  publishedAt: '2026-07-10T08:00:00Z',
+                  thumbnails: {},
+                  liveBroadcastContent: 'live'
+                }
+              }
+            ]
+          })
+        )
+      }
+      expect(parsed.pathname.endsWith('/videos')).toBe(true)
+      return Promise.resolve(
+        jsonResponse(200, {
+          items: [
+            {
+              id: 'v1',
+              contentDetails: { duration: 'PT0S' },
+              liveStreamingDetails: { actualStartTime: '2026-07-10T09:00:00Z' },
+              status: { uploadStatus: 'processed' }
+            }
+          ]
+        })
+      )
+    }
+    const { results } = await new YouTubeApiClient(auth, fetchFn, quota).search('cats', undefined, 'UCcat')
+    expect(results).toEqual([
+      {
+        kind: 'video',
+        videoId: 'v1',
+        title: 'Cat stream',
+        channelId: 'UCcat',
+        channelTitle: 'Cats Inc',
+        publishedAt: '2026-07-10T08:00:00Z',
+        thumbnailUrl: null,
+        durationSeconds: 0,
+        liveContent: 'live',
+        liveStartedAt: '2026-07-10T09:00:00Z',
+        liveEndedAt: null,
+        isPremiere: true,
+        isShort: false
+      }
+    ])
   })
 
   it('listComments maps threads with nested replies and counts 1 unit', async () => {

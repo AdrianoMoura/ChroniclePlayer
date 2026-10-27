@@ -305,6 +305,13 @@ export interface SearchVideoResultDto {
   publishedAt: string
   thumbnailUrl: string | null
   durationSeconds: number | null
+  // Same meaning as FeedVideoDto's own fields — drives the Live/Premiere/
+  // Upcoming badge and duration suppression in SearchResults.tsx, same rule
+  // as the main feed (FeedList.tsx).
+  liveContent: 'none' | 'live' | 'upcoming'
+  liveStartedAt: string | null
+  liveEndedAt: string | null
+  isPremiere: boolean
   // Confirmed via the same zero-quota HEAD probe the synced feed's Shorts
   // pipeline uses — not persisted, run fresh on every page.
   isShort: boolean
