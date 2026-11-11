@@ -23,10 +23,14 @@ their publish date puts them.
   currently looking at, so they live right there instead of in Settings.
 - **Live streams and Premieres**: a broadcast that's currently live (or a
   Premiere) shows a "Live"/"Premiere" badge and "Started X ago" instead of a
-  duration, sorting to the top of its day's bucket. Once it ends, the badge
-  goes away and a duration appears like any other video — it settles into the
-  feed based on when it actually ended, not its original publish time, so it
-  doesn't jump around.
+  duration, and outranks everything else in the feed — not just within
+  whatever's already loaded, but at the actual sort order, so it won't be
+  buried behind older uploads even if it was scheduled days in advance. Once
+  it ends, the badge goes away and a duration appears like any other video —
+  it settles into the feed based on when it actually ended, not its original
+  publish time, so it doesn't jump around. The same badge and ranking apply
+  to a live/upcoming video in search results or a channel's own video list,
+  not just the main feed.
 
 ### Video states
 
@@ -131,6 +135,31 @@ feed views.
   playlist suggests that playlist's next video. Unlike Watch Later, it
   doesn't wrap around — a playlist has a real end, so finishing the last
   video suggests nothing further.
+- **Import from YouTube**: paste a YouTube playlist URL and Chronicle creates
+  a new local playlist with the same videos in the same order, pre-named
+  from the source's own title. This is a one-time snapshot, not an ongoing
+  sync — editing or reordering the copy afterwards never touches the
+  original on YouTube.
+- An imported playlist's own screen gets a **Sync** button: it checks how
+  many videos the source playlist has gained since the import (or last
+  sync) and shows "Sync (N new)" when there's something to pull, or "Up to
+  date" (disabled) otherwise. Sync only adds missing videos — it never
+  removes, reorders, or renames anything you've since changed in your own
+  copy.
+
+## Watch History
+
+History is a local record of every video you've ever played in Chronicle —
+subscribed or not, most recently watched first — with its own screen in the
+sidebar (`7`).
+
+- It has a local, free-text search box of its own, separate from the
+  topbar's `/` search — this one only filters what you've already watched,
+  it never reaches YouTube.
+- Remove a single entry (with undo), or clear the whole history with
+  **Clear History** (needs a second click to confirm).
+- A history entry has no read/unread or ignore concept — those actions don't
+  apply here.
 
 ## Search and channels
 
@@ -138,6 +167,11 @@ feed views.
   channels, including ones you don't follow. This never filters your already
   loaded feed; browsing what you follow is the sidebar's job.
 - Pasting a video/channel/@handle URL into search resolves it directly.
+- **Searching within a channel**: while a channel's own screen is open,
+  that same `/` field scopes your search to that channel's videos instead
+  of all of YouTube — works for a channel you follow or one you're just
+  browsing. The channel's header (back, subscribe, favorite) stays visible
+  above the results.
 - Clicking any channel — from a video, the sidebar, or search — opens an
   in-app channel page: avatar, banner, subscriber count, and that channel's
   uploads in the same strict chronological order as the main feed. No
@@ -146,19 +180,58 @@ feed views.
   sync with your account. Chronicle is upfront that this also affects
   YouTube's own algorithm for that account, since it's a real write to
   YouTube, not a local-only follow.
+- The sidebar's channel list can be sorted — a control next to the
+  **Channels** header offers **Favorites** (the default on every launch),
+  **Recent** (most recent upload first), **Unread** (most unread videos
+  first), or **Name** (alphabetical).
 
-## Comments and likes
-
-From the player's action bar you can like a video, load its comments (never
-loaded automatically — it's a deliberate click), and post a top-level comment
-or reply. There's no like button on individual comments — YouTube's API
-doesn't expose one.
+## Likes, sharing, and comments
 
 Subscribing, liking, and commenting each need one extra Google permission
 beyond the basic read-only connection from setup. The **first** time you do
 any of these, your default browser opens for a quick consent screen; once
 granted, it applies to all of these actions from then on — you won't be
 asked again.
+
+### Like / Dislike
+
+The player shows the video's real like count from YouTube. Liking or
+disliking (`l` for like) is a real write back to YouTube, same as doing it
+on youtube.com. There's no public dislike *count* on YouTube anymore —
+**Settings → Playback → Show an estimated dislike count** turns on an
+optional estimate from the third-party [Return YouTube
+Dislike](https://returnyoutubedislike.com) project; while it's on, your own
+like/dislike/remove-rating also gets mirrored back to that project as a
+vote, anonymously (no Google account link). Turning the setting off means
+Chronicle talks only to YouTube, same as before this existed.
+
+### Share
+
+The player's topbar has a **Share** button: it gives you the video's plain
+`youtube.com/watch?v=...` link with a Copy button, plus a checkbox to
+include your current playback position as a timestamp. Not shown for a
+live video, since there's no single "current position" everyone else
+watching live shares.
+
+### Comments
+
+Loading comments is a deliberate click, never automatic. Once loaded:
+
+- Toggle between **Top comments** and **Newest first** — same sort YouTube
+  itself offers.
+- A comment/reply's author name links to that person's own channel page
+  in-app, when YouTube provides one.
+- An "↗" button opens that specific comment on youtube.com.
+- A red heart shows if you've already liked a comment — read-only; YouTube's
+  API has no way to like a comment from a third-party app, only read your
+  existing like.
+- Post a top-level comment, or reply to any comment/reply (replying to a
+  reply still posts as a reply to the original top-level comment — YouTube
+  only nests one level deep).
+- **Edit** or **Delete** your own comments and replies — both only show up
+  on comments/replies you actually posted. Delete needs a second click to
+  confirm; deleting a top-level comment removes its replies too, same as it
+  would on youtube.com.
 
 ## Multiple accounts
 
@@ -183,7 +256,8 @@ and Favorites.
 
 - **Language**: "Follow system" (the default, based on your OS language) or
   pick one explicitly. A translation can be incomplete — any string it's
-  missing just falls back to English.
+  missing just falls back to English. Some languages are AI-translated and
+  not yet reviewed by a native speaker; picking one shows a note saying so.
 
 Chronicle's translations live in
 [`src/ui/i18n/locales/`](https://github.com/AdrianoMoura/ChroniclePlayer/tree/main/src/ui/i18n/locales)
@@ -208,6 +282,8 @@ Reconnect, replace your OAuth client file, fix the "reconnect weekly" issue
 - **Default speed**: the playback rate new videos open at.
 - **Remove from Watch Later when opened**: off by default. See
   [Watch Later](#watch-later) above.
+- **Show an estimated dislike count**: off by default. See
+  [Like / Dislike](#like--dislike) above.
 
 ### Appearance
 
@@ -215,7 +291,7 @@ Reconnect, replace your OAuth client file, fix the "reconnect weekly" issue
 - **Show view counts**: display each video's view count in the feed.
 - **Show Shorts**: include or hide Shorts everywhere (see above).
 
-### Startup
+### Startup & Background
 
 - **Auto-start**: launch Chronicle when you log into your computer.
 - **Run in background**: closing the window minimizes to a tray icon instead
@@ -240,13 +316,15 @@ Reconnect, replace your OAuth client file, fix the "reconnect weekly" issue
 - **Keep notifications in sync with Favorites**: when on, favoriting a
   channel automatically turns on notifications for it too.
 
-### Your data
+### Data
 
-- **Export**: one-click JSON export of your channels, videos, states, and
-  settings — everything, in a plain documented format you can inspect with
-  any text editor.
-- **Delete all data**: wipes your local database and relaunches Chronicle
-  into first-run setup. Requires a second click to confirm.
+- Shows how much space your database, thumbnail cache, and video count are
+  actually using on disk.
+- **Export data…**: one-click JSON export of your channels, videos, states,
+  and settings — everything, in a plain documented format you can inspect
+  with any text editor.
+- **Delete all local data**: wipes your local database and relaunches
+  Chronicle into first-run setup. Requires a second click to confirm.
 
 Your data always lives in a local SQLite database you can open with any
 SQLite browser — nothing is hidden behind a proprietary format.
@@ -273,7 +351,7 @@ visible on-screen control — nothing here is keyboard-only.
 | `e` | Maximize the docked miniplayer |
 | `x` | Close the docked miniplayer |
 | `gg` / `G` | Jump to top / end of the loaded feed |
-| `1`–`6` | Switch view (All, Unread, Watch Later, Playlists, Favorites, Ignored) |
+| `1`–`7` | Switch view (All, Unread, Watch Later, Playlists, Favorites, Ignored, History) |
 | `r` | Refresh |
 | `Ctrl+O` | Open a YouTube video by URL |
 | `/` | Focus search |
@@ -296,9 +374,14 @@ visible on-screen control — nothing here is keyboard-only.
 | `p` | Pop out to the always-on-top window |
 | `a` | Add to Playlist |
 | `b` | Open in browser |
-| `/` | Focus search (exits the player back to the feed) |
+| `/` | Focus search (submitting a search leaves the player back to the feed) |
 | `?` | Shortcut overlay |
 | `Esc` | Exit fullscreen, then back to feed/dock |
+
+Dislike, Share, and editing/deleting a comment have no keyboard shortcut —
+deliberately, for Dislike, since a one-key accidental press next to Like
+isn't worth the risk; the others are just click-only actions. Use their
+on-screen buttons.
 
 Menus and secondary screens (Settings, the sidebar's "…" menus, dialogs) rely
 on standard Tab / Shift+Tab and Enter/Space instead of single-key bindings —

@@ -724,12 +724,142 @@ direction, even though D-074 is real new scope that reverses a prior decision
 (D-053 in `0.4.6`, D-063 in `0.10.2`, among others). Full narrative in `decisions.md`
 D-074 and `tracker-history/v0.15.1.md`.
 
+**D-075 (sidebar overlays the feed below a 1200px window width, starting collapsed by
+default) shipped in `0.15.2`, 2026-10-04, the same day as `0.15.1`** — a direct
+product-owner request ("em resoluções menores acho que seria legal ele sobrepor, ser
+default fechado e abrir por cima da tela... quando a largura da janela for menor que
+1200px"), not sourced from `tracker-current.md`, same pattern as D-050–D-074. The
+push-vs-overlay choice and the breakpoint itself live entirely in `App.tsx` as a single
+`isNarrowWidth` boolean against a literal `SIDEBAR_OVERLAY_BREAKPOINT = 1200`, not a CSS
+media query. Below the breakpoint the open sidebar comes out of flex flow, anchors to
+`.app`, and gets a dismissible backdrop; crossing into narrow mid-session force-collapses
+an already-open push-mode panel, but growing back past the breakpoint never force-reopens
+it. One UX call made without being asked, flagged rather than silently added: selecting
+any sidebar destination auto-closes the overlay, matching standard drawer-nav behavior.
+**Same-session live catch, caught before any live testing:** the overlay sidebar and its
+hamburger were first built `position: fixed`, landing 34px higher than the collapsed
+state's own correctly-`position: absolute` hamburger and inside the custom titlebar's
+drag region, where a click could start an OS window-drag instead of registering as a
+button press — fixed by switching both to `position: absolute` against `.app`, matching
+the existing pattern exactly. Confirmed working live by the owner. No `tracker-history/`
+file, since this didn't come through the bug tracker.
+
+**`0.15.3` shipped 2026-10-06, no bug-tracker batch of its own** — a direct
+product-owner request capping the miniplayer's drag-resize *height* the same way
+`0.15.2`'s own immediate predecessor had already capped its width, needing a same-session
+round 2 once the owner's live test found `window.screen` reading smaller than the
+window's real `innerWidth`/`innerHeight` on their Wayland/niri setup, stopping the drag
+well short of the window's actual edge for no visible reason; fixed by driving both
+ceilings off `innerWidth`/`innerHeight` directly instead. Shipped as a **patch** version
+(a contained bug fix, no new scope).
+
+**`0.16.0` shipped 2026-10-06, the same day as `0.15.3`** — driven by D-076
+(contributing the user's own like/dislike votes to Return YouTube Dislike, not just
+reading its estimate, gated by the same `showDislikeEstimate` toggle that already gates
+reading it — no separate opt-in), a direct product-owner request prompted by the owner
+asking whether Chronicle only queries RYD or also contributes to its pool, not sourced
+from `tracker-current.md`, same pattern as D-050–D-075. **First pass added a second,
+separate opt-in**, explicitly weighed against the philosophy again before any code
+(RYD's own registration/proof-of-work/voting handshake, reverse-engineered from the
+official browser extension's open-source code since RYD's API is undocumented beyond
+its Swagger surface); **revised the same session on the owner's own fairness
+objection** (a free opt-in-to-read/opt-in-to-give-back split would let almost everyone
+read for free while almost no one gives back) into the single merged toggle that
+shipped. The pseudonymous per-install voter id IS persisted (unlike D-068's in-memory-
+only dislike-count cache) via the same `SecretStore` OAuth tokens already use (D-013),
+under its own account-independent key, carrying no account linkage. `submitVote` never
+throws and serializes concurrent calls per videoId. Not yet live-tested by the product
+owner — RYD's own anti-abuse mechanisms are deliberately undocumented, so a real
+registration/vote round-trip against the live service is unverified. Also closed the
+same cycle: [[B-137]] (Fixed — a thumbnail for an ended live broadcast/Premiere 404s
+forever, since YouTube's `_live` thumbnail variant stops resolving once the broadcast
+ends; fixed with a one-time `hqdefault` fallback) and [[B-138]] (Fixed — a
+freshly-uploaded video's thumbnail was blocked outright because YouTube also serves
+thumbnails from numbered CDN hosts, `i1`–`i4.ytimg.com`, which the allowlist only
+accepted as the bare `i.ytimg.com`; broadened the same session once a second real
+example surfaced). Originally tracked toward a `0.15.4` patch, but D-076 amounted to
+real new scope on its own — shipped as a **minor** version instead, per the owner's own
+explicit direction, skipping `0.15.4` entirely (same pattern as `0.11.0`/`0.12.0`/
+`0.13.0`/`0.15.0` above). Full narrative in `decisions.md` D-076 and
+`tracker-history/v0.16.0.md`.
+
+**D-077 (a dedicated 60s background check that keeps `upcoming`/`live` status from
+going stale) shipped in `0.16.1`, 2026-10-14** — raised by the owner noticing a
+scheduled Premiere/livestream that had already gone live on YouTube's own site (chat
+already active there) still read "Upcoming" in Chronicle until a manual sync. Two
+distinct gaps: (1) [[B-139]] — `getVideo`'s local-video branch already re-hydrated the
+video on every open but discarded the fresh live-status fields, returning the stale DB
+row instead; fixed by persisting the fresh hydrate via the same
+`syncRepository.applyHydration` call the external-video branch already made. (2) The
+owner then raised the harder case directly, unprompted by any further bug — a player
+left open through the whole transition, or a feed row just sitting on screen, never
+corrects itself without a reopen ("não temos um F5 como no browser") — resolved by
+adding a second, much shorter, narrowly-scoped interval,
+`SyncService.refreshLiveStatusOnly()`, re-hydrating only the (typically near-zero) set
+of videos already flagged `upcoming`/`live` every 60s, gated identically to the main
+refresh timer. A new `liveStatus:updated` backend→UI event keeps the "UI never polls"
+idiom intact. Quota: the same batched `videos.list` hydrate, 1 unit per call, Chronicle
+already spends every 30-min cycle — just on its own faster cycle now. Checked via
+`npm run typecheck && npm run lint && npm test` (324/324); not yet live-tested by the
+owner. Shipped as a **patch** version, per the owner's own explicit direction, even
+though D-077 is real new scope (same pattern as several earlier patches driven by a
+`D-NNN`). Full narrative in `decisions.md` D-077 and `tracker-history/v0.16.1.md`.
+
+**`0.16.2` shipped 2026-10-18** — a normal bug-tracker batch, one entry: [[B-140]]
+(Fixed — an ended livestream/Premiere could get permanently stuck showing `0:00`
+duration in the feed. Root cause: `duration_seconds` is legitimately `0` while a
+broadcast is genuinely live, but `refreshLiveStatusOnly`'s hydrate wrote that `0`
+**unconditionally**, not sticky like `live_ended_at`/`is_premiere` — and the instant
+`liveContent` flips to `'none'` the row drops out of the id set `refreshLiveStatusOnly`
+re-checks, forever, so a `0` written one poll too early, before YouTube's own VOD
+duration finished recalculating, could never self-correct. Fixed with two changes
+together: `applyHydration`'s `duration_seconds` assignment is now sticky-positive
+(`CASE WHEN :duration > 0 THEN :duration ELSE duration_seconds END`), and a new
+`SyncRepository.endedZeroDurationVideoIds()` folds any already-stuck-at-zero, already-
+ended video back into D-077's own 60s re-hydrate pool until the real duration lands).
+No new `D-NNN` scope this cycle. Shipped as a **patch** version (a pure bug-fix batch).
+Full narrative in `tracker-history/v0.16.2.md`.
+
+**`0.16.3` shipped 2026-10-26** — a normal bug-tracker batch, one entry: [[B-141]]
+(Fixed — free-text search results (the topbar `/` field) and a not-yet-subscribed
+channel's own video listing (B-131) showed a live/upcoming/Premiere video as a plain
+video with a bogus "0:00" duration instead of the Live/Premiere/Upcoming badge the main
+feed already has, since `SearchVideoResultDto` never carried the live-status fields
+`FeedVideoDto` does. Fixed by widening `search()`'s existing duration follow-up call
+(`fetchVideoDetails`, formerly `fetchVideoDurations`) to also request
+`liveStreamingDetails,status` — still 1 unit per call regardless of parts requested, no
+new quota cost — and passing those same already-fetched fields through
+`getChannelVideos` instead of discarding them. `liveBadgeState`/`liveBadgeLabel` moved
+out of `FeedList.tsx` into `format.ts` so every list shares one badge rule instead of a
+copy that could drift). No new `D-NNN` scope this cycle. Shipped as a **patch** version
+(a pure bug-fix batch). Full narrative in `tracker-history/v0.16.3.md`.
+
+**D-078 (a Delete action on the viewer's own comments and replies) shipped in
+`0.16.4`, 2026-11-11** — raised by the owner noticing the gap directly ("Reparei que
+não temos uma função de deletar os próprios comentários"), not sourced from
+`tracker-current.md`, same pattern as D-050–D-077; confirmed with the owner before
+implementing (build it now, with a confirm step) since this is new scope, not a bug.
+Mirrors D-064's Edit action end-to-end: `comments.delete`, 50 units, write scope,
+gated by the same `isOwn`/`authorChannelId` check already surfaced for Edit — YouTube
+itself 403s on an id the viewer doesn't own, so Chronicle only decides when to *show*
+the affordance. Works on both a top-level comment id and a reply id; deleting a
+top-level comment also removes its replies on YouTube's side, so `Comments.tsx`'s
+local-state update drops the entry from the top-level list *and* filters it out of
+every comment's `replies` array in one pass. UI: a third button in the existing
+`.comment-actions` row, using this project's established inline
+"click-to-arm/click-to-confirm" pattern (`HistoryView`'s Clear History /
+`PlaylistDetailView`'s Delete playlist) rather than a modal — no new dialog component.
+No schema change. Checked via `npm run typecheck && npm run lint && npm test`
+(330/330); not yet live-tested by the owner. Shipped as a **patch** version, per the
+owner's own explicit direction, same pattern as several earlier single-decision
+patches (D-070 in `0.13.2`, D-075 in `0.15.2`).
+
 **Bugs/adjustments are tracked one file per release**: `.specs/tracker-current.md` holds
 the batch being worked toward the next release, `.specs/tracker-history/vX.Y.Z.md` holds
 each shipped release's closed-out batch. `0.1.0`, `0.2.0`, `0.2.2`, `0.3.0`, `0.4.3`,
 `0.4.5`, `0.4.7`, `0.4.8`, `0.5.0`, `0.7.0`, `0.8.1`, `0.10.0`, `0.10.1`, `0.11.0`,
-`0.13.3`, `0.14.1`, `0.15.0`, and `0.15.1` have shipped and are archived in
-`tracker-history/`
+`0.13.3`, `0.14.1`, `0.15.0`, `0.15.1`, `0.16.0`, `0.16.1`, `0.16.2`, and `0.16.3` have
+shipped and are archived in `tracker-history/`
 (`0.2.1` was a single one-off patch with no batch of its own — see
 `tracker-history/v0.2.0.md`'s B-045 notes). `0.3.0` (B-109, B-110, both Fixed) was
 originally tracked toward a `0.2.3` patch but grew into real new scope along the
@@ -755,16 +885,21 @@ as a **patch** instead — a revert, not new scope. `0.4.2` (D-051), `0.4.4` (D-
 exclusion while also fixing B-135/B-136) also shipped as **patches**, per the owner's
 own explicit direction, even though each lands real behavior change (or, for `0.15.1`,
 reverses an earlier decision outright) rather than being a pure bug-fix batch. `0.4.3`
-(B-111), `0.4.5`, `0.4.7`, `0.4.8`, `0.8.1`, `0.13.3`, and `0.14.1` (all above) are the
-normal case this file's "pure bug-fix batch ships as a patch" rule describes. `0.11.0`
-(D-064/D-065/D-066), `0.13.0` (D-068/D-069), and `0.15.0` (D-072/D-073) each shipped as
-**minor** versions after outgrowing an originally smaller planned patch number
-(`0.10.3`, `0.12.1`, and `0.14.2` respectively, all skipped entirely) — the same pattern
-`0.3.0` set skipping `0.2.3`. `tracker-current.md` now targets **0.15.2**, carrying
-[[B-108]] and [[B-101]] forward untouched — neither made it into any release from
-`0.5.0` through `0.15.1` (B-022, the third item carried since `0.3.0`, closed Fixed in
-`0.10.1` above; B-086, the fourth, closed Won't fix in `0.5.0` — see
-`tracker-history/v0.5.0.md`). Version bumps aren't always minor — a pure bug-fix
-batch ships as a patch release, a minor bump is reserved for batches that land real new
-scope, but the owner's own explicit call on a given release always wins. See
-`.specs/roadmap.md` §Release status for the summary.
+(B-111), `0.4.5`, `0.4.7`, `0.4.8`, `0.8.1`, `0.13.3`, `0.14.1`, `0.16.2`, and `0.16.3`
+(all above) are the normal case this file's "pure bug-fix batch ships as a patch" rule
+describes. `0.11.0` (D-064/D-065/D-066), `0.13.0` (D-068/D-069), and `0.15.0`
+(D-072/D-073) each shipped as **minor** versions after outgrowing an originally smaller
+planned patch number (`0.10.3`, `0.12.1`, and `0.14.2` respectively, all skipped
+entirely) — the same pattern `0.3.0` set skipping `0.2.3`; `0.16.0` (D-076) shipped as a
+**minor** version the same way, skipping `0.15.4` entirely. `0.15.2` (D-075), `0.16.1`
+(D-077), and `0.16.4` (D-078) also shipped as **patches**, per the owner's own explicit
+direction, despite each landing real new scope — same pattern as `0.4.2`/`0.4.4`/
+`0.13.1`/`0.15.1` above. `0.15.3` had no bug-tracker batch and no new `D-NNN` scope at
+all (a single contained bug fix to D-075's own immediately-preceding change). `tracker-
+current.md` now targets **0.16.5**, carrying [[B-108]] and [[B-101]] forward
+untouched — neither made it into any release from `0.5.0` through `0.16.4` (B-022, the
+third item carried since `0.3.0`, closed Fixed in `0.10.1` above; B-086, the fourth,
+closed Won't fix in `0.5.0` — see `tracker-history/v0.5.0.md`). Version bumps aren't
+always minor — a pure bug-fix batch ships as a patch release, a minor bump is reserved
+for batches that land real new scope, but the owner's own explicit call on a given
+release always wins. See `.specs/roadmap.md` §Release status for the summary.

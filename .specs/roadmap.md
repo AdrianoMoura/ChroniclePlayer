@@ -597,6 +597,43 @@ Dates are deliberately absent — this is sequencing, not scheduling.
   `0.10.2`, D-074 in `0.15.1`). See `decisions.md` D-077 and
   `tracker-history/v0.16.1.md`. B-108, B-101 carried forward, untouched, now targeting
   **0.16.2**.
+- **0.16.2 — delivered, 2026-10-18.** A normal bug-tracker batch, one entry: [[B-140]]
+  (Fixed — an ended livestream/Premiere could get permanently stuck showing `0:00` in
+  the feed, since `duration_seconds` had no sticky protection against a later `0` and
+  nothing ever re-hydrated a video once it left `live`/`upcoming`; fixed by making
+  `duration_seconds` sticky-positive, the same pattern `live_ended_at`/`is_premiere`
+  already used, and folding a new `endedZeroDurationVideoIds()` into the existing
+  D-077 60-second re-hydrate pool so a just-ended broadcast still stuck at 0 keeps
+  getting re-checked until the real duration lands). No new `D-NNN` scope this cycle.
+  Shipped as a **patch** version (a pure bug-fix batch). See
+  `tracker-history/v0.16.2.md`. B-108, B-101 carried forward, untouched, now targeting
+  **0.16.3**.
+- **0.16.3 — delivered, 2026-10-26.** A normal bug-tracker batch, one entry: [[B-141]]
+  (Fixed — free-text search results and a non-subscribed channel's video listing
+  showed a live/upcoming/Premiere video as a plain video with a bogus `0:00` duration
+  instead of the Live/Premiere/Upcoming badge the main feed already has, since
+  `SearchVideoResultDto` never carried the live-status fields `FeedVideoDto` does;
+  fixed by widening the same `search()`/`getChannelVideos` hydrate calls to also carry
+  `liveContent`/`liveStartedAt`/`liveEndedAt`/`isPremiere`, no new quota cost, and
+  moving `liveBadgeState`/`liveBadgeLabel` out of `FeedList.tsx` into `format.ts` so
+  every list shares one badge rule instead of a copy that could drift). No new `D-NNN`
+  scope this cycle. Shipped as a **patch** version (a pure bug-fix batch). See
+  `tracker-history/v0.16.3.md`. B-108, B-101 carried forward, untouched, now targeting
+  **0.16.4**.
+- **0.16.4 — delivered, 2026-11-11.** Driven by D-078 (a Delete action on the viewer's
+  own comments and replies, via `comments.delete`), raised by the owner noticing the
+  gap directly rather than from `tracker-current.md`, same pattern as D-050–D-077.
+  Mirrors D-064's Edit action end-to-end: same `isOwn`/`authorChannelId` gate, same
+  cost (50 units, write scope), and this project's established inline
+  arm-then-confirm button (`HistoryView`'s Clear History / `PlaylistDetailView`'s
+  Delete playlist pattern) rather than a modal. Deleting a top-level comment also
+  drops its replies from local state in one pass, matching what YouTube does
+  server-side. No bug-tracker batch this cycle (B-108, B-101 untouched). Checked via
+  `npm run typecheck && npm run lint && npm test` (330/330). Not yet live-tested by the
+  owner. Shipped as a **patch** version, per the owner's own explicit direction, same
+  pattern as several earlier single-decision patches (D-070 in `0.13.2`, D-075 in
+  `0.15.2`). See `decisions.md` D-078. B-108, B-101 carried forward, untouched, now
+  targeting **0.16.5**.
 
 ## M0 — Walking skeleton
 
