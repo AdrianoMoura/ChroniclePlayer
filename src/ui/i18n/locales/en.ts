@@ -569,6 +569,9 @@ export const dict = {
   'comments.editButton': 'Edit',
   'comments.saveButton': 'Save',
   'comments.cancelButton': 'Cancel',
+  'comments.deleteButton': 'Delete',
+  'comments.confirmDelete': 'Click again to confirm',
+  'comments.deleting': 'Deleting…',
 
   // Add another account — no Google-console walkthrough, unlike
   // the first-run wizard: the OAuth client is already set up and shared.

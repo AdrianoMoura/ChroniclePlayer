@@ -711,6 +711,29 @@ describe('YouTubeApiClient', () => {
     expect(quota.spent).toBe(50)
   })
 
+  it('deleteComment DELETEs comments?id= and counts 50 units', async () => {
+    const quota = new QuotaCounter()
+    let calledUrl = ''
+    let method = ''
+    const fetchFn: FetchFn = (url, init) => {
+      calledUrl = String(url)
+      method = String(init?.method)
+      return Promise.resolve(new Response(null, { status: 204 }))
+    }
+    await new YouTubeApiClient(auth, fetchFn, quota).deleteComment('c1')
+    expect(method).toBe('DELETE')
+    expect(new URL(calledUrl).searchParams.get('id')).toBe('c1')
+    expect(quota.spent).toBe(50)
+  })
+
+  it('deleteComment throws a mapped error on a non-ok response', async () => {
+    const fetchFn: FetchFn = () =>
+      Promise.resolve(jsonResponse(403, { error: { errors: [{ reason: 'forbidden' }] } }))
+    await expect(
+      new YouTubeApiClient(auth, fetchFn, new QuotaCounter()).deleteComment('c1')
+    ).rejects.toThrow()
+  })
+
   it('getOwnChannel returns the title and channel id, counts 1 unit', async () => {
     const quota = new QuotaCounter()
     const fetchFn: FetchFn = () =>

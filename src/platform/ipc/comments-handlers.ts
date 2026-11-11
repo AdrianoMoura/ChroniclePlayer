@@ -131,6 +131,32 @@ export function registerCommentsHandlers(ctx: BootContext): void {
     }
   )
   ipcMain.handle(
+    IpcChannel.deleteComment,
+    async (_event, commentId: unknown): Promise<ResultDto<void>> => {
+      try {
+        const id = typeof commentId === 'string' ? commentId : ''
+        if (id === '') throw new Error('invalid comment id')
+        if (!ctx.authFlow.hasWriteScope()) {
+          return {
+            ok: false,
+            errorKind: 'write-scope-required',
+            message: 'deleting a comment needs an extra permission'
+          }
+        }
+        await ctx.apiClient.deleteComment(id)
+        return { ok: true, value: undefined }
+      } catch (error) {
+        if (isDomainError(error, 'auth-expired')) {
+          ctx.authProvider.invalidate()
+          ctx.broadcast({ type: 'auth:required' })
+          return { ok: false, errorKind: 'auth-expired', message: error.message }
+        }
+        const kind = isDomainError(error) ? error.kind : 'internal'
+        return { ok: false, errorKind: kind, message: String((error as Error).message ?? error) }
+      }
+    }
+  )
+  ipcMain.handle(
     IpcChannel.rateVideo,
     async (_event, videoId: unknown, rating: unknown): Promise<ResultDto<void>> => {
       const id = parseVideoId(videoId)

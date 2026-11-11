@@ -500,6 +500,7 @@ export const IpcChannel = {
   postComment: 'video:postComment',
   replyToComment: 'video:replyToComment',
   updateComment: 'video:updateComment',
+  deleteComment: 'video:deleteComment',
   rateVideo: 'video:rate',
   getVideoRating: 'video:getRating',
   getDislikeEstimate: 'video:getDislikeEstimate',
@@ -779,6 +780,10 @@ export interface ChronicleApi {
   // authenticated user authored the comment — works for both a top-level
   // comment id and a reply id, both `comments` resources.
   updateComment(commentId: string, text: string): Promise<ResultDto<CommentDto>>
+  // comments.delete (50 units, write scope). Same ownership rule as
+  // updateComment — YouTube 403s unless the authenticated user authored
+  // the id. Works for both a top-level comment id and a reply id.
+  deleteComment(commentId: string): Promise<ResultDto<void>>
   // videos.rate (50 units, write scope). No public API exists to like a
   // *comment* — only videos. 'dislike' works the same as 'like' always
   // did — the write was never affected by YouTube hiding the public

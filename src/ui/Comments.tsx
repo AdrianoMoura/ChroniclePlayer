@@ -122,6 +122,17 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
       )
     }
 
+    // Same dual-level scan as above. Deleting a top-level comment drops the
+    // whole entry (its replies with it, matching what YouTube itself does);
+    // deleting a reply just drops it from its parent's `replies` array.
+    function removeComment(commentId: string): void {
+      setComments((current) =>
+        (current ?? [])
+          .filter((c) => c.commentId !== commentId)
+          .map((c) => ({ ...c, replies: c.replies.filter((r) => r.commentId !== commentId) }))
+      )
+    }
+
     function changeSortOrder(order: CommentSortOrder): void {
       if (order === sortOrder) return
       setSortOrder(order)
@@ -219,6 +230,7 @@ export const CommentsSection = forwardRef<CommentsSectionHandle, CommentsSection
                 onPause={onPause}
                 onOpenChannel={onOpenChannel}
                 onEdited={updateCommentText}
+                onDeleted={removeComment}
                 onReplyPosted={(reply) => {
                   setComments((current) =>
                     (current ?? []).map((c) =>
@@ -248,6 +260,7 @@ function CommentItem({
   onPause,
   onOpenChannel,
   onEdited,
+  onDeleted,
   onReplyPosted
 }: {
   videoId: string
@@ -258,6 +271,7 @@ function CommentItem({
   onPause: () => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onEdited: (commentId: string, text: string) => void
+  onDeleted: (commentId: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -282,6 +296,30 @@ function CommentItem({
         setReplyText('')
         setReplying(false)
         onReplyPosted(result.value)
+      }
+    )
+  }
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    if (!confirmingDelete) return
+    const timer = window.setTimeout(() => setConfirmingDelete(false), 6000)
+    return () => window.clearTimeout(timer)
+  }, [confirmingDelete])
+
+  function deleteSelf(): void {
+    setDeleting(true)
+    void runWithWriteScope(() => window.chronicle.deleteComment(comment.commentId)).then(
+      (result) => {
+        setDeleting(false)
+        if (!result.ok) {
+          if (result.errorKind !== 'cancelled')
+            setError(commentsErrorMessage(result.errorKind, result.message))
+          return
+        }
+        onDeleted(comment.commentId)
       }
     )
   }
@@ -317,6 +355,26 @@ function CommentItem({
             {t('comments.editButton')}
           </button>
         )}
+        {isOwn && !editing && (
+          <button
+            className={`comment-reply-toggle${confirmingDelete ? ' danger' : ''}`}
+            disabled={deleting}
+            onClick={() => {
+              if (confirmingDelete) {
+                setConfirmingDelete(false)
+                deleteSelf()
+              } else {
+                setConfirmingDelete(true)
+              }
+            }}
+          >
+            {deleting
+              ? t('comments.deleting')
+              : confirmingDelete
+                ? t('comments.confirmDelete')
+                : t('comments.deleteButton')}
+          </button>
+        )}
       </div>
       {replying && (
         <div className="comment-composer reply">
@@ -349,6 +407,7 @@ function CommentItem({
               onPause={onPause}
               onOpenChannel={onOpenChannel}
               onEdited={onEdited}
+              onDeleted={onDeleted}
               onReplyPosted={onReplyPosted}
             />
           ))}
@@ -372,6 +431,7 @@ function ReplyItem({
   onPause,
   onOpenChannel,
   onEdited,
+  onDeleted,
   onReplyPosted
 }: {
   videoId: string
@@ -383,6 +443,7 @@ function ReplyItem({
   onPause: () => void
   onOpenChannel: (channelId: string, channelTitle: string) => void
   onEdited: (commentId: string, text: string) => void
+  onDeleted: (commentId: string) => void
   onReplyPosted: (reply: CommentDto) => void
 }) {
   const [replying, setReplying] = useState(false)
@@ -407,6 +468,30 @@ function ReplyItem({
         setReplyText(`@${reply.authorDisplayName} `)
         setReplying(false)
         onReplyPosted(result.value)
+      }
+    )
+  }
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    if (!confirmingDelete) return
+    const timer = window.setTimeout(() => setConfirmingDelete(false), 6000)
+    return () => window.clearTimeout(timer)
+  }, [confirmingDelete])
+
+  function deleteSelf(): void {
+    setDeleting(true)
+    void runWithWriteScope(() => window.chronicle.deleteComment(reply.commentId)).then(
+      (result) => {
+        setDeleting(false)
+        if (!result.ok) {
+          if (result.errorKind !== 'cancelled')
+            setError(commentsErrorMessage(result.errorKind, result.message))
+          return
+        }
+        onDeleted(reply.commentId)
       }
     )
   }
@@ -440,6 +525,26 @@ function ReplyItem({
         {isOwn && !editing && (
           <button className="comment-reply-toggle" onClick={() => setEditing(true)}>
             {t('comments.editButton')}
+          </button>
+        )}
+        {isOwn && !editing && (
+          <button
+            className={`comment-reply-toggle${confirmingDelete ? ' danger' : ''}`}
+            disabled={deleting}
+            onClick={() => {
+              if (confirmingDelete) {
+                setConfirmingDelete(false)
+                deleteSelf()
+              } else {
+                setConfirmingDelete(true)
+              }
+            }}
+          >
+            {deleting
+              ? t('comments.deleting')
+              : confirmingDelete
+                ? t('comments.confirmDelete')
+                : t('comments.deleteButton')}
           </button>
         )}
       </div>

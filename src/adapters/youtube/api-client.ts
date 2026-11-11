@@ -503,6 +503,26 @@ export class YouTubeApiClient implements SubscriptionSource {
     return this.toReply(payload)
   }
 
+  // comments.delete — 50 units, write scope required. Same ownership rule
+  // as updateComment above: YouTube itself 403s on an id the authenticated
+  // user didn't author, so Chronicle only gates when to *show* the
+  // affordance. Deleting a top-level comment also removes its replies on
+  // YouTube's side; Chronicle's own local state update mirrors that.
+  async deleteComment(commentId: string): Promise<void> {
+    this.quota.add(50)
+    const token = await this.auth.getAccessToken()
+    const url = new URL(`${API_BASE}/comments`)
+    url.searchParams.set('id', commentId)
+    const response = await request(this.fetchFn, url.toString(), {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${token}` }
+    })
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>
+      throw this.mapError(response.status, payload)
+    }
+  }
+
   // videos.rate — 50 units, write scope required. YouTube's public API has
   // no equivalent endpoint to like a *comment* — only videos. 'dislike' is
   // accepted the same as 'like' — the write itself never depended on

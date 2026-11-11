@@ -560,6 +560,9 @@ export const dict: Partial<Dict> = {
   'comments.editButton': 'Editar',
   'comments.saveButton': 'Salvar',
   'comments.cancelButton': 'Cancelar',
+  'comments.deleteButton': 'Excluir',
+  'comments.confirmDelete': 'Clique novamente para confirmar',
+  'comments.deleting': 'Excluindo…',
 
   // Add another account
   'addAccount.title': 'Adicionar outra conta do Google',

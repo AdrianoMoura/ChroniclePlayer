@@ -2235,6 +2235,14 @@ button.comment-author:hover {
   color: var(--text);
 }
 
+.comment-reply-toggle.danger {
+  color: #e0a3a3;
+}
+
+.comment-reply-toggle.danger:hover {
+  color: #e0a3a3;
+}
+
 .comment-replies {
   margin-left: 32px;
   margin-top: 6px;
